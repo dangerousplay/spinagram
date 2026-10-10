@@ -1,0 +1,24 @@
+id: EX2
+title: When does a change need review?
+subtitle: YAML example with shorthand edges
+source: Example diagram · diagramkit
+zones:
+  - {x: 60, y: 180, w: 1800, h: 380, label: Automatic, color: soft}
+nodes:
+  - {id: start, at: [100, 280, 320, 180], style: dark, title: Change registered}
+  - {id: known, kind: diamond, at: [520, 260, 300, 220], title: [Executed, "before?"]}
+  - {id: std, at: [960, 220, 380, 130], title: Standard path, text: No manual step}
+  - {id: tg, at: [960, 400, 380, 130], style: warning, title: Technical review, text: "Asks rollback, window, owner"}
+  - {id: cab, at: [1440, 400, 380, 130], style: alert, title: Change board, text: Business impact on critical service}
+edges:
+  - start -> known
+  - "known.right -> std.left: yes"
+  - "known.bottom -> tg.left: no"
+  - "tg -> cab: business impact"
+legend:
+  x: 100
+  y: 640
+  items:
+    - {color: default, label: automatic}
+    - {color: warning, label: review}
+    - {color: alert, label: board}

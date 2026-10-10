@@ -1,0 +1,12 @@
+# Microsoft Azure public service icons V21 (SVG). https://learn.microsoft.com/azure/architecture/icons/
+azure:
+  title: Azure Public Service Icons
+  license: "© Microsoft — use per Azure architecture icon terms"
+  homepage: https://learn.microsoft.com/azure/architecture/icons/
+  source: {type: zip, url: "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V21.zip", version: V21, include: ["*/Icons/*"]}
+  rules:
+    - {match: '/Icons/(?P<cat>[^/]+)/\d+-icon-service-(?P<stem>[^/]+)\.svg$', name: '{stem}', aliases: ['{cat}-{stem}']}
+  alias: {vm: virtual-machine, aks: kubernetes-services, storage: storage-accounts, sql: sql-database,
+          lb: load-balancers, vnet: virtual-networks, key-vault: key-vaults, kv: key-vaults, app-service: app-services,
+          functions: function-apps, dns: dns-zones, firewall: firewalls, front-door: front-door-and-cdn-profiles,
+          cosmos: azure-cosmos-db, subscription: subscriptions, resource-group: resource-groups}

@@ -1,0 +1,84 @@
+# Terrastruct icon library (the icon sheet D2 uses): software/dev technologies — languages, databases,
+# frameworks, tools — plus generic infra/tech glyphs and a cloud subset. Listed on the hosted index page
+# and downloaded file by file (the site is unversioned: `version` labels the snapshot the names come from).
+# Names drop the category for `dev` (terrastruct:python, terrastruct:postgresql); other categories keep
+# it as a prefix (terrastruct:tech-server, terrastruct:aws-ec2) with the bare name as alias when free.
+terrastruct:
+  title: Terrastruct Icons (D2)
+  license: "Free to use (icons.terrastruct.com); per-icon artwork © its owners (devicon MIT, Flaticon, AWS/Azure/GCP)"
+  homepage: https://icons.terrastruct.com
+  source:
+    type: listing
+    url: https://icons.terrastruct.com/
+    pattern: 'clickIcon\("(?P<path>[^"]+)"\)'
+    version: "2026-10"
+  rules:   # order = preference when two files (or aliases) map to the same name
+    - {match: '^dev/(?P<stem>[^/]+)\.svg$', name: '{stem}'}
+    - {match: '^(?P<cat>infra|tech)/(?:\d+-)?(?P<stem>[^/]+)\.svg$', name: '{cat}-{stem}', aliases: ['{stem}']}
+    - {match: '^aws/(?:.+/)?(?:Amazon-|AWS-)?(?P<stem>(?:(?!_light-bg)[^/])+)\.svg$', name: 'aws-{stem}'}
+    - {match: '^aws/(?:.+/)?(?:Amazon-|AWS-)?(?P<stem>[^/]+)_light-bg\.svg$', name: 'aws-{stem}'}
+    - {match: '^azure/(?:.+/)?(?:Azure )?(?P<stem>[^/]+?)(?:_COLOR)?\.svg$', name: 'azure-{stem}'}
+    - {match: '^gcp/(?:.+/)?(?:Cloud )?(?P<stem>[^/]+)\.svg$', name: 'gcp-{stem}'}
+    - {match: '^(?P<cat>essentials|social|emotions)/(?:\d+-)?(?P<stem>[^/]+)\.svg$', name: '{cat}-{stem}', aliases: ['{stem}']}
+  strip: ['-original$', '-plain-wordmark$']
+  alias:   # short architecture names → icon
+    # languages / runtimes
+    js: javascript
+    ts: typescript
+    cpp: cplusplus
+    c-sharp: csharp
+    cs: csharp
+    golang: go
+    node: nodejs
+    py: python
+    vue: vuejs
+    angular: angularjs
+    # databases / caches
+    postgres: postgresql
+    pg: postgresql
+    mongo: mongodb
+    timescaledb: timescale
+    db: essentials-database
+    rds: aws-rds
+    aurora: aws-aurora
+    dynamodb: aws-dynamo-db
+    documentdb: aws-document-db-mongo-db
+    elasticache: aws-elasti-cache
+    redshift: aws-redshift
+    cosmos-db: azure-cosmos-db
+    azure-sql: azure-sql-databases
+    cloud-sql: gcp-sql
+    spanner: gcp-spanner
+    bigquery: gcp-big-query
+    # queues / streaming / events
+    sqs: aws-simple-queue-service-sqs
+    queue: aws-simple-queue-service-sqs-queue
+    sns: aws-simple-notification-service-sns
+    topic: aws-simple-notification-service-sns-topic
+    amazon-mq: aws-mq
+    msk: aws-managed-streaming-for-kafka
+    kafka: aws-managed-streaming-for-kafka
+    kinesis: aws-kinesis
+    eventbridge: aws-event-bridge
+    service-bus: azure-service-bus
+    event-hubs: azure-event-hubs
+    event-grid: azure-event-grid-topics
+    storage-queue: azure-queues-storage
+    pubsub: gcp-pub-sub
+    # compute / platform / network
+    ec2: aws-ec2
+    lambda: aws-lambda
+    s3: aws-simple-storage-service-s3
+    eks: aws-elastic-kubernetes-service
+    ecs: aws-elastic-container-service
+    elb: aws-elastic-load-balancing
+    alb: aws-elastic-load-balancing-elb-application-load-balancer
+    nlb: aws-elastic-load-balancing-elb-network-load-balancer
+    api-gateway: aws-api-gateway
+    aks: azure-kubernetes-services
+    gke: gcp-kubetnetes-engine
+    cloud-run: gcp-run
+    load-balancer: aws-elastic-load-balancing
+    client: aws-client
+    browser: tech-browser-2
+    mobile: tech-smartphone-3

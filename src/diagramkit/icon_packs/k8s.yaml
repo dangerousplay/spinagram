@@ -1,0 +1,9 @@
+# Kubernetes community icons (SVG, Apache-2.0). Unlabeled variants are the default; `-labeled` keeps the caption.
+k8s:
+  title: Kubernetes Icons
+  license: Apache-2.0 (kubernetes/community)
+  homepage: https://github.com/kubernetes/community/tree/main/icons
+  source: {type: github, repo: kubernetes/community, ref: 6ab6d3a998b1f028e14c3a33b42d3cbf1f99ec5d, include: ["icons/svg/*"]}
+  rules:
+    - {match: '^icons/svg/[^/]+/unlabeled/(?P<stem>[^/]+)\.svg$', name: '{stem}'}
+    - {match: '^icons/svg/[^/]+/labeled/(?P<stem>[^/]+)\.svg$', name: '{stem}-labeled'}

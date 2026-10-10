@@ -1,0 +1,37 @@
+# Automatic layout: no coordinates. Groups nest Region ⊃ VPC ⊃ AZs; the engine sizes and places
+# everything. Try other engines: diagramkit render examples/aws_layout.yaml --layout dot|elk|d2
+id: L01
+title: Vault and Consul on AWS
+layout: {engine: flex, direction: right, padding: 16, gap: 32}
+groups:
+  - id: region
+    label: us-east-1
+    style: aws-region
+    children:
+      - id: vpc
+        label: VPC shared-services
+        style: aws-vpc
+        children:
+          - {id: az-a, label: us-east-1a, style: aws-az, children: [vault-1, consul-1]}
+          - {id: az-b, label: us-east-1b, style: aws-az, children: [vault-2, consul-2]}
+          - {id: az-c, label: us-east-1c, style: aws-az, children: [vault-3, consul-3]}
+      - s3
+nodes:
+  - {id: users, title: Applications, text: "Kubernetes, VMs", icon: "aws:elastic-kubernetes-service"}
+  - {id: alb, title: ALB, text: "vault.internal", icon: "aws:elastic-load-balancing-application-load-balancer"}
+  - {id: vault-1, title: Vault 1, text: voter}
+  - {id: vault-2, title: Vault 2, text: voter}
+  - {id: vault-3, title: Vault 3, text: voter}
+  - {id: consul-1, title: Consul 1, text: server}
+  - {id: consul-2, title: Consul 2, text: server}
+  - {id: consul-3, title: Consul 3, text: server}
+  - {id: s3, title: S3, text: snapshots, icon: "aws:simple-storage-service"}
+edges:
+  - "users -> alb: HTTPS"
+  - "alb -> vault-1"
+  - "alb -> vault-2"
+  - "alb -> vault-3"
+  - "vault-1 -> consul-1"
+  - "vault-2 -> consul-2"
+  - "vault-3 -> consul-3"
+  - "consul-2 -> s3: snapshot"

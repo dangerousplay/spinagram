@@ -1,0 +1,19 @@
+# Icons from the built-in packs (downloaded on first use): `diagramkit icons fetch` / `diagramkit icons search <word>`.
+id: EXP1
+title: Icon packs
+subtitle: AWS, Google Cloud, Azure, OCI, OpenStack and Kubernetes icons as pack:name
+nodes:
+  - {id: aws, x: 80, y: 220, w: 520, h: 140, title: AWS, text: "aws:eks · aws:rds · aws:s3", icon: "aws:eks"}
+  - {id: gcp, x: 700, y: 220, w: 520, h: 140, title: Google Cloud, text: "gcp:gke · gcp:cloud-sql", icon: "gcp:gke"}
+  - {id: az, x: 1320, y: 220, w: 520, h: 140, title: Azure, text: "azure:aks · azure:kv", icon: "azure:aks"}
+  - {id: oci, x: 80, y: 460, w: 520, h: 140, title: OCI, text: "oci:vm (dark variant on dark fills)", icon: "oci:vm", style: dark}
+  - {id: os, x: 700, y: 460, w: 520, h: 140, title: OpenStack, text: "openstack:nova", icon: "openstack:nova"}
+  - {id: k8s, x: 1320, y: 460, w: 520, h: 140, title: Kubernetes, text: "k8s:pod · k8s:svc", icon: "k8s:pod"}
+  - {id: s3, x: 80, y: 700, w: 520, h: 140, title: Object storage, text: "aws:s3", icon: "aws:s3"}
+  - {id: lb, x: 700, y: 700, w: 520, h: 140, title: Load balancer, text: "aws:alb", icon: "aws:alb"}
+  - {id: svc, x: 1320, y: 700, w: 520, h: 140, title: Service, text: "k8s:svc", icon: "k8s:svc"}
+edges:
+  - aws -> gcp
+  - gcp -> az
+  - "s3.right -> lb.left"
+  - "lb.right -> svc.left"

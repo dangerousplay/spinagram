@@ -1,0 +1,9 @@
+# Oracle Cloud Infrastructure icons (PNG) from mingrammer/diagrams (MIT); `-white` files are the dark-fill variant.
+oci:
+  title: Oracle Cloud Infrastructure Icons
+  license: "MIT (mingrammer/diagrams); artwork © Oracle"
+  homepage: https://github.com/mingrammer/diagrams/tree/master/resources/oci
+  source: {type: github, repo: mingrammer/diagrams, ref: 9df75e65c03bf9f3da8c0ddbacc33d4ecf5e31e8, include: ["resources/oci/*"]}
+  rules:
+    - {match: '^resources/oci/(?P<cat>[^/]+)/(?P<stem>[^/]+)-white\.png$', name: '{cat}-{stem}', tone: dark, aliases: ['{stem}']}
+    - {match: '^resources/oci/(?P<cat>[^/]+)/(?P<stem>[^/]+)\.png$', name: '{cat}-{stem}', aliases: ['{stem}']}

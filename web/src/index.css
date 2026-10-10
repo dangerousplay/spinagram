@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", Menlo, monospace;
+  --color-accent: #2563eb;
+  --color-accent-soft: #dbeafe;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-white text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-200;
+}
+
+/* checkerboard behind transparent icons and diagrams */
+.checker {
+  background-image: conic-gradient(#0000000a 25%, transparent 0 50%, #0000000a 0 75%, transparent 0);
+  background-size: 16px 16px;
+}

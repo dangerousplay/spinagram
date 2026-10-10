@@ -1,0 +1,103 @@
+# Neutral built-in theme. Organisation themes live outside this repository and
+# usually start with `extends: default`, overriding only what differs.
+name: default
+
+canvas: {width: 1920, height: 1080, background: white, margin: 80}
+
+colors:
+  white: "#FFFFFF"
+  primary: "#2563EB"
+  primary-strong: "#1E40AF"
+  primary-deep: "#172554"
+  primary-soft: "#DBEAFE"
+  primary-bg: "#EFF6FF"
+  accent-on-dark: "#93C5FD"
+  warning: "#F59E0B"
+  warning-bg: "#FFFBEB"
+  warning-soft: "#FEF3C7"
+  warning-text: "#92400E"
+  alert: "#EA580C"
+  alert-bg: "#FFF7ED"
+  alert-soft: "#FFEDD5"
+  alert-text: "#C2410C"
+  text: "#1F2937"
+  text-muted: "#4B5563"
+  gray: "#6B7280"
+  border: "#D1D5DB"
+  neutral-soft: "#F3F4F6"
+
+# Font roles. `files` maps "<weight>" or "<weight>italic" to a font file relative to
+# the theme directory (used for metrics and embedding). `figma` maps weights to Figma
+# style names. Without files, metrics fall back to a width heuristic.
+fonts:
+  heading: {family: "Arial", fallback: "Helvetica, sans-serif", figma: {"400": Regular, "700": Bold}}
+  body: {family: "Arial", fallback: "Helvetica, sans-serif", figma: {"400": Regular, "700": Bold}}
+
+# Icons: `dir` relative to the theme; `pattern` placeholders {name} and {variant}.
+# `variants` maps a background tone to the variant suffix to use on it.
+icons: {dir: null, pattern: "{name}-{variant}.png", variants: {light: dark, dark: light}}
+
+styles:
+  node:
+    default: {fill: white, stroke: primary, title: primary-strong, body: text-muted, tone: light}
+    dark: {fill: primary-deep, stroke: primary-deep, title: accent-on-dark, body: primary-soft, tone: dark}
+    soft: {fill: primary-bg, stroke: primary, title: primary-deep, body: text-muted, tone: light}
+    warning: {fill: warning-bg, stroke: warning, title: warning-text, body: text-muted, tone: light}
+    alert: {fill: alert-bg, stroke: alert, title: alert-text, body: text-muted, tone: light}
+    neutral: {fill: white, stroke: border, title: text, body: text-muted, tone: light}
+  edge:
+    default: primary-strong
+    dark: primary-deep
+    alert: alert
+    warning: warning
+    gray: gray
+    light: primary-soft
+  zone:
+    soft: {fill: primary-soft, label: primary-deep}
+    warning: {fill: warning-soft, label: warning-text}
+    alert: {fill: alert-soft, label: alert-text}
+    neutral: {fill: neutral-soft, label: text-muted}
+    # AWS Architecture Icons groups (icons from the `aws` pack): outline, no fill, corner icon.
+    aws-cloud:   {fill: none, stroke: "#242F3E", label: "#242F3E", icon: "aws:group-aws-cloud", radius: 0, upper: false}
+    aws-account: {fill: none, stroke: "#E7157B", label: "#E7157B", icon: "aws:group-aws-account", radius: 0, upper: false}
+    aws-region:  {fill: none, stroke: "#00A4A6", dashed: true, label: "#00A4A6", icon: "aws:group-region", radius: 0, upper: false}
+    aws-vpc:     {fill: none, stroke: "#8C4FFF", label: "#8C4FFF", icon: "aws:group-virtualprivatecloud-vpc", radius: 0, upper: false}
+    aws-az:      {fill: none, stroke: "#147EBA", dashed: true, label: "#147EBA", radius: 0, upper: false}
+    aws-subnet:  {fill: "#E6F6F7", stroke: "#00A4A6", label: "#007B7D", icon: "aws:group-privatesubnet", radius: 0, upper: false, opacity: 1}
+  legend:
+    default: primary
+    dark: primary-deep
+    warning: warning
+    alert: alert
+    gray: gray
+    soft: primary-soft
+  table:
+    header_fill: primary-deep
+    header_text: white
+    row_fills: [white, primary-bg]
+    border: border
+    first_col_text: primary-strong
+    text: text-muted
+
+# Aliases let specs written for another theme keep working (e.g. `green` → `default`).
+aliases: {}
+
+defaults:
+  node: {radius: 22, stroke_width: 3, note_stroke_width: 2, padding: 22, title_size: 24, body_size: 18,
+         icon_size: 44, icon_size_center: 40, icon_scale: 0.26, icon_max: 88, icon_gap: 14, title_leading: 1.15, body_leading: 1.32, title_body_gap: 10,
+         auto: {min_w: 220, max_w: 360, min_h: 96}}   # size of nodes without w/h under `layout:`
+  diamond: {title_size: 21, leading: 1.22, style: soft}
+  edge: {width: 3.5, label_size: 17, arrow: true}
+  zone: {radius: 26, opacity: 0.6, label_size: 16}
+  table: {row_height: 100, header_height: 52, font_size: 16, header_size: 19, icon_size: 36, radius: 14}
+  legend: {size: 18, swatch: 20}
+  # automatic layout: gap between siblings in a group, group padding, engine spacing (px)
+  layout: {gap: 40, padding: 24, node_gap: 48, rank_gap: 80}
+
+chrome:
+  bar: {height: 10, color: primary}
+  title: {x: 80, y: 92, size: 46, color: primary, font: heading}
+  subtitle: {x: 80, y: 134, size: 23, color: text-muted, font: body}
+  kicker: {template: "{id}", x_right: 80, y: 60, size: 16, color: gray, letter_spacing: 2}
+  footer: {rule_y_from_bottom: 70, rule_color: border, logo: null, logo_size: [128, 38],
+           source_size: 15, source_color: gray}

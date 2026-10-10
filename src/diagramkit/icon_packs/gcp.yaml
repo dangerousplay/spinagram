@@ -1,0 +1,11 @@
+# Google Cloud official icons (SVG). https://cloud.google.com/icons
+gcp:
+  title: Google Cloud Icons
+  license: "© Google — use per Google Cloud icon guidelines"
+  homepage: https://cloud.google.com/icons
+  source: {type: zip, url: "https://cloud.google.com/static/icons/files/google-cloud-icons.zip", version: "2024", include: ["*.svg"]}
+  rules:
+    - {match: '^(?P<stem>[^/]+)/(?P=stem)\.svg$', name: '{stem}'}
+  alias: {gce: compute-engine, gke: google-kubernetes-engine, gcs: cloud-storage, storage: cloud-storage, sql: cloud-sql,
+          vpc: virtual-private-cloud, dns: cloud-dns, kms: key-management-service, lb: cloud-load-balancing,
+          run: cloud-run, functions: cloud-functions, secrets: secret-manager}

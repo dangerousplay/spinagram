@@ -1,0 +1,8 @@
+# OpenStack project icons (PNG) from mingrammer/diagrams (MIT); artwork © OpenStack Foundation / OpenInfra.
+openstack:
+  title: OpenStack Icons
+  license: "MIT (mingrammer/diagrams); artwork © OpenInfra Foundation"
+  homepage: https://github.com/mingrammer/diagrams/tree/master/resources/openstack
+  source: {type: github, repo: mingrammer/diagrams, ref: 9df75e65c03bf9f3da8c0ddbacc33d4ecf5e31e8, include: ["resources/openstack/*"]}
+  rules:
+    - {match: '^resources/openstack/(?P<cat>[^/]+)/(?P<stem>[^/]+)\.png$', name: '{stem}', aliases: ['{cat}-{stem}']}

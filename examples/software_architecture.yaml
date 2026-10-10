@@ -1,0 +1,25 @@
+# General software architecture with the Terrastruct icon pack (the D2 icon sheet): languages,
+# databases, caches and queues by plain names. Render: diagramkit render examples/software_architecture.yaml
+id: L02
+title: Orders service
+layout: {engine: elk, direction: right, padding: 16, gap: 40}
+groups:
+  - {id: services, label: Services, children: [api, worker]}
+  - {id: data, label: Data, children: [pg, redis, mongo]}
+nodes:
+  - {id: web, title: Web app, text: TypeScript + React, icon: "terrastruct:react"}
+  - {id: gw, title: Gateway, text: NGINX, icon: "terrastruct:nginx"}
+  - {id: api, title: Orders API, text: Java, icon: "terrastruct:java"}
+  - {id: worker, title: Billing worker, text: Python, icon: "terrastruct:python"}
+  - {id: queue, title: Order events, text: Kafka (MSK), icon: "terrastruct:kafka"}
+  - {id: pg, title: Orders DB, text: PostgreSQL, icon: "terrastruct:postgres"}
+  - {id: redis, title: Cache, text: Redis, icon: "terrastruct:redis"}
+  - {id: mongo, title: Audit log, text: MongoDB, icon: "terrastruct:mongo"}
+edges:
+  - "web -> gw: HTTPS"
+  - "gw -> api"
+  - "api -> pg"
+  - "api -> redis"
+  - "api -> queue: publish"
+  - "queue -> worker: consume"
+  - "worker -> mongo"

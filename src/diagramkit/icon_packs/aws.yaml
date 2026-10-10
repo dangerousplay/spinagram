@@ -1,0 +1,43 @@
+# AWS Architecture Icons (official artwork) packaged as SVG by the MIT-licensed npm package `aws-icons`.
+# Use follows the AWS Architecture Icons guidelines: https://aws.amazon.com/architecture/icons/
+aws:
+  title: AWS Architecture Icons
+  license: "MIT (aws-icons package); artwork © Amazon Web Services — use per AWS icon guidelines"
+  homepage: https://aws.amazon.com/architecture/icons/
+  source: {type: npm, package: aws-icons, version: 3.3.0, include: ["package/icons/*"]}
+  rules:   # order = preference when two files map to the same name
+    - {match: '^package/icons/architecture-service/(?P<stem>[^/]+)\.svg$', name: '{stem}'}
+    - {match: '^package/icons/architecture-group/(?P<stem>[^/]+)\.svg$', name: 'group-{stem}', aliases: ['{stem}']}
+    - {match: '^package/icons/resource/(?P<stem>[^/]+)\.svg$', name: '{stem}'}
+    - {match: '^package/icons/category/(?P<stem>[^/]+)\.svg$', name: 'category-{stem}'}
+  strip: ['^amazon-', '^aws-']   # aws:ec2 → amazon-ec2, aws:lambda → aws-lambda
+  alias:
+    s3: amazon-simple-storage-service
+    kms: aws-key-management-service
+    rds: amazon-rds
+    eks: amazon-elastic-kubernetes-service
+    ecs: amazon-elastic-container-service
+    elb: elastic-load-balancing
+    alb: elastic-load-balancing-application-load-balancer
+    nlb: elastic-load-balancing-network-load-balancer
+    r53: amazon-route53
+    route53: amazon-route53
+    secrets-manager: aws-secrets-manager
+    sm: aws-secrets-manager
+    ssm: aws-systems-manager
+    cloudwatch: amazon-cloud-watch
+    vpc: amazon-virtual-private-cloud
+    tgw: aws-transit-gateway
+    dynamodb: amazon-dynamo-db
+    sqs: amazon-simple-queue-service
+    sns: amazon-simple-notification-service
+    ebs: amazon-elastic-block-store
+    cloudfront: amazon-cloud-front
+    api-gateway: amazon-api-gateway
+    waf: awswaf
+    acm: aws-certificate-manager
+    dx: aws-direct-connect
+    eventbridge: amazon-event-bridge
+    account: group-aws-account
+    cloud: group-aws-cloud
+    region: group-region
