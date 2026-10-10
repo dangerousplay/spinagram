@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from ...icons import cache_root
-from ..graph import LGraph, LGroup, LNode, LResult
+from ..graph import LGraph, LNode, LResult
 
 ELKJS_VERSION = "0.12.0"
 RUNNER = Path(__file__).with_name("elk_runner.mjs")

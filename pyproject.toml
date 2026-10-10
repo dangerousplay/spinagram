@@ -4,6 +4,19 @@ version = "0.1.0"
 description = "Diagrams as code rendered to editable SVG, PNG, PowerPoint and Figma, with pluggable themes and backends."
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{name = "Davi Ficanha Henrique", email = "24483153+dangerousplay@users.noreply.github.com"}]
+keywords = ["diagrams", "diagram-as-code", "architecture", "svg", "powerpoint", "pptx", "figma", "figjam"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Presentation",
+    "Topic :: Software Development :: Documentation",
+]
 dependencies = [
     "pyyaml>=6.0",
     "pillow>=10.0",
@@ -20,6 +33,11 @@ ui = [
     "uvicorn>=0.29",
     "watchfiles>=0.21",
 ]
+
+[project.urls]
+Homepage = "https://github.com/dangerousplay/spinagram"
+Source = "https://github.com/dangerousplay/spinagram"
+Issues = "https://github.com/dangerousplay/spinagram/issues"
 
 [project.scripts]
 spinagram = "spinagram.cli:main"
@@ -42,7 +60,16 @@ packages = ["src/spinagram"]
 dev = [
     "httpx>=0.27",
     "pytest>=8.0",
+    "ruff>=0.17",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+# short loop names like `l` are used on purpose in the layout engines
+ignore = ["E741"]

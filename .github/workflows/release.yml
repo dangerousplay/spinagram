@@ -1,0 +1,47 @@
+name: Release
+
+# Push a tag that matches the version in pyproject.toml:
+#   uv version --bump minor && git commit -am "Release v$(uv version --short)"
+#   git tag "v$(uv version --short)" && git push --follow-tags
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish to PyPI
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/spinagram/
+    permissions:
+      id-token: write # PyPI trusted publishing (OIDC), no API token stored
+      contents: write # GitHub release
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.4"
+      - name: Tag matches project version
+        run: |
+          v="$(uv version --short)"
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match pyproject version $v"
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - run: uv publish --trusted-publishing always
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes

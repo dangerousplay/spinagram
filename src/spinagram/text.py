@@ -25,7 +25,7 @@ def _pil_font(path: str, size_tenths: int):
 @lru_cache(maxsize=4096)
 def _has_glyph(path: str, ch: str) -> bool:
     try:
-        from fontTools.ttLib import TTFont
+        from fontTools.ttLib import TTFont  # noqa: F401  (availability probe)
     except ImportError:
         return True
     cmap = _cmap(path)

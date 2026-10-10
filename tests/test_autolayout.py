@@ -1,12 +1,11 @@
 """Auto layout: model/YAML, sizing, and invariants every engine must keep."""
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
 
-from spinagram.autolayout import apply_layout, build_graph
+from spinagram.autolayout import apply_layout
 from spinagram.autolayout.engines import EngineUnavailable, available, get_engine
 from spinagram.autolayout.graph import LGraph, LResult
 from spinagram.model import Diagram
@@ -192,7 +191,6 @@ def test_flex_ortho_elbows():
                    "edges": ["a -> b", "a -> c"]})
     out = apply_layout(d, _theme(), "flex")
     for e in out.edges:
-        pts = [(0, 0)] + (e.via or [])
         assert e.src.startswith("a.right") and e.dst.endswith(".left")
         for (x1, y1), (x2, y2) in zip(e.via or [], (e.via or [])[1:]):
             assert x1 == x2 or y1 == y2  # no diagonal segment

@@ -13,7 +13,7 @@ from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
 from .scene import (Binding, Cell, Connector, Icon, Image, Label, Line, Scene, Shape, TableGrid, Text,
                     TextBlock)
-from .text import measure, wrap, wrap_paragraphs
+from .text import measure, wrap_paragraphs
 from .theme import FontRef, Theme
 
 

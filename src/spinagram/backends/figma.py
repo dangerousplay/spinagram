@@ -376,7 +376,7 @@ def to_figma_js(scene: Scene, limit: int = CHUNK_LIMIT, library: bool = False) -
         head = PRELUDE % {"name": _j(name), "w": _r(scene.width), "h": _r(scene.height), "bg": _j(scene.background),
                           "first": "true" if i == 0 else "false"}
         code = "\n".join(body)
-        svg = {k: v for k, v in em.svgs.items() if f"svgIcon(" in code and _j(k) in code}
+        svg = {k: v for k, v in em.svgs.items() if "svgIcon(" in code and _j(k) in code}
         scripts.append(f"// spinagram {scene.id} chunk {i + 1}/{len(chunks)}\n" + head
                        + f"const SVG = {_j(svg)};\n" + code + EPILOGUE)
     return scripts, em.assets

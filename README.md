@@ -15,7 +15,8 @@ Diagrams are written in **YAML** or **Python**. A **theme** directory supplies c
 ## Install
 
 ```bash
-uv tool install "spinagram[all] @ /path/to/spinagram"     # or: uv add --editable /path/to/spinagram[all]
+uv tool install "spinagram[all]"                            # or in a project: uv add "spinagram[all]"
+# from a checkout: uv tool install "spinagram[all] @ /path/to/spinagram"
 # extras: pptx, png (Playwright), vector (vtracer + resvg-py: PNG icons → SVG)
 uv run playwright install chromium                          # only for PNG
 ```
