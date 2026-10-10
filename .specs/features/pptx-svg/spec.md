@@ -1,6 +1,6 @@
 # Feature: SVG icons and images in PowerPoint
 
-**Status:** Done (2026-10-08) · **Size:** Medium · **Owner:** diagramkit
+**Status:** Done (2026-10-08) · **Size:** Medium · **Owner:** spinagram
 
 ## Problem
 

@@ -1,4 +1,4 @@
-// Dry-runs a diagramkit Figma script against a minimal mock of the Plugin API.
+// Dry-runs a spinagram Figma script against a minimal mock of the Plugin API.
 // Usage: node figma_mock.mjs <script.js> [editorType]
 import { readFileSync } from 'node:fs';
 let ids = 0;

@@ -10,8 +10,8 @@
 - 2026-10-08 · Auto layout: pluggable engines (flex built-in, dot, elk, d2) behind `LGraph → LResult`;
   user asked for all four. `build_scene` applies layout itself; laid-out copy has `layout=None`.
 
-- 2026-10-09 · Live UI (`diagramkit serve`): Starlette + uvicorn + watchfiles (extra `ui`), SSE events,
-  React + TS + Vite + Tailwind v4 SPA built with bun into `src/diagramkit/ui/static` (committed, ships in wheel).
+- 2026-10-09 · Live UI (`spinagram serve`): Starlette + uvicorn + watchfiles (extra `ui`), SSE events,
+  React + TS + Vite + Tailwind v4 SPA built with bun into `src/spinagram/ui/static` (committed, ships in wheel).
   `icons.AUTO_FETCH=False` under serve: packs are fetched explicitly from the UI. See `features/live-ui/`.
 
 ## Deferred ideas

@@ -174,7 +174,7 @@ def _clean(v: Any) -> Any:
 def dump(d: Diagram) -> dict[str, Any]:
     """An explicit, coordinate-complete spec for ``d`` (``layout``/``groups`` are dropped: zones carry them).
 
-    Used by ``diagramkit layout`` to freeze an automatic layout for hand-tuning.
+    Used by ``spinagram layout`` to freeze an automatic layout for hand-tuning.
     """
     from dataclasses import asdict, fields
 

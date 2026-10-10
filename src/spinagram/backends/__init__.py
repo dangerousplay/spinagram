@@ -1,7 +1,7 @@
 """Backend protocol and registry.
 
 A backend turns resolved scenes into files. Third-party backends register through the
-``diagramkit.backends`` entry-point group; built-ins are always available.
+``spinagram.backends`` entry-point group; built-ins are always available.
 """
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ from typing import Protocol, Sequence
 from ..scene import Scene
 
 _BUILTIN = {
-    "svg": "diagramkit.backends.svg:SvgBackend",
-    "png": "diagramkit.backends.png:PngBackend",
-    "pptx": "diagramkit.backends.pptx:PptxBackend",
-    "figma": "diagramkit.backends.figma:FigmaBackend",
-    "figjam": "diagramkit.backends.figma:FigjamBackend",
+    "svg": "spinagram.backends.svg:SvgBackend",
+    "png": "spinagram.backends.png:PngBackend",
+    "pptx": "spinagram.backends.pptx:PptxBackend",
+    "figma": "spinagram.backends.figma:FigmaBackend",
+    "figjam": "spinagram.backends.figma:FigjamBackend",
 }
 
 
@@ -36,7 +36,7 @@ def _load(target: str):
 
 def available() -> dict[str, str]:
     found = dict(_BUILTIN)
-    for ep in entry_points(group="diagramkit.backends"):
+    for ep in entry_points(group="spinagram.backends"):
         found.setdefault(ep.name, ep.value)
     return found
 

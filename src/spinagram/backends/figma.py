@@ -1,7 +1,7 @@
 """Figma: Plugin-API JavaScript for the Figma MCP ``use_figma`` tool.
 
 Each diagram becomes a frame (Design files), a slide (Slides files) or a section (FigJam
-boards) named ``diagramkit:<id>``. Running the script again clears that container and
+boards) named ``spinagram:<id>``. Running the script again clears that container and
 rebuilds it in place, so its position on the canvas survives re-renders.
 
 Native, editable nodes: rectangles, vector diamonds, text with the theme fonts, tables as
@@ -361,7 +361,7 @@ def to_figma_js(scene: Scene, limit: int = CHUNK_LIMIT, library: bool = False) -
     """
     em = _Emitter(scene, library)
     parts = em.build()
-    name = f"diagramkit:{scene.id}"
+    name = f"spinagram:{scene.id}"
     chunks: list[list[str]] = [[]]
     size = 0
     budget = limit - len(PRELUDE) - 400 - sum(len(v) for v in em.svgs.values())
@@ -377,7 +377,7 @@ def to_figma_js(scene: Scene, limit: int = CHUNK_LIMIT, library: bool = False) -
                           "first": "true" if i == 0 else "false"}
         code = "\n".join(body)
         svg = {k: v for k, v in em.svgs.items() if f"svgIcon(" in code and _j(k) in code}
-        scripts.append(f"// diagramkit {scene.id} chunk {i + 1}/{len(chunks)}\n" + head
+        scripts.append(f"// spinagram {scene.id} chunk {i + 1}/{len(chunks)}\n" + head
                        + f"const SVG = {_j(svg)};\n" + code + EPILOGUE)
     return scripts, em.assets
 
@@ -388,13 +388,13 @@ def icon_library_js(uploads: dict[str, str], *, x: float = 0, y: float = -1200) 
     ``uploads`` maps each asset file name (``ec2.svg``, ``safe-green.png``) to the node id
     ``upload_assets`` returned for it — or to ``None``: the layer is then found by name (a multipart
     upload names the layer after the file). The nodes are renamed ``dk-icon:<file>`` and laid out in
-    a section ``diagramkit:icons``; diagram scripts built with ``library=True`` clone them.
+    a section ``spinagram:icons``; diagram scripts built with ``library=True`` clone them.
     """
     return (f"const U = {_j(uploads)}; const X = {_r(x)}, Y = {_r(y)};\n"
             "const byName = (k) => figma.currentPage.findOne(n => n.parent === figma.currentPage && "
             "(n.name === k || n.name === k.replace(/\\.[^.]+$/, '')));\n"
-            "let sec = figma.currentPage.findOne(n => n.name === 'diagramkit:icons');\n"
-            "if (!sec) { sec = figma.createSection(); sec.name = 'diagramkit:icons'; sec.x = X; sec.y = Y; }\n"
+            "let sec = figma.currentPage.findOne(n => n.name === 'spinagram:icons');\n"
+            "if (!sec) { sec = figma.createSection(); sec.name = 'spinagram:icons'; sec.x = X; sec.y = Y; }\n"
             "const keys = Object.keys(U).sort(); const done = [], missing = [];\n"
             "for (const [i, k] of keys.entries()) {\n"
             "  const n = U[k] ? await figma.getNodeByIdAsync(U[k]) : byName(k); if (!n) { missing.push(k); continue; }\n"
@@ -437,21 +437,21 @@ class FigmaBackend:
                 p.write_text(js, encoding="utf-8")
                 paths.append(p)
             m = d / f"{sc.slug}.assets.json"
-            m.write_text(json.dumps({"container": f"diagramkit:{sc.id}", "assets": assets}, indent=2,
+            m.write_text(json.dumps({"container": f"spinagram:{sc.id}", "assets": assets}, indent=2,
                                     ensure_ascii=False), encoding="utf-8")
             paths.append(m)
         return paths
 
 
-FIGJAM_README = """# FigJam hand-off (diagramkit)
+FIGJAM_README = """# FigJam hand-off (spinagram)
 
 1. Load the Figma skills `figma-use` and `figma-use-figjam`.
 2. Icons (once per board): `upload_assets(fileKey, count={n})`, then POST every file in `icons/`
    as multipart (`-F "file=@icons/<name>"`) — the layer is named after the file.
 3. Run `icon-library.js` with `use_figma`: the uploaded layers become `dk-icon:<file>` in a
-   `diagramkit:icons` section. Keep that section: diagrams clone their icons from it.
+   `spinagram:icons` section. Keep that section: diagrams clone their icons from it.
 4. Run each `<slug>-NN.js` with `use_figma`, in order. Each diagram becomes a section
-   `diagramkit:<id>`; edges between boxes are native connectors. Re-running rebuilds in place.
+   `spinagram:<id>`; edges between boxes are native connectors. Re-running rebuilds in place.
 
 Icons: {icons}
 """

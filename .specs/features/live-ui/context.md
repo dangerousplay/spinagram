@@ -6,7 +6,7 @@
 
 ## Feature Boundary
 
-Local, read-only web UI started by `diagramkit serve`: live preview of specs, theme token sheets, icon pack
+Local, read-only web UI started by `spinagram serve`: live preview of specs, theme token sheets, icon pack
 browser with fetch.
 
 ## Implementation Decisions
@@ -14,7 +14,7 @@ browser with fetch.
 ### Stack
 - Backend: Starlette + uvicorn + watchfiles as optional extra `ui`; live events over SSE.
 - Frontend: React + TypeScript + Vite + Tailwind CSS v4, built with bun; built bundle committed into
-  `src/diagramkit/ui/static/` so wheel users need no Node.
+  `src/spinagram/ui/static/` so wheel users need no Node.
 
 ### What live reload covers
 - Spec paths + active theme directory (and its `extends` chain). Errors inline.
@@ -30,7 +30,7 @@ browser with fetch.
 
 ### Shell and launch
 - Left nav (Diagrams / Themes / Icon packs) + main pane; UI follows system light/dark.
-- `diagramkit serve`, 127.0.0.1 only, auto-open browser, `--port`, `--no-open`.
+- `spinagram serve`, 127.0.0.1 only, auto-open browser, `--port`, `--no-open`.
 
 ### Agent's Discretion
 - Visual design details, component library choice (none — Tailwind utilities), virtualisation lib.

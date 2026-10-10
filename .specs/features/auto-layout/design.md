@@ -61,7 +61,7 @@ Absolute nodes (explicit x/y and no group, when `layout.include` is not `all`) a
 
 Protocol: `class Engine: name: str; def available(self) -> str | None  # None ok, else install hint;
 def run(self, g: LGraph) -> LResult`. Registry mirrors `backends/__init__.py` (built-ins + entry point
-group `diagramkit.layouts`).
+group `spinagram.layouts`).
 
 - **flex** (pure Python): post-order. A group measures children, places them in row/column/grid with
   `gap`, aligns cross-axis, adds padding → its size. Root uses `layout.direction`. Edges: no routes
@@ -97,7 +97,7 @@ All subprocess engines: `timeout=60`, stderr surfaced in the error.
 ## CLI
 
 - `render|check|deck ... --layout ENGINE` → env/param override passed into `api.scenes`.
-- `diagramkit layout SPEC -o OUT.yaml [--layout ENGINE]` → `yaml_io.dump(apply_layout(d))` (new
+- `spinagram layout SPEC -o OUT.yaml [--layout ENGINE]` → `yaml_io.dump(apply_layout(d))` (new
   `dump` writes nodes with `at:`, zones, edges with via; drops `layout:` and `groups:`).
 
 ## Theme

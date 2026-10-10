@@ -1,4 +1,4 @@
-# diagramkit
+# spinagram
 
 Diagrams as code, delivered **editable** everywhere:
 
@@ -6,7 +6,7 @@ Diagrams as code, delivered **editable** everywhere:
 |---|---|
 | `svg` | Self-contained SVG with fonts and images embedded |
 | `png` | 2x PNG rendered from the SVG (Playwright) |
-| `pptx` | One slide per diagram. Native shapes with the text inside, connectors bound to their shapes (move a box and the arrows follow), native tables. SVG icons stay vectors (PowerPoint 365 `svgBlip`) with a PNG fallback for other readers (`DIAGRAMKIT_PPTX_SVG=raster` turns this off) |
+| `pptx` | One slide per diagram. Native shapes with the text inside, connectors bound to their shapes (move a box and the arrows follow), native tables. SVG icons stay vectors (PowerPoint 365 `svgBlip`) with a PNG fallback for other readers (`SPINAGRAM_PPTX_SVG=raster` turns this off) |
 | `figma` | Figma Plugin-API JavaScript, run through the Figma MCP `use_figma` tool to build native, editable nodes |
 | `figjam` | FigJam board hand-off: one section per diagram, edges as native connectors bound to the boxes, icons cloned from an uploaded icon library (`figma/icons/`, `icon-library.js`, `README.md`) |
 
@@ -15,7 +15,7 @@ Diagrams are written in **YAML** or **Python**. A **theme** directory supplies c
 ## Install
 
 ```bash
-uv tool install "diagramkit[all] @ /path/to/diagramkit"     # or: uv add --editable /path/to/diagramkit[all]
+uv tool install "spinagram[all] @ /path/to/spinagram"     # or: uv add --editable /path/to/spinagram[all]
 # extras: pptx, png (Playwright), vector (vtracer + resvg-py: PNG icons → SVG)
 uv run playwright install chromium                          # only for PNG
 ```
@@ -41,7 +41,7 @@ Edge shorthand is `"<from> -> <to>[: label]"`. An endpoint is either a node id, 
 ## Python
 
 ```python
-from diagramkit import Diagram
+from spinagram import Diagram
 
 d = Diagram("D01", "How a change is routed", subtitle="Facts decide the path")
 req, eng, out = d.row(["Change request", "Risk engine", "Route"], x=80, y=220, w=420, h=300, gap=80,
@@ -54,10 +54,10 @@ d.save("out/", theme="path/to/theme", formats=["svg", "pptx"])
 ## CLI
 
 ```bash
-diagramkit render specs/ --theme ../my-theme -f svg,png,pptx,figma -o out/
-diagramkit check specs/ --theme ../my-theme        # text overflow report
-diagramkit render specs/ --layout elk -o out/     # override the layout engine of `layout:` specs
-diagramkit layout spec.yaml -o frozen.yaml         # freeze automatic positions
+spinagram render specs/ --theme ../my-theme -f svg,png,pptx,figma -o out/
+spinagram check specs/ --theme ../my-theme        # text overflow report
+spinagram render specs/ --layout elk -o out/     # override the layout engine of `layout:` specs
+spinagram layout spec.yaml -o frozen.yaml         # freeze automatic positions
 ```
 
 `render` writes `<id>-<slug>.{svg,png}`, one `diagrams.pptx` containing all slides, `figma/<id>.js` chunks and an `index.html` gallery.
@@ -78,15 +78,15 @@ Every render records which element shows which fact:
 
 CLI:
 
-- `diagramkit facts <specs>` lists every fact used, per diagram.
+- `spinagram facts <specs>` lists every fact used, per diagram.
 - An unknown fact id fails `check` and `render`.
 
-HTML slides can use the same placeholders through `diagramkit.facts.render_html`.
+HTML slides can use the same placeholders through `spinagram.facts.render_html`.
 
 ## Automatic layout
 
 Add `layout:` to a diagram and leave out the coordinates. Nest nodes in `groups:`, such as an AWS Region,
-a VPC and its availability zones, and diagramkit sizes every node from its text and icon, places
+a VPC and its availability zones, and spinagram sizes every node from its text and icon, places
 everything and draws each group as a zone with its label and corner icon.
 
 ```yaml
@@ -118,22 +118,22 @@ The full example is [`examples/aws_layout.yaml`](examples/aws_layout.yaml). In P
 - **Comparing engines:** `--layout ENGINE` on `render`, `check` and `facts` overrides the spec's engine.
 - **Mixed slides:** nodes with explicit `x`/`y` outside any group keep their position. Laid-out content goes into `layout.area: [x, y, w, h]`, which defaults to the canvas minus the margins and chrome. Anything that does not fit is reported by `check`.
 - **Edge routes:** a route from the engine becomes the edge's `via`, bound to node sides. An edge you anchored (`a.right`) or routed (`via`) is left alone.
-- **Hand-tuning:** `diagramkit layout spec.yaml -o frozen.yaml` writes the computed positions as an explicit spec, which you can then tune by hand.
-- **Your own engine:** an engine is a class with `name`, `available()` and `run(LGraph) -> LResult` (see `diagramkit.autolayout.graph`), registered through the `diagramkit.layouts` entry point.
+- **Hand-tuning:** `spinagram layout spec.yaml -o frozen.yaml` writes the computed positions as an explicit spec, which you can then tune by hand.
+- **Your own engine:** an engine is a class with `name`, `available()` and `run(LGraph) -> LResult` (see `spinagram.autolayout.graph`), registered through the `spinagram.layouts` entry point.
 
 ## Themes
 
-A theme is a directory containing `theme.yaml` plus its assets. Start with `extends: default` and override only what differs. See [`src/diagramkit/themes/default/theme.yaml`](src/diagramkit/themes/default/theme.yaml) for every key. Select a theme with `--theme DIR` or the `DIAGRAMKIT_THEME` environment variable.
+A theme is a directory containing `theme.yaml` plus its assets. Start with `extends: default` and override only what differs. See [`src/spinagram/themes/default/theme.yaml`](src/spinagram/themes/default/theme.yaml) for every key. Select a theme with `--theme DIR` or the `SPINAGRAM_THEME` environment variable.
 
 ## Backends
 
-A backend is a class with `name`, `render(scenes, out_dir) -> list[Path]`, registered through the `diagramkit.backends` entry point. Backends only read the resolved `Scene`, in which every colour is hex, fonts are resolved, text is pre-wrapped and coordinates are absolute. Adding an output format never touches layout or themes.
+A backend is a class with `name`, `render(scenes, out_dir) -> list[Path]`, registered through the `spinagram.backends` entry point. Backends only read the resolved `Scene`, in which every colour is hex, fonts are resolved, text is pre-wrapped and coordinates are absolute. Adding an output format never touches layout or themes.
 
 ## Figma
 
 `figma` writes `out/figma/<slug>-NN.js` plus `<slug>.assets.json`. Through the Figma MCP:
 
-1. Run each `-NN.js` in order with `use_figma` against a Design or Slides file. The diagram becomes a frame (Design) or a slide (Slides) named `diagramkit:<id>`. Re-running rebuilds its content in place and keeps the canvas position.
+1. Run each `-NN.js` in order with `use_figma` against a Design or Slides file. The diagram becomes a frame (Design) or a slide (Slides) named `spinagram:<id>`. Re-running rebuilds its content in place and keeps the canvas position.
 2. Images: `use_figma` cannot add image bytes, so the script draws placeholders and returns `imageTargets: [{nodeId, asset}]`. Call `upload_assets(fileKey, count=n, nodeIds=[...])`, then POST each file listed in `assets.json` to its returned URL.
 
 Edges are vectors with arrow caps. Figma's Connector node exists only in FigJam.
@@ -149,12 +149,12 @@ Specs: `.specs/` (spec-driven: PROJECT, feature spec/design/tasks).
 
 ## Live UI
 
-`diagramkit serve` opens a local, read-only web UI with live reload (needs the `ui` extra:
-`pip install 'diagramkit[ui]'`; the web bundle ships in the wheel, no Node needed):
+`spinagram serve` opens a local, read-only web UI with live reload (needs the `ui` extra:
+`pip install 'spinagram[ui]'`; the web bundle ships in the wheel, no Node needed):
 
 ```bash
-diagramkit serve specs/ --theme ../my-theme          # http://127.0.0.1:8765, opens the browser
-diagramkit serve specs/ --layout elk --port 0 --no-open
+spinagram serve specs/ --theme ../my-theme          # http://127.0.0.1:8765, opens the browser
+spinagram serve specs/ --layout elk --port 0 --no-open
 ```
 
 - **Diagrams** — every spec under the paths; saving a spec, its `_defaults.yaml`, a `.py` helper or any file
@@ -168,12 +168,12 @@ diagramkit serve specs/ --layout elk --port 0 --no-open
 
 Binds 127.0.0.1 only and rejects other `Host` headers. Frontend source: `web/` (React + TypeScript + Vite +
 Tailwind CSS v4, built with bun): `bun install && bun run dev` (proxies `/api` to `serve --port 8765`),
-`bun run build` rewrites `src/diagramkit/ui/static/`.
+`bun run build` rewrites `src/spinagram/ui/static/`.
 
 ## Icon packs
 
-Vendor icon sets are downloaded on first use into `~/.cache/diagramkit/icons` (override with
-`DIAGRAMKIT_CACHE`; set `DIAGRAMKIT_OFFLINE=1` to never download) and referenced as `pack:name`:
+Vendor icon sets are downloaded on first use into `~/.cache/spinagram/icons` (override with
+`SPINAGRAM_CACHE`; set `SPINAGRAM_OFFLINE=1` to never download) and referenced as `pack:name`:
 
 ```yaml
 nodes:
@@ -195,31 +195,31 @@ Names are kebab-case file names (`aws:amazon-ec2`), with short aliases (`aws:ec2
 `gcp:gke`, `azure:aks`, …). For general software architecture use `terrastruct`: technologies by plain
 name (`terrastruct:python`, `terrastruct:postgres`, `terrastruct:redis`, `terrastruct:kafka`, `terrastruct:sqs`),
 generic glyphs by category (`terrastruct:tech-server`, `terrastruct:infra-firewall`, `terrastruct:db`).
-See `examples/software_architecture.yaml`. Find names with `diagramkit icons search <words>`.
+See `examples/software_architecture.yaml`. Find names with `spinagram icons search <words>`.
 
 ```bash
-diagramkit icons list                       # packs, version, download state
-diagramkit icons fetch aws k8s              # pre-download (default: all)
-diagramkit icons search load balancer
-diagramkit icons add brand --dir ~/brand/icons                     # local folder
-diagramkit icons add tabler --npm @tabler/icons@3.19.0 --include 'package/icons/outline/*'
-diagramkit icons add mine --github org/repo@v1.2 --include 'svg/*' --project   # ./diagramkit-icons.yaml
-diagramkit icons add corp --npm @team/icons@1.0.0 --registry https://artifactory.example/api/npm/npm-virtual/
-diagramkit icons import node_modules/@team/icons/diagramkit-icons.yaml   # a package can ship its own descriptor
-diagramkit icons remove brand
+spinagram icons list                       # packs, version, download state
+spinagram icons fetch aws k8s              # pre-download (default: all)
+spinagram icons search load balancer
+spinagram icons add brand --dir ~/brand/icons                     # local folder
+spinagram icons add tabler --npm @tabler/icons@3.19.0 --include 'package/icons/outline/*'
+spinagram icons add mine --github org/repo@v1.2 --include 'svg/*' --project   # ./spinagram-icons.yaml
+spinagram icons add corp --npm @team/icons@1.0.0 --registry https://artifactory.example/api/npm/npm-virtual/
+spinagram icons import node_modules/@team/icons/spinagram-icons.yaml   # a package can ship its own descriptor
+spinagram icons remove brand
 ```
 
-A pack is YAML (built-ins in `src/diagramkit/icon_packs/`): `source` (`zip` URL, `npm` package, `github`
+A pack is YAML (built-ins in `src/spinagram/icon_packs/`): `source` (`zip` URL, `npm` package, `github`
 repo/ref, `listing` (an index page: `url` + `pattern` regex naming each file), or local `dir`, plus `include` globs), `rules` (regex → name template, optional `tone: dark`
 and `aliases`), `strip` (regexes that derive short aliases) and a curated `alias` map. Registries merge
-built-in < `~/.config/diagramkit/icons.yaml` < `./diagramkit-icons.yaml` < `$DIAGRAMKIT_ICON_PACKS`.
+built-in < `~/.config/spinagram/icons.yaml` < `./spinagram-icons.yaml` < `$SPINAGRAM_ICON_PACKS`.
 A theme can map its own names onto packs: `icons: {alias: {ec2: "aws:ec2"}}`.
 
 Vendor artwork keeps its owner's terms (each pack lists `license` and `homepage`).
 
 ## FigJam
 
-`diagramkit render specs/ -f figjam -o out/` writes, under `out/figma/`, library-mode scripts plus the
+`spinagram render specs/ -f figjam -o out/` writes, under `out/figma/`, library-mode scripts plus the
 icon bundle. With the Figma MCP: `upload_assets` for every file in `icons/` (multipart, so each layer is
 named after its file), run `icon-library.js` once, then each `<slug>-NN.js`. Details in the generated
 `README.md`. FigJam reads connector positions in pixels, so edges anchored on a side centre become
@@ -234,6 +234,6 @@ faithful: it is rendered back with resvg at the source size and compared over gr
 content hash. PowerPoint gets the SVG with the original PNG as its fallback.
 
 ```bash
-diagramkit vectorize icons/ -o vector/      # batch, with a score table (--force writes rejects too)
-DIAGRAMKIT_VECTORIZE=0 diagramkit render …   # turn it off; or icons: {vectorize: false} in a theme / pack
+spinagram vectorize icons/ -o vector/      # batch, with a score table (--force writes rejects too)
+SPINAGRAM_VECTORIZE=0 spinagram render …   # turn it off; or icons: {vectorize: false} in a theme / pack
 ```

@@ -1,8 +1,8 @@
-"""Python DSL example: render with `diagramkit render examples/ -f svg,pptx`."""
-from diagramkit import Diagram
+"""Python DSL example: render with `spinagram render examples/ -f svg,pptx`."""
+from spinagram import Diagram
 
 d = Diagram("EX1", "Release flow", subtitle="Evidence decides the path, not the requester",
-            source="Example diagram · diagramkit")
+            source="Example diagram · spinagram")
 
 build, test, gate = d.row(
     [{"title": "Build", "text": "Pipeline produces a signed artifact"},

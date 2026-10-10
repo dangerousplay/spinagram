@@ -70,7 +70,7 @@ export default function PackView({ pack, offline, rev, onFetched }: Props) {
             <button
               onClick={fetchNow}
               disabled={offline || pack.fetching}
-              title={offline ? "DIAGRAMKIT_OFFLINE=1: downloads are disabled" : undefined}
+              title={offline ? "SPINAGRAM_OFFLINE=1: downloads are disabled" : undefined}
               className={`rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
                 pack.fetched
                   ? "border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
@@ -95,7 +95,7 @@ export default function PackView({ pack, offline, rev, onFetched }: Props) {
         <p className="animate-pulse p-8 text-sm text-slate-500">Downloading {pack.name}… this can take a minute.</p>
       ) : !pack.fetched ? (
         <p className="p-8 text-sm text-slate-500">
-          Not downloaded yet. {offline ? "Downloads are disabled (DIAGRAMKIT_OFFLINE=1)." : "Press Fetch to download it into the icon cache."}
+          Not downloaded yet. {offline ? "Downloads are disabled (SPINAGRAM_OFFLINE=1)." : "Press Fetch to download it into the icon cache."}
         </p>
       ) : (
         <IconGrid pack={pack.name} icons={shown} rev={rev} />

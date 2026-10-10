@@ -13,5 +13,5 @@ Gate for every task: `uv run pytest -q` green (existing 30 + new).
 | T7 [P] | elk adapter + runner + first-use install | engines/elk.py, elk_runner.mjs | T5 | LAY-13, LAY-15, LAY-16 | invariants + orthogonal routes; skip w/o bun/node | done |
 | T8 [P] | d2 adapter | engines/d2.py | T5 | LAY-14, LAY-15 | invariants; skip w/o d2 | done |
 | T9 | flex ortho elbow | layout/writeback.py | T5 | LAY-21 | elbow test | done |
-| T10 | CLI `--layout`, `diagramkit layout` freeze + `yaml_io.dump` | cli.py, yaml_io.py | T5 | LAY-30, LAY-31 | frozen ≡ auto render | done |
+| T10 | CLI `--layout`, `spinagram layout` freeze + `yaml_io.dump` | cli.py, yaml_io.py | T5 | LAY-30, LAY-31 | frozen ≡ auto render | done |
 | T11 | Example + README + skill docs + theme defaults | examples/, README, skills/, themes | T6–T10 | LAY-32 | example renders with all engines; PNGs reviewed | done |

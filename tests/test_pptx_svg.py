@@ -6,8 +6,8 @@ import zipfile
 
 import pytest
 
-from diagramkit import Diagram, Theme, build_scene
-from diagramkit.backends.pptx import SVG_EXT, PptxBackend
+from spinagram import Diagram, Theme, build_scene
+from spinagram.backends.pptx import SVG_EXT, PptxBackend
 
 pptx = pytest.importorskip("pptx")
 
@@ -17,8 +17,8 @@ LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 12"><rect width=
 
 @pytest.fixture
 def theme(tmp_path, monkeypatch):
-    monkeypatch.setenv("DIAGRAMKIT_CACHE", str(tmp_path / "cache" / "icons"))
-    monkeypatch.delenv("DIAGRAMKIT_PPTX_SVG", raising=False)
+    monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache" / "icons"))
+    monkeypatch.delenv("SPINAGRAM_PPTX_SVG", raising=False)
     (tmp_path / "icons").mkdir()
     (tmp_path / "icons" / "dot.svg").write_text(SVG)
     (tmp_path / "logo.svg").write_text(LOGO)
@@ -84,7 +84,7 @@ def test_sibling_png_is_preferred(tmp_path, theme):
 @pytest.mark.parametrize("how", ["arg", "env"])
 def test_raster_opt_out(tmp_path, theme, monkeypatch, how):
     if how == "env":
-        monkeypatch.setenv("DIAGRAMKIT_PPTX_SVG", "raster")
+        monkeypatch.setenv("SPINAGRAM_PPTX_SVG", "raster")
     p = _render(tmp_path, theme, **({"svg": "raster"} if how == "arg" else {}))
     with zipfile.ZipFile(p) as z:
         assert not [n for n in z.namelist() if n.endswith(".svg")]
@@ -96,7 +96,7 @@ def test_without_resvg_blank_fallback(tmp_path, theme, monkeypatch):
     import builtins
     import warnings
 
-    from diagramkit.backends import pptx as backend
+    from spinagram.backends import pptx as backend
 
     real = builtins.__import__
 

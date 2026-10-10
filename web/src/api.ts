@@ -1,4 +1,4 @@
-// Types and fetchers for the `diagramkit serve` API (src/diagramkit/ui/server.py).
+// Types and fetchers for the `spinagram serve` API (src/spinagram/ui/server.py).
 
 export type Engine = { name: string; hint: string | null };
 export type DiagramRef = { key: string; id: string; title: string; auto: boolean };

@@ -146,7 +146,7 @@ class Workspace:
         ref, rel = self.theme_ref, None
         import os
 
-        ref = ref or os.environ.get("DIAGRAMKIT_THEME") or "default"
+        ref = ref or os.environ.get("SPINAGRAM_THEME") or "default"
         while ref:
             try:
                 raw = _load_raw(ref, rel)
@@ -253,4 +253,4 @@ class Workspace:
         theme_name = (self.theme.data.get("name") if self.theme else None) or Path(str(self.theme_ref or "default")).name
         return {"paths": [str(p) for p in self.paths], "theme": str(self.theme_ref or "default"), "theme_name": theme_name,
                 "theme_error": self.theme_error, "layout": self.layout, "engines": engines, "files": files,
-                "offline": os.environ.get("DIAGRAMKIT_OFFLINE") == "1"}
+                "offline": os.environ.get("SPINAGRAM_OFFLINE") == "1"}

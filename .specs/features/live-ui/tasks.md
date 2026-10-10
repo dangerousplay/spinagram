@@ -4,7 +4,7 @@ Gate for every Python task: `uv run pytest -q` green. Gate for web tasks: `bun r
 
 | # | Task | Where | Depends | Reqs | Done when | Status |
 |---|---|---|---|---|---|---|
-| T1 | `ui` extra (starlette, uvicorn, watchfiles) + dev httpx; package skeleton; `serve` CLI w/ missing-extra hint | pyproject, ui/__init__, cli.py | – | UI-01, UI-02 | `diagramkit serve --help`; hint test | done |
+| T1 | `ui` extra (starlette, uvicorn, watchfiles) + dev httpx; package skeleton; `serve` CLI w/ missing-extra hint | pyproject, ui/__init__, cli.py | – | UI-01, UI-02 | `spinagram serve --help`; hint test | done |
 | T2 | Workspace: scan/load/render/cache/invalidate, helper purge, watch roots | ui/workspace.py, tests | T1 | UI-03, UI-05, UI-06, UI-08 | unit tests: keys, svg, error kept, helper reload, layout override | done |
 | T3 [P] | Theme sheet + style previews + theme list + font lookup | ui/themes.py, tests | T1 | UI-09, UI-10 | default theme sheet test; preview svg valid | done |
 | T4 [P] | PackService: list/icons/file/fetch jobs/offline | ui/catalog.py, tests | T1 | UI-12..UI-14 | fake listing pack fetched via service; 409; offline 403 | done |

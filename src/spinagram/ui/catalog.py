@@ -15,7 +15,7 @@ class FetchConflict(Exception):
 
 
 class Offline(Exception):
-    """``DIAGRAMKIT_OFFLINE=1``: downloads are disabled."""
+    """``SPINAGRAM_OFFLINE=1``: downloads are disabled."""
 
 
 class PackService:
@@ -34,7 +34,7 @@ class PackService:
 
     @staticmethod
     def offline() -> bool:
-        return os.environ.get("DIAGRAMKIT_OFFLINE") == "1"
+        return os.environ.get("SPINAGRAM_OFFLINE") == "1"
 
     def _pack(self, name: str) -> icons.Pack:
         pack = self.registry().get(name)
@@ -94,7 +94,7 @@ class PackService:
     def start_fetch(self, name: str) -> None:
         pack = self._pack(name)
         if self.offline():
-            raise Offline("DIAGRAMKIT_OFFLINE=1")
+            raise Offline("SPINAGRAM_OFFLINE=1")
         with self._lock:
             if name in self._jobs and self._jobs[name] is None:
                 raise FetchConflict(name)

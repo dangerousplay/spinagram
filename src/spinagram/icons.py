@@ -1,6 +1,6 @@
 """Icon packs: cloud/vendor icon sets downloaded on demand and referenced as ``pack:name``.
 
-A *pack* is declared in YAML (built-ins in ``diagramkit/icon_packs/*.yaml``; users add their own)
+A *pack* is declared in YAML (built-ins in ``spinagram/icon_packs/*.yaml``; users add their own)
 and points at a source:
 
 * ``zip``     — an archive URL (``file://`` works too)
@@ -14,12 +14,12 @@ its ``name`` template is filled with the named groups and normalised to kebab-ca
 (``AmazonEC2`` → ``amazon-ec2``). A rule may set ``tone: dark`` (variant used on dark fills) and
 ``aliases`` (extra templates). ``strip`` regexes add short aliases (``^amazon-`` → ``ec2``).
 
-Files are copied to ``$DIAGRAMKIT_CACHE`` (default ``~/.cache/diagramkit/icons``) as
+Files are copied to ``$SPINAGRAM_CACHE`` (default ``~/.cache/spinagram/icons``) as
 ``<pack>/<version>/<pack>__<name>[__dark].<ext>`` with an ``index.json``; specs then use
-``icon: aws:ec2``. A missing pack is fetched on first use unless ``DIAGRAMKIT_OFFLINE=1``.
+``icon: aws:ec2``. A missing pack is fetched on first use unless ``SPINAGRAM_OFFLINE=1``.
 
-Registries are merged in order: built-in < ``~/.config/diagramkit/icons.yaml`` <
-``./diagramkit-icons.yaml`` < ``$DIAGRAMKIT_ICON_PACKS`` (a file). ``diagramkit icons add``
+Registries are merged in order: built-in < ``~/.config/spinagram/icons.yaml`` <
+``./spinagram-icons.yaml`` < ``$SPINAGRAM_ICON_PACKS`` (a file). ``spinagram icons add``
 writes the user (or ``--project``) registry.
 """
 from __future__ import annotations
@@ -46,15 +46,15 @@ EXTS = (".svg", ".png")
 
 
 def cache_root() -> Path:
-    return Path(os.environ.get("DIAGRAMKIT_CACHE") or Path.home() / ".cache" / "diagramkit" / "icons")
+    return Path(os.environ.get("SPINAGRAM_CACHE") or Path.home() / ".cache" / "spinagram" / "icons")
 
 
 def user_registry() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
-    return Path(base) / "diagramkit" / "icons.yaml"
+    return Path(base) / "spinagram" / "icons.yaml"
 
 
-PROJECT_REGISTRY = "diagramkit-icons.yaml"
+PROJECT_REGISTRY = "spinagram-icons.yaml"
 
 
 def kebab(s: str) -> str:
@@ -87,7 +87,7 @@ class Pack:
     homepage: str = ""
     origin: str = "builtin"
     alias: dict[str, str] = field(default_factory=dict)  # curated short names: {s3: amazon-simple-storage-service}
-    vectorize: bool = True  # PNG icons → SVG when faithful (see diagramkit.vectorize)
+    vectorize: bool = True  # PNG icons → SVG when faithful (see spinagram.vectorize)
 
     @classmethod
     def parse(cls, name: str, d: dict, origin: str) -> "Pack":
@@ -138,7 +138,7 @@ def registry(cwd: Path | None = None) -> dict[str, Pack]:
     for f, origin in ((user_registry(), "user"), ((cwd or Path.cwd()) / PROJECT_REGISTRY, "project")):
         if f.exists():
             packs.update(_load_file(f, origin))
-    env = os.environ.get("DIAGRAMKIT_ICON_PACKS")
+    env = os.environ.get("SPINAGRAM_ICON_PACKS")
     if env and Path(env).exists():
         packs.update(_load_file(Path(env), "env"))
     return packs
@@ -146,7 +146,7 @@ def registry(cwd: Path | None = None) -> dict[str, Pack]:
 
 def register(name: str, source: dict[str, Any], *, rules: list[dict] | None = None, strip: list[str] | None = None,
              title: str = "", license: str = "", project: bool = False) -> Path:
-    """Add (or replace) a pack in the user registry, or ``./diagramkit-icons.yaml`` with ``project``."""
+    """Add (or replace) a pack in the user registry, or ``./spinagram-icons.yaml`` with ``project``."""
     path = Path(PROJECT_REGISTRY) if project else user_registry()
     data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None
     data = data or {"packs": {}}
@@ -177,7 +177,7 @@ def unregister(name: str, *, project: bool = False) -> bool:
 
 # sources ----------------------------------------------------------------------------------------
 def _get(url: str, timeout: int = 300) -> bytes:
-    headers = {"User-Agent": "diagramkit"}
+    headers = {"User-Agent": "spinagram"}
     token = os.environ.get("GITHUB_TOKEN")
     if token and "api.github.com" in url:
         headers["Authorization"] = f"Bearer {token}"
@@ -285,7 +285,7 @@ def _iter_listing(s: dict, include: list[str]) -> Iterator[tuple[str, bytes]]:
 
 
 # fetch / index ----------------------------------------------------------------------------------
-AUTO_FETCH = True  # resolving an icon of a missing pack downloads it; `diagramkit serve` turns this off
+AUTO_FETCH = True  # resolving an icon of a missing pack downloads it; `spinagram serve` turns this off
 
 _FETCH_LOCKS: dict[str, threading.Lock] = {}
 _FETCH_LOCKS_GUARD = threading.Lock()
@@ -380,7 +380,7 @@ def _vectorize_index(pack: Pack, d: Path, idx: dict) -> bool:
 def index(pack: Pack, *, auto_fetch: bool = True) -> dict | None:
     f = pack.dir / "index.json"
     if not f.exists():
-        if not auto_fetch or not AUTO_FETCH or os.environ.get("DIAGRAMKIT_OFFLINE") == "1":
+        if not auto_fetch or not AUTO_FETCH or os.environ.get("SPINAGRAM_OFFLINE") == "1":
             return None
         fetch(pack)
     idx = json.loads(f.read_text(encoding="utf-8"))

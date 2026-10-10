@@ -111,7 +111,7 @@ class Theme:
 
     @classmethod
     def load(cls, ref: str | Path | None = None) -> "Theme":
-        ref = ref or os.environ.get("DIAGRAMKIT_THEME") or "default"
+        ref = ref or os.environ.get("SPINAGRAM_THEME") or "default"
         raw = _load_raw(ref)
         return cls(raw, Path(raw["_root"]))
 
@@ -211,7 +211,7 @@ class Theme:
 
     # icons --------------------------------------------------------------------
     def icon(self, name: str | None, tone: str = "light", base_dir: Path | None = None) -> Path | None:
-        """Resolve an icon: ``pack:name`` (icon packs, see :mod:`diagramkit.icons`), a theme alias
+        """Resolve an icon: ``pack:name`` (icon packs, see :mod:`spinagram.icons`), a theme alias
         (``icons.alias: {ec2: aws:ec2}``), a path relative to the spec, or a name in the theme's icon dirs."""
         if not name:
             return None
@@ -263,7 +263,7 @@ class Theme:
 
     def icon_packs(self):
         """Icon packs seen by this theme: ``icons.pack_files`` shipped with it are defaults; built-in,
-        user, project and ``$DIAGRAMKIT_ICON_PACKS`` registries override them (e.g. to pin another version)."""
+        user, project and ``$SPINAGRAM_ICON_PACKS`` registries override them (e.g. to pin another version)."""
         if getattr(self, "_packs", None) is None:
             from .icons import _load_file, registry
 

@@ -1,11 +1,11 @@
 ---
-name: diagramkit
-description: Author professional diagrams as code with diagramkit (YAML or Python) and deliver them as SVG, PNG, editable PowerPoint and editable Figma. Use when asked to create, update or export flowcharts, decision trees, process/approval flows, swimlanes, today-vs-target comparisons, org/structure charts, matrices or tables-as-diagrams, especially for slide decks, studies or Figma. Covers layout grid, text fitting, edge routing, themes, icons, QA, and the Figma MCP (use_figma + upload_assets) hand-off. Not for data charts (bar/line) or auto-laid-out graphs of hundreds of nodes.
+name: spinagram
+description: Author professional diagrams as code with spinagram (YAML or Python) and deliver them as SVG, PNG, editable PowerPoint and editable Figma. Use when asked to create, update or export flowcharts, decision trees, process/approval flows, swimlanes, today-vs-target comparisons, org/structure charts, matrices or tables-as-diagrams, especially for slide decks, studies or Figma. Covers layout grid, text fitting, edge routing, themes, icons, QA, and the Figma MCP (use_figma + upload_assets) hand-off. Not for data charts (bar/line) or auto-laid-out graphs of hundreds of nodes.
 ---
 
-# diagramkit: diagrams as code with editable outputs
+# spinagram: diagrams as code with editable outputs
 
-You write a **spec** (YAML or Python). A **theme** directory supplies the brand. diagramkit resolves both into one scene and renders it through backends: `svg`, `png`, `pptx`, `figma`.
+You write a **spec** (YAML or Python). A **theme** directory supplies the brand. spinagram resolves both into one scene and renders it through backends: `svg`, `png`, `pptx`, `figma`.
 
 ```
 spec (YAML/.py) + theme dir ──► layout (fonts, wrap, anchors) ──► svg · png · pptx · figma
@@ -16,14 +16,14 @@ spec (YAML/.py) + theme dir ──► layout (fonts, wrap, anchors) ──► sv
 1. **Message first.** State the single question the diagram answers. That becomes the `subtitle`, a full sentence with the conclusion. The `title` names the topic in 2–6 words.
 2. **Pick a pattern** (table below) and sketch the grid on paper: columns, rows, gaps.
 3. **Write the spec.** Use YAML for one-off diagrams. Use Python when you repeat geometry (`row`, `column`, `chain`) or generate diagrams from data.
-4. **`diagramkit check`** must report 0 issues (text overflow).
+4. **`spinagram check`** must report 0 issues (text overflow).
 5. **Render PNG and look at it.** Check overlaps, arrows crossing text, label pills on borders, and empty zones. Fix the spec, never the output.
 6. **Deliver.** Use `-f svg,png,pptx` for decks. Add `figma` and follow the Figma hand-off below.
 
 ```bash
-diagramkit render specs/ -t <theme-dir> -f svg,png,pptx,figma -o out/
-diagramkit check  specs/ -t <theme-dir>
-diagramkit render specs/ --only D04 -f png      # iterate on one
+spinagram render specs/ -t <theme-dir> -f svg,png,pptx,figma -o out/
+spinagram check  specs/ -t <theme-dir>
+spinagram render specs/ --only D04 -f png      # iterate on one
 ```
 
 ## Patterns
@@ -40,7 +40,7 @@ diagramkit render specs/ --only D04 -f png      # iterate on one
 
 ## Diagram or UI mockup?
 
-diagramkit draws **diagrams**. For **product UI** such as an e-mail, a chat, a card or a screen, a diagram looks fake. Use an HTML page instead:
+spinagram draws **diagrams**. For **product UI** such as an e-mail, a chat, a card or a screen, a diagram looks fake. Use an HTML page instead:
 
 1. Build it with Tailwind at the slide size (1920×1080). Use the same header and footer as the diagram slides, and the theme's tokens, fonts and icons.
 2. Screenshot it at 2x with Playwright.
@@ -90,12 +90,12 @@ Keep the real, implementable template (an e-mail HTML with inline CSS, or an Ada
 Never type a number from data into a spec. Write `{{fact_id}}` and declare `facts:` (plus `locale:`) in `_defaults.yaml`. Each fact must carry its `query` or `formula` and its `computed_at`.
 
 - Forecasts are derived facts whose formula states the assumption, e.g. `0.3*crit_mudanca`.
-- `diagramkit facts` lists every fact used; `fontes.md` is the reviewer's document.
+- `spinagram facts` lists every fact used; `fontes.md` is the reviewer's document.
 - Use `|raw` to get a plain number for CSS widths in HTML bar charts.
 
 ## Story decks
 
-**HTML deck** (`diagramkit deck deck.yaml -t <theme> [-o out.html]`): one self-contained page — cover
+**HTML deck** (`spinagram deck deck.yaml -t <theme> [-o out.html]`): one self-contained page — cover
 (title, subtitle, date, authors with photo and role), a full-colour divider per section, then one slide
 per diagram (title band + one-line message + the diagram at full width). Fonts, logos, photos and
 diagrams are embedded; printing gives one slide per page. `deck.yaml` lists `specs:` (dirs, relative to
@@ -120,42 +120,42 @@ When the diagrams form a presentation:
 
 ## Live preview
 
-While iterating, run `diagramkit serve <specs> --theme <theme>` (extra `ui`): the browser re-renders on every
+While iterating, run `spinagram serve <specs> --theme <theme>` (extra `ui`): the browser re-renders on every
 save, shows load/render errors inline, the theme token sheet (colour token names, styles) and the icon packs
 (search names, fetch missing packs). Use it to pick tokens and icon names instead of guessing.
 
 ## Icon packs
 
 Use `icon: "<pack>:<name>"` for vendor icons: `aws`, `gcp`, `azure`, `k8s`, `oci`, `openstack`, `terrastruct` are built in
-and download on first use (`diagramkit icons fetch`). Find names with `diagramkit icons search <words>`;
+and download on first use (`spinagram icons fetch`). Find names with `spinagram icons search <words>`;
 short aliases exist for common services (`aws:s3`, `aws:alb`, `aws:kms`, `gcp:gke`, `azure:aks`, `k8s:pod`).
 For general software architecture (languages, databases, caches, queues) use `terrastruct`:
 `terrastruct:java|python|go|nodejs|react`, `terrastruct:postgres|mysql|mongo|redis|oracle`,
 `terrastruct:kafka|sqs|sns|service-bus|pubsub`, `terrastruct:tech-server`, `terrastruct:db`. It has no
 native Kafka/RabbitMQ logo: `kafka` maps to the AWS MSK icon.
-Register a brand or extra set with `diagramkit icons add <name> --dir|--zip|--npm|--github …`
-(`--project` writes `./diagramkit-icons.yaml`, shareable with the repo). Prefer SVG packs; PNG packs
+Register a brand or extra set with `spinagram icons add <name> --dir|--zip|--npm|--github …`
+(`--project` writes `./spinagram-icons.yaml`, shareable with the repo). Prefer SVG packs; PNG packs
 (oci, openstack) carry a dark variant used automatically on dark fills.
 
 **PNG → SVG:** with the `vector` extra, PNG icons (theme, spec paths, packs) become traced SVG when a
 fidelity gate passes — crisper output and editable vectors in Figma (no PNG uploads). Check a set with
-`diagramkit vectorize <dir>`; disable with `DIAGRAMKIT_VECTORIZE=0` or `icons: {vectorize: false}`.
+`spinagram vectorize <dir>`; disable with `SPINAGRAM_VECTORIZE=0` or `icons: {vectorize: false}`.
 
 ## Automatic layout (no coordinates)
 
 For architecture views (Region › VPC › AZ) and flows, prefer `layout:` and `groups:` over hand-placed
-coordinates. diagramkit sizes and places everything, and each group is drawn as a zone.
+coordinates. spinagram sizes and places everything, and each group is drawn as a zone.
 
 - **Engine:**
   - `dot` for ranked flows and AWS views; it gives clean orthogonal routes.
   - `elk` for many edges crossing group borders.
   - `flex` (no dependencies) for grids of cards; add `route: ortho` for elbowed edges.
   - `d2` when you need D2's layouts.
-- **Compare engines** before choosing: `diagramkit render spec.yaml --layout dot|elk|flex|d2`.
+- **Compare engines** before choosing: `spinagram render spec.yaml --layout dot|elk|flex|d2`.
 - **Group hints for flex:** `direction` (row|column), `columns`, `gap`, `padding`, `align`. Sibling groups stretch to equal size.
 - **Leave edges unanchored** (`a -> b`) so the engine routes them. An anchor (`a.right`) or `via` opts that edge out.
 - **Mixed slides:** a legend or note with explicit `at:` stays where you put it; the auto content fills `layout.area`.
-- **Hand-tuning:** `diagramkit layout spec.yaml -o frozen.yaml` freezes the result; edit the frozen spec.
+- **Hand-tuning:** `spinagram layout spec.yaml -o frozen.yaml` freezes the result; edit the frozen spec.
 - `check` reports `layout: overflow` when the content does not fit. Change the direction, split the diagram or shorten titles.
 
 ## Groups with outlines (AWS-style)
@@ -169,7 +169,7 @@ Keep AZ labels short (`AZ 1a`) so arrows entering the boxes below do not cross t
 ## Python DSL
 
 ```python
-from diagramkit import Diagram
+from spinagram import Diagram
 d = Diagram("D01", "Release flow", subtitle="Evidence decides the path")
 a, b, c = d.row(["Build", "Stress & chaos", "Risk gate"], x=80, y=220, w=440, h=220, gap=100,
                 styles=[None, None, "dark"])
@@ -188,12 +188,12 @@ are not loaded as specs.
   - **Scripts:** `out/figma/<slug>-NN.js` (run in order) and `<slug>.assets.json`.
     1. Load the `figma-use` skill.
     2. Run each script with `use_figma` (`fileKey` from the URL).
-  - **Container:** the diagram becomes a frame (Design file), a slide (Slides file) or a section (FigJam board, `figma.com/board/...`) named `diagramkit:<id>`. Re-running it rebuilds the content in place.
+  - **Container:** the diagram becomes a frame (Design file), a slide (Slides file) or a section (FigJam board, `figma.com/board/...`) named `spinagram:<id>`. Re-running it rebuilds the content in place.
   - **FigJam:** edges whose both ends sit on box sides become native connectors attached to the boxes (they follow when a box moves); free edges stay vectors. Load the `figma-use-figjam` skill too.
   - **SVG icons** are rebuilt as editable vectors inside the script (`createNodeFromSvg`) — no upload. Only raster icons (PNG) need `upload_assets`.
   - **FigJam in one step:** `-f figjam` writes library-mode scripts, `figma/icons/` (every icon used),
     `icon-library.js` (finds the uploaded layers by file name) and a `README.md` with the order of calls.
-  - **Icon library (recommended for many diagrams):** upload every distinct icon once with `upload_assets` (multipart, the file name becomes the layer name), run `icon_library_js({file: nodeId})` to rename them `dk-icon:<file>` inside a section `diagramkit:icons`, then generate scripts with `FigmaBackend(library=True)` / `to_figma_js(scene, library=True)`: icons are cloned from the library — exact bytes, much smaller scripts (≈30 KB instead of 45 KB+ with inline SVG).
+  - **Icon library (recommended for many diagrams):** upload every distinct icon once with `upload_assets` (multipart, the file name becomes the layer name), run `icon_library_js({file: nodeId})` to rename them `dk-icon:<file>` inside a section `spinagram:icons`, then generate scripts with `FigmaBackend(library=True)` / `to_figma_js(scene, library=True)`: icons are cloned from the library — exact bytes, much smaller scripts (≈30 KB instead of 45 KB+ with inline SVG).
   - **FigJam gotchas:** connector endpoints use `magnet` (TOP/BOTTOM/LEFT/RIGHT) for side centres; `position` is in **pixels** from the node's top-left, not 0–1. Elbow routes are auto-computed — if one crosses a box, re-anchor that end to another side. `setPluginData` is not available in `use_figma` (placeholders carry ` · asset:<file>` in the layer name instead).
   - **Images:**
     - The script returns `imageTargets`.

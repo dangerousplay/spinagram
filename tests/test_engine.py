@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from diagramkit import Diagram, Theme, build_scene, load, render
-from diagramkit.model import parse_edge
-from diagramkit.qa import check
-from diagramkit.scene import Connector, Shape, TableGrid
-from diagramkit.text import wrap
+from spinagram import Diagram, Theme, build_scene, load, render
+from spinagram.model import parse_edge
+from spinagram.qa import check
+from spinagram.scene import Connector, Shape, TableGrid
+from spinagram.text import wrap
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
@@ -77,7 +77,7 @@ def test_table_and_pill_in_scene():
 
 
 def test_yaml_pitfalls_are_reported(tmp_path):
-    from diagramkit.yaml_io import SpecError
+    from spinagram.yaml_io import SpecError
 
     bad = tmp_path / "bad.yaml"
     bad.write_text("id: X\ntitle: t\nnodes:\n  - {id: a, title: Why?, x: 0}\n")
@@ -108,7 +108,7 @@ def test_icon_scales_with_box(tmp_path):
 def test_facts_substitution_and_provenance(tmp_path):
     import json
 
-    from diagramkit.facts import FactRegistry, render_html
+    from spinagram.facts import FactRegistry, render_html
 
     (tmp_path / "facts.json").write_text(json.dumps({"meta": {"locale": "pt-BR"}, "facts": [
         {"id": "a", "label": "A", "format": "int", "value": 15972,
@@ -155,14 +155,14 @@ def test_zone_outline_and_icon(tmp_path):
 
 def test_python_spec_imports_sibling_helper(tmp_path):
     (tmp_path / "_helpers.py").write_text("W = 321\n")
-    (tmp_path / "s.py").write_text("from diagramkit import Diagram\nfrom _helpers import W\n"
+    (tmp_path / "s.py").write_text("from spinagram import Diagram\nfrom _helpers import W\n"
                                    "d = Diagram('H', 'helper'); d.box('a', x=0, y=0, w=W, h=80)\ndiagram = d\n")
     (d,) = load(tmp_path / "s.py")
     assert d.nodes[0].w == 321
 
 
 def test_deck_html(tmp_path):
-    from diagramkit.deck import build_deck
+    from spinagram.deck import build_deck
 
     (tmp_path / "me.jpeg").write_bytes(b"\xff\xd8\xff\xe0fake")
     (tmp_path / "deck.yaml").write_text(
@@ -184,7 +184,7 @@ def test_figma_figjam_connectors_and_svg_icons(tmp_path):
     import shutil
     import subprocess
 
-    from diagramkit.backends.figma import to_figma_js
+    from spinagram.backends.figma import to_figma_js
 
     (tmp_path / "icons").mkdir()
     (tmp_path / "icons" / "dot.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><circle r="4"/></svg>')
@@ -216,17 +216,17 @@ SVG_DOT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><circle r="
 @pytest.fixture
 def icon_env(tmp_path, monkeypatch):
     """Isolated icon cache + user registry (no network)."""
-    monkeypatch.setenv("DIAGRAMKIT_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.chdir(tmp_path)
-    from diagramkit import icons
+    from spinagram import icons
 
     icons._INDEX_CACHE.clear()
     return tmp_path
 
 
 def test_icon_naming_rules():
-    from diagramkit.icons import Pack, kebab, registry
+    from spinagram.icons import Pack, kebab, registry
 
     assert kebab("AmazonAPIGateway") == "amazon-api-gateway" and kebab("compute_engine") == "compute-engine"
     builtin = registry()
@@ -241,7 +241,7 @@ def test_icon_naming_rules():
 def test_icon_pack_dir_and_zip(icon_env):
     import zipfile
 
-    from diagramkit import icons
+    from spinagram import icons
 
     src = icon_env / "src" / "net"
     src.mkdir(parents=True)
@@ -263,7 +263,7 @@ def test_icon_pack_dir_and_zip(icon_env):
 
 
 def test_icon_pack_listing_and_terrastruct_names(icon_env):
-    from diagramkit import icons
+    from spinagram import icons
 
     site = icon_env / "site"
     (site / "dev").mkdir(parents=True)
@@ -287,7 +287,7 @@ def test_icon_pack_listing_and_terrastruct_names(icon_env):
 
 
 def test_theme_resolves_pack_icons(icon_env):
-    from diagramkit import icons
+    from spinagram import icons
 
     (icon_env / "src").mkdir()
     (icon_env / "src" / "db.svg").write_text(SVG_DOT)
@@ -302,7 +302,7 @@ def test_theme_resolves_pack_icons(icon_env):
 
 
 def test_cli_icons_add_and_figjam_bundle(icon_env):
-    from diagramkit.cli import main
+    from spinagram.cli import main
 
     (icon_env / "src").mkdir()
     (icon_env / "src" / "cache.svg").write_text(SVG_DOT)
@@ -320,7 +320,7 @@ def test_cli_icons_add_and_figjam_bundle(icon_env):
 
 
 # PNG → SVG vectorization (spec: .specs/features/png-to-svg) --------------------------------------
-vec = pytest.importorskip("diagramkit.vectorize")
+vec = pytest.importorskip("spinagram.vectorize")
 needs_vector = pytest.mark.skipif(not vec.available(), reason="vector extra not installed")
 
 
@@ -364,10 +364,10 @@ def test_vectorize_maybe_cache_twin_and_switches(icon_env, monkeypatch):
     assert vec.maybe(png) == svg                                                          # cached (VEC-06)
     noise = _noise_png(icon_env / "noise.png")
     monkeypatch.undo()
-    monkeypatch.setenv("DIAGRAMKIT_CACHE", str(icon_env / "cache"))
+    monkeypatch.setenv("SPINAGRAM_CACHE", str(icon_env / "cache"))
     assert vec.maybe(noise) == noise                                                      # rejected → PNG
     assert vec.maybe(png, False) == png                                                   # theme/pack flag
-    monkeypatch.setenv("DIAGRAMKIT_VECTORIZE", "0")
+    monkeypatch.setenv("SPINAGRAM_VECTORIZE", "0")
     assert vec.maybe(png) == png                                                          # env switch
 
 
@@ -375,7 +375,7 @@ def test_vectorize_maybe_cache_twin_and_switches(icon_env, monkeypatch):
 def test_theme_and_pack_png_icons_become_svg(icon_env):
     import zipfile
 
-    from diagramkit import icons
+    from spinagram import icons
 
     (icon_env / "icons").mkdir()
     _flat_png(icon_env / "icons" / "safe.png")
@@ -392,7 +392,7 @@ def test_theme_and_pack_png_icons_become_svg(icon_env):
     entry = icons.index(icons.registry()["pz"])["icons"]["safe"]
     assert entry["raster"]["light"] == "pz__safe.png" and entry["vector"]["light"]["mean"] <= vec.MAX_MEAN
     icons.register("pz2", {"type": "zip", "url": (icon_env / "p.zip").as_uri(), "version": "1"})
-    reg = icon_env / "config" / "diagramkit" / "icons.yaml"
+    reg = icon_env / "config" / "spinagram" / "icons.yaml"
     reg.write_text(reg.read_text().replace("pz2:\n", "pz2:\n    vectorize: false\n"))
     icons._INDEX_CACHE.clear()
     assert icons.resolve("pz2:safe").suffix == ".png"
@@ -401,7 +401,7 @@ def test_theme_and_pack_png_icons_become_svg(icon_env):
 @needs_vector
 def test_vectorized_icon_outputs_pptx_cli_figjam(icon_env):
     pptx = pytest.importorskip("pptx")
-    from diagramkit.cli import main
+    from spinagram.cli import main
 
     (icon_env / "icons").mkdir()
     _flat_png(icon_env / "icons" / "box.png")
@@ -428,7 +428,7 @@ def test_theme_relative_dirs(tmp_path, monkeypatch):
 
 
 def test_npm_source_custom_registry_and_scope(monkeypatch):
-    from diagramkit import icons
+    from spinagram import icons
 
     seen = []
 
@@ -447,8 +447,8 @@ def test_npm_source_custom_registry_and_scope(monkeypatch):
 
 
 def test_cli_icons_import_descriptor(icon_env):
-    from diagramkit import icons
-    from diagramkit.cli import main
+    from spinagram import icons
+    from spinagram.cli import main
 
     (icon_env / "d.yaml").write_text("acme:\n  title: Acme\n  source: {type: npm, package: '@acme/icons', version: 1.0.0,"
                                      " registry: 'https://reg.example/'}\n  rules:\n    - {match: 'x/(?P<stem>[^/]+)\\.svg$', name: '{stem}'}\n")

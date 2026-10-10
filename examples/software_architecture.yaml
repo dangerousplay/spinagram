@@ -1,5 +1,5 @@
 # General software architecture with the Terrastruct icon pack (the D2 icon sheet): languages,
-# databases, caches and queues by plain names. Render: diagramkit render examples/software_architecture.yaml
+# databases, caches and queues by plain names. Render: spinagram render examples/software_architecture.yaml
 id: L02
 title: Orders service
 layout: {engine: elk, direction: right, padding: 16, gap: 40}

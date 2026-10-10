@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "diagramkit-ui",
+      "name": "spinagram-ui",
       "dependencies": {
         "@tanstack/react-virtual": "^3.14.14",
         "react": "^19.3.0",

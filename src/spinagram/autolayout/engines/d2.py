@@ -223,7 +223,7 @@ class D2Engine:
     # run ----------------------------------------------------------------------------------------
     def run(self, graph: LGraph) -> LResult:
         src = self.to_d2(graph)
-        with tempfile.TemporaryDirectory(prefix="diagramkit-d2-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="spinagram-d2-") as tmp:
             fin, fout = Path(tmp) / "in.d2", Path(tmp) / "out.svg"
             fin.write_text(src, encoding="utf-8")
             try:

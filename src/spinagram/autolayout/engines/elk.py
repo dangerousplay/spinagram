@@ -2,7 +2,7 @@
 
 The diagram becomes a hierarchical ELK graph: groups are compound nodes with ``elk.padding`` (top
 includes the label band), every edge sits on the root and ``elk.hierarchyHandling: INCLUDE_CHILDREN``
-lets ELK route cross-group edges orthogonally. ``elkjs`` (pinned) is installed into the diagramkit
+lets ELK route cross-group edges orthogonally. ``elkjs`` (pinned) is installed into the spinagram
 cache on first use with ``npm`` (honours ``~/.npmrc`` / ``npm_config_registry``), else ``bun``.
 ELK coordinates are relative to the parent node; edge sections are relative to the edge's
 ``container`` — both are accumulated to absolute positions here.
@@ -26,7 +26,7 @@ HINT = "ELK needs bun or node on PATH (https://bun.sh or https://nodejs.org)"
 
 
 def elk_dir() -> Path:
-    return Path(os.environ.get("DIAGRAMKIT_ELK_DIR") or cache_root().parent / "elk")
+    return Path(os.environ.get("SPINAGRAM_ELK_DIR") or cache_root().parent / "elk")
 
 
 def _runtime() -> str | None:

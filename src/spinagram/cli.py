@@ -1,4 +1,4 @@
-"""Command line: ``diagramkit render``, ``check``, ``facts``, ``layout``, ``deck`` and ``serve``."""
+"""Command line: ``spinagram render``, ``check``, ``facts``, ``layout``, ``deck`` and ``serve``."""
 from __future__ import annotations
 
 import argparse
@@ -25,21 +25,21 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return _main(argv)
     except (ValueError, KeyError, FileNotFoundError, EngineUnavailable) as exc:  # incl. FactError (unknown fact id)
-        print(f"diagramkit: error: {exc}", file=sys.stderr)
+        print(f"spinagram: error: {exc}", file=sys.stderr)
         return 2
 
 
 def _main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="diagramkit", description=__doc__)
+    ap = argparse.ArgumentParser(prog="spinagram", description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("render", "check", "facts", "layout"):
         p = sub.add_parser(name, help="freeze automatic positions into an explicit YAML spec" if name == "layout"
                            else None)
         p.add_argument("paths", nargs="+", help="spec files or directories (*.yaml, *.py)")
-        p.add_argument("-t", "--theme", help="theme directory or built-in name (env DIAGRAMKIT_THEME)")
+        p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
         p.add_argument("--only", nargs="*", help="diagram ids to include")
         p.add_argument("--layout", metavar="ENGINE",
-                       help="layout engine for specs with `layout:` (flex, dot, elk, d2; env DIAGRAMKIT_LAYOUT)")
+                       help="layout engine for specs with `layout:` (flex, dot, elk, d2; env SPINAGRAM_LAYOUT)")
         if name == "layout":
             p.add_argument("-o", "--out", help="output YAML (default: stdout)")
         if name == "render":
@@ -71,9 +71,9 @@ def _main(argv: list[str] | None = None) -> int:
     a.add_argument("--strip", action="append", default=[], help="regex removed from names to make short aliases")
     a.add_argument("--title", default="")
     a.add_argument("--license", default="")
-    a.add_argument("--project", action="store_true", help="write ./diagramkit-icons.yaml instead of the user registry")
+    a.add_argument("--project", action="store_true", help="write ./spinagram-icons.yaml instead of the user registry")
     a.add_argument("--no-fetch", action="store_true", help="only register; download on first use")
-    im = isub.add_parser("import", help="register every pack of a descriptor YAML (e.g. a package's diagramkit-icons.yaml)")
+    im = isub.add_parser("import", help="register every pack of a descriptor YAML (e.g. a package's spinagram-icons.yaml)")
     im.add_argument("file")
     im.add_argument("--project", action="store_true")
     r = isub.add_parser("remove", help="unregister a user or project pack")
@@ -87,11 +87,11 @@ def _main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("deck", help="self-contained HTML presentation from a deck.yaml")
     p.add_argument("deck", help="deck.yaml (title, authors, sections → slides → diagram ids)")
-    p.add_argument("-t", "--theme", help="theme directory or built-in name (env DIAGRAMKIT_THEME)")
+    p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
     p.add_argument("-o", "--out", help="output .html (default: next to deck.yaml)")
     p = sub.add_parser("serve", help="live-reload UI: diagrams, theme token sheets, icon packs")
     p.add_argument("paths", nargs="*", default=["."], help="spec files or folders (default: .)")
-    p.add_argument("-t", "--theme", help="theme directory or built-in name (env DIAGRAMKIT_THEME)")
+    p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
     p.add_argument("--layout", help="initial layout engine for diagrams with `layout:`")
     p.add_argument("--port", type=int, default=8765, help="port on 127.0.0.1 (0 = any free port)")
     p.add_argument("--no-open", action="store_true", help="do not open the browser")
@@ -147,7 +147,7 @@ def _vectorize(args) -> int:
     from . import vectorize
 
     if not vectorize.available():
-        print("needs the 'vector' extra: uv add 'diagramkit[vector]'  (vtracer + resvg-py)", file=sys.stderr)
+        print("needs the 'vector' extra: uv add 'spinagram[vector]'  (vtracer + resvg-py)", file=sys.stderr)
         return 2
     files = []
     for p in map(Path, args.paths):
@@ -200,7 +200,7 @@ def _icons(args) -> int:
         for pack, name, target in hits[: args.limit]:
             print(f"{pack}:{name}" + (f"  → {pack}:{target}" if target != name else ""))
         if not hits:
-            print("no match (only downloaded packs are searched: diagramkit icons fetch)")
+            print("no match (only downloaded packs are searched: spinagram icons fetch)")
         return 0 if hits else 1
     if args.icmd == "add":
         if args.zip:
@@ -251,7 +251,7 @@ def _serve(args) -> int:
     try:
         from .ui.server import run
     except ImportError as exc:
-        print(f"diagramkit: serve needs the ui extra ({exc.name} missing): pip install 'diagramkit[ui]'",
+        print(f"spinagram: serve needs the ui extra ({exc.name} missing): pip install 'spinagram[ui]'",
               file=sys.stderr)
         return 2
     return run(args.paths, theme=args.theme, layout=args.layout, port=args.port, open_browser=not args.no_open)

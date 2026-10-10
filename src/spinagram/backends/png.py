@@ -19,7 +19,7 @@ class PngBackend:
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:  # pragma: no cover
-            raise RuntimeError("PNG needs the 'png' extra: uv add 'diagramkit[png]' && "
+            raise RuntimeError("PNG needs the 'png' extra: uv add 'spinagram[png]' && "
                                "uv run playwright install chromium") from exc
         out_dir.mkdir(parents=True, exist_ok=True)
         paths = []

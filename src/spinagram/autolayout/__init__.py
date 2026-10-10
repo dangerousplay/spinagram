@@ -3,7 +3,7 @@
     Diagram (groups, unsized/unplaced nodes) ─► LGraph ─► engine (flex | dot | elk | d2 | plugin)
         ─► LResult ─► placed in ``layout.area`` ─► nodes x/y/w/h, groups → zones, routes → edge ``via``
 
-The result is an ordinary absolute :class:`~diagramkit.model.Diagram`, so every backend works unchanged.
+The result is an ordinary absolute :class:`~spinagram.model.Diagram`, so every backend works unchanged.
 Diagrams without ``layout`` are returned as-is.
 """
 from __future__ import annotations
@@ -198,12 +198,12 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
     graph, nodes = build_graph(d, theme)
     if not graph.root.children:
         return d
-    name = engine or os.environ.get("DIAGRAMKIT_LAYOUT") or d.layout.get("engine") or "flex"
+    name = engine or os.environ.get("SPINAGRAM_LAYOUT") or d.layout.get("engine") or "flex"
     res = get_engine(name).run(graph)
     dx, dy, over_x, over_y = _offset(res, _area(d, theme), d.layout.get("align", "top-center"))
     if over_x > 1 or over_y > 1:
         d.meta["layout_overflow"] = (round(max(0, over_x)), round(max(0, over_y)))
-    # 0.1 px grid: frozen specs (`diagramkit layout`) reproduce the render exactly
+    # 0.1 px grid: frozen specs (`spinagram layout`) reproduce the render exactly
     boxes = {k: (round(x + dx, 1), round(y + dy, 1), round(w, 1), round(h, 1)) for k, (x, y, w, h) in res.boxes.items()}
     for nid, n in nodes.items():
         n.x, n.y, n.w, n.h = boxes[nid]

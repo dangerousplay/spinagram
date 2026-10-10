@@ -16,7 +16,7 @@
 | ENG-10 | PNG: 2x via Playwright from the SVG |
 | ENG-11 | PPTX: one slide per diagram; native autoshapes with text inside; connectors bound to shapes when anchored at a side centre; arrowheads; native tables |
 | ENG-12 | Figma: emit Plugin-API JavaScript (chunks ≤ 45 kB) for `use_figma`; frame named per diagram; re-run replaces content in place |
-| ENG-13 | CLI `diagramkit render <files/dirs> --theme DIR -f svg,png,pptx,figma -o OUT` (+ gallery); `diagramkit check` reports text overflow |
+| ENG-13 | CLI `spinagram render <files/dirs> --theme DIR -f svg,png,pptx,figma -o OUT` (+ gallery); `spinagram check` reports text overflow |
 | ENG-14 | No organisation-specific assets or names in the repo |
 
 ## Acceptance

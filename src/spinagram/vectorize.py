@@ -6,7 +6,7 @@ resvg and compared over a neutral grey; the result is accepted when the mean cha
 pass, photos and heavy gradients do not (they stay PNG).
 
 On by default when the ``vector`` extra is installed (``vtracer`` + ``resvg-py``). Turn it off with
-``DIAGRAMKIT_VECTORIZE=0``, ``icons: {vectorize: false}`` in a theme, or ``vectorize: false`` in an
+``SPINAGRAM_VECTORIZE=0``, ``icons: {vectorize: false}`` in a theme, or ``vectorize: false`` in an
 icon pack. Results — accepted or not — are cached by the PNG's sha256 and ``PARAMS_VERSION``.
 """
 from __future__ import annotations
@@ -63,7 +63,7 @@ def available() -> bool:
 def enabled(flag: bool | None = None) -> bool:
     """Active unless switched off (env / theme / pack flag) or the extra is missing (warns once)."""
     global _warned
-    if os.environ.get("DIAGRAMKIT_VECTORIZE", "").strip().lower() in ("0", "false", "no", "off"):
+    if os.environ.get("SPINAGRAM_VECTORIZE", "").strip().lower() in ("0", "false", "no", "off"):
         return False
     if flag is False:
         return False

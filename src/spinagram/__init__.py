@@ -1,4 +1,4 @@
-"""diagramkit — diagrams as code, rendered editable to SVG, PNG, PowerPoint and Figma."""
+"""spinagram — diagrams as code, rendered editable to SVG, PNG, PowerPoint and Figma."""
 from .api import render, scenes
 from .layout import build_scene
 from .model import Diagram, Edge, Legend, Node, Table, Zone

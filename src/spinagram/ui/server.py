@@ -1,4 +1,4 @@
-"""``diagramkit serve``: Starlette app (JSON API + SSE + the built SPA) and the file watcher."""
+"""``spinagram serve``: Starlette app (JSON API + SSE + the built SPA) and the file watcher."""
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +29,7 @@ STATIC = Path(__file__).parent / "static"
 HOSTS = ["127.0.0.1", "localhost"]
 NO_STORE = {"Cache-Control": "no-store"}
 
-PLACEHOLDER = """<!doctype html><meta charset="utf-8"><title>diagramkit</title>
+PLACEHOLDER = """<!doctype html><meta charset="utf-8"><title>spinagram</title>
 <body style="font-family:system-ui;padding:40px">The web bundle is not built.
 Run <code>bun install && bun run build</code> in <code>web/</code> (or use <code>bun run dev</code>).
 The API is up at <a href="/api/workspace">/api/workspace</a>.</body>"""
@@ -229,11 +229,11 @@ def run(paths: list[str], *, theme: str | None = None, layout: str | None = None
     try:
         sock.bind(("127.0.0.1", port))
     except OSError as exc:
-        print(f"diagramkit: port {port} unavailable ({exc.strerror}); try --port 0", file=sys.stderr)
+        print(f"spinagram: port {port} unavailable ({exc.strerror}); try --port 0", file=sys.stderr)
         return 2
     url = f"http://127.0.0.1:{sock.getsockname()[1]}/"
     n = len(ws.all_keys())
-    print(f"diagramkit serve: {n} diagram(s) from {', '.join(map(str, ws.paths))} · theme {ws.theme_ref or 'default'}")
+    print(f"spinagram serve: {n} diagram(s) from {', '.join(map(str, ws.paths))} · theme {ws.theme_ref or 'default'}")
     print(f"  {url}  (Ctrl+C to stop)", flush=True)
     if open_browser:
         threading.Timer(0.6, webbrowser.open, args=(url,)).start()

@@ -1,7 +1,7 @@
 id: EX2
 title: When does a change need review?
 subtitle: YAML example with shorthand edges
-source: Example diagram · diagramkit
+source: Example diagram · spinagram
 zones:
   - {x: 60, y: 180, w: 1800, h: 380, label: Automatic, color: soft}
 nodes:

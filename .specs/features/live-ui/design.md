@@ -16,7 +16,7 @@ Browser (React SPA) ◄────────────────┘
    fetch /api/* JSON, <img>/inline SVG from /api/diagrams/{key}.svg, icons/fonts by URL
 ```
 
-`diagramkit serve` → `ui.server.run(paths, theme, layout, port, open)` → uvicorn on 127.0.0.1 with a
+`spinagram serve` → `ui.server.run(paths, theme, layout, port, open)` → uvicorn on 127.0.0.1 with a
 Starlette app built by `create_app(workspace, packs)`. The SPA is served from `ui/static/` (Vite build output,
 committed). Everything imports lazily so the core install never needs starlette.
 
@@ -30,7 +30,7 @@ committed). Everything imports lazily so the core install never needs starlette.
 | `ui/events.py` | `EventBus`: `subscribe()` → asyncio.Queue, `publish(dict)` thread-safe via `loop.call_soon_threadsafe`; SSE generator with 15 s keep-alive comments. |
 | `ui/server.py` | `create_app()`: routes below, `HostGuard` middleware (Host ∈ {127.0.0.1:port, localhost:port}), static mount with SPA fallback, lifespan starts the watcher task. `run()` binds, prints URL, opens browser (`webbrowser.open` after startup). |
 | `cli.py` | `serve` sub-command; import error → exit 2 with hint. |
-| `web/` (repo root) | Vite + React + TS + Tailwind v4 (`@tailwindcss/vite`), `@tanstack/react-virtual`; `bun run build` → `../src/diagramkit/ui/static`. Dev: `bun run dev` proxies `/api` to :8765. |
+| `web/` (repo root) | Vite + React + TS + Tailwind v4 (`@tailwindcss/vite`), `@tanstack/react-virtual`; `bun run build` → `../src/spinagram/ui/static`. Dev: `bun run dev` proxies `/api` to :8765. |
 
 ## API
 
@@ -55,7 +55,7 @@ Theme `ref` in URLs: built-in name, or `active` for the `--theme` path (avoids p
 - spec file / `_defaults.yaml` / other `.py` in a spec dir → reload that file (or all files in the dir for
   `_defaults`/helpers) → `diagram {keys}`; file set changed → `workspace`.
 - theme root file → `reload_theme()`, clear svg cache → `theme {ref}` + `diagram {all keys}`.
-- icon registry files (`~/.config/diagramkit/icons.yaml`, `./diagramkit-icons.yaml`) → `pack {*}` refresh.
+- icon registry files (`~/.config/spinagram/icons.yaml`, `./spinagram-icons.yaml`) → `pack {*}` refresh.
 
 ## Frontend
 
@@ -73,6 +73,6 @@ Theme `ref` in URLs: built-in name, or `active` for the `--theme` path (avoids p
 
 - SSE over WebSocket: one-way, auto-reconnect, no extra dep.
 - Built bundle committed (≈150–250 KB) — trade repo noise for zero-Node installs. `web/` excluded from wheel.
-- Python helper reload via `sys.modules` purge scoped to spec dirs — avoids reloading diagramkit itself.
+- Python helper reload via `sys.modules` purge scoped to spec dirs — avoids reloading spinagram itself.
 - Rendering runs in a thread (`run_in_threadpool`) — dot/elk/d2 engines spawn processes.
 - `httpx` added to dev group for Starlette `TestClient`.

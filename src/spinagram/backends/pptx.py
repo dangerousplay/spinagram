@@ -8,7 +8,7 @@
 * SVG icons/images → pictures with a PNG fallback in ``a:blip`` and the ``asvg:svgBlip`` extension
   pointing to the SVG part (what PowerPoint writes on "Insert > Pictures"): vectors in PowerPoint
   2019+/365, the PNG elsewhere. Fallback: sibling ``.png`` → resvg render (4x, min 256 px, cached) →
-  1x1 transparent. ``PptxBackend(svg="raster")`` or ``DIAGRAMKIT_PPTX_SVG=raster`` writes the PNG only.
+  1x1 transparent. ``PptxBackend(svg="raster")`` or ``SPINAGRAM_PPTX_SVG=raster`` writes the PNG only.
 
 One canvas pixel = 6350 EMU (0.5 pt), so a 1920x1080 canvas is a 13.333x7.5 in slide.
 """
@@ -32,7 +32,7 @@ def _require():
     try:
         import pptx  # noqa: F401
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("PowerPoint needs the 'pptx' extra: uv add 'diagramkit[pptx]'") from exc
+        raise RuntimeError("PowerPoint needs the 'pptx' extra: uv add 'spinagram[pptx]'") from exc
 
 
 def _e(px: float) -> int:
@@ -384,7 +384,7 @@ class PptxBackend:
     def __init__(self, filename: str = "diagrams.pptx", split: bool = False, svg: str | None = None):
         self.filename = filename
         self.split = split
-        self.svg = (svg or os.environ.get("DIAGRAMKIT_PPTX_SVG") or "vector").lower()
+        self.svg = (svg or os.environ.get("SPINAGRAM_PPTX_SVG") or "vector").lower()
         if self.svg not in ("vector", "raster"):
             raise ValueError(f"PptxBackend(svg=...) must be 'vector' or 'raster', not {self.svg!r}")
 

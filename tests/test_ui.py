@@ -9,11 +9,11 @@ import pytest
 pytest.importorskip("starlette")
 from starlette.testclient import TestClient  # noqa: E402
 
-from diagramkit.ui import themes  # noqa: E402
-from diagramkit.ui.catalog import PackService  # noqa: E402
-from diagramkit.ui.events import EventBus  # noqa: E402
-from diagramkit.ui.server import apply_changes, create_app  # noqa: E402
-from diagramkit.ui.workspace import Workspace  # noqa: E402
+from spinagram.ui import themes  # noqa: E402
+from spinagram.ui.catalog import PackService  # noqa: E402
+from spinagram.ui.events import EventBus  # noqa: E402
+from spinagram.ui.server import apply_changes, create_app  # noqa: E402
+from spinagram.ui.workspace import Workspace  # noqa: E402
 
 SVG_DOT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><circle r="4"/></svg>'
 BOX = "id: {id}\ntitle: {title}\nnodes:\n  - {{id: a, x: 100, y: 200, w: 300, h: 120, title: A}}\n"
@@ -23,11 +23,11 @@ AUTO = ("id: AU\ntitle: auto\nlayout: {engine: flex}\nnodes:\n  - {id: a, title:
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    monkeypatch.setenv("DIAGRAMKIT_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    monkeypatch.delenv("DIAGRAMKIT_OFFLINE", raising=False)
+    monkeypatch.delenv("SPINAGRAM_OFFLINE", raising=False)
     monkeypatch.chdir(tmp_path)
-    from diagramkit import icons
+    from spinagram import icons
 
     icons._INDEX_CACHE.clear()
     specs = tmp_path / "specs"
@@ -68,7 +68,7 @@ def test_workspace_new_file_and_python_helper_reload(env):
     ws = Workspace([env / "specs"])
     (env / "specs" / "_helpers.py").write_text("TITLE = 'old'\n")
     spec = env / "specs" / "py.py"
-    spec.write_text("from _helpers import TITLE\nfrom diagramkit import Diagram\n"
+    spec.write_text("from _helpers import TITLE\nfrom spinagram import Diagram\n"
                     "diagram = Diagram('P1', TITLE)\ndiagram.box('x', x=100, y=200, w=300, h=120)\n")
     events = apply_changes(ws, ws.theme_roots(), {spec})
     assert {"type": "workspace"} in events and "old" in ws.render("py.py#P1")[0]
@@ -126,7 +126,7 @@ def test_theme_list_marks_active(env):
 
 # packs --------------------------------------------------------------------------------------------
 def _listing_pack(env):
-    from diagramkit import icons
+    from spinagram import icons
 
     site = env / "site"
     site.mkdir()
@@ -195,7 +195,7 @@ def test_api_fetch_conflict_and_offline(env, monkeypatch):
     svc._jobs["site"] = None  # a fetch in flight
     with client(Workspace([env / "specs"]), packs=svc) as c:
         assert c.post("/api/packs/site/fetch").status_code == 409
-        monkeypatch.setenv("DIAGRAMKIT_OFFLINE", "1")
+        monkeypatch.setenv("SPINAGRAM_OFFLINE", "1")
         svc._jobs.clear()
         assert c.post("/api/packs/site/fetch").status_code == 403
         assert c.get("/api/packs").json()["offline"] is True
@@ -219,15 +219,15 @@ def test_event_bus_fanout():
 def test_cli_serve_without_extra(monkeypatch, capsys):
     import sys
 
-    from diagramkit.cli import main
+    from spinagram.cli import main
 
-    monkeypatch.setitem(sys.modules, "diagramkit.ui.server", None)
+    monkeypatch.setitem(sys.modules, "spinagram.ui.server", None)
     assert main(["serve", "--no-open"]) == 2
-    assert "diagramkit[ui]" in capsys.readouterr().err
+    assert "spinagram[ui]" in capsys.readouterr().err
 
 
 def test_missing_pack_reported_and_rerender_after_fetch(env, monkeypatch):
-    from diagramkit import icons
+    from spinagram import icons
 
     _listing_pack(env)
     monkeypatch.setattr(icons, "AUTO_FETCH", False)
@@ -254,7 +254,7 @@ def test_missing_pack_reported_and_rerender_after_fetch(env, monkeypatch):
 def test_concurrent_fetch_of_one_pack_is_serialised(env):
     from concurrent.futures import ThreadPoolExecutor
 
-    from diagramkit import icons
+    from spinagram import icons
 
     _listing_pack(env)
     pack = icons.registry()["site"]

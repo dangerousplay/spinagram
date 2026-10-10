@@ -1,11 +1,11 @@
-# Feature: Live UI (`diagramkit serve`)
+# Feature: Live UI (`spinagram serve`)
 
-**Status:** Done (2026-10-09) · **Size:** Large · **Owner:** diagramkit
+**Status:** Done (2026-10-09) · **Size:** Large · **Owner:** spinagram
 
 ## Problem Statement
 
-Authoring a diagram today is a loop of *edit spec → `diagramkit render` → open the SVG/PNG*. Themes and
-icon packs are only visible by reading YAML and `diagramkit icons search` output, so picking a colour token
+Authoring a diagram today is a loop of *edit spec → `spinagram render` → open the SVG/PNG*. Themes and
+icon packs are only visible by reading YAML and `spinagram icons search` output, so picking a colour token
 or an icon name means guessing and re-rendering. A local live-reload UI closes the loop: save in the editor,
 see the diagram; look up tokens and icons visually.
 
@@ -14,7 +14,7 @@ see the diagram; look up tokens and icons visually.
 - [ ] Saving a spec or theme file updates the browser in ≤ 1 s (typical spec) with no manual refresh.
 - [ ] Every built-in and active theme is readable as a token sheet; every registered pack is browsable,
       and a not-yet-downloaded pack can be fetched from the UI.
-- [ ] `pip install diagramkit[ui]` users need no Node/bun: the web bundle ships inside the wheel.
+- [ ] `pip install spinagram[ui]` users need no Node/bun: the web bundle ships inside the wheel.
 
 ## Out of Scope
 
@@ -33,14 +33,14 @@ see the diagram; look up tokens and icons visually.
 
 ### P1: Live diagram preview ⭐ MVP
 
-**User Story**: As a diagram author, I want `diagramkit serve specs/` to show my diagrams and re-render them
+**User Story**: As a diagram author, I want `spinagram serve specs/` to show my diagrams and re-render them
 when I save, so I can iterate without running render commands.
 
 **Acceptance Criteria**:
 
-1. WHEN I run `diagramkit serve <paths…> [--theme T] [--layout E] [--port N] [--no-open]` THEN the server SHALL
+1. WHEN I run `spinagram serve <paths…> [--theme T] [--layout E] [--port N] [--no-open]` THEN the server SHALL
    bind 127.0.0.1 only, print the URL and open the default browser unless `--no-open`.
-2. WHEN the `ui` extra is not installed THEN `serve` SHALL exit 2 with `pip install 'diagramkit[ui]'` as hint.
+2. WHEN the `ui` extra is not installed THEN `serve` SHALL exit 2 with `pip install 'spinagram[ui]'` as hint.
 3. WHEN the UI loads THEN the left nav SHALL list every spec file under the paths and the diagrams (id + title)
    each one defines; selecting one SHALL render it as SVG in the main pane.
 4. WHEN a spec file, a `_defaults.yaml`, a `.py` helper next to a spec, or any file of the active theme
@@ -86,7 +86,7 @@ when I save, so I can iterate without running render commands.
    UI SHALL show "fetching…" and, on completion, the count and grid; on failure the error message.
 4. WHEN a fetch for the same pack is already running THEN the request SHALL be rejected (409) and the UI SHALL
    keep showing progress.
-5. WHEN `DIAGRAMKIT_OFFLINE=1` THEN Fetch SHALL be disabled with that reason.
+5. WHEN `SPINAGRAM_OFFLINE=1` THEN Fetch SHALL be disabled with that reason.
 
 ## Edge Cases
 
@@ -128,5 +128,5 @@ UI-17 was added during execution: the first end-to-end run showed a render silen
 ## Success Criteria
 
 - [ ] Edit → visible update ≤ 1 s for `examples/*.yaml` (flex layout).
-- [ ] `uv build` wheel contains `diagramkit/ui/static/index.html`; `serve` works from it without bun.
+- [ ] `uv build` wheel contains `spinagram/ui/static/index.html`; `serve` works from it without bun.
 - [ ] All tests pass; new API tests cover UI-03..UI-06, UI-08..UI-10, UI-12..UI-15.

@@ -3,7 +3,7 @@
 Each group places its children as a row, a column or a grid (``columns``), aligned on the cross axis,
 then wraps them in its padding. Sizes are computed bottom-up, positions top-down. Default direction:
 a group whose children are all groups is a row (AZs side by side), otherwise a column (stacked nodes);
-the root follows ``layout.direction``. No edge routing — edges keep diagramkit's auto sides.
+the root follows ``layout.direction``. No edge routing — edges keep spinagram's auto sides.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # Feature: PNG → SVG icon vectorization
 
-**Status:** Done (2026-10-08) · **Size:** Large · **Owner:** diagramkit
+**Status:** Done (2026-10-08) · **Size:** Large · **Owner:** spinagram
 
 ## Problem
 
@@ -36,10 +36,10 @@ Differences are anti-aliased edges (visual check in the contact sheet), ~0.03 s 
 | VEC-02 | P1 | **Fidelity gate**: rasterise the SVG at the source size and compare over grey `#808080`; accept only when mean Δ ≤ 8 **and** pixels with Δ > 128 ≤ 1 % | nova and brand icons accepted; a photo-like noise PNG rejected; score stored |
 | VEC-03 | P1 | **Icon packs**: when fetching, each PNG icon is vectorized; accepted ones become the icon's file (SVG), the PNG stays as `raster` | `oci:vm` resolves to `.svg`; index entry has `raster` + `vector.score` |
 | VEC-04 | P1 | **Theme / spec icons**: a PNG resolved from a theme icon dir or a spec path is replaced by its cached vector twin when accepted | a brand `safe` icon resolves to an SVG in the vector cache |
-| VEC-05 | P1 | **On by default, easy to turn off**: active when the `vector` extra is installed; `DIAGRAMKIT_VECTORIZE=0`, theme `icons.vectorize: false` or pack `vectorize: false` disable it; missing deps → PNG with a single warning | each switch verified by a test; no crash without deps |
+| VEC-05 | P1 | **On by default, easy to turn off**: active when the `vector` extra is installed; `SPINAGRAM_VECTORIZE=0`, theme `icons.vectorize: false` or pack `vectorize: false` disable it; missing deps → PNG with a single warning | each switch verified by a test; no crash without deps |
 | VEC-06 | P1 | **Cache & determinism**: results cached by sha256(PNG) + params version; rejected results cached too (no re-trace) | second resolve does no tracing; same bytes → same SVG |
 | VEC-07 | P1 | **PPTX keeps raster**: python-pptx cannot embed SVG, so a vectorized icon keeps a sibling `.png` (the original) that the PPTX backend uses | PPTX of a vectorized icon still has a picture |
-| VEC-08 | P2 | **CLI** `diagramkit vectorize <png|dir>... [-o DIR] [--force]` writes SVGs and prints a score table (accepted/rejected) | table printed; rejected files listed, exit 0 |
+| VEC-08 | P2 | **CLI** `spinagram vectorize <png|dir>... [-o DIR] [--force]` writes SVGs and prints a score table (accepted/rejected) | table printed; rejected files listed, exit 0 |
 | VEC-09 | P2 | **Figma/FigJam**: vectorized icons reach the icon library as SVG (editable vectors, no PNG upload) | `-f figjam` bundle of a PNG-icon spec contains `.svg` |
 
 ## Out of scope

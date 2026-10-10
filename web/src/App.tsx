@@ -84,7 +84,7 @@ export default function App() {
     <div className="flex h-full flex-col">
       <header className="flex h-12 shrink-0 items-center gap-4 border-b border-slate-200 px-4 dark:border-slate-800">
         <span className="font-semibold tracking-tight">
-          diagram<span className="text-accent">kit</span>
+          spina<span className="text-accent">gram</span>
         </span>
         <span className="truncate text-xs text-slate-500" title={ws?.paths.join("\n")}>
           {ws ? `${ws.paths.map((p) => p.split("/").pop()).join(", ")} · theme ${ws.theme_name}` : ""}
@@ -112,7 +112,7 @@ export default function App() {
           )}
           <span
             className={`flex items-center gap-1.5 text-xs ${connected ? "text-emerald-600" : "text-amber-600"}`}
-            title={connected ? "live: changes on disk re-render here" : "reconnecting to diagramkit serve…"}
+            title={connected ? "live: changes on disk re-render here" : "reconnecting to spinagram serve…"}
           >
             <span className={`size-2 rounded-full ${connected ? "bg-emerald-500" : "animate-pulse bg-amber-500"}`} />
             {connected ? "live" : "offline"}
@@ -123,7 +123,7 @@ export default function App() {
         <Nav route={route} ws={ws} themes={themes} packs={packs.packs} />
         <main className="min-w-0 flex-1">
           {wsError && !ws ? (
-            <Empty title="Cannot reach diagramkit serve" body={wsError} />
+            <Empty title="Cannot reach spinagram serve" body={wsError} />
           ) : route.kind === "diagram" ? (
             <DiagramView
               key={route.key}

@@ -1,6 +1,6 @@
 # Feature: Automatic layout with nested groups
 
-**Status:** Done (2026-10-08) · **Size:** Complex · **Owner:** diagramkit
+**Status:** Done (2026-10-08) · **Size:** Complex · **Owner:** spinagram
 
 ## Problem
 
@@ -12,7 +12,7 @@ helper each to fake this.
 
 ## Goal
 
-A human (or an agent) writes **structure only** — nodes, nested groups, edges — and diagramkit places
+A human (or an agent) writes **structure only** — nodes, nested groups, edges — and spinagram places
 everything, sizing groups around their content, through **pluggable layout engines**: a built-in
 nested-flex engine (no dependencies) and adapters to Graphviz `dot`, `d2` and ELK. Output then flows
 through the existing scene → SVG/PNG/PPTX/Figma backends unchanged.
@@ -39,13 +39,13 @@ through the existing scene → SVG/PNG/PPTX/Figma backends unchanged.
 ### Engines
 | ID | Pri | Requirement | Acceptance |
 |---|---|---|---|
-| LAY-10 | P1 | **Engine interface**: an engine receives a backend-neutral `LGraph` (nested groups, node sizes, edges, options) and returns absolute boxes for every node/group plus optional edge routes. Engines are registered via entry point `diagramkit.layouts` (like backends) | a toy engine in a test registers and runs |
+| LAY-10 | P1 | **Engine interface**: an engine receives a backend-neutral `LGraph` (nested groups, node sizes, edges, options) and returns absolute boxes for every node/group plus optional edge routes. Engines are registered via entry point `spinagram.layouts` (like backends) | a toy engine in a test registers and runs |
 | LAY-11 | P1 | **flex** (built-in, pure Python, default): each group lays its children out as row / column / grid (`columns`) with gap, padding, cross-axis alignment, recursively bottom-up; top-level children follow `layout.direction`. Deterministic | Region⊃VPC⊃3 AZ example: no overlaps, children inside parents, same output every run |
 | LAY-12 | P1 | **dot** adapter: Graphviz via `dot -Tjson`; groups → `cluster_*` subgraphs with label margin; node sizes fixed; reads positions (flip y), cluster `bb` and edge splines (→ polyline via Bézier sampling) | same example via dot: invariants hold; edges get `via` points |
-| LAY-13 | P1 | **elk** adapter: ELK layered via `elkjs` run by `bun` or `node` (whichever is on PATH); hierarchical graph with `INCLUDE_CHILDREN` so cross-group edges are routed; orthogonal routing; `elkjs` installed on first use into the diagramkit cache from the configured npm registry (pinned version) | same example via elk: invariants hold; orthogonal bends |
+| LAY-13 | P1 | **elk** adapter: ELK layered via `elkjs` run by `bun` or `node` (whichever is on PATH); hierarchical graph with `INCLUDE_CHILDREN` so cross-group edges are routed; orthogonal routing; `elkjs` installed on first use into the spinagram cache from the configured npm registry (pinned version) | same example via elk: invariants hold; orthogonal bends |
 | LAY-14 | P2 | **d2** adapter: generates D2 text (shapes with `width/height`, nested containers, edges), runs `d2 --layout <dagre\|elk\|tala>`, reads geometry back from the SVG (`g.class` = base64 of the D2 path; `rect` x/y/w/h; connection paths) | same example via d2: invariants hold |
 | LAY-15 | P1 | **Missing engine binary** → clear error naming the binary and how to install it (`apt install graphviz`, d2 install script, bun/node); never a stack trace | `engine: dot` with PATH emptied → one-line error |
-| LAY-16 | P1 | **Engine options passthrough**: `layout.options` dict goes verbatim to the engine (ELK properties, dot graph attrs, d2 vars); diagramkit sets sane defaults (spacing from theme `defaults.layout`) | `elk.spacing.nodeNode` override changes output |
+| LAY-16 | P1 | **Engine options passthrough**: `layout.options` dict goes verbatim to the engine (ELK properties, dot graph attrs, d2 vars); spinagram sets sane defaults (spacing from theme `defaults.layout`) | `elk.spacing.nodeNode` override changes output |
 
 ### Edges
 | ID | Pri | Requirement | Acceptance |
@@ -57,8 +57,8 @@ through the existing scene → SVG/PNG/PPTX/Figma backends unchanged.
 ### Tooling & docs
 | ID | Pri | Requirement | Acceptance |
 |---|---|---|---|
-| LAY-30 | P1 | `diagramkit render/check --layout <engine>` overrides the spec's engine (compare engines quickly) | same spec, 4 engines, 4 outputs |
-| LAY-31 | P1 | `diagramkit layout <spec> -o out.yaml` freezes the computed positions into an explicit spec (escape hatch for hand-tuning) | frozen spec renders identical to auto |
+| LAY-30 | P1 | `spinagram render/check --layout <engine>` overrides the spec's engine (compare engines quickly) | same spec, 4 engines, 4 outputs |
+| LAY-31 | P1 | `spinagram layout <spec> -o out.yaml` freezes the computed positions into an explicit spec (escape hatch for hand-tuning) | frozen spec renders identical to auto |
 | LAY-32 | P1 | Example `examples/aws_layout.yaml` (Region⊃VPC⊃3 AZ, ALB, S3, Vault/Consul) + README section + skill doc update | example renders with each available engine, `check` 0 issues |
 | LAY-33 | P1 | Invariant test suite shared by all engines (children inside parent, no sibling overlap, label band free, every node placed); engines whose binary is missing are skipped | `pytest` green with/without binaries |
 

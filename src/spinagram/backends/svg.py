@@ -185,7 +185,7 @@ class _Svg:
         meta = ""
         if s.sources:
             import json as _json
-            meta = f'<metadata id="diagramkit-sources">{_esc(_json.dumps(s.sources, ensure_ascii=False))}</metadata>'
+            meta = f'<metadata id="spinagram-sources">{_esc(_json.dumps(s.sources, ensure_ascii=False))}</metadata>'
         return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
                 f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(self.defs)}</defs>'
                 f'<rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'

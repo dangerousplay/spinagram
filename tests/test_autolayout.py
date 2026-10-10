@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from diagramkit.autolayout import apply_layout, build_graph
-from diagramkit.autolayout.engines import EngineUnavailable, available, get_engine
-from diagramkit.autolayout.graph import LGraph, LResult
-from diagramkit.model import Diagram
-from diagramkit.theme import Theme
-from diagramkit.yaml_io import from_dict, load
+from spinagram.autolayout import apply_layout, build_graph
+from spinagram.autolayout.engines import EngineUnavailable, available, get_engine
+from spinagram.autolayout.graph import LGraph, LResult
+from spinagram.model import Diagram
+from spinagram.theme import Theme
+from spinagram.yaml_io import from_dict, load
 
 EXAMPLE = Path(__file__).parent.parent / "examples" / "aws_layout.yaml"
 ENGINES = ["flex", "dot", "elk", "d2"]
@@ -124,9 +124,9 @@ def test_toy_engine_protocol(monkeypatch):
         def run(self, g: LGraph) -> LResult:
             return LResult({nid: (i * 300.0, 0.0, 200.0, 80.0) for i, nid in enumerate(g.node_ids())})
 
-    import diagramkit.autolayout.engines as eng
+    import spinagram.autolayout.engines as eng
     monkeypatch.setattr(eng, "get_engine", lambda name: Toy())
-    import diagramkit.autolayout as al
+    import spinagram.autolayout as al
     monkeypatch.setattr(al, "get_engine", lambda name: Toy())
     d = from_dict({"id": "x", "title": "t", "layout": "toy", "nodes": [{"id": "a", "title": "A"}, {"id": "b", "title": "B"}]})
     out = apply_layout(d, _theme())
@@ -140,8 +140,8 @@ def test_unknown_engine():
 
 
 def test_overflow_is_a_qa_issue():
-    from diagramkit.api import scenes
-    from diagramkit.qa import check
+    from spinagram.api import scenes
+    from spinagram.qa import check
 
     nodes = [{"id": f"n{i}", "title": f"Node {i}"} for i in range(12)]
     d = from_dict({"id": "x", "title": "t", "layout": {"engine": "flex", "direction": "right"}, "nodes": nodes})
@@ -201,9 +201,9 @@ def test_flex_ortho_elbows():
 def test_frozen_layout_renders_identically(tmp_path):
     import yaml
 
-    from diagramkit.api import scenes
-    from diagramkit.backends.svg import to_svg
-    from diagramkit.yaml_io import dump
+    from spinagram.api import scenes
+    from spinagram.backends.svg import to_svg
+    from spinagram.yaml_io import dump
 
     [d] = load(EXAMPLE)
     th = _theme()
@@ -213,8 +213,8 @@ def test_frozen_layout_renders_identically(tmp_path):
 
 
 def test_routed_edge_label_sits_on_longest_segment():
-    from diagramkit.autolayout import _label_point
-    from diagramkit.model import Edge
+    from spinagram.autolayout import _label_point
+    from spinagram.model import Edge
 
     boxes = {"a": (0, 0, 100, 50), "b": (400, 300, 100, 50)}
     # a.right (100,25) → (150,25) → (150,325) → b.left (400,325): the vertical leg (300 px) is the longest

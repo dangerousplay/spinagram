@@ -1,4 +1,4 @@
-# diagramkit
+# spinagram
 
 Diagrams as code, rendered once and delivered **editable** everywhere: SVG, PNG,
 PowerPoint (native shapes, bound connectors, native tables) and Figma (native nodes

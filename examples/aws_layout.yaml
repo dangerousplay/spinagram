@@ -1,5 +1,5 @@
 # Automatic layout: no coordinates. Groups nest Region ⊃ VPC ⊃ AZs; the engine sizes and places
-# everything. Try other engines: diagramkit render examples/aws_layout.yaml --layout dot|elk|d2
+# everything. Try other engines: spinagram render examples/aws_layout.yaml --layout dot|elk|d2
 id: L01
 title: Vault and Consul on AWS
 layout: {engine: flex, direction: right, padding: 16, gap: 32}

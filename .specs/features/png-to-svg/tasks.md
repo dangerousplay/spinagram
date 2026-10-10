@@ -7,7 +7,7 @@
 | T3 | `icons.fetch` vectorizes PNG icons; index `raster`/`vector`; pack `vectorize: false`; `resolve` prefers SVG | VEC-03,05 | T1 | test: zip pack with PNG → resolves `.svg`, `raster` kept; `vectorize:false` keeps PNG | ✅ |
 | T4 | `Theme.icon` vectorizes PNG icons (theme dirs + spec paths); theme `icons.vectorize: false` | VEC-04,05 | T1 | test: theme PNG resolves to cached SVG; flag off → PNG | ✅ |
 | T5 | PPTX keeps a picture for vectorized icons (twin PNG) | VEC-07 | T1,T4 | test: PPTX from PNG-icon spec contains a picture | ✅ |
-| T6 | CLI `diagramkit vectorize` | VEC-08 | T1 | test: writes SVG, prints table | ✅ |
+| T6 | CLI `spinagram vectorize` | VEC-08 | T1 | test: writes SVG, prints table | ✅ |
 | T7 | FigJam bundle contains SVG for PNG icons | VEC-09 | T3,T4 | test: `-f figjam` bundle file is `.svg` | ✅ |
 | T8 | Real packs: re-fetch `oci`, `openstack`; report acceptance rate; visual check; docs (README, SKILL) | all | T1–T7 | acceptance table recorded below; render example | ✅ |
 

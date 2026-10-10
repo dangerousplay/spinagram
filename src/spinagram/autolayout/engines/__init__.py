@@ -1,7 +1,7 @@
 """Layout engine protocol and registry.
 
-An engine turns an :class:`~diagramkit.autolayout.graph.LGraph` into absolute boxes (and optional edge
-routes). Third-party engines register through the ``diagramkit.layouts`` entry-point group.
+An engine turns an :class:`~spinagram.autolayout.graph.LGraph` into absolute boxes (and optional edge
+routes). Third-party engines register through the ``spinagram.layouts`` entry-point group.
 """
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from typing import Protocol
 from ..graph import LGraph, LResult
 
 _BUILTIN = {
-    "flex": "diagramkit.autolayout.engines.flex:FlexEngine",
-    "dot": "diagramkit.autolayout.engines.dot:DotEngine",
-    "elk": "diagramkit.autolayout.engines.elk:ElkEngine",
-    "d2": "diagramkit.autolayout.engines.d2:D2Engine",
+    "flex": "spinagram.autolayout.engines.flex:FlexEngine",
+    "dot": "spinagram.autolayout.engines.dot:DotEngine",
+    "elk": "spinagram.autolayout.engines.elk:ElkEngine",
+    "d2": "spinagram.autolayout.engines.d2:D2Engine",
 }
 
 
@@ -36,7 +36,7 @@ class Engine(Protocol):
 
 def available() -> dict[str, str]:
     found = dict(_BUILTIN)
-    for ep in entry_points(group="diagramkit.layouts"):
+    for ep in entry_points(group="spinagram.layouts"):
         found.setdefault(ep.name, ep.value)
     return found
 
