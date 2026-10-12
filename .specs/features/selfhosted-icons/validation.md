@@ -4,9 +4,9 @@
 
 **Date**: 2026-10-12
 **Spec**: `.specs/features/selfhosted-icons/spec.md`
-**Diff range**: `main..HEAD` (main = `7eea970`; `3068275`..`ffd77a0`, 9 commits)
+**Diff range**: `main..HEAD` (main = `7eea970`; `3068275`..`c1397cd`, 12 commits; iteration 3 adds `57f8317`, `c1397cd`)
 **Verifier**: independent sub-agent (author ≠ verifier)
-**Iteration**: 2 of 3. Iteration 1 (at `b322cf2`) found 1 surviving mutant (M02: the gray-square fixture used a file
+**Iteration**: 3 (user-driven additions T9/T10 re-verified after the iteration-2 verdict; see the Iteration 3 section). Iteration 2: Iteration 1 (at `b322cf2`) found 1 surviving mutant (M02: the gray-square fixture used a file
 name that does not exist upstream), a dead curated alias `npm`, and "public domain" in place of the licence name.
 `072acf8` (tests) and `ffd77a0` (alias + docs) closed all three.
 
@@ -172,3 +172,54 @@ Isolation: worktree removed and pruned. The real tree's `git status --porcelain`
 - The docs now name the Affinity licence as Unlicense.
 
 **Lessons**: L-016 was recorded from the iteration-1 signal (M02). This iteration adds no new signal.
+
+---
+
+## Iteration 3 - T9 theme pack refresh, T10 EVPN fabric showcase
+
+### T9: `Theme.icon` refreshes its pack list for an unknown pack prefix (`57f8317`)
+
+| Check | Evidence | Result |
+| ----- | -------- | ------ |
+| A pack registered after the theme loaded resolves | `tests/test_icon_packs.py:173` - `"late" not in theme.icon_packs()` (the list is cached first); `:179` - `got.read_text() == (root / "gear.svg").read_text()` | ✅ |
+| The test fails without the fix | T-M1: pre-fix `src/spinagram/theme.py` (`git show 57f8317^:src/spinagram/theme.py`, refresh at `:236-237` removed) - `1 failed` | ✅ Killed |
+| The condition matters | T-M2: `not in` → `in` at `src/spinagram/theme.py:236` - `1 failed` | ✅ Killed |
+| Resolve uses the refreshed list | T-M3: refresh kept but `resolve` given the stale dict (`src/spinagram/theme.py:238`) - `1 failed` | ✅ Killed |
+| No loop, and an unknown prefix is not masked | probe: `theme.icon("nosuchpack:gear")` returns `None` twice and `nosuchpack:other` returns `None`; `registry()` reloads once per distinct unknown ref (2 for 2 refs, because the `None` is cached in `_icon_cache` at `src/spinagram/theme.py:239`); a known prefix reloads 0 times | ✅ |
+
+**Residual (informational, not a gap):**
+- A `None` cached for a `pack:name` that was asked for *before* its pack was registered stays cached for that theme instance.
+- The fix covers the reported case, where the first lookup happens after registration, so this does not block the verdict.
+
+### T10: NET02 EVPN-VXLAN fabric showcase (`c1397cd`)
+
+| Check | Evidence | Result |
+| ----- | -------- | ------ |
+| Uses `network:` icons | `examples/showcase/evpn_fabric.py:17,21-23,33,38` - `switch-multilayer-green`, `switch-multilayer`, `switch`, `router-cloud-red`, `server-circle`; all 5 resolve on the real cache | ✅ |
+| Steps, callouts and an explicit legend | `examples/showcase/evpn_fabric.py:55-59` 5 `d.step`; `:60-63` 2 callouts; `:64-66` `d.add_legend({...})` | ✅ |
+| Catalog groups it as Network | `tests/test_metadata.py:207` - `"NET02": "Network"` | ✅ |
+| Check is clean | `spinagram check examples/showcase` - `9 diagram(s), 0 issue(s)` | ✅ |
+| Skill copies synced | `cmp` identical: `evpn_fabric.py`, `fabric.css` | ✅ |
+| Render reviewed | PNG rendered to scratch: spine-leaf mesh drawn straight from anchors, ESI links, eBGP to ISPs, steps 1-5, legend | ✅ |
+
+**Cosmetic notes (non-blocking):**
+- `examples/showcase/fabric.css:26`: `edge.vxlan-path` is unused, and `check` reports it at info level.
+- In the render, the underlay lines cross the "Border leaves · AS 65100" and "Rack B · AS 65102" group titles.
+
+### Iteration 3 gate
+
+- `set -o pipefail; uv run ruff check src tests && uv run pytest -q && uv run spinagram check examples/showcase`
+- Outcome: ruff clean; 486 passed, 0 failed, 3 skipped (environment-only); `9 diagram(s), 0 issue(s)`; exit 0.
+- Delta: +1 test (`tests/test_icon_packs.py:168`).
+
+### Iteration 3 sensor
+
+- 3/3 T9 mutants killed (T-M1..T-M3).
+- They ran in an isolated worktree at `c1397cd`, with `PYTHONDONTWRITEBYTECODE=1`, `__pycache__` cleared per mutant, and scratch `SPINAGRAM_CACHE` and `XDG_CONFIG_HOME`. The worktree's `src` was confirmed as the imported package.
+- The worktree was removed and pruned.
+- Combined with M01-M33: 36/36 killed.
+
+### Iteration 3 verdict
+
+Iteration 3 is clean: T9 and T10 add no gap, no surviving mutant and no spec-precision gap, so no new lesson.
+

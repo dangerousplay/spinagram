@@ -23,6 +23,5 @@ edge                 { stroke: var(--underlay); stroke-width: 1.8; }
 edge.underlay-ebgp   { stroke: var(--underlay); stroke-width: 1.8; marker-start: none; marker-end: none; }
 edge.esi-multihoming { stroke: var(--esi); stroke-width: 3; marker-end: none; }
 edge.wan-ebgp        { stroke: var(--ebgp); stroke-width: 3; stroke-dasharray: 8 5; marker-end: none; }
-edge.vxlan-path      { stroke: var(--evpn); stroke-width: 3; }
 
 step        { fill: var(--evpn); stroke: #FFFFFF; }
