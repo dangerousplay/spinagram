@@ -818,3 +818,15 @@ def test_two_legend_columns_only_when_labels_fit():  # ANN edge case: tall legen
     items = _by_id(build_scene(d, Theme.load("default")).items)
     xs = {round(items[f"legend-{j}-swatch"].x) for j in range(10)}
     assert len(xs) == 1  # labels too long for two columns: one column
+
+
+def test_auto_side_slides_along_the_side_before_giving_up():  # ANN-22
+    d = Diagram("C2", "Slide")
+    d.box("Target", x=1300, y=520, w=200, h=100)
+    d.box("Left of below", x=900, y=650, w=380, h=200)  # blocks a centred bubble below, not a start-aligned one
+    d.box("Above", x=1100, y=300, w=600, h=200)
+    d.box("Right", x=1540, y=470, w=280, h=140)
+    d.callout("target", "slides right")
+    items, shapes, ann, t = _callout_items(d)
+    bubble, node = items["callout-0"], shapes["target"]
+    assert _side(bubble, node) == "bottom" and bubble.x == node.x and ann.issues == []

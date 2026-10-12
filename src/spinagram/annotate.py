@@ -403,16 +403,27 @@ class Annotator:
         text_h = sum(b.height for b in blocks) + 6 * (len(blocks) - 1)
         return max(glyph, text_h) + 2 * (a["padding"] - 6), blocks, glyph
 
-    def _candidate(self, side: str, node: Shape, w: float, h: float) -> Rect:
+    def _candidate(self, side: str, node: Shape, w: float, h: float, align: str = "center") -> Rect:
+        """The bubble rect on ``side`` of ``node``: centred on it, or flush with its start or end edge."""
         gap = self.a["callout_gap"]
         ax, ay, aw, ah = self.area
         if side in ("top", "bottom"):
-            x = min(max(node.x + node.w / 2 - w / 2, ax), ax + aw - w)
+            x = {"center": node.x + node.w / 2 - w / 2, "start": node.x, "end": node.x + node.w - w}[align]
+            x = min(max(x, ax), ax + aw - w)
             y = node.y - gap - h if side == "top" else node.y + node.h + gap
         else:
-            y = min(max(node.y + node.h / 2 - h / 2, ay), ay + ah - h)
+            y = {"center": node.y + node.h / 2 - h / 2, "start": node.y, "end": node.y + node.h - h}[align]
+            y = min(max(y, ay), ay + ah - h)
             x = node.x + node.w + gap if side == "right" else node.x - gap - w
         return x, y, w, h
+
+    def _place(self, side: str, node: Shape, w: float, h: float, obstacles: list[Rect]) -> Rect | None:
+        """The first free alignment (centre, start, end) on ``side``, or None."""
+        for align in ("center", "start", "end"):
+            r = self._candidate(side, node, w, h, align)
+            if self._free(r, obstacles):
+                return r
+        return None
 
     def _free(self, r: Rect, obstacles: list[Rect]) -> bool:
         ax, ay, aw, ah = self.area
@@ -429,15 +440,13 @@ class Annotator:
             w = self.a["callout_width"]
             obstacles = [(s.x, s.y, s.w, s.h) for s in shapes
                          if not (s.role == "zone" and _contains((s.x, s.y, s.w, s.h), node))] + self.rects
-            if c.side != "auto":
-                side = c.side
-            else:
-                side = next((s for s in self.SIDES if self._free(self._candidate(s, node, w, h), obstacles)), None)
-                if side is None:
-                    side = self.SIDES[0]
-                    self.issues.append(("callout", "overlap",
-                                        f"no free side around {c.target!r}; placed on {side}"))
-            x, y, _, _ = rect = self._candidate(side, node, w, h)
+            sides = self.SIDES if c.side == "auto" else (c.side,)
+            side, rect = next(((s, r) for s in sides if (r := self._place(s, node, w, h, obstacles))), (None, None))
+            if side is None:
+                side = sides[0]
+                rect = self._candidate(side, node, w, h)
+                if c.side == "auto":
+                    self.issues.append(("callout", "overlap", f"no free side around {c.target!r}; placed on {side}"))
             self.rects.append(rect)
             out += self._callout(i, c, rect, side, node, blocks, glyph, key)
         return out
