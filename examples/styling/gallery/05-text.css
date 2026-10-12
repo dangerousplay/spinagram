@@ -1,0 +1,6 @@
+/* Text parts: ::title, ::body (nodes), ::label (edges and groups). */
+node::title   { font-size: 30px; font-weight: bold; color: #0F172A; }
+.quiet::title { color: text-muted; font-weight: normal; font-style: italic; }
+.note::body   { color: #7C3AED; font-style: italic; }
+edge::label   { color: #B45309; font-size: 15px; font-weight: bold; }
+group::label  { color: #1D4ED8; }

@@ -1,0 +1,4 @@
+/* One drop shadow per element: offset-x offset-y blur colour. */
+.lift { box-shadow: 0 10px 18px rgba(15, 23, 42, 0.28); }
+.glow { stroke: #F59E0B; box-shadow: 0 0 22px rgba(245, 158, 11, 0.7); }
+.hard { box-shadow: 8px 8px 0 #1E3A8A; border-radius: 0; }

@@ -187,8 +187,10 @@ T8
 **Requirement**: DOC-01, DOC-02, DOC-03
 
 **Done when**:
-- [ ] Docs build passes; examples pass `spinagram check`
-- [ ] Gate passes
+- [x] Docs build passes; examples pass `spinagram check`
+- [x] Gate passes
 
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
+

@@ -1,0 +1,5 @@
+/* Dash patterns and transparency. */
+.dashed { stroke-dasharray: 12 6; }
+.dotted { stroke-dasharray: 2 5; stroke-width: 4; }
+.faded  { opacity: 0.45; }
+.glass  { fill: #2563EB; fill-opacity: 0.15; stroke: #2563EB; }

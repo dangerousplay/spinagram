@@ -1,0 +1,4 @@
+/* Fills, strokes and corners: theme tokens or any CSS colour. */
+.soft  { fill: primary-soft; stroke: primary; }
+.round { fill: #ECFDF5; stroke: #059669; stroke-width: 4; border-radius: 40px; }
+.sharp { fill: #FFF7ED; stroke: #EA580C; stroke-width: 6; border-radius: 0; }

@@ -126,8 +126,12 @@ Need pixel-exact slides instead? Give nodes coordinates
 (decisions, forks and joins, swimlanes, composite states) laid out by a built-in layered engine, and
 `with d.state_machine(...)` puts one inside any diagram. A CSS subset styles everything:
 `d.stylesheet("brand.css")`, `class_="critical"`, `edge.async { stroke-dasharray: 6 4 }`.
-See [behavior diagrams](https://dangerousplay.github.io/spinagram/docs/behavior/) and
-[CSS styling](https://dangerousplay.github.io/spinagram/docs/styling/).
+`spinagram check --styles` explains which rule set each value, `spinagram serve` has a click-to-inspect
+styles panel and re-renders when a stylesheet is saved.
+See [behavior diagrams](https://dangerousplay.github.io/spinagram/docs/behavior/),
+[CSS styling](https://dangerousplay.github.io/spinagram/docs/styling/) and
+[CSS by backend](https://dangerousplay.github.io/spinagram/docs/css-reference/) (what SVG, PowerPoint
+and Figma do with each property).
 
 ![Order fulfilment activity with swimlanes](https://dangerousplay.github.io/spinagram/assets/demo/b03.svg)
 

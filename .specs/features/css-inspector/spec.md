@@ -83,27 +83,27 @@ backend (SVG, PNG, PowerPoint, Figma) does with them.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| INS-01 | Cascade trace | Execute | Pending |
-| INS-02 | Cascade trace | Execute | Pending |
-| INS-03 | Cascade trace | Execute | Pending |
-| INS-04 | check --styles | Execute | Pending |
-| INS-05 | check --styles | Execute | Pending |
-| INS-06 | check --styles | Execute | Pending |
-| INS-07 | check --styles | Execute | Pending |
-| INS-08 | check --styles | Execute | Pending |
-| INS-09 | Live reload | Execute | Pending |
-| INS-10 | Live reload | Execute | Pending |
-| INS-11 | Live reload | Execute | Pending |
-| INS-12 | Live inspector | Execute | Pending |
-| INS-13 | Live inspector | Execute | Pending |
-| INS-14 | Live inspector | Execute | Pending |
-| INS-15 | fill-opacity | Execute | Pending |
-| INS-16 | Edge cases | Execute | Pending |
-| INS-17 | Edge cases | Execute | Pending |
-| INS-18 | Edge cases | Execute | Pending |
-| DOC-01 | Docs | Execute | Pending |
-| DOC-02 | Docs | Execute | Pending |
-| DOC-03 | Docs | Execute | Pending |
+| INS-01 | Cascade trace | Execute | Done |
+| INS-02 | Cascade trace | Execute | Done |
+| INS-03 | Cascade trace | Execute | Done |
+| INS-04 | check --styles | Execute | Done |
+| INS-05 | check --styles | Execute | Done |
+| INS-06 | check --styles | Execute | Done |
+| INS-07 | check --styles | Execute | Done |
+| INS-08 | check --styles | Execute | Done |
+| INS-09 | Live reload | Execute | Done |
+| INS-10 | Live reload | Execute | Done |
+| INS-11 | Live reload | Execute | Done |
+| INS-12 | Live inspector | Execute | Done |
+| INS-13 | Live inspector | Execute | Done |
+| INS-14 | Live inspector | Execute | Done |
+| INS-15 | fill-opacity | Execute | Done |
+| INS-16 | Edge cases | Execute | Done |
+| INS-17 | Edge cases | Execute | Done |
+| INS-18 | Edge cases | Execute | Done |
+| DOC-01 | Docs | Execute | Done |
+| DOC-02 | Docs | Execute | Done |
+| DOC-03 | Docs | Execute | Done |
 
 ## Success Criteria
 

@@ -1,0 +1,5 @@
+/* Custom properties on :root; var(--x) falls back to the theme token "x". */
+:root  { --brand: #0F766E; --brand-soft: #CCFBF1; }
+node   { fill: var(--brand-soft); stroke: var(--brand); stroke-width: 3; }
+.risky { stroke: var(--alert); fill: var(--alert-soft); }
+.muted { stroke: border; fill: neutral-soft; }

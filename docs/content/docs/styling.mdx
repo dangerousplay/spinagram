@@ -40,12 +40,17 @@ Later sources win at equal specificity; inline `css=` beats every normal stylesh
 
 | Applies to | Properties |
 |---|---|
-| Nodes, groups | `fill`, `stroke`, `stroke-width`, `stroke-dasharray`, `border-radius`, `opacity`, `box-shadow` |
+| Nodes, groups | `fill`, `fill-opacity`, `stroke`, `stroke-width`, `stroke-dasharray`, `border-radius`, `opacity`, `box-shadow` |
 | Text (`::title`, `::body`, `::label`) | `color`, `font-size`, `font-weight`, `font-style` (inherited from groups) |
-| Edges | `stroke`, `stroke-width`, `stroke-dasharray`, `marker-start`, `marker-end` (`none`, `arrow`, `open-arrow`, `diamond`, `open-diamond`, `circle`, `bar`) |
+| Edges | `stroke`, `stroke-width`, `stroke-dasharray`, `opacity`, `marker-start`, `marker-end` (`none`, `arrow`, `open-arrow`, `diamond`, `open-diamond`, `circle`, `bar`) |
 
 Colours are hex, `rgb()`/`rgba()`, CSS names, theme tokens (`fill: primary-soft`) or
 `var(--name)`, which falls back to the theme token `name`. Where a format cannot draw a value
 (PowerPoint has no open diamond), the nearest equivalent is used and a warning names it.
 `spinagram check` reports stylesheet errors with file and line, unknown properties with a
 suggestion, and fonts the theme does not embed.
+
+[CSS by backend](/docs/css-reference) shows what SVG, PowerPoint and Figma do with each property,
+with a rendered example per feature. To see why an element looks the way it does, run
+`spinagram check --styles` or press **Inspect** in `spinagram serve`; saving a stylesheet
+re-renders the diagrams that use it.
