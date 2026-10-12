@@ -178,9 +178,9 @@ grouped by category, so that I find a diagram in seconds.
 | META-14 | P1: UI - grouped cards | Tasks | Implementing |
 | META-15 | P1: UI - text search | Tasks | Implementing |
 | META-16 | P1: UI - tag chips | Tasks | Implementing |
-| META-17 | P1: UI - empty result | Tasks | Pending |
-| META-18 | P1: UI - card opens diagram | Tasks | Pending |
-| META-19 | P1: UI - file errors listed | Tasks | Pending |
+| META-17 | P1: UI - empty result | Tasks | Implementing |
+| META-18 | P1: UI - card opens diagram | Tasks | Implementing |
+| META-19 | P1: UI - file errors listed | Tasks | Implementing |
 | META-20 | P1: Nav - navbar sections | Tasks | Pending |
 | META-21 | P1: Nav - docs link | Tasks | Pending |
 | META-22 | P1: Nav - themes and packs pages | Tasks | Pending |

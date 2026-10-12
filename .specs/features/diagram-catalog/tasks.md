@@ -240,8 +240,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] component typechecks and builds
-- [ ] Gate check passes: `cd web && bun test && bun run typecheck`
+- [x] component typechecks and builds
+- [x] Gate check passes: `cd web && bun test && bun run typecheck`
 
 **Tests**: none
 **Gate**: build

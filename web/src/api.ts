@@ -152,6 +152,8 @@ export const api = {
     }
     return { svg: await r.text(), info };
   },
+  /** The rendered diagram as an image URL (spec layout); ``rev`` busts the cache after a live reload. */
+  thumbnail: (key: string, rev: number) => `api/diagrams/${key.split("/").map(enc).join("/")}.svg?rev=${rev}`,
   styles: (key: string, layout: string | null, signal?: AbortSignal) => {
     const q = layout ? `?layout=${enc(layout)}` : "";
     return json<StyleReport>(`api/diagrams/${key.split("/").map(enc).join("/")}.styles${q}`, { signal });
