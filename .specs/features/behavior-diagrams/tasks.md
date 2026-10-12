@@ -62,11 +62,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-01, BHV-02, BHV-05
 
 **Done when**:
-- [ ] Every BHV-01 kind has parts, a text box inside its bounds, and a preset or freeform plan
-- [ ] Gate passes
+- [x] Every BHV-01 kind has parts, a text box inside its bounds, and a preset or freeform plan
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T2: Per-kind sizing
 
