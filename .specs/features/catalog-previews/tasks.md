@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: inline (reuses diagram-catalog patterns: `web/src/catalog.ts`, `DiagramsPage.tsx`, `ui/themes.py` previews)
-**Status**: Approved
+**Status**: Done
 
 ---
 
@@ -199,7 +199,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 **Done when**:
 
-- [ ] docs updated; Gate check passes: `uv run pytest -q`
+- [x] docs updated; Gate check passes: `uv run pytest -q`
 
 **Tests**: none
 **Gate**: build
