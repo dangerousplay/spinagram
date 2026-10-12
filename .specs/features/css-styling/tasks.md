@@ -61,11 +61,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-01
 
 **Done when**:
-- [ ] `uv lock` updated; import works
-- [ ] Gate passes
+- [x] `uv lock` updated; import works
+- [x] Gate passes
 
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
+
 
 ### T2: Stylesheet parser and selectors
 
