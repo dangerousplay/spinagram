@@ -89,8 +89,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] default position is None; explicit values validated and kept
-- [ ] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
+- [x] default position is None; explicit values validated and kept
+- [x] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
 
 **Tests**: unit
 **Gate**: quick

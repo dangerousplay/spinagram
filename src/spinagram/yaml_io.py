@@ -137,7 +137,7 @@ def _annotations(d: Diagram, data: dict[str, Any]) -> None:
     lg = data.get("legend")
     if lg is not None:
         lg = dict(lg) if isinstance(lg, dict) else {}
-        d.add_legend(lg.get("items"), title=lg.get("title", "Legend"), position=lg.get("position", "right"))
+        d.add_legend(lg.get("items"), title=lg.get("title", "Legend"), position=lg.get("position"))
     for st in data.get("steps") or []:
         st = dict(st)
         d.step(st["text"], on=_step_ref(d, _on(st, "step", d)), n=st.get("n"))
@@ -152,7 +152,9 @@ def _annotations(d: Diagram, data: dict[str, Any]) -> None:
 def _dump_annotations(d: Diagram) -> dict[str, Any]:
     a, out = d.annotations, {}
     if a.legend:
-        out["legend"] = {"title": a.legend.title, "position": a.legend.position}
+        out["legend"] = {"title": a.legend.title}
+        if a.legend.position is not None:
+            out["legend"]["position"] = a.legend.position
         if a.legend.items is not None:
             out["legend"]["items"] = dict(a.legend.items)
     if a.steps:

@@ -92,7 +92,7 @@ whole set of diagrams with one stylesheet cannot move or reshape every legend fr
 | LCSS-01 | P1: Placement - left | Tasks | Pending |
 | LCSS-02 | P1: Placement - top | Tasks | Pending |
 | LCSS-03 | P1: Placement - bottom/right | Tasks | Pending |
-| LCSS-04 | P1: Placement - explicit wins | Tasks | Pending |
+| LCSS-04 | P1: Placement - explicit wins | Tasks | Implementing |
 | LCSS-05 | P1: Placement - invalid value | Tasks | Implementing |
 | LCSS-06 | P1: Placement - area after the band | Tasks | Pending |
 | LCSS-07 | P1: Size - width | Tasks | Pending |

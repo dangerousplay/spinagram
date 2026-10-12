@@ -156,7 +156,7 @@ def band(d: Diagram, theme: Theme, width: float) -> tuple[str, float] | None:
     if not (ann.legend or ann.steps):
         return None
     a = settings(theme)
-    side = ann.legend.position if ann.legend else "right"
+    side = (ann.legend.position if ann.legend else None) or "right"
     if side == "right":
         return "right", a["band"] + a["gap"]
     steps_w = a["band"] if ann.steps else 0

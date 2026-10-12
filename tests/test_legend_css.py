@@ -41,3 +41,17 @@ def test_invalid_legend_values_warn(decl, words):
     comp, warnings = css.styles(_diagram(f"legend {{ {decl} }}"), Theme.load("default"))
     assert decl.split(":")[0] not in comp["legend"].get("", {})
     assert len(warnings) == 1 and all(w in warnings[0] for w in words), warnings
+
+
+# T2 · explicit position stays optional ----------------------------------------------------------------------
+def test_position_defaults_to_none_and_explicit_values_are_kept(tmp_path):  # LCSS-04
+    from spinagram.yaml_io import dump, from_dict
+
+    assert _diagram().annotations.legend.position is None
+    for side in ("right", "left", "top", "bottom"):
+        assert _diagram(position=side).annotations.legend.position == side
+    with pytest.raises(ValueError, match="right, bottom, left, top"):
+        _diagram(position="middle")
+    out = dump(_diagram())
+    assert "position" not in out["annotations"]["legend"]
+    assert from_dict(dump(_diagram(position="top"))).annotations.legend.position == "top"

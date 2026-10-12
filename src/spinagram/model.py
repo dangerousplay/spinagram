@@ -214,7 +214,7 @@ class Legend:
 NOTE_VARIANTS = ("sticky", "card", "quote")
 CALLOUT_KINDS = ("info", "tip", "warning", "risk")
 CALLOUT_SIDES = ("auto", "top", "right", "bottom", "left")
-BAND_POSITIONS = ("right", "bottom")
+BAND_POSITIONS = ("right", "bottom", "left", "top")
 
 
 @dataclass
@@ -223,7 +223,7 @@ class LegendSpec:
     ``pack:icon``) to labels, or ``None`` to list what the diagram uses."""
     title: str = "Legend"
     items: dict[str, str] | None = None
-    position: str = "right"  # right | bottom
+    position: str | None = None  # right | bottom | left | top; None: the stylesheet's `placement`, else right
 
 
 @dataclass
@@ -462,10 +462,10 @@ class Diagram:
 
     # annotations ---------------------------------------------------------------------------------
     def add_legend(self, items: dict[str, str] | None = None, *, title: str = "Legend",
-                   position: str = "right") -> LegendSpec:
+                   position: str | None = None) -> LegendSpec:
         """A legend card in the annotation band: ``items`` maps ``.class``, ``edge.class``, ``style:name`` or
         ``pack:icon`` to a label; without items it lists the classes and styles the diagram uses."""
-        if position not in BAND_POSITIONS:
+        if position is not None and position not in BAND_POSITIONS:
             raise ValueError(f"{self.id}: legend position {position!r}; use one of {', '.join(BAND_POSITIONS)}")
         self.annotations.legend = LegendSpec(title, dict(items) if items is not None else None, position)
         return self.annotations.legend
