@@ -216,7 +216,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-34 | P2: CSS - note variants | Tasks | Implementing |
 | ANN-35 | P2: CSS - inspector report | Tasks | Implementing |
 | ANN-36 | P2: Showcase - AWS legend and steps | Tasks | Implementing |
-| ANN-37 | P2: Showcase - K8s/GCP callouts and legend | Tasks | Pending |
+| ANN-37 | P2: Showcase - K8s/GCP callouts and legend | Tasks | Implementing |
 | ANN-38 | P2: Showcase - notes slide | Tasks | Pending |
 | ANN-39 | P2: Showcase - check clean | Tasks | Pending |
 
