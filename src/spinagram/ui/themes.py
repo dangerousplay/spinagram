@@ -132,15 +132,16 @@ def sample_diagram(theme: Theme, name: str) -> Diagram:
     styles = [s for s in SAMPLE_STYLES if s in defined]
     d = Diagram("THEME", name, subtitle="Node styles, a group and edges in this theme",
                 layout={"engine": "flex", "direction": "right", "gap": 56, "route": "ortho"})
-    size = {"w": 260, "h": 110}
-    first, *rest = styles or ["default"]
-    head = d.box(first.capitalize(), text=f"style: {first}", style=None if first == "default" else first, **size)
-    nodes = []
-    with d.group("Group", direction="down", gap=24):
-        for s in rest:
-            nodes.append(d.box(s.capitalize(), text=f"style: {s}", style=s, **size))
-    for n in nodes:
-        head >> n
+    size = {"w": 440, "h": 230}
+    with d.group("Group", columns=3, gap=80):
+        nodes = [d.box(s.capitalize(), text=f"style: {s}", style=None if s == "default" else s, **size)
+                 for s in styles or ["default"]]
+    # neighbours only (flex routes do not avoid boxes): along each row, and down the first column
+    for row in (nodes[:3], nodes[3:]):
+        for i, (a, b) in enumerate(zip(row, row[1:])):
+            d.edge(a, b, dashed=i == 1)
+    if len(nodes) > 3:
+        d.edge(nodes[0], nodes[3])
     return d
 
 
