@@ -181,7 +181,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
 | ANN-01 | P1: Legend - automatic entries | Tasks | Pending |
-| ANN-02 | P1: Legend - explicit items | Tasks | Pending |
+| ANN-02 | P1: Legend - explicit items | Tasks | Implementing |
 | ANN-03 | P1: Legend - unused entry check | Tasks | Pending |
 | ANN-04 | P1: Legend - node swatch style | Tasks | Pending |
 | ANN-05 | P1: Legend - edge sample style | Tasks | Pending |
@@ -194,7 +194,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-12 | P1: Band - manual layout overlap check | Tasks | Pending |
 | ANN-13 | P1: Steps - edge badge and panel | Tasks | Pending |
 | ANN-14 | P1: Steps - node badge | Tasks | Pending |
-| ANN-15 | P1: Steps - numbering | Tasks | Pending |
+| ANN-15 | P1: Steps - numbering | Tasks | Implementing |
 | ANN-16 | P1: Steps - duplicate check | Tasks | Pending |
 | ANN-17 | P1: Steps - panel order and badges | Tasks | Pending |
 | ANN-18 | P1: Steps - badge beside label | Tasks | Pending |
@@ -204,11 +204,11 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-22 | P1: Callouts - auto side | Tasks | Pending |
 | ANN-23 | P1: Callouts - explicit side | Tasks | Pending |
 | ANN-24 | P1: Callouts - overlap check | Tasks | Pending |
-| ANN-25 | P1: Callouts - kind validation | Tasks | Pending |
+| ANN-25 | P1: Callouts - kind validation | Tasks | Implementing |
 | ANN-26 | P2: Notes - card | Tasks | Pending |
 | ANN-27 | P2: Notes - quote | Tasks | Pending |
 | ANN-28 | P2: Notes - sticky unchanged | Tasks | Pending |
-| ANN-29 | P2: Notes - variant validation | Tasks | Pending |
+| ANN-29 | P2: Notes - variant validation | Tasks | Implementing |
 | ANN-30 | P2: Notes - icon | Tasks | Pending |
 | ANN-31 | P2: CSS - legend | Tasks | Pending |
 | ANN-32 | P2: CSS - steps | Tasks | Pending |

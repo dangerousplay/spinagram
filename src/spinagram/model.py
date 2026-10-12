@@ -81,8 +81,11 @@ class Node:
     def to(self, other: Any, label: str | None = None, **kw: Any) -> Any:
         """Connect to ``other`` (a node or a list) and return it: ``users.to(lb, "HTTPS").to(api)``."""
         d = self._diagram_or_raise()
+        step = kw.pop("step", None)
         for t in other if isinstance(other, (list, tuple)) else [other]:
-            d.edge(self, t, label, **kw)
+            e = d.edge(self, t, label, **kw)
+            if step is not None:
+                d.step(step, on=e)
         return other
 
     def yes(self, target: Any, **kw: Any) -> Any:
@@ -143,6 +146,13 @@ class Edge:
     cls: str | None = None
     css: str | None = None
 
+    def step(self, text: str, n: int | None = None) -> "Step":
+        """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""
+        d = self.__dict__.get("_diagram")
+        if d is None:
+            raise TypeError("edge is not in a diagram: create it with d.edge(...)")
+        return d.step(text, on=self, n=n)
+
 
 @dataclass
 class Zone:
@@ -199,6 +209,50 @@ class Legend:
     x: float
     y: float
     items: list[tuple[str, str]]  # (colour/style, label)
+
+
+NOTE_VARIANTS = ("sticky", "card", "quote")
+CALLOUT_KINDS = ("info", "tip", "warning", "risk")
+CALLOUT_SIDES = ("auto", "top", "right", "bottom", "left")
+BAND_POSITIONS = ("right", "bottom")
+
+
+@dataclass
+class LegendSpec:
+    """A legend card in the annotation band; ``items`` maps keys (``.class``, ``edge.class``, ``style:name``,
+    ``pack:icon``) to labels, or ``None`` to list what the diagram uses."""
+    title: str = "Legend"
+    items: dict[str, str] | None = None
+    position: str = "right"  # right | bottom
+
+
+@dataclass
+class Step:
+    n: int
+    text: str
+    edge: int | None = None   # index into ``Diagram.edges``
+    node: str | None = None
+
+
+@dataclass
+class Callout:
+    target: str               # node id
+    text: str
+    title: str | None = None
+    kind: str = "info"        # info | tip | warning | risk
+    side: str = "auto"        # auto | top | right | bottom | left
+    cls: str | None = None
+    css: str | None = None
+
+
+@dataclass
+class Annotations:
+    legend: LegendSpec | None = None
+    steps: list[Step] = field(default_factory=list)
+    callouts: list[Callout] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.legend or self.steps or self.callouts)
 
 
 _EDGE_RE = re.compile(r"^\s*(?P<src>.+?)\s*(?P<op><->|->|<-|--)\s*(?P<dst>[^:]+?)\s*(?::\s*(?P<label>.*))?$")
@@ -262,6 +316,7 @@ class Diagram:
     meta: dict[str, Any] = field(default_factory=dict)
     css: str | None = None        # stylesheet text for this diagram (after theme and folder sheets)
     stylesheets: list[str] = field(default_factory=list)  # paths or stylesheet texts, in cascade order
+    annotations: Annotations = field(default_factory=lambda: Annotations())
     category: str | None = None   # catalog grouping (``group`` is taken by layout zones)
     tags: list[str] = field(default_factory=list)  # catalog tags, normalised: trimmed, lower-case, unique, sorted
 
@@ -312,8 +367,18 @@ class Diagram:
     def box(self, title: Any = None, **kw: Any) -> Node:
         return self.add("box", title, **kw)
 
-    def note(self, title: Any = None, **kw: Any) -> Node:
-        return self.add("note", title, **kw)
+    def note(self, title: Any = None, *, variant: str | None = None, **kw: Any) -> Node:
+        """A note: ``variant`` is ``sticky`` (default), ``card`` (accent bar) or ``quote``."""
+        n = self.add("note", title, **kw)
+        if variant is not None:
+            if variant not in NOTE_VARIANTS:
+                self.nodes.remove(n)
+                if self._open:
+                    self._open[-1].children.remove(n.id)
+                raise ValueError(f"{self.id}: note variant {variant!r}; use one of {', '.join(NOTE_VARIANTS)}")
+            if variant != "sticky":
+                n.extra["variant"] = variant
+        return n
 
     def diamond(self, title: Any = None, **kw: Any) -> Node:
         return self.add("diamond", title, **kw)
@@ -342,6 +407,7 @@ class Diagram:
         if e.via:
             e.via = [(float(p[0]), float(p[1])) for p in e.via]
         self._check_pseudo(e)
+        e.__dict__["_diagram"] = self  # for edge.step(...); not a dataclass field
         kinds = {n.id: n.kind for n in self.nodes}
         if "dashed" not in kw and "object" in (kinds.get(str(e.src).partition(".")[0]),
                                               kinds.get(str(e.dst).partition(".")[0])):
@@ -393,6 +459,61 @@ class Diagram:
             yield g
         finally:
             self._open.pop()
+
+    # annotations ---------------------------------------------------------------------------------
+    def add_legend(self, items: dict[str, str] | None = None, *, title: str = "Legend",
+                   position: str = "right") -> LegendSpec:
+        """A legend card in the annotation band: ``items`` maps ``.class``, ``edge.class``, ``style:name`` or
+        ``pack:icon`` to a label; without items it lists the classes and styles the diagram uses."""
+        if position not in BAND_POSITIONS:
+            raise ValueError(f"{self.id}: legend position {position!r}; use one of {', '.join(BAND_POSITIONS)}")
+        self.annotations.legend = LegendSpec(title, dict(items) if items is not None else None, position)
+        return self.annotations.legend
+
+    def _node_id(self, ref: Any) -> str:
+        if isinstance(ref, Node):
+            if ref.__dict__.get("_diagram") is not self:
+                raise ValueError(f"{self.id}: node {ref.id!r} is not in diagram {self.id}")
+            return ref.id
+        if isinstance(ref, str) and any(n.id == ref for n in self.nodes):
+            return ref
+        raise ValueError(f"{self.id}: unknown node {ref!r}")
+
+    def step(self, text: str, *, on: Any, n: int | None = None) -> Step:
+        """Number a step of the flow on an edge, a node, a node id or a ``(src, dst)`` pair; without ``n`` it
+        takes the next number after the highest so far."""
+        edge = node = None
+        if isinstance(on, Edge):
+            edge = next((i for i, e in enumerate(self.edges) if e is on), None)
+            if edge is None:
+                raise ValueError(f"{self.id}: edge is not in diagram {self.id}")
+        elif isinstance(on, (tuple, list)):
+            a, b = (self._node_id(x) for x in on)
+            edge = next((i for i, e in enumerate(self.edges)
+                         if str(e.src).partition(".")[0] == a and str(e.dst).partition(".")[0] == b), None)
+            if edge is None:
+                raise ValueError(f"{self.id}: no edge from {a!r} to {b!r}")
+        else:
+            node = self._node_id(on)
+        if n is None:
+            n = max((s.n for s in self.annotations.steps), default=0) + 1
+        st = Step(int(n), str(text), edge, node)
+        self.annotations.steps.append(st)
+        return st
+
+    def callout(self, target: Any, text: str, *, title: str | None = None, kind: str = "info",
+                side: str = "auto", **kw: Any) -> Callout:
+        """A note bubble pointing at a node with a leader line; ``kind`` sets its colour and glyph."""
+        if kind not in CALLOUT_KINDS:
+            raise ValueError(f"{self.id}: callout kind {kind!r}; use one of {', '.join(CALLOUT_KINDS)}")
+        if side not in CALLOUT_SIDES:
+            raise ValueError(f"{self.id}: callout side {side!r}; use one of {', '.join(CALLOUT_SIDES)}")
+        c = Callout(self._node_id(target), str(text), title, kind, side, kw.pop("class_", kw.pop("cls", None)),
+                    kw.pop("css", None))
+        if kw:
+            raise TypeError(f"callout() got unexpected arguments {sorted(kw)}")
+        self.annotations.callouts.append(c)
+        return c
 
     def stylesheet(self, sheet: str | Path) -> "Diagram":
         """Add a stylesheet (a ``.css`` path or CSS text) to this diagram's cascade, after earlier ones."""

@@ -84,9 +84,9 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] steps number in call order; explicit n kept; `on` accepts edge, node, id and (src, dst)
-- [ ] unknown callout kind / note variant raise naming allowed values; foreign callout target raises
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] steps number in call order; explicit n kept; `on` accepts edge, node, id and (src, dst)
+- [x] unknown callout kind / note variant raise naming allowed values; foreign callout target raises
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick
