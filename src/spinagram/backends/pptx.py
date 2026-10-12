@@ -117,27 +117,77 @@ class _Slide:
 
     # styling helpers ----------------------------------------------------------
     @staticmethod
-    def _line(shape, color: str | None, width: float, dashed: bool = False) -> None:
+    def _line(shape, color: str | None, width: float, dashed: bool = False, dash: list[float] | None = None) -> None:
+        from lxml import etree
         from pptx.enum.dml import MSO_LINE_DASH_STYLE
+        from pptx.oxml.ns import qn
 
         if not color or not width:
             shape.line.fill.background()
             return
         shape.line.color.rgb = _rgb(color)
         shape.line.width = _e(width)
-        if dashed:
+        if dash:  # exact pattern: custDash lengths are in 1/1000 % of the line width
+            ln = shape.line._get_or_add_ln()
+            for old in ln.findall(qn("a:prstDash")) + ln.findall(qn("a:custDash")):
+                ln.remove(old)
+            cust = etree.SubElement(ln, qn("a:custDash"))
+            pat = list(dash) + (list(dash) if len(dash) % 2 else [])
+            for d, sp in zip(pat[0::2], pat[1::2]):
+                ds = etree.SubElement(cust, qn("a:ds"))
+                ds.set("d", str(round(d / width * 100000)))
+                ds.set("sp", str(round(sp / width * 100000)))
+            # schema order: fill, prstDash/custDash, join, headEnd, tailEnd
+            for tag in ("a:round", "a:bevel", "a:miter", "a:headEnd", "a:tailEnd"):
+                for el in ln.findall(qn(tag)):
+                    ln.remove(el)
+                    ln.append(el)
+        elif dashed:
             shape.line.dash_style = MSO_LINE_DASH_STYLE.DASH
 
     @staticmethod
-    def _arrows(shape, start: bool, end: bool) -> None:
+    def _shadow(shape, sh: tuple | None) -> None:
+        """CSS box-shadow → DrawingML outer shadow."""
+        if not sh:
+            return
+        import math
+
+        from lxml import etree
+        from pptx.oxml.ns import qn
+
+        dx, dy, blur, color, alpha = sh
+        sp_pr = shape._element.spPr
+        eff = etree.SubElement(sp_pr, qn("a:effectLst"))
+        o = etree.SubElement(eff, qn("a:outerShdw"))
+        o.set("blurRad", str(_e(blur)))
+        o.set("dist", str(_e(math.hypot(dx, dy))))
+        o.set("dir", str(round((math.degrees(math.atan2(dy, dx)) % 360) * 60000)))
+        o.set("algn", "ctr")
+        o.set("rotWithShape", "0")
+        clr = etree.SubElement(o, qn("a:srgbClr"))
+        clr.set("val", color.strip("#").upper())
+        etree.SubElement(clr, qn("a:alpha")).set("val", str(round(alpha * 100000)))
+
+    _MARKER = {"arrow": "triangle", "open-arrow": "arrow", "diamond": "diamond", "open-diamond": "diamond",
+               "circle": "oval", "bar": None}
+
+    @classmethod
+    def _arrows(cls, shape, start: bool, end: bool, kinds: tuple[str, str] = ("arrow", "arrow")) -> None:
         from pptx.oxml.ns import qn
         from lxml import etree
 
         ln = shape.line._get_or_add_ln()
-        for tag, on in (("a:headEnd", start), ("a:tailEnd", end)):
+        for tag, on, kind, prop in (("a:headEnd", start, kinds[0], "marker-start"),
+                                    ("a:tailEnd", end, kinds[1], "marker-end")):
             if on:
+                typ = cls._MARKER.get(kind, "triangle")
+                if kind in ("open-diamond", "bar"):
+                    _warn_once(f"pptx-marker:{kind}", f"pptx: {prop} '{kind}' has no PowerPoint arrowhead; "
+                               f"drawn as {typ or 'no arrowhead'}")
+                if typ is None:
+                    continue
                 el = etree.SubElement(ln, qn(tag))
-                el.set("type", "triangle")
+                el.set("type", typ)
                 el.set("w", "med")
                 el.set("len", "med")
 
@@ -251,8 +301,9 @@ class _Slide:
             sh.fill.fore_color.rgb = _rgb(fill)
         else:
             sh.fill.background()
-        self._line(sh, s.stroke, s.stroke_width, s.dashed)
+        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
         self._no_shadow(sh)
+        self._shadow(sh, s.shadow)
         if s.label:
             self._text_frame(sh, s, s.label, prewrapped=s.kind in ("diamond", "pill"))
         self.shapes[s.id] = sh
@@ -269,8 +320,10 @@ class _Slide:
                 sh.fill.fore_color.rgb = _rgb(fill)
             else:
                 sh.fill.background()
-        self._line(sh, s.stroke, s.stroke_width, s.dashed)
+        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
         self._no_shadow(sh)
+        if paint != "stroke":
+            self._shadow(sh, s.shadow)
 
     def symbol(self, s: Shape, target) -> object:
         """Behavior symbol: preset geometry, a group of natives for multi-part symbols, else a freeform."""
@@ -343,8 +396,8 @@ class _Slide:
             shape.fill.background()
         shape.name = c.id
         self._no_shadow(shape)
-        self._line(shape, c.color, c.width, c.dashed)
-        self._arrows(shape, c.arrow_start, c.arrow_end)
+        self._line(shape, c.color, c.width, c.dashed, c.dash)
+        self._arrows(shape, c.arrow_start, c.arrow_end, (c.marker_start, c.marker_end))
         if c.label:
             self.shape(c.label)
 

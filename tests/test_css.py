@@ -307,6 +307,7 @@ def test_scene_applies_computed_styles():  # CSS-08, CSS-09, CSS-10
     assert lab.color == "#92400E" and lab.font.size == 14
     zone = next(s for s in sc.items if isinstance(s, Shape) and s.role == "zone")
     assert (zone.fill, zone.stroke, zone.dash, zone.opacity) == ("#ECFDF5", "#059669", [2.0, 2.0], 1.0)
+    assert zone.stroke_width == 2.0  # a CSS stroke on an outline-less zone draws a 2 px outline
 
 
 def test_font_size_from_css_drives_auto_size():  # CSS-09 before layout (no overflow)
@@ -377,3 +378,53 @@ def test_svg_renders_style_properties():  # CSS-12 (SVG)
     assert 'font-style="italic"' in svg and 'fill="#7F1D1D"' in svg                     # title text
     assert re.search(r'<rect [^>]*opacity="0.5"', svg)                                   # #db opacity
 
+
+
+# T8: PowerPoint ---------------------------------------------------------------------------------
+A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
+
+def _slide(tmp_path, d):
+    pptx = pytest.importorskip("pptx")
+    from spinagram import render
+    render([d], tmp_path, formats=["pptx"])
+    return pptx.Presentation(str(tmp_path / "diagrams.pptx")).slides[0]
+
+
+def _all_shapes(shapes):
+    for sh in shapes:
+        yield sh
+        if sh.shape_type == 6:  # group
+            yield from _all_shapes(sh.shapes)
+
+
+def test_pptx_renders_style_properties(tmp_path):  # CSS-12 (PowerPoint)
+    slide = _slide(tmp_path, _styled())
+    by = {sh.name: sh for sh in _all_shapes(slide.shapes)}
+    api = by["api"]._element.spPr
+    ln = api.find(f"{A}ln")
+    from spinagram.backends.pptx import _e
+    assert int(ln.get("w")) == _e(5)
+    shdw = api.find(f"{A}effectLst/{A}outerShdw")
+    assert shdw is not None and shdw.find(f"{A}srgbClr").get("val") == "000000"
+    assert shdw.find(f"{A}srgbClr/{A}alpha").get("val") == "30000"
+    edge = by["e0"]._element.spPr.find(f"{A}ln")
+    ds = edge.find(f"{A}custDash/{A}ds")
+    assert ds.get("d") == "300000" and ds.get("sp") == "200000"       # 6 4 at width 2 → 300 % / 200 %
+    assert edge.find(f"{A}tailEnd").get("type") == "diamond" and edge.find(f"{A}headEnd").get("type") == "oval"
+    zone = next(sh for sh in by.values() if sh.name.startswith("z") and sh._element.spPr.find(f"{A}ln/{A}custDash")
+                is not None)
+    assert zone._element.spPr.find(f"{A}ln/{A}custDash/{A}ds") is not None
+    runs = [r for sh in slide.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs for r in p.runs]
+    title = next(r for r in runs if r.text == "API")
+    assert title.font.italic and str(title.font.color.rgb) == "7F1D1D"
+
+
+def test_pptx_warns_for_markers_it_cannot_draw(tmp_path):  # CSS-13
+    d = Diagram("S", "x", css="edge { marker-end: open-diamond; marker-start: bar }", layout={"engine": "layered"})
+    d.box("A") >> d.box("B")
+    with pytest.warns(UserWarning) as rec:
+        _slide(tmp_path, d)
+    msgs = [str(r.message) for r in rec]
+    assert any("pptx" in m and "marker-end" in m and "open-diamond" in m for m in msgs)
+    assert any("pptx" in m and "marker-start" in m and "bar" in m for m in msgs)

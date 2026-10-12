@@ -180,11 +180,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-12, CSS-13
 
 **Done when**:
-- [ ] DrawingML asserted per property; one warning per inexpressible value
-- [ ] Gate passes
+- [x] DrawingML asserted per property; one warning per inexpressible value
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T9: Figma style properties
 
