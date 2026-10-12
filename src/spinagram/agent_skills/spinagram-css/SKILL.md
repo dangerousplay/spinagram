@@ -104,6 +104,9 @@ by CSS and native in every output.
   ~360 px of clear space beside the node; if `check` reports `callout: overlap`, target a node with room
   around it.
 - **Notes**: `d.note(..., variant="card" | "quote")` for decision cards and quotes on narrative slides.
+- **Legend from CSS**: `legend { placement: bottom; columns: 4 }` moves and reshapes it (also `width`, `gap`,
+  `padding`, `swatch-width`, `swatch-height`, `display: none`, `legend::body { font-size }`); an explicit
+  `add_legend(position=...)` wins.
 - **Band budget**: legend and steps take a 392 px band on the right. Plan content for about 1416 px of width
   (with `layout.area` set to `[56, 176, 1808, 830]`), or put the legend at the bottom.
 - **Style**: `legend`, `legend::title`, `legend::body`, `step`, `step::label`, `callout.warning`,

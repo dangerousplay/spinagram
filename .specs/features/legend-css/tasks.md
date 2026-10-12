@@ -158,8 +158,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] docs build
-- [ ] Gate check passes: `build gate`
+- [x] docs build
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build
