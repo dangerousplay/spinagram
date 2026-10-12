@@ -9,6 +9,7 @@ import pytest
 pytest.importorskip("starlette")
 from starlette.testclient import TestClient  # noqa: E402
 
+from spinagram.theme import Theme  # noqa: E402
 from spinagram.ui import themes  # noqa: E402
 from spinagram.ui.catalog import PackService  # noqa: E402
 from spinagram.ui.events import EventBus  # noqa: E402
@@ -128,6 +129,20 @@ def test_theme_sheet_and_previews():
         themes.style_preview("default", None, "node", "missing")
     with pytest.raises(KeyError):
         themes.theme_sheet("../../etc", None)
+
+
+def test_theme_sample_uses_only_defined_node_styles():
+    """PREV-04: the sample shows the theme's node styles among the six common ones, nothing else."""
+    class Stub:
+        def get(self, *path):
+            return {"default": {}, "dark": {}, "custom": {}} if path == ("styles", "node") else None
+
+    styles = sorted({n.style or "default" for n in themes.sample_diagram(Stub(), "stub").nodes})
+    assert styles == ["dark", "default"]
+    full = themes.sample_diagram(Theme.load("default"), "default")
+    assert sorted({n.style or "default" for n in full.nodes}) == ["alert", "dark", "default", "neutral", "soft",
+                                                                    "warning"]
+    assert full.title == "default"
 
 
 def test_theme_list_marks_active(env):

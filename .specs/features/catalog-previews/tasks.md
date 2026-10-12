@@ -62,8 +62,8 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 **Done when**:
 
-- [ ] a theme without `warning`/`alert` styles renders without them; the default theme uses all six
-- [ ] Gate check passes: `uv run pytest tests/test_ui.py -q`
+- [x] a theme without `warning`/`alert` styles renders without them; the default theme uses all six
+- [x] Gate check passes: `uv run pytest tests/test_ui.py -q`
 
 **Tests**: unit
 **Gate**: quick

@@ -121,3 +121,31 @@ def style_preview(ref: str, active_ref: str | Path | None, kind: str, style: str
         d.zone(style, x=200, y=300, w=380, h=170, color=style)
         box = (180, 280, 420, 210)
     return _crop(to_svg(build_scene(d, theme)), *box)
+
+
+SAMPLE_STYLES = ("default", "dark", "soft", "warning", "alert", "neutral")
+
+
+def sample_diagram(theme: Theme, name: str) -> Diagram:
+    """A small diagram that shows a theme's chrome, fonts, a zone and its common node styles."""
+    defined = theme.get("styles", "node") or {}
+    styles = [s for s in SAMPLE_STYLES if s in defined]
+    d = Diagram("THEME", name, subtitle="Node styles, a group and edges in this theme",
+                layout={"engine": "flex", "direction": "right", "gap": 56, "route": "ortho"})
+    size = {"w": 260, "h": 110}
+    first, *rest = styles or ["default"]
+    head = d.box(first.capitalize(), text=f"style: {first}", style=None if first == "default" else first, **size)
+    nodes = []
+    with d.group("Group", direction="down", gap=24):
+        for s in rest:
+            nodes.append(d.box(s.capitalize(), text=f"style: {s}", style=s, **size))
+    for n in nodes:
+        head >> n
+    return d
+
+
+def theme_thumbnail(ref: str, active_ref: str | Path | None) -> str:
+    """The sample diagram rendered with theme ``ref`` as a full-slide SVG."""
+    theme = Theme.load(resolve_ref(ref, active_ref))
+    name = theme.data.get("name") or Path(str(ref)).name
+    return to_svg(build_scene(sample_diagram(theme, name), theme))
