@@ -423,6 +423,7 @@ def test_deterministic_across_hash_seeds():  # LAY-05: same golden layout under 
         assert out.stdout.strip() == GOLDEN, f"PYTHONHASHSEED={seed}"
 
 
+@pytest.mark.parametrize("direction", ["down", "right"])
 def test_routes_inside_lanes_are_orthogonal_and_avoid_nodes(direction):  # LAY-16, LAY-17
     g = _lanes(direction)
     g.edges.append(LEdge("e2", "a", "c"))  # same lane, skips a rank
