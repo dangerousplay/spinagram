@@ -152,6 +152,7 @@ The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable
 
 - [Automatic layout](https://dangerousplay.github.io/spinagram/docs/auto-layout/): groups and the `flex`, `dot`, `elk` and `d2` engines
 - [Icon packs](https://dangerousplay.github.io/spinagram/docs/icons/) and [themes](https://dangerousplay.github.io/spinagram/docs/themes/)
+- [Annotations](https://dangerousplay.github.io/spinagram/docs/annotations/): legends, numbered steps, callouts and designed notes
 - [Facts](https://dangerousplay.github.io/spinagram/docs/facts/): numbers with traceable sources
 - [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/figma/) hand-off
 - [CLI](https://dangerousplay.github.io/spinagram/docs/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/live-ui/)

@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/annotations/design.md`
-**Status**: Approved
+**Status**: Done
 
 ---
 
@@ -460,8 +460,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] docs build; skill mentions annotations
-- [ ] Gate check passes: `build gate`
+- [x] docs build; skill mentions annotations
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build

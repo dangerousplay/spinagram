@@ -14,8 +14,9 @@ Files next to this one:
 
 - `references/recipes.css`: tested rules to copy (base cards, dark canvas, tiers, edge semantics,
   vendor accents).
-- `examples/`: five complete diagrams with their stylesheets: AWS three-tier, AWS hub-and-spoke
-  networking, Kubernetes workload, Kubernetes service networking and a Google Cloud global app.
+- `examples/`: six complete diagrams with their stylesheets: AWS three-tier and hub-and-spoke networking
+  (legends, numbered steps), Kubernetes workload and service networking and a Google Cloud global app
+  (legends, callouts), and an architecture-decisions slide of designed notes.
   Render them with `spinagram render examples/ -f png -o out/`.
 
 ## Workflow
@@ -88,6 +89,27 @@ All are in `references/recipes.css`.
   their labels to match.
 - **Vendor palettes.** AWS colours by service category (compute orange, network purple, database
   magenta, storage green); Google Cloud uses its four brand colours; Kubernetes uses `#326CE5`.
+
+## Annotations
+
+Legends, numbered steps, callouts and notes make a reference architecture explain itself; all are styled
+by CSS and native in every output.
+
+- **Legend**: `d.add_legend()` lists the classes and styles in use, labelled from their names, so name
+  classes for meaning (`.web-tier` → "Web tier", `edge.backup-path` → "Backup path"). Pass
+  `{".class": "Label", "edge.class": ..., "style:dark": ..., "aws:s3": ...}` to choose entries.
+- **Steps**: `a.to(b, "HTTPS", step="Users call the API")`, `d.step("…", on=node)`. Badges sit beside edge
+  labels or on node corners; the Steps panel lists them in order. Keep each step to one line (~38 chars).
+- **Callouts**: `d.callout(node, "text", title=..., kind="info|tip|warning|risk")`. Auto placement needs
+  ~360 px of clear space beside the node; if `check` reports `callout: overlap`, target a node with room
+  around it.
+- **Notes**: `d.note(..., variant="card" | "quote")` for decision cards and quotes on narrative slides.
+- **Band budget**: legend and steps take a 392 px band on the right. Plan content for about 1416 px of width
+  (with `layout.area` set to `[56, 176, 1808, 830]`), or put the legend at the bottom.
+- **Style**: `legend`, `legend::title`, `legend::body`, `step`, `step::label`, `callout.warning`,
+  `callout::body`, `note.card`. A dark legend matches a dark cluster (see `examples/k8s.css`).
+- **Specificity**: a rule like `group.cluster node` (0,1,2) beats `.networking` (0,1,0); write
+  `group.cluster .networking` so class colours, and with them the legend, still show.
 
 ## Fitting dense diagrams on one slide
 
