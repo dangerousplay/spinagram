@@ -95,11 +95,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-01, CSS-03..07, CSS-14..16, CSS-22, CSS-30
 
 **Done when**:
-- [ ] Competing-rules table resolved as specified; tokens across two themes; unknown property and negative values warned
-- [ ] Gate passes
+- [x] Competing-rules table resolved as specified; tokens across two themes; unknown property and negative values warned
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T4: Classes and stylesheets in the model
 

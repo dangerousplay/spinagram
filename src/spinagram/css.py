@@ -8,11 +8,13 @@ pseudo-elements ``::title``, ``::body``, ``::label``.
 """
 from __future__ import annotations
 
+import difflib
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import tinycss2
+from PIL import ImageColor
 
 
 # parsing ----------------------------------------------------------------------------------------
@@ -148,7 +150,7 @@ def _parse_one(text: str) -> Selector:
             comp.attrs.append((name.strip(), val if "=" in body else None))
         elif kind == "pc":
             name = tok[1:]
-            if name not in ("first-child", "last-child"):
+            if name not in ("first-child", "last-child", "root"):
                 raise _SelectorError(f"unsupported pseudo-class :{name}")
             comp.pseudos.append(name)
         elif kind == "not":
@@ -244,6 +246,8 @@ def _match_compound(comp: Compound, el: El) -> bool:
             return False
         if p == "last-child" and sibs[-1] is not el:
             return False
+        if p == "root" and el.parent is not None:
+            return False
         if isinstance(p, tuple) and any(matches(s, el) for s in p[1]):
             return False
     return True
@@ -267,3 +271,201 @@ def matches(sel: Selector, el: El) -> bool:
         return False
 
     return at(len(sel.parts) - 1, el)
+
+
+# values -----------------------------------------------------------------------------------------
+INHERITED = {"color", "font-family", "font-size", "font-weight", "font-style"}
+MARKERS = {"none", "arrow", "open-arrow", "diamond", "open-diamond", "circle", "bar"}
+
+
+class CssValueError(ValueError):
+    pass
+
+
+def _num(v: str) -> float:
+    v = v.strip()
+    if v.endswith("px"):
+        v = v[:-2]
+    return float(v)
+
+
+def _frac(v: str) -> float:
+    v = v.strip()
+    return float(v[:-1]) / 100 if v.endswith("%") else float(v)
+
+
+def _split_ws(v: str) -> list[str]:
+    out, depth, cur = [], 0, ""
+    for ch in v:
+        depth += {"(": 1, ")": -1}.get(ch, 0)
+        if ch.isspace() and depth == 0:
+            if cur:
+                out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _colour(v: str, theme) -> tuple[str, float]:
+    """→ (#RRGGBB, alpha). Hex, rgb()/rgba(), CSS names, or a theme colour token."""
+    v = v.strip()
+    m = re.fullmatch(r"rgba?\(([^)]*)\)", v)
+    if m:
+        parts = [p.strip() for p in re.split(r"[,\s/]+", m.group(1)) if p.strip()]
+        rgb = [round(float(p[:-1]) * 2.55) if p.endswith("%") else int(float(p)) for p in parts[:3]]
+        alpha = _frac(parts[3]) if len(parts) > 3 else 1.0
+        return "#{:02X}{:02X}{:02X}".format(*rgb), alpha
+    if v.startswith("#"):
+        h = v[1:]
+        if len(h) in (3, 4):
+            h = "".join(c * 2 for c in h)
+        alpha = int(h[6:8], 16) / 255 if len(h) == 8 else 1.0
+        return "#" + h[:6].upper(), alpha
+    if v.lower() in ImageColor.colormap:
+        r, g, b = ImageColor.getrgb(v.lower())[:3]
+        return f"#{r:02X}{g:02X}{b:02X}", 1.0
+    return theme.color(v), 1.0  # raises KeyError for unknown tokens
+
+
+def _shadow(v: str, theme):
+    if v.strip() == "none":
+        return None
+    toks = _split_ws(v)
+    nums = [t for t in toks if re.fullmatch(r"-?[\d.]+(px)?", t)]
+    rest = [t for t in toks if t not in nums]
+    ox, oy, blur = (_num(x) for x in (nums + ["0", "0", "0"])[:3])
+    col, alpha = _colour(rest[0], theme) if rest else ("#000000", 0.35)
+    return (ox, oy, blur, col, alpha)
+
+
+def _weight(v: str) -> int:
+    v = v.strip().lower()
+    return {"normal": 400, "bold": 700, "lighter": 300, "bolder": 800}.get(v) or int(v)
+
+
+def _keyword(allowed):
+    def parse(v: str, theme=None) -> str:
+        v = v.strip().lower()
+        if v not in allowed:
+            raise ValueError(f"expected one of {sorted(allowed)}")
+        return v
+    return parse
+
+
+def _length(v: str, theme=None) -> float:
+    x = _num(v)
+    if x < 0:
+        raise ValueError("negative values are not allowed")
+    return x
+
+
+PROPS = {
+    "fill": lambda v, t: _colour(v, t)[0],
+    "stroke": lambda v, t: _colour(v, t)[0],
+    "color": lambda v, t: _colour(v, t)[0],
+    "stroke-width": _length,
+    "border-radius": _length,
+    "font-size": _length,
+    "stroke-dasharray": lambda v, t: [] if v.strip() == "none" else [_length(x) for x in re.split(r"[\s,]+", v.strip())],
+    "opacity": lambda v, t: max(0.0, min(1.0, _frac(v))),
+    "fill-opacity": lambda v, t: max(0.0, min(1.0, _frac(v))),
+    "box-shadow": _shadow,
+    "font-weight": lambda v, t: _weight(v),
+    "font-style": _keyword({"normal", "italic"}),
+    "font-family": lambda v, t: v.strip().strip("'\""),
+    "marker-start": _keyword(MARKERS),
+    "marker-end": _keyword(MARKERS),
+}
+COLOUR_PROPS = {"fill", "stroke", "color"}
+
+
+def _substitute(value: str, custom: dict[str, str]) -> str:
+    """Replace var(--x[, fallback]); an unknown --x falls back to the theme token ``x``."""
+    def rep(m: re.Match) -> str:
+        name, _, fb = m.group(1).partition(",")
+        name = name.strip()
+        if name in custom:
+            return custom[name]
+        return fb.strip() if fb.strip() else name[2:]
+
+    for _ in range(8):  # nested var()
+        new = re.sub(r"var\(\s*(--[\w-]+(?:\s*,[^()]*)?)\)", rep, value)
+        if new == value:
+            break
+        value = new
+    return value
+
+
+def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = None) -> dict[El, dict[str, dict]]:
+    """Computed style per element and pseudo-element (``""``, ``"title"``, ``"body"``, ``"label"``)."""
+    warnings = warnings if warnings is not None else []
+    out: dict[El, dict[str, dict]] = {}
+    warned: set[tuple] = set()
+
+    def warn(msg: str) -> None:
+        if msg not in warned:
+            warned.add(msg)
+            warnings.append(msg)
+
+    def declared(el: El, pseudo: str | None) -> list[tuple[tuple, Decl, Rule | None, Selector | None]]:
+        found = []
+        for r in rules:
+            for sel in r.selectors:
+                if sel.pseudo_element == pseudo and matches(sel, el):
+                    for i, d in enumerate(r.decls):
+                        found.append(((2 if d.important else 0, sel.specificity, r.order, i), d, r, sel))
+        if el.inline and pseudo is None:
+            for i, d in enumerate(_inline(el.inline)):
+                found.append(((3 if d.important else 1, (0, 0, 0), 0, i), d, None, None))
+        found.sort(key=lambda f: f[0])
+        return found
+
+    def resolve(el: El, pseudo: str | None, parent_vals: dict, parent_custom: dict) -> tuple[dict, dict]:
+        decls = declared(el, pseudo)
+        custom = dict(parent_custom)
+        for _, d, _, _ in decls:
+            if d.name.startswith("--"):
+                custom[d.name] = d.value
+        vals = {k: v for k, v in parent_vals.items() if k in INHERITED}
+        for _, d, r, sel in decls:
+            if d.name.startswith("--"):
+                continue
+            where = f"{r.origin}:{d.line}" if r else f"{el.key or el.id}: inline css"
+            if d.name not in PROPS:
+                near = difflib.get_close_matches(d.name, list(PROPS), n=1)
+                hint = f" (did you mean '{near[0]}'?)" if near else ""
+                warn(f"{where}: unknown property '{d.name}'{hint}")
+                continue
+            raw = _substitute(d.value, custom)
+            try:
+                vals[d.name] = PROPS[d.name](raw, theme)
+            except KeyError:
+                if d.name in COLOUR_PROPS:
+                    who = sel.text if sel else (el.key or el.id)
+                    raise CssValueError(f"{where}: {who}: cannot resolve colour {raw!r}") from None
+                warn(f"{where}: invalid value {raw!r} for '{d.name}'")
+            except ValueError as exc:
+                warn(f"{where}: '{d.name}: {raw}' ignored — {exc}")
+        return vals, custom
+
+    def walk(el: El, parent_vals: dict, parent_custom: dict) -> None:
+        vals, custom = resolve(el, None, parent_vals, parent_custom)
+        out[el] = {"": vals}
+        for pe in ("title", "body", "label"):
+            out[el][pe] = resolve(el, pe, vals, custom)[0]
+        for c in el.children:
+            walk(c, vals, custom)
+
+    walk(root, {}, {})
+    return out
+
+
+def _inline(text: str) -> list[Decl]:
+    decls = []
+    for d in tinycss2.parse_declaration_list(text, skip_comments=True, skip_whitespace=True):
+        if d.type == "declaration":
+            decls.append(Decl(d.lower_name, tinycss2.serialize(d.value).strip(), d.important, 0))
+    return decls
