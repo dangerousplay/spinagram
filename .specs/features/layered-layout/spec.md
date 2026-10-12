@@ -52,7 +52,7 @@ engine so edge-driven diagrams lay out well out of the box.
 
 1. WHEN a diagram uses the `layered` engine THEN the system SHALL place every edge's target in a later rank than its source, except for edges reversed to break cycles.  <!-- LAY-01 -->
 2. WHEN `direction` is `down` THEN the system SHALL assign ranks to increasing y; WHEN `direction` is `right` THEN to increasing x.  <!-- LAY-02 -->
-3. The system SHALL keep at least the theme's `rank_gap` between consecutive ranks and `gap` between nodes in one rank.  <!-- LAY-03 -->
+3. The system SHALL keep at least the theme's `rank_gap` between consecutive ranks and `node_gap` between nodes in one rank.  <!-- LAY-03 -->
 4. The system SHALL produce no overlapping node boxes.  <!-- LAY-04 -->
 5. WHEN the same diagram is laid out twice THEN the system SHALL produce identical coordinates.  <!-- LAY-05 -->
 6. WHEN the graph has no edges THEN the system SHALL place nodes in one rank in declaration order.  <!-- LAY-06 -->
@@ -69,7 +69,7 @@ engine so edge-driven diagrams lay out well out of the box.
 
 **Acceptance Criteria**:
 
-1. WHEN the graph has cycles THEN the system SHALL reverse a minimal-heuristic set of edges for ranking and draw them with their original direction.  <!-- LAY-07 -->
+1. WHEN the graph has cycles THEN the system SHALL reverse the back-edges found by a depth-first search in declaration order for ranking, and draw them with their original direction.  <!-- LAY-07 -->
 2. WHEN a back-edge spans more than one rank THEN the system SHALL route it on the outer side of the ranks it spans; WHEN it connects adjacent ranks THEN the system SHALL route it inside the gap between them; in both cases no segment SHALL pass through a node box.  <!-- LAY-08 -->
 3. WHEN an edge's source equals its target THEN the system SHALL draw a loop leaving and re-entering the same side of the node, with its label beside the loop.  <!-- LAY-09 -->
 4. WHEN two or more edges connect the same pair of nodes THEN the system SHALL draw them as separate parallel routes with separate labels.  <!-- LAY-10 -->
@@ -87,9 +87,9 @@ engine so edge-driven diagrams lay out well out of the box.
 **Acceptance Criteria**:
 
 1. The system SHALL route every non-self edge as a polyline whose segments are horizontal or vertical.  <!-- LAY-11 -->
-2. The system SHALL place each edge label on its route so that the label box does not intersect any node box.  <!-- LAY-12 -->
+2. The system SHALL place each routed edge's label on one of its segments or beside it (pill edge within 6 px of the segment) so that the label box intersects no node box and no other label placed before it.  <!-- LAY-12 -->
 3. WHEN edges leave a decision node THEN the system SHALL attach them to distinct sides or distinct positions of the node.  <!-- LAY-13 -->
-4. WHEN the author anchored an edge (`a.right`) THEN the system SHALL keep that anchor and route from it.  <!-- LAY-14 -->
+4. WHEN the author anchored an edge (`a.right`) THEN the system SHALL keep that anchor and leave the edge exactly as the author defined it (no engine route).  <!-- LAY-14 -->
 
 **Independent Test**: Route the order flow; assert all segments axis-aligned, label boxes disjoint from node boxes, decision edges on distinct ports.
 

@@ -380,3 +380,107 @@ def test_overflow_still_reported():  # LAY-20
         prev >> cur
         prev = cur
     assert any(i.kind == "overflow" for i in check(scenes([d])[0]))
+
+
+# verifier gaps (validation.md, iteration 1) -----------------------------------------------------
+import json  # noqa: E402
+import os  # noqa: E402
+import subprocess  # noqa: E402
+import sys  # noqa: E402
+
+
+def test_adjacent_back_edge_stays_in_the_gap():  # LAY-08 (adjacent ranks)
+    res = _run(_graph(["a", "b"], [("a", "b"), ("b", "a")]))
+    a, b = res.boxes["a"], res.boxes["b"]
+    pts = res.routes["e1"]
+    assert abs(pts[0][1] - b[1]) < 0.6 and abs(pts[-1][1] - (a[1] + a[3])) < 0.6  # b top → a bottom
+    for x, y in pts[1:-1]:
+        assert a[1] + a[3] - 0.5 <= y <= b[1] + 0.5  # every bend inside the gap
+    lo = min(a[0], b[0])
+    hi = max(a[0] + a[2], b[0] + b[2])
+    assert all(lo - 0.5 <= x <= hi + 0.5 for x, _ in pts)  # not sent round the outside
+
+
+_SEED_SCRIPT = """
+import json, sys
+sys.path.insert(0, {tests!r})
+from test_layered import _graph, _run, ORDER, ORDER_EDGES
+g = _graph(ORDER + ["x", "y"], ORDER_EDGES + [("backorder", "receive"), ("x", "y"), ("y", "x")])
+r = _run(g)
+print(json.dumps([sorted(r.boxes.items()), sorted(r.routes.items())]))
+"""
+
+
+def test_deterministic_across_hash_seeds():  # LAY-05 (across runs, not only within one process)
+    outs = []
+    for seed in ("1", "2", "3"):
+        env = dict(os.environ, PYTHONHASHSEED=seed)
+        script = _SEED_SCRIPT.format(tests=os.path.dirname(__file__))
+        outs.append(subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True,
+                                   check=True).stdout)
+    assert outs[0] == outs[1] == outs[2]
+    assert json.loads(outs[0])
+
+
+def test_routes_inside_lanes_are_orthogonal_and_avoid_nodes():  # LAY-16, LAY-17
+    g = _lanes()
+    g.edges.append(LEdge("e2", "a", "c"))  # same lane, skips a rank
+    res = _run(g)
+    for eid in ("e0", "e1", "e2"):
+        pts = res.routes[eid]
+        for p, q in zip(pts, pts[1:]):
+            assert abs(p[0] - q[0]) < 1e-6 or abs(p[1] - q[1]) < 1e-6, eid
+            for n in "abc":
+                assert not _seg_hits_box(p, q, res.boxes[n]), (eid, n)
+    assert _on_border(res.routes["e0"][0], res.boxes["a"]) and _on_border(res.routes["e0"][-1], res.boxes["b"])
+    assert _on_border(res.routes["e2"][0], res.boxes["a"]) and _on_border(res.routes["e2"][-1], res.boxes["c"])
+
+
+def test_self_loop_clears_same_rank_neighbour_and_its_label_sits_beside_it():  # LAY-09
+    d = Diagram("s", "Loop", layout={"engine": "layered", "direction": "down"})
+    a, b, c = d.box("A"), d.box("B"), d.box("C")
+    a >> b
+    a >> c
+    d.edge(b, b, "retry later")
+    th = _theme()
+    out = apply_layout(d, th)
+    n = {k.id: (k.x, k.y, k.w, k.h) for k in out.nodes}
+    loop_e = out.edges[2]
+    pts = [(n["b"][0] + n["b"][2], 0)] + list(loop_e.via)
+    xs = [x for x, _ in loop_e.via]
+    for (x1, y1), (x2, y2) in zip(loop_e.via, loop_e.via[1:]):
+        assert not _seg_hits_box((x1, y1), (x2, y2), n["c"]) and not _seg_hits_box((x1, y1), (x2, y2), n["b"])
+    pill = _pill_box(loop_e, th)
+    for box in n.values():
+        assert not _overlap(pill, box)
+    assert pill[0] >= min(xs) - 0.5  # beside the loop, on its outer side (never over the node)
+    assert abs(pill[1] + pill[3] / 2 - (loop_e.via[0][1] + loop_e.via[1][1]) / 2) < pill[3]  # level with the loop
+    assert pts
+
+
+def test_parallel_edges_get_separate_non_overlapping_labels():  # LAY-10, LAY-12
+    th = _theme()
+    d = Diagram("p", "Parallel", layout={"engine": "layered", "direction": "down"})
+    a, b = d.box("A"), d.box("B")
+    d.edge(a, b, "request")
+    d.edge(a, b, "retry")
+    out = apply_layout(d, th)
+    p1, p2 = _pill_box(out.edges[0], th), _pill_box(out.edges[1], th)
+    assert out.edges[0].label_at != out.edges[1].label_at
+    assert not _overlap(p1, p2)
+
+
+def test_overflow_reports_the_excess_in_px():  # LAY-20
+    from spinagram.api import scenes
+    from spinagram.qa import check
+    d = Diagram("big", "Too tall", layout={"engine": "layered", "direction": "down"})
+    prev = d.box("n0")
+    for i in range(1, 12):
+        cur = d.box(f"n{i}")
+        prev >> cur
+        prev = cur
+    sc = scenes([d])[0]
+    over = sc.layout_overflow
+    assert over and over[1] > 0
+    issue = next(i for i in check(sc) if i.kind == "overflow")
+    assert f"{over[1]}px tall" in issue.detail

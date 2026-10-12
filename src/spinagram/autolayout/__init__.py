@@ -304,6 +304,7 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
             x, y, w, h = boxes[g.id]
             zones.append(Zone(x=x, y=y, w=w, h=h, label=g.label, color=g.style or "soft", icon=g.icon))
     d.zones = zones + d.zones
+    bound: set[str] = set()
     for le in graph.edges + graph.loops:
         e = d.edges[int(le.id[1:])]
         if e.via or e.curve or _node_id(e.src)[1] or _node_id(e.dst)[1]:
@@ -311,6 +312,7 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
         pts = res.routes.get(le.id)
         if not pts or len(pts) < 2:
             continue
+        bound.add(le.id)
         pts = _simplify([(round(x + dx, 1), round(y + dy, 1)) for x, y in pts])
         e.src = f"{le.src}.{_side(boxes[le.src], pts[0])}"
         e.dst = f"{le.dst}.{_side(boxes[le.dst], pts[-1])}"
@@ -325,7 +327,7 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
     node_boxes = [b for k, b in boxes.items() if k in nodes]
     for le in graph.edges + graph.loops:  # labels of routed edges sit on the route, clear of every node
         e = d.edges[int(le.id[1:])]
-        if e.label and e.via and not e.label_at:
+        if e.label and (e.via or le.id in bound) and not e.label_at:
             e.label_at = _label_point(boxes, e, theme, node_boxes, placed)
     d.meta["layout_engine"] = name
     d.layout = None  # positions are final; applying again is a no-op
@@ -360,7 +362,7 @@ def _label_point(boxes: dict[str, Box], e, theme: Theme | None = None, obstacles
     def clear(b: Box) -> bool:
         return not any(_hit(b, o) for o in obstacles + placed)
 
-    pts = [anchor(e.src), *e.via, anchor(e.dst)]
+    pts = [anchor(e.src), *(e.via or []), anchor(e.dst)]
     segs = sorted(zip(pts, pts[1:]), key=lambda s: -(abs(s[1][0] - s[0][0]) + abs(s[1][1] - s[0][1])))
     cands = []
     for (ax, ay), (bx, by) in segs:

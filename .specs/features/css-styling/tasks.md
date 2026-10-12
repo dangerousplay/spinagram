@@ -14,7 +14,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
 | ---------- | ------------------ | -------------------- | ---------------- | ----------- |
-| Library logic (layout engines, builders, CSS cascade, model) | unit | All branches; 1:1 to MVP spec ACs; every listed edge case in MVP scope | `tests/test_*.py` | `uv run pytest -q` |
+| Library logic (layout engines, builders, CSS cascade, model) | unit | All branches; 1:1 to MVP spec ACs; every listed edge case in MVP scope | `tests/test_*.py` | `uv run --all-extras pytest -q` |
 | Backends (SVG, PPTX, Figma JS) | unit | Rendered output asserted per new kind/property (SVG attributes, DrawingML XML, Figma JS calls) | `tests/test_*.py` | `uv run pytest -q` |
 | Examples / docs | none | build gate (render + ruff) | `examples/`, `docs/` | build gate |
 | Dependency / packaging config | none | build gate only | `pyproject.toml`, `uv.lock` | build gate |
@@ -25,9 +25,9 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Gate Level | When to Use | Command |
 | ---------- | ----------- | ------- |
-| Quick | After tasks with unit tests only | `uv run pytest -q` |
-| Full | Same as quick (no integration suite) | `uv run pytest -q` |
-| Build | After phase completion | `uv run ruff check src tests examples && uv run pytest -q` |
+| Quick | After tasks with unit tests only | `uv run --all-extras pytest -q` |
+| Full | Same as quick (no integration suite) | `uv run --all-extras pytest -q` |
+| Build | After phase completion | `uv run --all-extras ruff check src tests examples && uv run --all-extras pytest -q` |
 
 ---
 
