@@ -215,11 +215,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-23..26, BHV-35
 
 **Done when**:
-- [ ] Mixed diagram renders both layouts and a crossing edge; standalone/embedded equivalence; duplicate id error
-- [ ] Gate passes
+- [x] Mixed diagram renders both layouts and a crossing edge; standalone/embedded equivalence; duplicate id error
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T11: Behavior checks
 

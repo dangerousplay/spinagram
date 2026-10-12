@@ -502,3 +502,89 @@ def test_empty_lane_drawn_with_minimum_width():  # BHV-34
     out = apply_layout(act, _th())
     audit = next(z for z in out.zones if z.label == "Audit")
     assert audit.w >= 200
+
+
+# T10: typed regions -----------------------------------------------------------------------------
+def _mixed():
+    d = Diagram("M1", "Checkout service and its order lifecycle")
+    with d.group("Platform", id="platform", style="soft"):
+        web = d.box("Web shop", icon="terrastruct:react")
+        api = d.box("Orders API", icon="terrastruct:python")
+    web >> api
+    with d.state_machine("Order lifecycle", id="lifecycle") as sm:
+        created = sm.state("Created")
+        paid = sm.state("Paid")
+        sm.initial >> created
+        created.on("pay", paid)
+        paid >> sm.final
+    api.to(created, "creates")
+    return d, sm, dict(web=web, api=api, created=created, paid=paid)
+
+
+def test_region_builders_expose_typed_verbs():  # BHV-23
+    d = Diagram("R", "Regions")
+    with d.flowchart("Flow") as fc:
+        assert fc.decision("ok?").kind == "decision"
+    with d.state_machine("States") as sm:
+        assert sm.state("Idle").kind == "state"
+    with d.activity("Steps") as act:
+        assert act.action("Do").kind == "action"
+    regions = {g.region: g for g in d.groups if g.region}
+    assert set(regions) == {"flowchart", "state_machine", "activity"}
+    assert all(g.engine == "layered" for g in regions.values())
+
+
+def test_region_laid_out_by_own_layout_as_one_box():  # BHV-24
+    d, sm, n = _mixed()
+    out = apply_layout(d, _th())
+    zone = next(z for z in out.zones if z.label == "Order lifecycle")
+    c, p = out.node("created"), out.node("paid")
+    assert c.y + c.h < p.y  # layered, down, inside the region
+    for k in ("created", "paid"):
+        b = out.node(k)
+        assert zone.x <= b.x and b.x + b.w <= zone.x + zone.w and zone.y <= b.y and b.y + b.h <= zone.y + zone.h
+    platform = next(z for z in out.zones if z.label == "Platform")
+    assert platform.x + platform.w <= zone.x or zone.x + zone.w <= platform.x  # parent places regions apart
+
+
+def test_edge_into_region_crosses_its_border():  # BHV-25
+    d, sm, n = _mixed()
+    out = apply_layout(d, _th())
+    e = next(e for e in out.edges if e.label == "creates")
+    assert e.src.startswith("orders-api.") and e.dst.startswith("created.") and e.via
+
+
+def test_standalone_equals_embedded_contents():  # BHV-26
+    alone = StateMachine("S", "Lifecycle")
+    a1, b1 = alone.state("Created"), alone.state("Paid")
+    alone.initial >> a1
+    a1.on("pay", b1)
+    host = Diagram("H", "Host")
+    with host.state_machine("Lifecycle") as sm:
+        a2, b2 = sm.state("Created"), sm.state("Paid")
+        sm.initial >> a2
+        a2.on("pay", b2)
+    o1, o2 = apply_layout(alone, _th()), apply_layout(host, _th())
+
+    def rel(out, ids):
+        boxes = [out.node(i) for i in ids]
+        x0, y0 = boxes[0].x, boxes[0].y
+        return [(round(b.x - x0, 1), round(b.y - y0, 1), b.w, b.h) for b in boxes]
+
+    init2 = next(x.id for x in host.nodes if x.kind == "initial")
+    assert rel(o1, ["initial", "created", "paid"]) == rel(o2, [init2, "created", "paid"])
+
+
+def test_duplicate_region_ids_rejected():  # BHV-35
+    d = Diagram("D", "x")
+    with d.flowchart("Flow", id="f"):
+        pass
+    with pytest.raises(ValueError, match="duplicate group id 'f'"):
+        with d.activity("Other", id="f"):
+            pass
+
+
+def test_builders_exported():
+    import spinagram
+    assert spinagram.Flowchart is Flowchart and spinagram.StateMachine is StateMachine
+    assert spinagram.Activity is Activity

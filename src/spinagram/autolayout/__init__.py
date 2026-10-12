@@ -135,11 +135,12 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
     ed = theme.defaults("edge")
     labels = [measure(e.label, theme.font("body", 700, e.label_size or ed.get("label_size", 17))) + 24
               for e in d.edges if e.label]
-    rank_gap = float(lay.get("rank_gap", ld.get("rank_gap", 80)))
-    if "rank_gap" not in lay and lay.get("direction", "right") == "right":  # labels lie across the gap
-        rank_gap = max([rank_gap] + [w + 32 for w in labels])
+    base = float(lay.get("rank_gap", ld.get("rank_gap", 80)))
+    across = base if "rank_gap" in lay else max([base] + [w + 32 for w in labels])  # labels lying across the gap
+    rank_gap = across if lay.get("direction", "right") == "right" else base
     spacing = {"gap": float(lay.get("gap", ld.get("gap", 40))),
-               "node_gap": float(lay.get("node_gap", ld.get("node_gap", 48))), "rank_gap": rank_gap}
+               "node_gap": float(lay.get("node_gap", ld.get("node_gap", 48))), "rank_gap": rank_gap,
+               "rank_gap_base": base, "rank_gap_across": across}
     loop_labels = [measure(d.edges[int(le.id[1:])].label, theme.font("body", 700, ed.get("label_size", 17))) + 24
                    for le in loops if d.edges[int(le.id[1:])].label]
     if loop_labels:
@@ -174,10 +175,13 @@ def _run_graph(graph: LGraph, name: str) -> LResult:
     for r in regions:
         inside = {i.id for i in r.walk()}
         hints = {k: r.hints[k] for k in ("columns", "align", "lanes") if k in r.hints}
+        direction = r.hints.get("direction", graph.direction)
+        spacing = dict(graph.spacing)
+        if "rank_gap_base" in spacing:  # the gap depends on the region's own direction
+            spacing["rank_gap"] = spacing["rank_gap_across" if direction == "right" else "rank_gap_base"]
         sub = LGraph(LGroup("__root__", list(r.children), hints=hints),
                      [e for e in graph.edges if e.src in inside and e.dst in inside],
-                     r.hints.get("direction", graph.direction), graph.spacing, {},
-                     [e for e in graph.loops if e.src in inside])
+                     direction, spacing, {}, [e for e in graph.loops if e.src in inside])
         sres = _run_graph(sub, r.hints["engine"])
         xs = [b[0] for b in sres.boxes.values()] + [b[0] + b[2] for b in sres.boxes.values()]
         ys = [b[1] for b in sres.boxes.values()] + [b[1] + b[3] for b in sres.boxes.values()]

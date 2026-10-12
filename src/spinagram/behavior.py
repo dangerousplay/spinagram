@@ -247,6 +247,28 @@ class _StateScope(_StateVerbs):
         self._bind(d, group, direction)
 
 
+class _FlowScope(_FlowVerbs):
+    def __init__(self, d: Diagram, group: Group, direction: str) -> None:
+        self._bind(d, group, direction)
+
+
+class _ActivityScope(_ActivityVerbs):
+    def __init__(self, d: Diagram, group: Group, direction: str) -> None:
+        self._bind(d, group, direction)
+        self._collect = []
+
+
+_SCOPES = {"flowchart": _FlowScope, "state_machine": _StateScope, "activity": _ActivityScope}
+
+
+@contextmanager
+def region(d: Diagram, kind: str, title: Any, id: str | None, direction: str, **kw: Any) -> Iterator[Any]:
+    """A typed region inside ``d``: a group laid out by the layered engine, with the builder's verbs."""
+    kw.setdefault("style", "behavior")
+    with d.group(title, id=id, engine="layered", direction=direction, region=kind, **kw) as g:
+        yield _SCOPES[kind](d, g, direction)
+
+
 def _layout(direction: str) -> dict[str, str]:
     return {"engine": "layered", "direction": direction}
 

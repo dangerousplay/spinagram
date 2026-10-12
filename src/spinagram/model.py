@@ -363,6 +363,31 @@ class Diagram:
         finally:
             self._open.pop()
 
+    # typed regions: one diagram can mix architecture and behavior ------------------------------
+    @contextmanager
+    def flowchart(self, title: str | None = None, *, id: str | None = None, direction: str = "down",
+                  **kw: Any) -> Iterator[Any]:
+        """``with d.flowchart("Checkout") as fc:`` — flowchart verbs inside a region of this diagram."""
+        from .behavior import region
+        with region(self, "flowchart", title, id, direction, **kw) as r:
+            yield r
+
+    @contextmanager
+    def state_machine(self, title: str | None = None, *, id: str | None = None, direction: str = "down",
+                      **kw: Any) -> Iterator[Any]:
+        """``with d.state_machine("Order") as sm:`` — state machine verbs inside a region."""
+        from .behavior import region
+        with region(self, "state_machine", title, id, direction, **kw) as r:
+            yield r
+
+    @contextmanager
+    def activity(self, title: str | None = None, *, id: str | None = None, direction: str = "down",
+                 **kw: Any) -> Iterator[Any]:
+        """``with d.activity("Fulfilment") as act:`` — activity verbs (lanes, forks) inside a region."""
+        from .behavior import region
+        with region(self, "activity", title, id, direction, **kw) as r:
+            yield r
+
     def table(self, header: list[str], rows: list[list[str]], *, x: float, y: float, widths: list[float],
               **kw: Any) -> Table:
         t = Table(x=x, y=y, widths=widths, header=header, rows=rows, **kw)
