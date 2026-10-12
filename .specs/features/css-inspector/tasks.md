@@ -34,7 +34,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/css-inspector/spec.md`
-**Status**: In progress
+**Status**: Done (verified PASS, iteration 2)
 
 ## Execution Plan
 

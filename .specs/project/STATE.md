@@ -30,6 +30,10 @@
 - 2026-10-12 · CSS: tinycss2 + own selectors/cascade; inline CSS is `css=` (style= keeps naming theme styles and
   also matches as a class). Cascade: theme.css chain < _defaults stylesheets < diagram sheets/css < inline.
   Resolved once in `css.prepare` before layout; unstyled diagrams skip it (golden SVG unchanged).
+- 2026-10-12 · CSS inspector: one trace (`css.compute(trace=)` → `css.inspect`) feeds `check --styles` and the
+  live UI. The UI hit-tests with scene geometry from `api/diagrams/<key>.styles`, so the SVG stays untouched.
+  `serve` maps saved `.css` files to diagrams through their cascade and watches external stylesheet folders.
+  See `features/css-inspector/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, sample diagram per theme, re-theme current spec, extends diff, icon copy-ref /
@@ -39,7 +43,8 @@
 - Layout: d2 spacing is looser than dot/elk (example overflows by ~90 px); ELK intra-group layer gap is tight.
 - Layout: edge-label placement by engines; stable layout across edits.
 - Behavior: dashed dividers for orthogonal regions; YAML regions (BHV-27); connectors, interruptible regions.
-- CSS: check --styles trace, live-UI stylesheet reload/inspector, remaining CSS-08..11 properties, gradients.
+- CSS: `font-family` switching between theme fonts, remaining CSS-08..11 properties (padding, text-align,
+  icon-*), gradients, editing CSS from the inspector.
 - Layout: obstacle router port spreading (two edges into one side share a point); tracks may collapse (F4).
 - Import (parked 2026-10-12): D2/PlantUML spec in `features/diagram-import/`; Mermaid / draw.io / Structurizr frontends; remote icon URLs; PlantUML sprites → icon packs.
 
@@ -53,4 +58,5 @@
 - A long-running process must drop `Theme` icon caches after a pack download (reload the theme).
 - `.py` specs under a watcher: purge helper modules (by folder and by name) and skip `.pyc` writes,
   or a same-size edit within one second reuses stale bytecode.
+- Static SPA under `serve`: a hash route change does not reload `index.html`; reload the page after a rebuild.
 - Starlette `TestClient` needs `base_url="http://127.0.0.1"` behind `TrustedHostMiddleware`.
