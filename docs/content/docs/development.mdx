@@ -22,7 +22,10 @@ bun install && bun run dev      # proxies /api to `spinagram serve --port 8765`
 bun run build                   # rewrites src/spinagram/ui/static/
 ```
 
-CI fails if the committed bundle is stale.
+CI fails if the committed bundle is stale. Build with the bun version CI pins (`BUN_VERSION` in
+`.github/workflows/ci.yml`) and `bun install --frozen-lockfile`: an older bun ignores the lockfile, resolves
+other versions and produces a different bundle. Without upgrading bun: `bunx bun@1.4.2 install --frozen-lockfile`
+then `bunx bun@1.4.2 run build`.
 
 ## Docs
 
