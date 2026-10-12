@@ -180,45 +180,45 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| ANN-01 | P1: Legend - automatic entries | Tasks | Implementing |
-| ANN-02 | P1: Legend - explicit items | Tasks | Implementing |
-| ANN-03 | P1: Legend - unused entry check | Tasks | Implementing |
-| ANN-04 | P1: Legend - node swatch style | Tasks | Implementing |
-| ANN-05 | P1: Legend - edge sample style | Tasks | Implementing |
-| ANN-06 | P1: Legend - icon entries | Tasks | Implementing |
-| ANN-07 | P1: Legend - titled card in band | Tasks | Implementing |
-| ANN-08 | P1: Band - right band area | Tasks | Implementing |
-| ANN-09 | P1: Band - bottom band area | Tasks | Implementing |
-| ANN-10 | P1: Band - sizes | Tasks | Implementing |
-| ANN-11 | P1: Band - overflow check | Tasks | Implementing |
-| ANN-12 | P1: Band - manual layout overlap check | Tasks | Implementing |
-| ANN-13 | P1: Steps - edge badge and panel | Tasks | Implementing |
-| ANN-14 | P1: Steps - node badge | Tasks | Implementing |
-| ANN-15 | P1: Steps - numbering | Tasks | Implementing |
-| ANN-16 | P1: Steps - duplicate check | Tasks | Implementing |
-| ANN-17 | P1: Steps - panel order and badges | Tasks | Implementing |
-| ANN-18 | P1: Steps - badge beside label | Tasks | Implementing |
-| ANN-19 | P1: Steps - YAML references | Tasks | Implementing |
-| ANN-20 | P1: Callouts - bubble and leader | Tasks | Implementing |
-| ANN-21 | P1: Callouts - kind colour and glyph | Tasks | Implementing |
-| ANN-22 | P1: Callouts - auto side | Tasks | Implementing |
-| ANN-23 | P1: Callouts - explicit side | Tasks | Implementing |
-| ANN-24 | P1: Callouts - overlap check | Tasks | Implementing |
-| ANN-25 | P1: Callouts - kind validation | Tasks | Implementing |
-| ANN-26 | P2: Notes - card | Tasks | Implementing |
-| ANN-27 | P2: Notes - quote | Tasks | Implementing |
-| ANN-28 | P2: Notes - sticky unchanged | Tasks | Implementing |
-| ANN-29 | P2: Notes - variant validation | Tasks | Implementing |
-| ANN-30 | P2: Notes - icon | Tasks | Implementing |
-| ANN-31 | P2: CSS - legend | Tasks | Implementing |
-| ANN-32 | P2: CSS - steps | Tasks | Implementing |
-| ANN-33 | P2: CSS - callouts | Tasks | Implementing |
-| ANN-34 | P2: CSS - note variants | Tasks | Implementing |
-| ANN-35 | P2: CSS - inspector report | Tasks | Implementing |
-| ANN-36 | P2: Showcase - AWS legend and steps | Tasks | Implementing |
-| ANN-37 | P2: Showcase - K8s/GCP callouts and legend | Tasks | Implementing |
-| ANN-38 | P2: Showcase - notes slide | Tasks | Implementing |
-| ANN-39 | P2: Showcase - check clean | Tasks | Implementing |
+| ANN-01 | P1: Legend - automatic entries | Tasks | Verified |
+| ANN-02 | P1: Legend - explicit items | Tasks | Verified |
+| ANN-03 | P1: Legend - unused entry check | Tasks | Verified |
+| ANN-04 | P1: Legend - node swatch style | Tasks | Verified |
+| ANN-05 | P1: Legend - edge sample style | Tasks | Verified |
+| ANN-06 | P1: Legend - icon entries | Tasks | Verified |
+| ANN-07 | P1: Legend - titled card in band | Tasks | Verified |
+| ANN-08 | P1: Band - right band area | Tasks | Verified |
+| ANN-09 | P1: Band - bottom band area | Tasks | Verified |
+| ANN-10 | P1: Band - sizes | Tasks | Verified |
+| ANN-11 | P1: Band - overflow check | Tasks | Verified |
+| ANN-12 | P1: Band - manual layout overlap check | Tasks | Verified |
+| ANN-13 | P1: Steps - edge badge and panel | Tasks | Verified |
+| ANN-14 | P1: Steps - node badge | Tasks | Verified |
+| ANN-15 | P1: Steps - numbering | Tasks | Verified |
+| ANN-16 | P1: Steps - duplicate check | Tasks | Verified |
+| ANN-17 | P1: Steps - panel order and badges | Tasks | Verified |
+| ANN-18 | P1: Steps - badge beside label | Tasks | Verified |
+| ANN-19 | P1: Steps - YAML references | Tasks | Verified |
+| ANN-20 | P1: Callouts - bubble and leader | Tasks | Verified |
+| ANN-21 | P1: Callouts - kind colour and glyph | Tasks | Verified |
+| ANN-22 | P1: Callouts - auto side | Tasks | Verified |
+| ANN-23 | P1: Callouts - explicit side | Tasks | Verified |
+| ANN-24 | P1: Callouts - overlap check | Tasks | Verified |
+| ANN-25 | P1: Callouts - kind validation | Tasks | Verified |
+| ANN-26 | P2: Notes - card | Tasks | Verified |
+| ANN-27 | P2: Notes - quote | Tasks | Verified |
+| ANN-28 | P2: Notes - sticky unchanged | Tasks | Verified |
+| ANN-29 | P2: Notes - variant validation | Tasks | Verified |
+| ANN-30 | P2: Notes - icon | Tasks | Verified |
+| ANN-31 | P2: CSS - legend | Tasks | Verified |
+| ANN-32 | P2: CSS - steps | Tasks | Verified |
+| ANN-33 | P2: CSS - callouts | Tasks | Verified |
+| ANN-34 | P2: CSS - note variants | Tasks | Verified |
+| ANN-35 | P2: CSS - inspector report | Tasks | Verified |
+| ANN-36 | P2: Showcase - AWS legend and steps | Tasks | Verified |
+| ANN-37 | P2: Showcase - K8s/GCP callouts and legend | Tasks | Verified |
+| ANN-38 | P2: Showcase - notes slide | Tasks | Verified |
+| ANN-39 | P2: Showcase - check clean | Tasks | Verified |
 
 **Coverage:** 39 total, 39 mapped to tasks, 0 unmapped
 
