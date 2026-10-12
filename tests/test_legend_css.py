@@ -167,3 +167,25 @@ def test_display_none_hides_the_legend_and_its_band():  # LCSS-13
     items = _scene(d)
     ax, ay, aw, ah = _area(d)
     assert "legend" not in items and (items["steps"].x, items["steps"].y) == (ax + aw - 360, ay)
+
+
+# T4 · layout area after a left or top band --------------------------------------------------------------
+@pytest.mark.parametrize("side", ["left", "top"])
+def test_content_starts_after_a_left_or_top_band(side):  # LCSS-06
+    from spinagram.annotate import band
+    from spinagram.autolayout import _area as area
+    from spinagram.autolayout import apply_layout
+    from spinagram.css import prepare
+
+    t = Theme.load("default")
+    d = _diagram(f"legend {{ placement: {side} }}")
+    ax, ay, aw, ah = area(d, t, reserve=False)
+    thick = band(prepare(d, t), t, aw)[1]
+    expected = (ax + thick, ay, aw - thick, ah) if side == "left" else (ax, ay + thick, aw, ah - thick)
+    assert area(prepare(d, t), t) == expected
+    laid = apply_layout(d, t)
+    card = _scene(d)["legend"]
+    if side == "left":
+        assert min(n.x for n in laid.nodes) >= card.x + card.w
+    else:
+        assert min(n.y for n in laid.nodes) >= card.y + card.h

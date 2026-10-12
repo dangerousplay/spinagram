@@ -255,10 +255,15 @@ def _area(d: Diagram, theme: Theme, reserve: bool = True) -> Box:
         from ..annotate import band
 
         b = band(d, theme, w)
-        if b and b[0] == "right":
-            w -= b[1]
-        elif b:
-            h -= b[1]
+        side, thick = b if b else (None, 0.0)
+        if side == "right":
+            w -= thick
+        elif side == "left":
+            x, w = x + thick, w - thick
+        elif side == "top":
+            y, h = y + thick, h - thick
+        elif side == "bottom":
+            h -= thick
     return x, y, w, h
 
 

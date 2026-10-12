@@ -135,8 +135,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] laid-out nodes start after the band
-- [ ] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
+- [x] laid-out nodes start after the band
+- [x] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
 
 **Tests**: unit
 **Gate**: quick
