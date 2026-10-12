@@ -405,27 +405,24 @@ def test_adjacent_back_edge_stays_in_the_gap():  # LAY-08 (adjacent ranks)
 
 
 _SEED_SCRIPT = """
-import json, sys
+import hashlib, json, sys
 sys.path.insert(0, {tests!r})
 from test_layered import _graph, _run, ORDER, ORDER_EDGES
-g = _graph(ORDER + ["x", "y"], ORDER_EDGES + [("backorder", "receive"), ("x", "y"), ("y", "x")])
+g = _graph(ORDER + ["x", "y"], ORDER_EDGES + [("backorder", "receive"), ("x", "y"), ("y", "x")],
+           kinds={{"stock": "decision"}}, loops=["ship"])
 r = _run(g)
-print(json.dumps([sorted(r.boxes.items()), sorted(r.routes.items())]))
+print(hashlib.sha256(json.dumps([sorted(r.boxes.items()), sorted(r.routes.items())]).encode()).hexdigest())
 """
 
 
-def test_deterministic_across_hash_seeds():  # LAY-05 (across runs, not only within one process)
-    outs = []
-    for seed in ("1", "2", "3"):
-        env = dict(os.environ, PYTHONHASHSEED=seed)
-        script = _SEED_SCRIPT.format(tests=os.path.dirname(__file__))
-        outs.append(subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True,
-                                   check=True).stdout)
-    assert outs[0] == outs[1] == outs[2]
-    assert json.loads(outs[0])
+def test_deterministic_across_hash_seeds():  # LAY-05: same golden layout under every hash seed
+    script = _SEED_SCRIPT.format(tests=os.path.dirname(__file__))
+    for seed in range(10):
+        env = dict(os.environ, PYTHONHASHSEED=str(seed))
+        out = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True, check=True)
+        assert out.stdout.strip() == GOLDEN, f"PYTHONHASHSEED={seed}"
 
 
-@pytest.mark.parametrize("direction", ["down", "right"])
 def test_routes_inside_lanes_are_orthogonal_and_avoid_nodes(direction):  # LAY-16, LAY-17
     g = _lanes(direction)
     g.edges.append(LEdge("e2", "a", "c"))  # same lane, skips a rank
