@@ -205,11 +205,11 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-23 | P1: Callouts - explicit side | Tasks | Implementing |
 | ANN-24 | P1: Callouts - overlap check | Tasks | Implementing |
 | ANN-25 | P1: Callouts - kind validation | Tasks | Implementing |
-| ANN-26 | P2: Notes - card | Tasks | Pending |
-| ANN-27 | P2: Notes - quote | Tasks | Pending |
-| ANN-28 | P2: Notes - sticky unchanged | Tasks | Pending |
+| ANN-26 | P2: Notes - card | Tasks | Implementing |
+| ANN-27 | P2: Notes - quote | Tasks | Implementing |
+| ANN-28 | P2: Notes - sticky unchanged | Tasks | Implementing |
 | ANN-29 | P2: Notes - variant validation | Tasks | Implementing |
-| ANN-30 | P2: Notes - icon | Tasks | Pending |
+| ANN-30 | P2: Notes - icon | Tasks | Implementing |
 | ANN-31 | P2: CSS - legend | Tasks | Implementing |
 | ANN-32 | P2: CSS - steps | Tasks | Implementing |
 | ANN-33 | P2: CSS - callouts | Tasks | Implementing |

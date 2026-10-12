@@ -322,8 +322,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] card has a 6 px primary bar on the left; quote has a quote glyph and italic body; sticky identical to before
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] card has a 6 px primary bar on the left; quote has a quote glyph and italic body; sticky identical to before
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

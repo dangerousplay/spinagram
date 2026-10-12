@@ -40,6 +40,7 @@ class _Builder:
         self.warnings: list[str] = []
         self.styles = diagram.meta.get("css") or {}
         self.annotation_issues: list[tuple[str, str, str]] = []
+        self.extras: dict[str, list] = {}  # items drawn right after a node (note accent bar, quote mark)
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -140,6 +141,10 @@ class _Builder:
                 isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44))
                 icon = Icon(icon_path, x + pad, y + (h - isz) / 2, isz)
                 offset = isz + nd.get("icon_gap", 14)
+        variant = n.extra.get("variant") if n.kind == "note" else None
+        if variant == "quote":
+            offset += 46  # room for the quote mark
+            ts, bs = bs, ts - 2  # the quote reads larger than its attribution
         avail = w - 2 * pad - offset
         blocks = []
         cs = self._css(f"node:{n.id}")
@@ -151,17 +156,40 @@ class _Builder:
         body = n.lines if n.lines is not None else ([n.text] if n.text else [])
         if body:
             col, wt, it = self._text(cs, "body", st["body"], 400)
-            f = self.t.font("body", wt, bs, it)
+            f = self.t.font("body", wt, bs, it or variant == "quote")
             blocks.append(self.block([str(b) for b in body], f, col, bs * nd.get("body_leading", 1.32), avail))
+        if variant == "quote" and len(blocks) == 2:  # the quote first, the title as its attribution
+            title, body = blocks
+            title.lines = [f"— {ln}" if i == 0 else ln for i, ln in enumerate(title.lines)]
+            blocks = [body, title]
         sw = nd.get("note_stroke_width", 2) if n.kind == "note" else nd.get("stroke_width", 3)
         label = Label(blocks, (x + pad + offset, y + top, avail, h - top), align="center" if center else "left",
                       gap=nd.get("title_body_gap", 10)) if blocks else None
         s = Shape(id=n.id, kind="rect", x=x, y=y, w=w, h=h, fill=st["fill"], stroke=st["stroke"], stroke_width=sw,
                   radius=n.radius if n.radius is not None else nd.get("radius", 22), dashed=n.dashed,
                   label=label, icon=icon)
+        if variant:
+            self._note_variant(s, variant)
         self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s
+
+    def _note_variant(self, s: Shape, variant: str) -> None:
+        """``card``: a white card with a primary accent bar; ``quote``: a tinted panel with a large quote mark."""
+        t = self.t
+        primary = t.color("primary")
+        if variant == "card":
+            s.fill, s.stroke, s.stroke_width, s.radius = t.color(t.get("canvas", "background")), t.color("border"), \
+                1.5, 14
+            s.shadow = (0.0, 6.0, 18.0, "#0F172A", 0.10)
+            inset = min(14.0, s.h / 4)  # clear of the rounded corners
+            self.extras[s.id] = [Shape(id=f"{s.id}-accent", kind="rect", x=s.x, y=s.y + inset, w=6, h=s.h - 2 * inset,
+                                       fill=primary, radius=3, role="node-part")]
+        elif variant == "quote":
+            s.fill, s.stroke, s.stroke_width, s.radius = t.color("primary-bg"), None, 0, 18
+            font = t.font("heading", 700, 72)
+            pad = t.defaults("node").get("padding", 22)
+            self.extras[s.id] = [self.text(f"{s.id}-mark", s.x + pad, s.y + pad + 52, "\u201c", font, primary)]
 
     def symbol(self, n: Node) -> Shape:
         """Flow/activity/state symbol: geometry from ``shapes``, centred text inside its text box."""
@@ -337,8 +365,9 @@ class _Builder:
                 col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color", zs["label"]), 700)
                 size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
                 items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col))
-        nodes = [self.node(n) for n in d.nodes]
-        items.extend(nodes)
+        for n in d.nodes:
+            items.append(self.node(n))
+            items.extend(self.extras.pop(n.id, []))
         items.extend(self.table(i, tb) for i, tb in enumerate(d.tables))
         edges = [self.edge(i, e) for i, e in enumerate(d.edges)]
         items.extend(edges)

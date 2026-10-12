@@ -646,3 +646,50 @@ def test_annotated_svg_renders():
 
     svg = to_svg(build_scene(_annotated(), Theme.load("default")))
     assert ">Legend<" in svg and ">Steps<" in svg and ">Encrypted at rest<" in svg and ">Users call the API<" in svg
+
+
+# T11 · note variants -------------------------------------------------------------------------------
+def _notes(monkeypatch=None, icon=None):
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    if monkeypatch is not None:
+        monkeypatch.setattr(Theme, "icon", lambda self, ref, *a, **k: icon if ref == "aws:s3" else None)
+    d = Diagram("V1", "Notes")
+    d.note("Sticky", text="as before", x=100, y=300, w=400, h=200)
+    d.note("Card", text="with a bar", variant="card", x=600, y=300, w=400, h=200, icon="aws:s3")
+    d.note("Quote", text="Simplicity is prerequisite for reliability.", variant="quote", x=1100, y=300, w=500,
+           h=200)
+    return _by_id(build_scene(d, t).items), t
+
+
+def test_card_note_has_a_primary_accent_bar(monkeypatch, tmp_path):  # ANN-26, ANN-30
+    icon = tmp_path / "s3.svg"
+    icon.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>')
+    items, t = _notes(monkeypatch, icon)
+    card, bar = items["card"], items["card-accent"]
+    assert (bar.x, bar.w, bar.fill) == (card.x, 6, t.color("primary"))
+    assert card.y < bar.y and bar.y + bar.h < card.y + card.h and bar.h >= card.h / 2  # inset from the corners
+    assert card.fill == t.color(t.get("canvas", "background")) and card.shadow is not None
+    assert card.icon is not None and card.icon.path == icon
+
+
+def test_quote_note_has_a_quote_mark_and_italic_body():  # ANN-27
+    items, t = _notes()
+    quote, mark = items["quote"], items["quote-mark"]
+    assert mark.block.lines == ["“"] and mark.block.color == t.color("primary")
+    assert quote.x < mark.x < quote.label.box[0]
+    body, attribution = quote.label.blocks
+    assert body.font.italic and body.lines[0].startswith("Simplicity")
+    assert attribution.lines == ["— Quote"] and not attribution.font.italic
+
+
+def test_sticky_note_is_unchanged():  # ANN-28
+    items, t = _notes()
+    s = items["sticky"]
+    nd, st = t.defaults("node"), t.node_style(None)
+    assert (s.fill, s.stroke, s.stroke_width, s.radius, s.shadow) == (
+        st["fill"], st["stroke"], nd["note_stroke_width"], nd["radius"], None)
+    assert "sticky-accent" not in items and "sticky-mark" not in items
+    assert not any(b.font.italic for b in s.label.blocks)
