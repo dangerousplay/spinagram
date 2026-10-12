@@ -65,7 +65,7 @@ Keep the real, implementable template (an e-mail HTML with inline CSS, or an Ada
 - **One idea per box.** Titles have 1–4 words. The body is a short phrase, not a sentence list.
 - **Numbers** in a diagram must come from the study/report sources. Put the source in `source:` (footer).
 - **Same vocabulary across all diagrams in a set:** one term per concept.
-- Edge labels are 1–2 words (`sim`, `não`, `afeta`, `reprovou`).
+- Edge labels are 1–2 words (`yes`, `no`, `affects`, `rejected`).
 
 ## Edges
 
@@ -82,15 +82,15 @@ Keep the real, implementable template (an e-mail HTML with inline CSS, or an Ada
 | `dark` | Engine / central decision maker (one or two per diagram) |
 | `soft` | Background grouping, decision diamonds |
 | `warning` | Needs review / attention |
-| `alert` | Risk, problem, blocking body (CAB, incident) |
+| `alert` | Risk, problem, blocking body (review board, incident) |
 | `neutral` | Outcome or side note |
 
 ## Numbers are facts
 
 Never type a number from data into a spec. Write `{{fact_id}}` and declare `facts:` (plus `locale:`) in `_defaults.yaml`. Each fact must carry its `query` or `formula` and its `computed_at`.
 
-- Forecasts are derived facts whose formula states the assumption, e.g. `0.3*crit_mudanca`.
-- `spinagram facts` lists every fact used; `fontes.md` is the reviewer's document.
+- Forecasts are derived facts whose formula states the assumption, e.g. `0.3*critical_changes`.
+- `spinagram facts` lists every fact used; the generated `fontes.md` (sources) is the reviewer's document.
 - Use `|raw` to get a plain number for CSS widths in HTML bar charts.
 
 ## Story decks
@@ -113,7 +113,7 @@ When the diagrams form a presentation:
 
 ## YAML pitfalls
 
-- **Quote values in flow mappings** (`{...}`) that contain `,`, `:`, `?` or `#`. For example, `text: "a, b, c"` or `title: ["Algum", "gatilho?"]`. Unquoted commas silently split the value; the loader now rejects the resulting unknown keys.
+- **Quote values in flow mappings** (`{...}`) that contain `,`, `:`, `?` or `#`. For example, `text: "a, b, c"` or `title: ["Any", "trigger?"]`. Unquoted commas silently split the value; the loader now rejects the resulting unknown keys.
 - `yes`, `no`, `on` and `off` are booleans in YAML; never use them unquoted as ids (the loader rejects them).
 - `at: [x, y, w, h]` is shorthand for the four keys.
 - A `_defaults.yaml` in the specs folder supplies keys every diagram shares (`kicker`, `source`).
