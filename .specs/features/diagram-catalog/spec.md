@@ -162,37 +162,37 @@ grouped by category, so that I find a diagram in seconds.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| META-01 | P1: Metadata - Python fields | Tasks | Implementing |
-| META-02 | P1: Metadata - YAML keys | Tasks | Implementing |
-| META-03 | P1: Metadata - type validation | Tasks | Implementing |
-| META-04 | P1: Metadata - single-string tags | Tasks | Implementing |
-| META-05 | P1: Metadata - folder category | Tasks | Implementing |
-| META-06 | P1: Metadata - folder tags merge | Tasks | Implementing |
-| META-07 | P1: Metadata - normalisation | Tasks | Implementing |
-| META-08 | P1: Inference - provider tags from icons | Tasks | Implementing |
-| META-09 | P1: Inference - aws-* styles | Tasks | Implementing |
-| META-10 | P1: Inference - dominant category | Tasks | Implementing |
-| META-11 | P1: Inference - declared category wins | Tasks | Implementing |
-| META-12 | P1: Inference - uncategorised | Tasks | Implementing |
-| META-13 | P1: UI - workspace API fields | Tasks | Implementing |
-| META-14 | P1: UI - grouped cards | Tasks | Implementing |
-| META-15 | P1: UI - text search | Tasks | Implementing |
-| META-16 | P1: UI - tag chips | Tasks | Implementing |
-| META-17 | P1: UI - empty result | Tasks | Implementing |
-| META-18 | P1: UI - card opens diagram | Tasks | Implementing |
-| META-19 | P1: UI - file errors listed | Tasks | Implementing |
-| META-20 | P1: Nav - navbar sections | Tasks | Implementing |
-| META-21 | P1: Nav - docs link | Tasks | Implementing |
-| META-22 | P1: Nav - themes and packs pages | Tasks | Implementing |
-| META-23 | P1: Nav - record recents | Tasks | Implementing |
-| META-24 | P1: Nav - recents sidebar | Tasks | Implementing |
-| META-25 | P1: Nav - stale recents omitted | Tasks | Implementing |
-| META-26 | P1: Nav - storage unavailable | Tasks | Implementing |
-| META-27 | P1: Nav - default route | Tasks | Implementing |
-| META-28 | P2: CLI - --tag | Tasks | Implementing |
-| META-29 | P2: CLI - --category | Tasks | Implementing |
-| META-30 | P2: CLI - combined filters | Tasks | Implementing |
-| META-31 | P2: CLI - no match | Tasks | Implementing |
+| META-01 | P1: Metadata - Python fields | Tasks | Verified |
+| META-02 | P1: Metadata - YAML keys | Tasks | Verified |
+| META-03 | P1: Metadata - type validation | Tasks | Verified |
+| META-04 | P1: Metadata - single-string tags | Tasks | Verified |
+| META-05 | P1: Metadata - folder category | Tasks | Verified |
+| META-06 | P1: Metadata - folder tags merge | Tasks | Verified |
+| META-07 | P1: Metadata - normalisation | Tasks | Verified |
+| META-08 | P1: Inference - provider tags from icons | Tasks | Verified |
+| META-09 | P1: Inference - aws-* styles | Tasks | Verified |
+| META-10 | P1: Inference - dominant category | Tasks | Verified |
+| META-11 | P1: Inference - declared category wins | Tasks | Verified |
+| META-12 | P1: Inference - uncategorised | Tasks | Verified |
+| META-13 | P1: UI - workspace API fields | Tasks | Verified |
+| META-14 | P1: UI - grouped cards | Tasks | Verified |
+| META-15 | P1: UI - text search | Tasks | Verified |
+| META-16 | P1: UI - tag chips | Tasks | Verified |
+| META-17 | P1: UI - empty result | Tasks | Verified |
+| META-18 | P1: UI - card opens diagram | Tasks | Verified |
+| META-19 | P1: UI - file errors listed | Tasks | Verified |
+| META-20 | P1: Nav - navbar sections | Tasks | Verified |
+| META-21 | P1: Nav - docs link | Tasks | Verified |
+| META-22 | P1: Nav - themes and packs pages | Tasks | Verified |
+| META-23 | P1: Nav - record recents | Tasks | Verified |
+| META-24 | P1: Nav - recents sidebar | Tasks | Verified |
+| META-25 | P1: Nav - stale recents omitted | Tasks | Verified |
+| META-26 | P1: Nav - storage unavailable | Tasks | Verified |
+| META-27 | P1: Nav - default route | Tasks | Verified |
+| META-28 | P2: CLI - --tag | Tasks | Verified |
+| META-29 | P2: CLI - --category | Tasks | Verified |
+| META-30 | P2: CLI - combined filters | Tasks | Verified |
+| META-31 | P2: CLI - no match | Tasks | Verified |
 
 **Coverage:** 31 total, 31 mapped to tasks, 0 unmapped
 

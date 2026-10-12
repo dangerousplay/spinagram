@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 7,
+  "next_id": 8,
   "lessons": [
     {
       "id": "L-001",
@@ -112,6 +112,24 @@
       ],
       "created": "2026-10-12T04:41:36Z",
       "last_seen": "2026-10-12T04:41:36Z"
+    },
+    {
+      "id": "L-007",
+      "key": "ac_gap::check optional spec keys with is none not truthiness so falsy wrong typed values like 0 false or still fail validation",
+      "text": "Check optional spec keys with is-None, not truthiness, so falsy wrong-typed values like 0, false or {} still fail validation",
+      "signal": "ac_gap",
+      "scope": "yaml-loaders",
+      "status": "candidate",
+      "features": [
+        "diagram-catalog"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "META-03 src/spinagram/yaml_io.py:55 (yaml-loaders)"
+      ],
+      "created": "2026-10-12T17:25:04Z",
+      "last_seen": "2026-10-12T17:25:04Z"
     }
   ]
 }

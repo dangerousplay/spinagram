@@ -34,6 +34,10 @@
   live UI. The UI hit-tests with scene geometry from `api/diagrams/<key>.styles`, so the SVG stays untouched.
   `serve` maps saved `.css` files to diagrams through their cascade and watches external stylesheet folders.
   See `features/css-inspector/`.
+- 2026-10-12 · Diagram catalog: diagrams carry `category` + `tags` (`group` is taken by layout zones). Effective
+  metadata (declared + provider tags inferred from vendor icon packs; category = dominant provider) lives in
+  `spinagram.metadata` and feeds both the CLI filters and `serve`. UI search/grouping/recents are pure TS in
+  `web/src/catalog.ts`, tested with `bun test` (run by pytest when bun exists). See `features/diagram-catalog/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, sample diagram per theme, re-theme current spec, extends diff, icon copy-ref /

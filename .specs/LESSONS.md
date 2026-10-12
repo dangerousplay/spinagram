@@ -50,6 +50,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: F9 / R3 (CSS-16) (src)
 - last seen: 2026-10-12T04:41:36Z
 
+### L-007 - Check optional spec keys with is-None, not truthiness, so falsy wrong-typed values like 0, false or {} still fail validation
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `yaml-loaders` · harmful: 0
+- features: diagram-catalog
+- evidence: META-03 src/spinagram/yaml_io.py:55 (yaml-loaders)
+- last seen: 2026-10-12T17:25:04Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

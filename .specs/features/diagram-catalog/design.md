@@ -1,7 +1,7 @@
 # Diagram Catalog Design
 
 **Spec**: `.specs/features/diagram-catalog/spec.md`
-**Status**: Draft
+**Status**: Approved
 
 ---
 
