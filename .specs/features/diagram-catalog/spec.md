@@ -174,7 +174,7 @@ grouped by category, so that I find a diagram in seconds.
 | META-10 | P1: Inference - dominant category | Tasks | Implementing |
 | META-11 | P1: Inference - declared category wins | Tasks | Implementing |
 | META-12 | P1: Inference - uncategorised | Tasks | Implementing |
-| META-13 | P1: UI - workspace API fields | Tasks | Pending |
+| META-13 | P1: UI - workspace API fields | Tasks | Implementing |
 | META-14 | P1: UI - grouped cards | Tasks | Pending |
 | META-15 | P1: UI - text search | Tasks | Pending |
 | META-16 | P1: UI - tag chips | Tasks | Pending |

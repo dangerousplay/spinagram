@@ -316,6 +316,7 @@ class Workspace:
     # summary --------------------------------------------------------------------------------------
     def summary(self) -> dict:
         from ..autolayout.engines import available, get_engine
+        from ..metadata import effective_category, effective_tags
 
         engines = []
         for name in sorted(available()):
@@ -326,7 +327,9 @@ class Workspace:
             engines.append({"name": name, "hint": hint})
         with self._lock:
             files = [{"path": sf.rel, "error": sf.error,
-                      "diagrams": [{"key": self.key(rel, d), "id": d.id, "title": d.title, "auto": d.auto}
+                      "diagrams": [{"key": self.key(rel, d), "id": d.id, "title": d.title, "auto": d.auto,
+                                    "subtitle": d.subtitle, "category": effective_category(d),
+                                    "tags": effective_tags(d)}
                                    for d in sf.diagrams]}
                      for rel, sf in sorted(self.files.items())]
         import os

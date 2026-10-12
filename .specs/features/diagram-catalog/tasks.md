@@ -171,8 +171,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] API test asserts effective category and tags for a declared and an inferred diagram
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] API test asserts effective category and tags for a declared and an inferred diagram
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: integration
 **Gate**: full

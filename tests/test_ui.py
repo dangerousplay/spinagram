@@ -46,10 +46,26 @@ def test_workspace_lists_and_renders(env):
     ws = Workspace([env / "specs"])
     s = ws.summary()
     assert [f["path"] for f in s["files"]] == ["auto.yaml", "one.yaml"]
-    assert s["files"][1]["diagrams"] == [{"key": "one.yaml#D1", "id": "D1", "title": "First", "auto": False}]
+    assert s["files"][1]["diagrams"] == [{"key": "one.yaml#D1", "id": "D1", "title": "First", "auto": False,
+                                          "subtitle": None, "category": "", "tags": []}]
     assert {e["name"] for e in s["engines"]} >= {"flex"}
     svg, info = ws.render("one.yaml#D1")
     assert svg.startswith("<svg") and "First" in svg and info["overflow"] is None
+
+
+def test_workspace_api_reports_effective_metadata(env):
+    """META-13: each diagram entry carries subtitle, effective category and effective tags."""
+    specs = env / "specs"
+    (specs / "meta.yaml").write_text("id: M1\ntitle: Hub\nsubtitle: Transit\ncategory: Networking\n"
+                                     "tags: [Team-A]\nnodes:\n  - {id: a, title: A, icon: 'aws:s3'}\n")
+    (specs / "inferred.yaml").write_text("id: M2\ntitle: GKE\nnodes:\n  - {id: a, title: A, icon: 'gcp:gke'}\n"
+                                         "  - {id: b, title: B, icon: 'k8s:pod'}\n  - {id: c, title: C, icon: 'gcp:gcs'}\n")
+    with client(Workspace([specs])) as c:
+        entries = {d["id"]: d for f in c.get("/api/workspace").json()["files"] for d in f["diagrams"]}
+    assert (entries["M1"]["subtitle"], entries["M1"]["category"], entries["M1"]["tags"]) == \
+        ("Transit", "Networking", ["aws", "team-a"])
+    assert (entries["M2"]["subtitle"], entries["M2"]["category"], entries["M2"]["tags"]) == \
+        (None, "Google Cloud", ["gcp", "kubernetes"])
 
 
 def test_workspace_reload_error_and_recovery(env):
