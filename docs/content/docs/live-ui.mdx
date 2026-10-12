@@ -11,7 +11,14 @@ spinagram serve specs/ --theme ../my-theme          # http://127.0.0.1:8765, ope
 spinagram serve specs/ --layout elk --port 0 --no-open
 ```
 
-- **Diagrams**: every spec under the paths. Saving a spec, its `_defaults.yaml`, a `.py` helper or
+The navbar switches between **Diagrams**, **Themes** and **Icon packs**; **Docs** opens this site.
+The left sidebar lists the 10 diagrams you opened last (kept in your browser).
+
+- **Diagrams page**: every diagram as a card with a live thumbnail, grouped by
+  [category](./python.mdx#catalog-metadata) (AWS, Google Cloud, Kubernetes… inferred from icons when not
+  declared). Type to search ids, titles, subtitles, categories and tags (every word must match);
+  click tag chips to require tags. Specs that fail to load are listed with their error.
+- **Diagram view**: every spec under the paths. Saving a spec, its `_defaults.yaml`, a `.py` helper or
   any file of the theme (including the themes it `extends`) re-renders in place, keeping zoom and
   pan. Errors show over the last good render. Wheel zooms, drag pans, `f` fits, `0` is 100 %; the
   header switches the layout engine for diagrams with `layout:`. Overflow, icon warnings and

@@ -286,8 +286,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] docs describe metadata, inference table, CLI flags and the UI navigation
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] docs describe metadata, inference table, CLI flags and the UI navigation
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: none
 **Gate**: build

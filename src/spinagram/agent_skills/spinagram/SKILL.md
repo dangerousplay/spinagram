@@ -193,6 +193,9 @@ d.edge(c.bottom, d.box("Deploy", x=700, y=560, w=500, h=150).top, label="green")
 diagram = d          # the CLI picks up `diagram`, `diagrams` or `build()`
 ```
 
+Give diagrams a `category=` and `tags=` (YAML `category:`, `tags:`) so `spinagram serve` groups them and
+`--tag`/`--category` filter them; vendor icons already add `aws`, `gcp`, `kubernetes`… tags.
+
 Helpers next to the spec are importable (`from _layout import spread`); files starting with `_`
 are not loaded as specs.
 

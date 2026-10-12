@@ -7,6 +7,7 @@ description: Every command, option and environment variable.
 spinagram render specs/ --theme ../my-theme -f svg,png,pptx,figma -o out/
 spinagram check specs/ --theme ../my-theme        # text overflow and layout report
 spinagram check specs/ --styles --select .critical # why elements look the way they do
+spinagram render specs/ --tag kubernetes           # only diagrams tagged kubernetes
 spinagram facts specs/                             # facts used, per diagram
 spinagram layout spec.yaml -o frozen.yaml          # freeze automatic positions
 spinagram serve specs/                             # live-reload UI
@@ -23,6 +24,8 @@ defaults for every spec in it.
 |---|---|---|
 | `-t, --theme` | render, check, facts, layout, deck, serve | Theme directory or built-in name (env `SPINAGRAM_THEME`) |
 | `--only ID...` | render, check, facts, layout | Diagram ids to include |
+| `--tag TAG` | render, check, facts, layout | Only diagrams with this tag, declared or inferred from icons; repeat to require several |
+| `--category NAME` | render, check, facts, layout | Only diagrams in this category (case-insensitive) |
 | `--layout ENGINE` | render, check, facts, layout, serve | Engine for specs with `layout:` (`flex`, `dot`, `elk`, `d2`; env `SPINAGRAM_LAYOUT`) |
 | `-f, --formats` | render | Comma list from `svg`, `png`, `pptx`, `figma`, `figjam` |
 | `-o, --out` | render, layout, vectorize, deck | Output directory or file |
