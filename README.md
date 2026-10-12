@@ -151,7 +151,7 @@ reference architectures styled only with CSS.
 The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable) covers:
 
 - [Automatic layout](https://dangerousplay.github.io/spinagram/docs/auto-layout/): groups and the `flex`, `dot`, `elk` and `d2` engines
-- [Icon packs](https://dangerousplay.github.io/spinagram/docs/icons/) and [themes](https://dangerousplay.github.io/spinagram/docs/themes/)
+- [Icon packs](https://dangerousplay.github.io/spinagram/docs/icons/) (AWS, Google Cloud, Azure, Kubernetes, self-hosted and network gear) and [themes](https://dangerousplay.github.io/spinagram/docs/themes/)
 - [Annotations](https://dangerousplay.github.io/spinagram/docs/annotations/): legends, numbered steps, callouts and designed notes
 - [Facts](https://dangerousplay.github.io/spinagram/docs/facts/): numbers with traceable sources
 - [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/figma/) hand-off

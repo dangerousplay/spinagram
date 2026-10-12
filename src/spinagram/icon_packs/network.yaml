@@ -1,0 +1,30 @@
+# Affinity network symbols (ecceman/affinity, Unlicense): routers, switches, firewalls, servers, clients and
+# more, each as a square, a circle or unframed, in blue, gray, green or red. `network:router` is the square
+# blue symbol; other forms add the shape and colour: router-green, router-circle, router-circle-red,
+# router-plain.
+network:
+  title: Affinity Network Icons
+  license: Unlicense (public domain; ecceman/affinity)
+  homepage: https://github.com/ecceman/affinity
+  source: {type: github, repo: ecceman/affinity, ref: 48d4a4fa87957cb542678ed5952227028b8657f5, include: ["svg/*"]}
+  rules:   # first match wins
+    # the colour suffix is missing on some files (circle/gray/c_camera.svg): the folder names the colour
+    - {match: '^svg/square/blue/sq_(?P<stem>.+?)(?:_blue)?\.svg$', name: '{stem}', aliases: ['{stem}-blue']}
+    - {match: '^svg/square/(?P<color>[a-z]+)/sq_(?P<stem>.+?)(?:_(?P=color))?\.svg$', name: '{stem}-{color}'}
+    - {match: '^svg/circle/blue/c_(?P<stem>.+?)(?:_blue)?\.svg$', name: '{stem}-circle', aliases: ['{stem}-circle-blue']}
+    - {match: '^svg/circle/(?P<color>[a-z]+)/c_(?P<stem>.+?)(?:_(?P=color))?\.svg$', name: '{stem}-circle-{color}'}
+    - {match: '^svg/naked/(?P<stem>[^/]+)\.svg$', name: '{stem}-plain'}
+  alias:   # names people type in network and homelab diagrams
+    fw: firewall
+    lb: loadbalancer
+    load-balancer: loadbalancer
+    l3-switch: switch-multilayer
+    multilayer-switch: switch-multilayer
+    ap: wifi
+    access-point: wifi
+    vm-host: server
+    cluster: servercluster
+    pc: client
+    phone: ip-phone
+    wan: cloud
+    internet: globe

@@ -46,6 +46,10 @@
   steps live in a reserved right/bottom band subtracted from the layout area; callouts place greedily (sides top,
   right, bottom, left × centre/start/end alignment). CSS reaches them as `legend`, `step`, `callout`, `note.<variant>`.
   See `features/annotations/`.
+- 2026-10-12 · Self-hosted and network packs: `selfhosted` (homarr-labs/dashboard-icons, Apache-2.0; `-light` files are
+  the dark-fill variant) and `network` (ecceman/affinity, Unlicense; `name[-colour]`, `-circle`, `-plain`), both pinned
+  GitHub sources fetched file by file. Their icons infer the `self-hosted` / `network` catalog tags. See
+  `features/selfhosted-icons/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
@@ -58,6 +62,8 @@
 - CSS: `font-family` switching between theme fonts, remaining CSS-08..11 properties (padding, text-align,
   icon-*), gradients, editing CSS from the inspector.
 - Layout: obstacle router port spreading (two edges into one side share a point); tracks may collapse (F4).
+- Icons: curated pack aliases are baked into the cached index at fetch time; apply them at resolve time so alias
+  changes reach existing caches without a re-fetch.
 - Annotations: callouts on groups/edges; animated step-through; free-corner panels; legend entries for group classes.
 - Import (parked 2026-10-12): D2/PlantUML spec in `features/diagram-import/`; Mermaid / draw.io / Structurizr frontends; remote icon URLs; PlantUML sprites → icon packs.
 
