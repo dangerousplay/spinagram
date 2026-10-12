@@ -136,10 +136,14 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
     labels = [measure(e.label, theme.font("body", 700, e.label_size or ed.get("label_size", 17))) + 24
               for e in d.edges if e.label]
     rank_gap = float(lay.get("rank_gap", ld.get("rank_gap", 80)))
-    if "rank_gap" not in lay:
+    if "rank_gap" not in lay and lay.get("direction", "right") == "right":  # labels lie across the gap
         rank_gap = max([rank_gap] + [w + 32 for w in labels])
     spacing = {"gap": float(lay.get("gap", ld.get("gap", 40))),
                "node_gap": float(lay.get("node_gap", ld.get("node_gap", 48))), "rank_gap": rank_gap}
+    loop_labels = [measure(d.edges[int(le.id[1:])].label, theme.font("body", 700, ed.get("label_size", 17))) + 24
+                   for le in loops if d.edges[int(le.id[1:])].label]
+    if loop_labels:
+        spacing["loop_label"] = max(loop_labels)
     return LGraph(root, edges, lay.get("direction", "right"), spacing, dict(lay.get("options") or {}), loops), nodes
 
 
@@ -317,17 +321,21 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
             e = d.edges[int(le.id[1:])]
             if le.id not in routed and not (e.via or e.curve or _node_id(e.src)[1] or _node_id(e.dst)[1]):
                 _elbow(e, boxes[le.src], boxes[le.dst], le)
-    for le in graph.edges:  # labels of routed edges sit on the route, not on the endpoints' midpoint
+    placed: list[Box] = []
+    node_boxes = [b for k, b in boxes.items() if k in nodes]
+    for le in graph.edges + graph.loops:  # labels of routed edges sit on the route, clear of every node
         e = d.edges[int(le.id[1:])]
         if e.label and e.via and not e.label_at:
-            e.label_at = _label_point(boxes, e)
+            e.label_at = _label_point(boxes, e, theme, node_boxes, placed)
     d.meta["layout_engine"] = name
     d.layout = None  # positions are final; applying again is a no-op
     return d
 
 
-def _label_point(boxes: dict[str, Box], e) -> tuple[float, float]:
-    """Middle of the longest segment of the routed edge (pill centre, 8 px above like straight edges)."""
+def _label_point(boxes: dict[str, Box], e, theme: Theme | None = None, obstacles: list[Box] | None = None,
+                 placed: list[Box] | None = None) -> tuple[float, float]:
+    """Pill anchor for a routed edge's label: on its longest segments first, then beside them; the first
+    candidate whose pill touches no node box and no label placed before wins (``placed`` grows)."""
     def anchor(ref: str) -> tuple[float, float]:
         nid, side = _node_id(ref)
         side, _, frac = side.partition("@")
@@ -336,9 +344,44 @@ def _label_point(boxes: dict[str, Box], e) -> tuple[float, float]:
         return {"left": (x, y + h * f), "right": (x + w, y + h * f), "top": (x + w * f, y),
                 "bottom": (x + w * f, y + h)}.get(side, (x + w / 2, y + h / 2))
 
+    theme = theme or Theme.load(None)
+    obstacles, placed = obstacles or [], placed if placed is not None else []
+    size = e.label_size or theme.defaults("edge").get("label_size", 17)
+    pw, ph = measure(e.label, theme.font("body", 700, size)) + 24, size + 14
+
+    def anchored(lx: float, ly: float) -> tuple[tuple[float, float], Box]:
+        """``label_at`` anchor → itself and the pill box ``_Builder.pill`` draws for it."""
+        return (round(lx, 1), round(ly, 1)), (lx - pw / 2, ly - size - 3, pw, ph)
+
+    def at(cx: float, cy: float) -> tuple[tuple[float, float], Box]:
+        """Pill centred on (cx, cy)."""
+        return anchored(cx, cy - ph / 2 + size + 3)
+
+    def clear(b: Box) -> bool:
+        return not any(_hit(b, o) for o in obstacles + placed)
+
     pts = [anchor(e.src), *e.via, anchor(e.dst)]
-    (ax, ay), (bx, by) = max(zip(pts, pts[1:]), key=lambda s: abs(s[1][0] - s[0][0]) + abs(s[1][1] - s[0][1]))
-    return round((ax + bx) / 2, 1), round((ay + by) / 2 - 8, 1)
+    segs = sorted(zip(pts, pts[1:]), key=lambda s: -(abs(s[1][0] - s[0][0]) + abs(s[1][1] - s[0][1])))
+    cands = []
+    for (ax, ay), (bx, by) in segs:
+        mx, my = (ax + bx) / 2, (ay + by) / 2
+        cands.append(anchored(mx, my - 8))  # on the segment, 8 px up like straight edges
+        if abs(ax - bx) < 1:  # vertical: beside it
+            cands += [at(mx + pw / 2 + 6, my), at(mx - pw / 2 - 6, my)]
+        else:
+            cands += [at(mx, my - ph / 2 - 4), at(mx, my + ph / 2 + 4)]
+    for point, box in cands:
+        if clear(box):
+            placed.append(box)
+            return point
+    placed.append(cands[0][1])
+    return cands[0][0]
+
+
+def _hit(a: Box, b: Box, pad: float = 2.0) -> bool:
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    return ax < bx + bw + pad and bx < ax + aw + pad and ay < by + bh + pad and by < ay + ah + pad
 
 
 def _elbow(e, a: Box, b: Box, le: LEdge) -> None:

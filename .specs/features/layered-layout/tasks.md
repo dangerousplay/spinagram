@@ -140,8 +140,10 @@ T1 → T2 → T3 → T4 → T5 → T6
 **Requirement**: LAY-12, LAY-20
 
 **Done when**:
-- [ ] Label pills of the order-flow fixture intersect no node box; overflow still reported
-- [ ] Build gate passes
+- [x] Label pills of the order-flow fixture intersect no node box; overflow still reported
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
+**Status**: ✅ Complete
+

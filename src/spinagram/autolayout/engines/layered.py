@@ -92,7 +92,7 @@ class LayeredEngine:
         self.local_routes: dict[str, tuple[str, list[tuple[float, float]]]] = {}  # eid → (group id, pts)
         self.sizes: dict[str, tuple[float, float]] = {}
         self.loop_nodes = {e.src for e in graph.loops}
-        self.loop_w = 28.0 + 12.0 + float(graph.spacing.get("loop_label", 0))
+        self.loop_w = 40.0 + 12.0 + float(graph.spacing.get("loop_label", 0))
         self.dir_of: dict[str, str] = {}
         self._measure(graph.root, graph.direction)
         boxes: dict[str, tuple[float, float, float, float]] = {}

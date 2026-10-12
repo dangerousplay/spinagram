@@ -319,3 +319,64 @@ def test_self_loop_bound_as_via():  # LAY-09 (binding)
     out = apply_layout(d, _theme())
     e = out.edges[1]
     assert e.src.startswith("b.right") and e.dst.startswith("b.right") and e.via and len(e.via) == 2
+
+
+# T6: labels -------------------------------------------------------------------------------------
+from spinagram.text import measure  # noqa: E402
+
+
+def _order_flow(direction="down"):
+    d = Diagram("f", "Order flow", layout={"engine": "layered", "direction": direction})
+    s, a, ok = d.box("Start"), d.box("Receive order"), d.diamond("In stock?")
+    ship, bo, done = d.box("Ship"), d.box("Backorder"), d.box("Done")
+    s >> a >> ok
+    ok.to(ship, "yes")
+    ok.to(bo, "no")
+    [ship, bo] >> done
+    bo.to(a, "retry with supplier")
+    d.edge(bo, bo, "wait a day")
+    return d
+
+
+def _pill_box(e, th):
+    size = e.label_size or th.defaults("edge").get("label_size", 17)
+    w = measure(e.label, th.font("body", 700, size)) + 24
+    lx, ly = e.label_at
+    return (lx - w / 2, ly - size - 3, w, size + 14)
+
+
+def test_label_pills_avoid_node_boxes():  # LAY-12
+    th = _theme()
+    out = apply_layout(_order_flow(), th)
+    boxes = [(n.x, n.y, n.w, n.h) for n in out.nodes]
+    pills = [_pill_box(e, th) for e in out.edges if e.label]
+    assert len(pills) == 4
+    for p in pills:
+        for b in boxes:
+            assert not _overlap(p, b), (p, b)
+    for i, p in enumerate(pills):
+        for q in pills[i + 1:]:
+            assert not _overlap(p, q)
+
+
+def test_rank_gap_grows_with_label_width_only_across_the_flow():  # LAY-03 with labels
+    long = Diagram("g", "t", layout={"engine": "layered", "direction": "down"})
+    a, b = long.box("a"), long.box("b")
+    long.edge(a, b, "a very long label that is wider than eighty pixels")
+    g, _ = build_graph(long, _theme())
+    assert g.spacing["rank_gap"] == 80
+    long.layout["direction"] = "right"
+    g, _ = build_graph(long, _theme())
+    assert g.spacing["rank_gap"] > 80
+
+
+def test_overflow_still_reported():  # LAY-20
+    from spinagram.api import scenes
+    from spinagram.qa import check
+    d = Diagram("big", "Too tall", layout={"engine": "layered", "direction": "down"})
+    prev = d.box("n0")
+    for i in range(1, 12):
+        cur = d.box(f"n{i}")
+        prev >> cur
+        prev = cur
+    assert any(i.kind == "overflow" for i in check(scenes([d])[0]))

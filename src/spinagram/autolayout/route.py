@@ -134,7 +134,7 @@ def _simplify(pts: list[Point]) -> list[Point]:
     return out
 
 
-def loop(b: Box, side: str = "right", size: float = 28.0) -> list[Point]:
+def loop(b: Box, side: str = "right", size: float = 40.0) -> list[Point]:
     """Self-transition: leaves ``side`` at 30 % and re-enters it at 70 %, bulging out by ``size``."""
     x, y, w, h = b
     if side == "right":
