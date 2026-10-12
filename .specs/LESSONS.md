@@ -104,6 +104,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md ANN-01 src/spinagram/annotate.py:84 (spec)
 - last seen: 2026-10-12T18:18:23Z
 
+### L-016 - Copy fixture paths from the real upstream source so every naming form it actually uses, including optional-group branches, is exercised
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: selfhosted-icons
+- evidence: validation.md M02 src/spinagram/icon_packs/network.yaml:13 tests/test_icon_packs.py:51 (ICON-09) (tests)
+- last seen: 2026-10-12T19:04:51Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

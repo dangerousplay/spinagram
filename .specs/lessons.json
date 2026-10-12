@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 16,
+  "next_id": 17,
   "lessons": [
     {
       "id": "L-001",
@@ -274,6 +274,24 @@
       ],
       "created": "2026-10-12T18:18:23Z",
       "last_seen": "2026-10-12T18:18:23Z"
+    },
+    {
+      "id": "L-016",
+      "key": "surviving_mutant::copy fixture paths from the real upstream source so every naming form it actually uses including optional group branches is exercised",
+      "text": "Copy fixture paths from the real upstream source so every naming form it actually uses, including optional-group branches, is exercised",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "selfhosted-icons"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M02 src/spinagram/icon_packs/network.yaml:13 tests/test_icon_packs.py:51 (ICON-09) (tests)"
+      ],
+      "created": "2026-10-12T19:04:51Z",
+      "last_seen": "2026-10-12T19:04:51Z"
     }
   ]
 }

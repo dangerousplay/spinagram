@@ -112,25 +112,25 @@ firewalls). Authors fall back to generic glyphs or hand-managed files. Two built
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| ICON-01 | P1: Self-hosted - registry entry | Tasks | Implementing |
-| ICON-02 | P1: Self-hosted - plain name | Tasks | Implementing |
-| ICON-03 | P1: Self-hosted - light file is dark tone | Tasks | Implementing |
-| ICON-04 | P1: Self-hosted - dark file keeps its name | Tasks | Implementing |
-| ICON-05 | P1: Self-hosted - aliases | Tasks | Implementing |
-| ICON-06 | P1: Self-hosted - dark fill uses dark tone | Tasks | Implementing |
-| ICON-07 | P1: Network - registry entry | Tasks | Implementing |
-| ICON-08 | P1: Network - square blue default | Tasks | Implementing |
-| ICON-09 | P1: Network - square colours | Tasks | Implementing |
-| ICON-10 | P1: Network - circles | Tasks | Implementing |
-| ICON-11 | P1: Network - plain | Tasks | Implementing |
-| ICON-12 | P1: Network - aliases | Tasks | Implementing |
-| ICON-13 | P1: Catalog - self-hosted tag | Tasks | Implementing |
-| ICON-14 | P1: Catalog - network tag | Tasks | Implementing |
-| ICON-15 | P1: Catalog - categories | Tasks | Implementing |
-| ICON-16 | P2: Showcase - homelab | Tasks | Implementing |
-| ICON-17 | P2: Showcase - campus network | Tasks | Implementing |
-| ICON-18 | P2: Showcase - check clean | Tasks | Implementing |
-| ICON-19 | P2: Docs | Tasks | Implementing |
+| ICON-01 | P1: Self-hosted - registry entry | Tasks | Verified |
+| ICON-02 | P1: Self-hosted - plain name | Tasks | Verified |
+| ICON-03 | P1: Self-hosted - light file is dark tone | Tasks | Verified |
+| ICON-04 | P1: Self-hosted - dark file keeps its name | Tasks | Verified |
+| ICON-05 | P1: Self-hosted - aliases | Tasks | Verified |
+| ICON-06 | P1: Self-hosted - dark fill uses dark tone | Tasks | Verified |
+| ICON-07 | P1: Network - registry entry | Tasks | Verified |
+| ICON-08 | P1: Network - square blue default | Tasks | Verified |
+| ICON-09 | P1: Network - square colours | Tasks | Verified |
+| ICON-10 | P1: Network - circles | Tasks | Verified |
+| ICON-11 | P1: Network - plain | Tasks | Verified |
+| ICON-12 | P1: Network - aliases | Tasks | Verified |
+| ICON-13 | P1: Catalog - self-hosted tag | Tasks | Verified |
+| ICON-14 | P1: Catalog - network tag | Tasks | Verified |
+| ICON-15 | P1: Catalog - categories | Tasks | Verified |
+| ICON-16 | P2: Showcase - homelab | Tasks | Verified |
+| ICON-17 | P2: Showcase - campus network | Tasks | Verified |
+| ICON-18 | P2: Showcase - check clean | Tasks | Verified |
+| ICON-19 | P2: Docs | Tasks | Verified |
 
 **Coverage:** 19 total, 19 mapped to tasks, 0 unmapped
 
