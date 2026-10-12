@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/annotations/design.md`
-**Status**: In Progress
+**Status**: Done
 
 ---
 
@@ -506,8 +506,8 @@ T14 → T15 → T16 → T17 → T18 → T19
 
 **Done when**:
 
-- [ ] ANN-01 wording amended; existing test asserts that order
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] ANN-01 wording amended; existing test asserts that order
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: none
 **Gate**: build

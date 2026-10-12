@@ -57,7 +57,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 
 **Acceptance Criteria**:
 
-1. WHEN `d.add_legend()` is called without items THEN the legend SHALL list each node class, edge class and non-default node style used in the diagram exactly once, in first-use order, labelled from its name with dashes as spaces and the first letter capitalised.
+1. WHEN `d.add_legend()` is called without items THEN the legend SHALL list each node class, edge class and non-default node style used in the diagram exactly once, in first-use order (node classes and styles in node order first, then edge classes in edge order), labelled from its name with dashes as spaces and the first letter capitalised.
 2. WHEN items are given as `{key: label}` THEN the legend SHALL list exactly those entries in the given order with the given labels.
 3. IF an item key matches nothing in the diagram THEN `spinagram check` SHALL report `legend: unused entry '<key>'` and the entry SHALL still be drawn from the theme default.
 4. WHEN a node entry is drawn THEN its swatch SHALL use the computed fill, stroke, stroke width and dash pattern of the first node carrying that key, and its corner radius scaled by swatch height / node height.
