@@ -39,6 +39,8 @@ class Node:
     radius: float | None = None
     dashed: bool = False
     color: str | None = None  # pill / text colour (edge-style name, token or hex)
+    cls: str | None = None    # CSS classes (``class_=`` in builders, ``class:`` in YAML)
+    css: str | None = None    # inline CSS declarations
     extra: dict[str, Any] = field(default_factory=dict)
 
     # side anchors for edges -------------------------------------------------
@@ -138,6 +140,8 @@ class Edge:
     curve: Point | None = None
     arrow: str = "end"  # end | start | both | none
     label_size: float | None = None
+    cls: str | None = None
+    css: str | None = None
 
 
 @dataclass
@@ -171,6 +175,8 @@ class Group:
     engine: str | None = None      # lay this group's content out with its own engine (typed regions)
     lanes: bool = False            # children groups are swimlanes (layered engine)
     region: str | None = None      # flowchart | state_machine | activity (set by the builders)
+    cls: str | None = None
+    css: str | None = None
 
 
 @dataclass
@@ -244,6 +250,8 @@ class Diagram:
     facts: str | None = None      # path to a facts JSON; text may use {{fact_id}}
     locale: str | None = None     # number formatting for facts (e.g. pt-BR)
     meta: dict[str, Any] = field(default_factory=dict)
+    css: str | None = None        # stylesheet text for this diagram (after theme and folder sheets)
+    stylesheets: list[str] = field(default_factory=list)  # paths or stylesheet texts, in cascade order
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
 
@@ -271,6 +279,8 @@ class Diagram:
     # builders -----------------------------------------------------------------
     def add(self, kind: str, title: Any = None, *, id: str | None = None, x: float = 0, y: float = 0,
             w: float = 0, h: float = 0, **kw: Any) -> Node:
+        if "class_" in kw:
+            kw["cls"] = kw.pop("class_")
         known = {f for f in Node.__dataclass_fields__}  # noqa: SIM118
         extra = {k: kw.pop(k) for k in list(kw) if k not in known}
         n = Node(id=id or self._auto_id(title), kind=kind, x=x, y=y, w=w, h=h, title=title, extra=extra, **kw)
@@ -304,6 +314,8 @@ class Diagram:
         ``d.edge("a -> b: label")``. ``a >> b`` on nodes is the short form."""
         if label is not None:
             kw["label"] = label
+        if "class_" in kw:
+            kw["cls"] = kw.pop("class_")
         if dst is None and isinstance(src, str):
             e = parse_edge(src)
             for k, v in kw.items():
@@ -353,6 +365,8 @@ class Diagram:
                             str(len(self.groups) + 1))
         if any(g.id == gid for g in self.groups):
             raise ValueError(f"{self.id}: duplicate group id {gid!r}")
+        if "class_" in hints:
+            hints["cls"] = hints.pop("class_")
         g = Group(id=gid, label=label, style=style, **hints)
         self.groups.append(g)
         if self._open:
@@ -362,6 +376,11 @@ class Diagram:
             yield g
         finally:
             self._open.pop()
+
+    def stylesheet(self, sheet: str | Path) -> "Diagram":
+        """Add a stylesheet (a ``.css`` path or CSS text) to this diagram's cascade, after earlier ones."""
+        self.stylesheets.append(str(sheet))
+        return self
 
     # typed regions: one diagram can mix architecture and behavior ------------------------------
     @contextmanager

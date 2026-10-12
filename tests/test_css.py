@@ -155,3 +155,56 @@ def test_unknown_property_and_negative_values_warn():  # CSS-22, CSS-30
     assert any("stroke-width" in w and "negative" in w for w in warnings)
     assert any("font-size" in w and "negative" in w for w in warnings)
     assert "stroke-width" not in out[api][""] and out[api][""]["fill"] == "#ABCDEF"
+
+
+# T4: classes and stylesheets from Python ---------------------------------------------------------
+from spinagram import Diagram  # noqa: E402
+
+
+def test_classes_inline_and_sheets_reach_the_cascade(tmp_path):  # CSS-17, CSS-18
+    sheet = tmp_path / "brand.css"
+    sheet.write_text(".critical { stroke: #DC2626 } edge.async { stroke-dasharray: 6 4 } group.edge-zone { fill: #FFFFFF }")
+    d = Diagram("D", "Styled", css="node { fill: #EEEEEE }")
+    d.stylesheet(str(sheet))
+    d.stylesheet("#db { fill: #111111 }")
+    with d.group("Zone", id="zone", class_="edge-zone"):
+        api = d.box("API", class_="critical", css="stroke-width: 6")
+        db = d.box("DB", id="db")
+    api.to(db, "write", class_="async")
+    styles, warnings = css.styles(d, Theme.load(None))
+    assert warnings == []
+    assert styles["node:api"][""] == {"fill": "#EEEEEE", "stroke": "#DC2626", "stroke-width": 6.0}
+    assert styles["node:db"][""]["fill"] == "#111111"
+    assert styles["edge:0"][""]["stroke-dasharray"] == [6.0, 4.0]
+    assert styles["group:zone"][""]["fill"] == "#FFFFFF"
+
+
+def test_named_style_also_matches_as_class():  # CSS-20
+    d = Diagram("D", "x", css=".dark { stroke-width: 5 }")
+    d.box("A", style="dark")
+    styles, _ = css.styles(d, Theme.load(None))
+    assert styles["node:a"][""]["stroke-width"] == 5.0
+
+
+def test_no_css_means_no_styles():  # CSS-27 precondition
+    d = Diagram("D", "x")
+    d.box("A", style="dark")
+    assert css.styles(d, Theme.load(None)) == ({}, [])
+
+
+def test_tree_types_and_attributes():  # CSS-02 on real diagrams
+    d = Diagram("D", "x", css="region > state { fill: #010101 } lane node { fill: #020202 } "
+                             "edge[from=a] { stroke: #030303 } [kind=decision] { fill: #040404 }")
+    a = d.box("A")
+    with d.state_machine("SM", id="sm") as sm:
+        s = sm.state("Idle")
+    with d.activity("Act") as act:
+        with act.lane("Ops"):
+            x = act.action("Do")
+    q = d.add("decision", "Q?", id="q")
+    a >> s
+    styles, _ = css.styles(d, Theme.load(None))
+    assert styles[f"node:{s.id}"][""]["fill"] == "#010101"
+    assert styles[f"node:{x.id}"][""]["fill"] == "#020202"
+    assert styles["edge:0"][""]["stroke"] == "#030303"
+    assert styles[f"node:{q.id}"][""]["fill"] == "#040404"

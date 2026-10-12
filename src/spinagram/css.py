@@ -469,3 +469,90 @@ def _inline(text: str) -> list[Decl]:
         if d.type == "declaration":
             decls.append(Decl(d.lower_name, tinycss2.serialize(d.value).strip(), d.important, 0))
     return decls
+
+
+# diagrams ---------------------------------------------------------------------------------------
+def _classes(cls: str | None, style: str | None) -> list[str]:
+    return (cls or "").split() + ([style] if style else [])
+
+
+def tree(d) -> tuple[El, dict[str, El]]:
+    """Style tree of a diagram: diagram → groups (``group``/``region``/``lane``) → nodes; edges under the root."""
+    root = El("diagram", id=d.id, key="diagram")
+    keys: dict[str, El] = {"diagram": root}
+    by_group = {g.id: g for g in d.groups}
+    nodes = {n.id: n for n in d.nodes}
+    child_of = {c for g in d.groups for c in g.children}
+
+    def add(item_id: str, parent: El) -> None:
+        if item_id in by_group:
+            g = by_group[item_id]
+            typ = "lane" if g.style == "lane" else ("region" if g.region else "group")
+            kinds = ["group"] + ([g.region] if g.region else [])
+            el = El(typ, kinds, g.id, _classes(g.cls, g.style),
+                    {k: v for k, v in (("label", g.label), ("style", g.style)) if v}, parent, g.css, key=f"group:{g.id}")
+            keys[el.key] = el
+            for c in g.children:
+                add(c, el)
+        elif item_id in nodes:
+            n = nodes[item_id]
+            title = " ".join(n.title) if isinstance(n.title, list) else n.title
+            attrs = {k: v for k, v in (("kind", n.kind), ("label", title), ("icon", n.icon), ("style", n.style)) if v}
+            el = El("node", [n.kind], n.id, _classes(n.cls, n.style), attrs, parent, n.css, key=f"node:{n.id}")
+            keys[el.key] = el
+
+    for g in d.groups:
+        if g.id not in child_of:
+            add(g.id, root)
+    for n in d.nodes:
+        if n.id not in child_of:
+            add(n.id, root)
+    for i, e in enumerate(d.edges):
+        attrs = {"from": str(e.src).partition(".")[0], "to": str(e.dst).partition(".")[0]}
+        if e.label:
+            attrs["label"] = e.label
+        el = El("edge", [], None, _classes(e.cls, None), attrs, root, e.css, key=f"edge:{i}")
+        keys[el.key] = el
+    return root, keys
+
+
+def _sheet_text(sheet: str, base_dir) -> tuple[str, str]:
+    """(text, origin) for a stylesheet given as CSS text or a path."""
+    from pathlib import Path
+
+    if "{" in sheet:
+        return sheet, "<css>"
+    p = Path(sheet)
+    if not p.is_absolute() and base_dir is not None and (Path(base_dir) / p).exists():
+        p = Path(base_dir) / p
+    return p.read_text(encoding="utf-8"), str(p)
+
+
+def sheets_for(d, theme) -> list[tuple[str, str]]:
+    """Stylesheets in cascade order: theme ``theme.css``, folder defaults, the diagram's own."""
+    out = []
+    for path in getattr(theme, "stylesheets", lambda: [])():
+        out.append((path.read_text(encoding="utf-8"), str(path)))
+    for sheet in d.stylesheets:
+        out.append(_sheet_text(sheet, d.base_dir))
+    if d.css:
+        out.append((d.css, f"{d.id} css"))
+    return out
+
+
+def styles(d, theme) -> tuple[dict[str, dict[str, dict]], list[str]]:
+    """Computed styles keyed ``node:<id>``, ``edge:<index>``, ``group:<id>``, ``diagram``, and warnings.
+    Empty when the diagram uses no stylesheet and no inline css."""
+    sheets = sheets_for(d, theme)
+    inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups))
+    if not sheets and not inline:
+        return {}, []
+    rules: list[Rule] = []
+    warnings: list[str] = []
+    for text, origin in sheets:
+        rs, errs = parse(text, origin, order_base=len(rules))
+        rules += rs
+        warnings += [str(e) for e in errs]
+    root, keys = tree(d)
+    comp = compute(root, rules, theme, warnings)
+    return {k: comp[el] for k, el in keys.items()}, warnings

@@ -112,11 +112,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-17, CSS-18, CSS-20
 
 **Done when**:
-- [ ] Classes and sheets reach the cascade from Python
-- [ ] Build gate passes
+- [x] Classes and sheets reach the cascade from Python
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
+**Status**: ✅ Complete
+
 
 ### T5: YAML and theme stylesheets
 
