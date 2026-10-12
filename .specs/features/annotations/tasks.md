@@ -368,8 +368,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] PPTX shapes for badge (circle), legend card and callout with editable text; Figma script creates them
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] PPTX shapes for badge (circle), legend card and callout with editable text; Figma script creates them
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: integration
 **Gate**: full

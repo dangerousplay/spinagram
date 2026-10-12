@@ -742,3 +742,47 @@ def test_check_reports_callout_overlap():  # ANN-24
 
 def test_clean_annotated_diagram_has_no_issues():
     assert _issues(_annotated()) == []
+
+
+# T13 · native output in every backend --------------------------------------------------------------
+def _annotated_scene():
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    return build_scene(_annotated(), Theme.load("default"))
+
+
+def test_pptx_annotations_are_native_editable_shapes(tmp_path):  # ANN-07, ANN-13, ANN-20, edge case
+    pptx = pytest.importorskip("pptx")
+    from spinagram.backends.pptx import PptxBackend
+
+    out = PptxBackend().render([_annotated_scene()], tmp_path)[0]
+    shapes = {s.name: s for s in pptx.Presentation(str(out)).slides[0].shapes}
+    for name in ("legend", "steps", "callout-0", "callout-0-glyph", "step-0-badge", "steps-0-badge",
+                 "legend-0-swatch", "callout-0-leader", "legend-3-sample", "why-accent"):
+        assert name in shapes, name
+    badge = shapes["step-0-badge"]
+    assert badge.width == badge.height and badge.text_frame.text == "1"
+    assert "Encrypted at rest" in shapes["callout-0"].text_frame.text
+    assert shapes["legend-title"].text_frame.text == "Legend"
+    assert shapes["steps-0-text"].text_frame.text == "Users call the API"
+
+
+def test_figma_script_builds_the_annotations(tmp_path):  # ANN-07, ANN-13, ANN-20
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    from spinagram.backends.figma import FigmaBackend
+
+    files = [p for p in FigmaBackend().render([_annotated_scene()], tmp_path) if p.suffix == ".js"]
+    js = "\n".join(p.read_text() for p in files)
+    for name in ("legend", "steps", "callout-0", "step-0-badge", "callout-0-leader", "Encrypted at rest",
+                 "Users call the API"):
+        assert name in js, name
+    node = shutil.which("node") or shutil.which("bun")
+    if node:
+        mock = Path(__file__).parent / "js" / "figma_mock.mjs"
+        for f in files:
+            run = subprocess.run([node, str(mock), str(f)], capture_output=True, text=True)
+            assert run.returncode == 0, run.stderr
