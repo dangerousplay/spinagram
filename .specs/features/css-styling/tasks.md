@@ -78,11 +78,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-02, CSS-21
 
 **Done when**:
-- [ ] Every CSS-02 selector form matches/doesn't match as specified; syntax errors reported and skipped
-- [ ] Gate passes
+- [x] Every CSS-02 selector form matches/doesn't match as specified; syntax errors reported and skipped
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T3: Cascade and computed styles
 
