@@ -102,11 +102,13 @@ T8
 **Requirement**: INS-04, INS-05, INS-06, INS-07, INS-08, INS-16
 
 **Done when**:
-- [ ] Plain and coloured output asserted; invalid selector exits 2; JSON parses; info lines not counted
-- [ ] Gate passes
+- [x] Plain and coloured output asserted; invalid selector exits 2; JSON parses; info lines not counted
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T4: `fill-opacity` in every backend
 

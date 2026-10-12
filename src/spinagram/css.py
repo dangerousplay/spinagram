@@ -409,7 +409,7 @@ def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = Non
 
     With ``trace`` (a dict), also records why: ``trace[el][pseudo] = {"decls": [...], "inherited": [...]}``.
     Each declaration entry has ``property``, ``value``, ``resolved`` (after ``var()``), ``origin``, ``line``,
-    ``selector``, ``specificity``, ``important`` and ``status`` (``applied``, ``overridden``, ``invalid`` or
+    ``rule_line``, ``selector``, ``specificity``, ``important`` and ``status`` (``applied``, ``overridden``, ``invalid`` or
     ``unknown``, the last two with a ``message``), in cascade order (the winner of a property comes last).
     Inherited entries have ``property``, ``value`` and ``from`` (the key of the element that set it)."""
     warnings = warnings if warnings is not None else []
@@ -447,7 +447,7 @@ def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = Non
         for _, d, r, sel in decls:
             where = f"{r.origin}:{d.line}" if r else f"{el.key or el.id}: inline css"
             entry = {"property": d.name, "value": d.value, "resolved": d.value,
-                     "origin": r.origin if r else "inline", "line": d.line if r else None,
+                     "origin": r.origin if r else "inline", "line": d.line if r else None, "rule_line": r.line if r else None,
                      "selector": sel.text if sel else None, "specificity": list(sel.specificity) if sel else None,
                      "important": d.important, "status": "applied"}
             rec.append(entry)

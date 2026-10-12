@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -42,6 +43,13 @@ def _main(argv: list[str] | None = None) -> int:
                        help="layout engine for specs with `layout:` (flex, dot, elk, d2; env SPINAGRAM_LAYOUT)")
         if name == "layout":
             p.add_argument("-o", "--out", help="output YAML (default: stdout)")
+        if name == "check":
+            p.add_argument("--styles", action="store_true",
+                           help="explain each element's computed style: matching rules, overrides, inheritance")
+            p.add_argument("--select", metavar="SELECTOR", help="with --styles: only elements matching this CSS selector")
+            p.add_argument("--json", action="store_true", help="print the style report as JSON (implies --styles)")
+            p.add_argument("--color", choices=("auto", "always", "never"), default="auto",
+                           help="colour the style report (auto: when stdout is a terminal and NO_COLOR is unset)")
         if name == "render":
             p.add_argument("-f", "--formats", default="svg,png",
                            help=f"comma list from: {', '.join(sorted(available()))}")
@@ -130,17 +138,39 @@ def _main(argv: list[str] | None = None) -> int:
                       f"{r.get('query', '')}\t{r.get('computed_at', '')}")
         return 0
     if args.cmd == "check":
-        issues = [i for sc in api.scenes(diagrams, theme, args.layout) for i in qa.check(sc)]
-        for i in issues:
-            print(i)
-        print(f"{len(diagrams)} diagram(s), {len(issues)} issue(s)")
-        return 1 if issues else 0
+        return _check(args, diagrams, theme)
     formats = [f.strip() for f in args.formats.split(",") if f.strip()]
     written = api.render(diagrams, args.out, theme=theme, formats=formats, gallery=not args.no_gallery,
                          layout=args.layout)
     for p in written:
         print(p)
     return 0
+
+
+def _check(args, diagrams, theme) -> int:
+    from . import css, inspect_fmt
+
+    reports = [css.inspect(d, theme) for d in diagrams]
+    selected = [css.select(d, args.select) if args.select else None for d in diagrams]
+    if args.json:
+        for r, keys in zip(reports, selected):
+            if keys is not None:
+                r["elements"] = [e for e in r["elements"] if e["key"] in keys]
+        print(json.dumps(reports if len(reports) > 1 else reports[0], indent=2, ensure_ascii=False))
+        return 0
+    color = inspect_fmt.use_color(args.color, sys.stdout)
+    if args.styles:
+        base = Path.cwd()
+        for r, keys in zip(reports, selected):
+            print(inspect_fmt.render(r, color=color, keys=keys, base=base))
+    issues = [i for sc in api.scenes(diagrams, theme, args.layout) for i in qa.check(sc)]
+    for i in issues:
+        print(i)
+    if not args.styles:
+        for u in inspect_fmt.unused(reports):
+            print(f"info: unused selector {u['selector']} ({u['origin']}:{u['line']})")
+    print(f"{len(diagrams)} diagram(s), {len(issues)} issue(s)")
+    return 1 if issues else 0
 
 
 def _vectorize(args) -> int:

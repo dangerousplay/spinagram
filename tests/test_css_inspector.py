@@ -146,3 +146,96 @@ def test_empty_value_is_invalid_not_black():  # INS-17 (found while testing: `fi
     d.box("A")
     styles, warnings = css.styles(d, Theme.load(None))
     assert "fill" not in styles["node:a"][""] and any("empty value" in w for w in warnings)
+
+
+# T3: check --styles -------------------------------------------------------------------------------
+from spinagram.cli import main  # noqa: E402
+
+SPEC = """\
+id: S01
+title: Styled
+stylesheets: [brand.css]
+css: "#db { opacity: 0.5 }"
+nodes:
+  - {id: api, title: API, class: critical, x: 100, y: 100, w: 300, h: 140}
+  - {id: db, title: DB, x: 600, y: 100, w: 300, h: 140}
+edges:
+  - {from: api, to: db, label: write}
+"""
+BRAND = """\
+:root { --danger: #DC2626 }
+node { fill: #FFFFFF; stroke: #333333 }
+.critical { stroke: var(--danger); strok: red }
+.nothing { fill: #000000 }
+group { color: #111111 }
+"""
+
+
+@pytest.fixture
+def spec(tmp_path, monkeypatch):
+    (tmp_path / "s.yaml").write_text(SPEC)
+    (tmp_path / "brand.css").write_text(BRAND)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    return tmp_path
+
+
+def test_check_styles_plain_output(spec, capsys):  # INS-04, INS-07 (pipe → plain)
+    assert main(["check", "--styles", "s.yaml"]) == 1        # the unknown property is an issue
+    out = capsys.readouterr().out
+    assert "\x1b[" not in out
+    assert "S01 · Styled  cascade: brand.css, S01 css" in out
+    api = out[out.index("node#api.critical"):out.index("node#db")]
+    assert api.index(".critical  brand.css:3 (0,1,0)") < api.index("node  brand.css:2 (0,0,1)")  # winner first
+    assert "stroke: var(--danger) → #DC2626" in api
+    assert "stroke: #333333  (overridden)" in api
+    assert "strok: red  ⚠ unknown property (did you mean 'stroke'?)" in api
+    assert "edge api → db  'write'" not in out              # edge has no declarations ...
+    assert "1 element(s) without declarations: edge api → db" in out  # ... so it is summarised
+    assert "info: unused selector .nothing brand.css:4" in out
+    assert "#db  S01 css:1 (1,0,0)" in out and "opacity: 0.5" in out
+
+
+def test_check_styles_colour_output(spec, capsys):  # INS-07
+    main(["check", "--styles", "--color", "always", "s.yaml"])
+    out = capsys.readouterr().out
+    assert "\x1b[9;2mstroke: #333333\x1b[0m" in out                  # struck through
+    assert "\x1b[48;2;220;38;38m  \x1b[0m #DC2626" in out            # swatch before the colour
+    assert "(overridden)" not in out
+
+
+def test_check_styles_select_and_bad_selector(spec, capsys):  # INS-05
+    main(["check", "--styles", "--select", "#db", "s.yaml"])
+    out = capsys.readouterr().out
+    assert "node#db" in out and "node#api" not in out
+    assert main(["check", "--styles", "--select", "node[", "s.yaml"]) == 2
+    assert "invalid selector" in capsys.readouterr().err
+
+
+def test_check_json(spec, capsys):  # INS-06
+    assert main(["check", "--json", "--select", ".critical", "s.yaml"]) == 0
+    r = json.loads(capsys.readouterr().out)
+    assert r["diagram"] == "S01" and [e["key"] for e in r["elements"]] == ["node:api"]
+    assert r["elements"][0]["styles"][""]["stroke"] == "#DC2626"
+
+
+def test_plain_check_lists_unused_selectors_as_info(spec, capsys):  # INS-08
+    rc = main(["check", "s.yaml"])
+    out = capsys.readouterr().out
+    assert "info: unused selector .nothing (brand.css:4)" in out
+    assert "group" in out.split("info: unused selector")[2]           # `group` matches nothing either
+    assert out.rstrip().endswith("1 diagram(s), 1 issue(s)") and rc == 1  # only the unknown property counts
+
+
+def test_check_styles_unstyled(tmp_path, monkeypatch, capsys):  # INS-16
+    (tmp_path / "p.yaml").write_text("id: P\ntitle: Plain\nnodes:\n  - {id: a, title: A, x: 0, y: 0, w: 200, h: 100}\n")
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--styles", "p.yaml"])
+    assert "P · Plain\n  no stylesheet or inline css" in capsys.readouterr().out
+
+
+def test_unused_needs_every_diagram_to_miss_it():  # INS-08 across diagrams
+    from spinagram import inspect_fmt
+    a = {"sheets": [{"origin": "x.css"}], "unused": [{"origin": "x.css", "line": 1, "selector": ".a"}]}
+    b = {"sheets": [{"origin": "x.css"}], "unused": []}
+    assert inspect_fmt.unused([a, b]) == [] and inspect_fmt.unused([a, a]) == a["unused"]
