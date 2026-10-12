@@ -25,6 +25,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .. import shapes
 from ..scene import Connector, Image, Label, Line, Scene, Shape, TableGrid, Text, TextBlock
 
 CHUNK_LIMIT = 45_000
@@ -34,6 +35,13 @@ const NAME = %(name)s, W = %(w)s, H = %(h)s, BG = %(bg)s, FIRST = %(first)s;
 const isSlides = figma.editorType === 'slides', isJam = figma.editorType === 'figjam';
 const rgb = (h) => ({ r: parseInt(h.slice(1,3),16)/255, g: parseInt(h.slice(3,5),16)/255, b: parseInt(h.slice(5,7),16)/255 });
 const solid = (h, o) => (o === undefined || o >= 1) ? [{ type: 'SOLID', color: rgb(h) }] : [{ type: 'SOLID', color: rgb(h), opacity: o }];
+function deco(n, o) {  // CSS dash patterns, drop shadows and line opacity
+  if (o.dashes) n.dashPattern = o.dashes;
+  if (o.lineOpacity !== undefined) n.opacity = o.lineOpacity;
+  if (o.shadow) { const s = o.shadow;
+    n.effects = [{ type: 'DROP_SHADOW', color: Object.assign(rgb(s.color), { a: s.a }), offset: { x: s.x, y: s.y },
+                   radius: s.blur, spread: 0, visible: true, blendMode: 'NORMAL' }]; }
+}
 const fonts = {};
 async function font(family, style) {
   const key = family + '|' + style;
@@ -61,19 +69,21 @@ const created = [], imageTargets = [];
 function put(node, name) { node.name = name; root.appendChild(node); created.push(node.id); return node; }
 function rect(name, x, y, w, h, o) {
   const r = figma.createRectangle(); r.resize(Math.max(w, 0.01), Math.max(h, 0.01)); r.x = x; r.y = y;
-  r.fills = o.fill ? solid(o.fill, o.opacity) : [];
+  r.fills = o.fill ? solid(o.fill, (o.opacity ?? 1) * (o.fillOpacity ?? 1)) : [];
   if (o.stroke && o.sw) { r.strokes = solid(o.stroke); r.strokeWeight = o.sw; r.strokeAlign = 'CENTER';
                           if (o.dash) r.dashPattern = [10, 7]; }
   if (o.radius) r.cornerRadius = o.radius;
+  deco(r, o);
   return put(r, name);
 }
 async function vec(name, x0, y0, net, o) {
   const v = figma.createVector();
   if (v.setVectorNetworkAsync) await v.setVectorNetworkAsync(net); else v.vectorNetwork = net;
   v.x = x0; v.y = y0;
-  v.fills = o.fill ? solid(o.fill) : [];
+  v.fills = o.fill ? solid(o.fill, (o.opacity ?? 1) * (o.fillOpacity ?? 1)) : [];
   v.strokes = o.stroke ? solid(o.stroke) : []; v.strokeWeight = o.sw || 1; v.strokeJoin = 'ROUND';
   if (o.dash) v.dashPattern = [10, 7];
+  deco(v, o);
   return put(v, name);
 }
 async function text(name, s, x, y, o) {
@@ -129,10 +139,10 @@ async function link(name, a, pa, b, pb, o) {
   c.connectorStart = endpoint(A, pa);
   c.connectorEnd = endpoint(B, pb);
   c.connectorLineType = o.line;
-  c.connectorStartStrokeCap = o.capStart ? 'ARROW_EQUILATERAL' : 'NONE';
-  c.connectorEndStrokeCap = o.capEnd ? 'ARROW_EQUILATERAL' : 'NONE';
+  c.connectorStartStrokeCap = o.capStart ? (o.capStartType || 'ARROW_EQUILATERAL') : 'NONE';
+  c.connectorEndStrokeCap = o.capEnd ? (o.capEndType || 'ARROW_EQUILATERAL') : 'NONE';
   c.strokes = solid(o.stroke); c.strokeWeight = o.sw;
-  if (o.dash) c.dashPattern = [10, 7];
+  if (o.dash) c.dashPattern = o.dashes || [10, 7];
   if (o.label) {
     c.text.fontName = await font(o.label.family, o.label.style);
     c.text.characters = o.label.text; c.text.fontSize = o.label.size;
@@ -168,6 +178,75 @@ def _r(v: float):
 def _compact(o: dict) -> dict:
     """Drop keys the JS helpers treat as defaults (None/False/0) — keeps scripts under the 50 KB use_figma cap."""
     return {k: (_r(v) if isinstance(v, float) else v) for k, v in o.items() if v not in (None, False, 0, 0.0)}
+
+
+def _net(d: str, ox: float, oy: float, fill: bool) -> dict:
+    """Symbol path → Figma vector network relative to (ox, oy); closed subpaths become fill regions."""
+    verts: list[dict] = []
+    segs: list[dict] = []
+    loops: list[list[int]] = []
+
+    def vert(p) -> int:
+        verts.append({"x": _r(p[0] - ox), "y": _r(p[1] - oy)})
+        return len(verts) - 1
+
+    for sub in shapes.parse(d):
+        first = cur = vert(sub.start)
+        cur_pt = sub.start
+        loop: list[int] = []
+        for n, (cmd, pts) in enumerate(sub.segments):
+            end = pts[-1]
+            last = n == len(sub.segments) - 1
+            ei = first if sub.closed and last and abs(end[0] - sub.start[0]) < 1e-6 and abs(end[1] - sub.start[1]) < 1e-6 \
+                else vert(end)
+            seg = {"start": cur, "end": ei}
+            if cmd == "C":
+                (c1, c2) = pts[0], pts[1]
+                seg["tangentStart"] = {"x": _r(c1[0] - cur_pt[0]), "y": _r(c1[1] - cur_pt[1])}
+                seg["tangentEnd"] = {"x": _r(c2[0] - end[0]), "y": _r(c2[1] - end[1])}
+            segs.append(seg)
+            loop.append(len(segs) - 1)
+            cur, cur_pt = ei, end
+        if sub.closed:
+            if cur != first:
+                segs.append({"start": cur, "end": first})
+                loop.append(len(segs) - 1)
+            loops.append(loop)
+    net: dict = {"vertices": verts, "segments": segs}
+    if fill and loops:
+        net["regions"] = [{"windingRule": "NONZERO", "loops": loops}]
+    return net
+
+
+_CAP = {"arrow": "ARROW_EQUILATERAL", "open-arrow": "ARROW_LINES", "diamond": "DIAMOND_FILLED",
+        "open-diamond": "DIAMOND_FILLED", "circle": "CIRCLE_FILLED", "bar": "NONE"}
+
+
+_WARNED: set[tuple[str, str]] = set()
+
+
+def _cap(kind: str, prop: str) -> str:
+    if kind in ("open-diamond", "bar") and (prop, kind) not in _WARNED:  # once per property and value
+        import warnings
+
+        _WARNED.add((prop, kind))
+        warnings.warn(f"figma: {prop} '{kind}' has no Figma stroke cap; drawn as {_CAP[kind].lower()}", stacklevel=3)
+    return _CAP.get(kind, "ARROW_EQUILATERAL")
+
+
+def _style(s) -> dict:
+    """CSS extras for rect()/vec(): dash pattern and drop shadow."""
+    out: dict = {}
+    if getattr(s, "dash", None):
+        out["dashes"] = [_r(v) for v in s.dash]
+    if isinstance(s, Connector) and s.opacity < 1:
+        out["lineOpacity"] = round(s.opacity, 3)
+    if getattr(s, "fill_opacity", 1.0) < 1:
+        out["fillOpacity"] = round(s.fill_opacity, 3)
+    sh = getattr(s, "shadow", None)
+    if sh:
+        out["shadow"] = {"x": _r(sh[0]), "y": _r(sh[1]), "blur": _r(sh[2]), "color": sh[3], "a": round(sh[4], 3)}
+    return out
 
 
 def _pos(b) -> dict:
@@ -226,7 +305,26 @@ class _Emitter:
     def shape(self, s: Shape, v: str | None = None) -> str:
         v = v or f"n_{len(self.parts)}"
         o = _compact({"fill": s.fill, "stroke": s.stroke, "sw": s.stroke_width, "dash": s.dashed, "radius": s.radius,
-                      "opacity": s.opacity if s.opacity < 1 else None})
+                      "opacity": s.opacity if s.opacity < 1 else None}) | _style(s)
+        if s.parts:
+            code = []
+            members_v = []
+            for i, part in enumerate(s.parts):
+                pv = v if i == 0 else f"{v}_p{i}"
+                po = _compact({"fill": None if part.paint == "stroke" else (s.stroke if part.paint == "solid" else s.fill),
+                               "stroke": s.stroke, "sw": s.stroke_width, "dash": s.dashed,
+                               "opacity": s.opacity if s.opacity < 1 else None}) | (_style(s) if i == 0 else {})
+                net = _net(part.d, s.x, s.y, fill=part.paint != "stroke")
+                code.append(f"const {pv} = await vec({_j(s.id)}, {_r(s.x)}, {_r(s.y)}, {_j(net)}, {_j(po)});")
+                members_v.append(pv)
+            members = list(members_v)
+            if s.label:
+                lc, ln = self.label(v, s.label, prewrapped=False)
+                code += lc
+                members += ln
+            if len(members) > 1:
+                code.append(f"group([{', '.join(members)}], {_j(s.id + ' (group)')});")
+            return "\n".join(code)
         if s.kind == "diamond":
             w, h = s.w, s.h
             net = {"vertices": [{"x": w / 2, "y": 0}, {"x": w, "y": h / 2}, {"x": w / 2, "y": h}, {"x": 0, "y": h / 2}],
@@ -270,19 +368,23 @@ class _Emitter:
         my = min(y for _, y in pts)
         vs = [{"x": _r(x - mx), "y": _r(y - my)} for x, y in verts]
         if c.arrow_end:
-            vs[-1]["strokeCap"] = "ARROW_EQUILATERAL"
+            vs[-1]["strokeCap"] = _cap(c.marker_end, "marker-end")
         if c.arrow_start:
-            vs[0]["strokeCap"] = "ARROW_EQUILATERAL"
+            vs[0]["strokeCap"] = _cap(c.marker_start, "marker-start")
         net = {"vertices": vs, "segments": seg}
         v = f"n_{len(self.parts)}"
         fallback = [f"await vec({_j(c.id)}, {_r(mx)}, {_r(my)}, {_j(net)}, "
-                    f"{_j(_compact({'stroke': c.color, 'sw': c.width, 'dash': c.dashed}))});"]
+                    f"{_j(_compact({'stroke': c.color, 'sw': c.width, 'dash': c.dashed}) | _style(c))});"]
         if c.label:
             fallback.append(self.shape(c.label, f"{v}_lab"))
         if not (c.src and c.dst):
             return "\n".join(fallback)
         o = _compact({"line": {"straight": "STRAIGHT", "curve": "CURVED"}.get(c.route, "ELBOWED"), "stroke": c.color,
-                      "sw": c.width, "dash": c.dashed, "capStart": c.arrow_start, "capEnd": c.arrow_end})
+                      "sw": c.width, "dash": c.dashed, "capStart": c.arrow_start, "capEnd": c.arrow_end}) | _style(c)
+        if c.marker_start != "arrow" and c.arrow_start:
+            o["capStartType"] = vs[0]["strokeCap"]
+        if c.marker_end != "arrow" and c.arrow_end:
+            o["capEndType"] = vs[-1]["strokeCap"]
         lab = c.label.label.blocks[0] if c.label and c.label.label and c.label.label.blocks else None
         if lab:
             o["label"] = {"text": " ".join(lab.paragraphs), "family": lab.font.family, "style": lab.font.figma_style,

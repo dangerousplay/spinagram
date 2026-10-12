@@ -1,0 +1,8 @@
+/* Edge strokes and arrowheads at either end. */
+edge { stroke: #334155; stroke-width: 3; }
+edge.open     { marker-end: open-arrow; }
+edge.diamond  { marker-end: diamond; marker-start: open-diamond; }
+edge.circle   { marker-end: circle; stroke-dasharray: 8 5; }
+edge.bar      { marker-end: bar; stroke: #DC2626; }
+edge.both     { marker-start: arrow; marker-end: arrow; opacity: 0.5; }
+edge::label   { color: #475569; }

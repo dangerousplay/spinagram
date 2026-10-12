@@ -6,12 +6,14 @@ description: Every command, option and environment variable.
 ```bash
 spinagram render specs/ --theme ../my-theme -f svg,png,pptx,figma -o out/
 spinagram check specs/ --theme ../my-theme        # text overflow and layout report
+spinagram check specs/ --styles --select .critical # why elements look the way they do
 spinagram facts specs/                             # facts used, per diagram
 spinagram layout spec.yaml -o frozen.yaml          # freeze automatic positions
 spinagram serve specs/                             # live-reload UI
 spinagram icons search load balancer               # icon pack management
 spinagram vectorize icons/ -o vector/              # trace PNG icons into SVG
 spinagram deck deck.yaml -o slides.html            # HTML presentation
+spinagram skills install --agent claude            # agent skills, see AI agent skills
 ```
 
 `paths` are spec files or directories (`*.yaml`, `*.py`). A `_defaults.yaml` in a directory sets
@@ -25,6 +27,10 @@ defaults for every spec in it.
 | `-f, --formats` | render | Comma list from `svg`, `png`, `pptx`, `figma`, `figjam` |
 | `-o, --out` | render, layout, vectorize, deck | Output directory or file |
 | `--no-gallery` | render | Skip `index.html` |
+| `--styles` | check | Explain each element's computed style: matching rules, overrides, inheritance ([details](/docs/css-reference#inspect-computed-styles)) |
+| `--select SELECTOR` | check | With `--styles` or `--json`: only elements matching a CSS selector |
+| `--json` | check | Print the style report as JSON |
+| `--color auto\|always\|never` | check | Colour the style report (`auto`: a terminal without `NO_COLOR`) |
 
 ## Environment variables
 

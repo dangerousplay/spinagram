@@ -120,6 +120,22 @@ Need pixel-exact slides instead? Give nodes coordinates
 ([manual layout](https://dangerousplay.github.io/spinagram/docs/manual-layout/)), or freeze an automatic layout with
 `spinagram layout spec.py -o frozen.yaml` and tune it by hand.
 
+## Flowcharts, state machines, activities and CSS
+
+`Flowchart`, `StateMachine` and `Activity` builders add the symbols and verbs of behavior diagrams
+(decisions, forks and joins, swimlanes, composite states) laid out by a built-in layered engine, and
+`with d.state_machine(...)` puts one inside any diagram. A CSS subset styles everything:
+`d.stylesheet("brand.css")`, `class_="critical"`, `edge.async { stroke-dasharray: 6 4 }`.
+`spinagram check --styles` explains which rule set each value, `spinagram serve` has a click-to-inspect
+styles panel and re-renders when a stylesheet is saved.
+See [behavior diagrams](https://dangerousplay.github.io/spinagram/docs/behavior/),
+[CSS styling](https://dangerousplay.github.io/spinagram/docs/styling/) and
+[CSS by backend](https://dangerousplay.github.io/spinagram/docs/css-reference/) (what SVG, PowerPoint
+and Figma do with each property). [`examples/showcase`](examples/showcase) has AWS, Kubernetes and Google Cloud
+reference architectures styled only with CSS.
+
+![Order fulfilment activity with swimlanes](https://dangerousplay.github.io/spinagram/assets/demo/b03.svg)
+
 ## Outputs
 
 | Format | What you get |
@@ -139,6 +155,7 @@ The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable
 - [Facts](https://dangerousplay.github.io/spinagram/docs/facts/): numbers with traceable sources
 - [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/figma/) hand-off
 - [CLI](https://dangerousplay.github.io/spinagram/docs/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/live-ui/)
+- [AI agent skills](https://dangerousplay.github.io/spinagram/docs/ai-skills/): `spinagram skills install --agent claude|codex|cursor|gemini|copilot|…` teaches your coding agent to write and style diagrams
 - [Extending](https://dangerousplay.github.io/spinagram/docs/extending/) with your own backends and layout engines
 
 ## Development

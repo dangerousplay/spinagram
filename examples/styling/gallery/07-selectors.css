@@ -1,0 +1,7 @@
+/* Ids, attributes, combinators, pseudo-classes and inheritance from groups. */
+group.team               { color: #9333EA; fill: #EFF6FF; stroke: #93C5FD; }  /* color is inherited */
+group.team > node:first-child { stroke-width: 6; }
+node:not(.done)          { stroke-dasharray: 8 5; }
+#db                      { fill: #FEF2F2; stroke: #DC2626; }
+edge[to=db]              { stroke: #DC2626; }
+[kind=data]::title       { font-style: italic; }

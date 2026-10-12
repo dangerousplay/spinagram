@@ -12,6 +12,21 @@ from ..scene import Cell, Connector, Icon, Image, Label, Line, Scene, Shape, Tab
 DASH = ' stroke-dasharray="10 7"'
 
 
+def _dash(dashed: bool, pattern: list[float] | None) -> str:
+    if pattern:
+        return f' stroke-dasharray="{" ".join(f"{v:g}" for v in pattern)}"'
+    return DASH if dashed else ""
+
+
+_MARKERS = {  # kind → marker body (viewBox 0 0 10 10); {c} = colour
+    "open-arrow": '<path d="M1,1 L9,5 L1,9" fill="none" stroke="{c}" stroke-width="1.5"/>',
+    "diamond": '<path d="M0,5 L5,0 L10,5 L5,10 z" fill="{c}"/>',
+    "open-diamond": '<path d="M0,5 L5,0 L10,5 L5,10 z" fill="#FFFFFF" stroke="{c}" stroke-width="1.2"/>',
+    "circle": '<circle cx="5" cy="5" r="4" fill="{c}"/>',
+    "bar": '<path d="M8,0 L8,10" stroke="{c}" stroke-width="2"/>',
+}
+
+
 @lru_cache(maxsize=None)
 def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode()
@@ -43,6 +58,7 @@ class _Svg:
         self.mid: list[str] = []
         self.front: list[str] = []
         self._markers: set[str] = set()
+        self._filters: dict[tuple, str] = {}
 
     # primitives ---------------------------------------------------------------
     def text_lines(self, out: list[str], block: TextBlock, x: float, baseline: float, anchor: str,
@@ -67,7 +83,27 @@ class _Svg:
     def icon(self, out: list[str], icon: Icon) -> None:
         self.image(out, icon.path, icon.x, icon.y, icon.size, icon.size)
 
-    def marker(self, color: str) -> str:
+    def shadow(self, sh: tuple | None) -> str:
+        """`` filter="url(#…)"`` for a CSS box-shadow (one drop shadow), defined once per value."""
+        if not sh:
+            return ""
+        if sh not in self._filters:
+            fid = f"sh{len(self._filters)}"
+            dx, dy, blur, color, alpha = sh
+            self.defs.append(f'<filter id="{fid}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow '
+                             f'dx="{dx:g}" dy="{dy:g}" stdDeviation="{blur / 2:g}" flood-color="{color}" '
+                             f'flood-opacity="{alpha:g}"/></filter>')
+            self._filters[sh] = fid
+        return f' filter="url(#{self._filters[sh]})"'
+
+    def marker(self, color: str, kind: str = "arrow") -> str:
+        if kind != "arrow" and kind in _MARKERS:
+            mid = f"m{kind}-{color.strip('#')}"
+            if mid not in self._markers:
+                self._markers.add(mid)
+                self.defs.append(f'<marker id="{mid}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" '
+                                 f'markerHeight="8" orient="auto-start-reverse">{_MARKERS[kind].format(c=color)}</marker>')
+            return mid
         mid = "m" + color.strip("#")
         if mid not in self._markers:
             self._markers.add(mid)
@@ -93,17 +129,29 @@ class _Svg:
         layer = self.back if s.role in ("zone", "chrome") else (self.front if s.role in ("pill", "swatch") else self.mid)
         stroke = (f' stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"' if s.stroke and s.stroke_width
                   else "")
-        dash = DASH if s.dashed else ""
+        dash = _dash(s.dashed, s.dash)
         op = f' opacity="{s.opacity:g}"' if s.opacity < 1 else ""
+        op += self.shadow(s.shadow)
         fill = s.fill or "none"
-        if s.kind == "diamond":
+        fop = f' fill-opacity="{s.fill_opacity:g}"' if s.fill_opacity < 1 and s.fill else ""
+        if s.parts:
+            for i, part in enumerate(s.parts):
+                if part.paint == "solid":
+                    paint = f'fill="{s.stroke or fill}"'
+                elif part.paint == "stroke":
+                    paint = f'fill="none" stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"'
+                else:
+                    paint = f'fill="{fill}"{fop}{stroke}'
+                el = f'<path d="{part.d}" {paint}{dash}{op}/>'
+                layer.append(self._with_tip(el, "path", self.tip(s.id)) if i == 0 else el)
+        elif s.kind == "diamond":
             cx, cy = s.x + s.w / 2, s.y + s.h / 2
             pts = f"{cx:.1f},{s.y:.1f} {s.x + s.w:.1f},{cy:.1f} {cx:.1f},{s.y + s.h:.1f} {s.x:.1f},{cy:.1f}"
-            layer.append(self._with_tip(f'<polygon points="{pts}" fill="{fill}"{stroke}{dash}{op}/>', "polygon",
+            layer.append(self._with_tip(f'<polygon points="{pts}" fill="{fill}"{fop}{stroke}{dash}{op}/>', "polygon",
                                         self.tip(s.id)))
         else:
             layer.append(self._with_tip(f'<rect x="{s.x:.1f}" y="{s.y:.1f}" width="{s.w:.1f}" height="{s.h:.1f}" '
-                                        f'rx="{s.radius:g}" fill="{fill}"{stroke}{dash}{op}/>', "rect", self.tip(s.id)))
+                                        f'rx="{s.radius:g}" fill="{fill}"{fop}{stroke}{dash}{op}/>', "rect", self.tip(s.id)))
         tl = self.front if s.role != "zone" else self.back
         if s.icon:
             self.icon(self.front, s.icon)
@@ -117,11 +165,11 @@ class _Svg:
             d = f"M{x1:.1f},{y1:.1f} Q{cx:.1f},{cy:.1f} {x2:.1f},{y2:.1f}"
         else:
             d = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in pts)
-        mk = self.marker(c.color)
-        ends = (f' marker-end="url(#{mk})"' if c.arrow_end else "") + (
-            f' marker-start="url(#{mk})"' if c.arrow_start else "")
+        ends = (f' marker-end="url(#{self.marker(c.color, c.marker_end)})"' if c.arrow_end else "") + (
+            f' marker-start="url(#{self.marker(c.color, c.marker_start)})"' if c.arrow_start else "")
+        op = f' opacity="{c.opacity:g}"' if c.opacity < 1 else ""
         self.mid.append(f'<path d="{d}" fill="none" stroke="{c.color}" stroke-width="{c.width:g}"'
-                        f'{DASH if c.dashed else ""}{ends}/>')
+                        f'{_dash(c.dashed, c.dash)}{op}{ends}/>')
         if c.label:
             self.shape(c.label)
 

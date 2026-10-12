@@ -83,8 +83,12 @@ def _load_raw(ref: str | Path, relative_to: Path | None = None, seen: set[Path] 
         # icon search path accumulates: child first, then parent
         child_dirs = (own.get("icons") or {}).get("dirs") or []
         parent_dirs = (base.get("icons") or {}).get("dirs") or []
+        base_css = list(base.get("_css") or [])
         own = _merge(base, own)
         own.setdefault("icons", {})["dirs"] = child_dirs + [d for d in parent_dirs if d not in child_dirs]
+    else:
+        base_css = []
+    own["_css"] = base_css + ([str(root / "theme.css")] if (root / "theme.css").exists() else [])
     own["_root"] = str(root)
     return own
 
@@ -114,6 +118,10 @@ class Theme:
         ref = ref or os.environ.get("SPINAGRAM_THEME") or "default"
         raw = _load_raw(ref)
         return cls(raw, Path(raw["_root"]))
+
+    def stylesheets(self) -> list[Path]:
+        """``theme.css`` files of the theme and the themes it extends, base first."""
+        return [Path(p) for p in self.data.get("_css") or []]
 
     # tokens -------------------------------------------------------------------
     def get(self, *path: str, default: Any = None) -> Any:

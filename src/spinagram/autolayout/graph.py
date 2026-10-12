@@ -12,6 +12,7 @@ class LNode:
     id: str
     w: float
     h: float
+    kind: str = "box"  # node kind: engines may place ports by shape (diamonds, circles)
 
 
 @dataclass
@@ -37,6 +38,7 @@ class LEdge:
     id: str
     src: str
     dst: str
+    label_w: float = 0.0  # width of the edge's label pill (engines may reserve room for it)
 
 
 @dataclass
@@ -46,6 +48,7 @@ class LGraph:
     direction: str = "right"          # right | down
     spacing: dict[str, float] = field(default_factory=dict)   # gap, node_gap, rank_gap
     options: dict[str, Any] = field(default_factory=dict)     # engine passthrough
+    loops: list[LEdge] = field(default_factory=list)          # self-edges; engines may route them or not
 
     def node_ids(self) -> list[str]:
         return [c.id for c in self.root.walk() if isinstance(c, LNode)]

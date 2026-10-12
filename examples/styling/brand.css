@@ -1,0 +1,18 @@
+/* A brand stylesheet: theme tokens, classes, kinds, edges and pseudo-elements. */
+:root { --accent: #7C3AED; --danger: #DC2626; }
+
+node { border-radius: 10px; }
+node::title { color: var(--accent); }
+node.critical { fill: #FEE2E2; stroke: var(--danger); stroke-width: 4; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); }
+node.critical::title { color: #7F1D1D; }
+node.external { fill: #F5F3FF; stroke-dasharray: 8 5; }
+node.external::title { font-style: italic; }
+
+group.trusted { fill: #ECFDF5; stroke: #059669; stroke-dasharray: 3 3; }
+group.trusted::label { color: #065F46; }
+
+edge { stroke: #475569; }
+edge[to=ledger] { stroke: #94A3B8; marker-end: circle; }
+/* same specificity as the rule above: the later rule wins for the async audit event */
+edge.async { stroke: #F59E0B; stroke-dasharray: 6 4; marker-end: open-arrow; }
+edge.async::label { color: #92400E; }

@@ -64,6 +64,10 @@ class Icon:
                 ".jpeg": "image/jpeg"}.get(self.path.suffix.lower(), "image/png")
 
 
+_MIDPOINT_KINDS = frozenset({"decision", "merge", "choice", "connector", "initial", "final", "flow_final",
+                             "history", "deep_history"})  # outline touches the box only at side midpoints
+
+
 @dataclass
 class Shape:
     id: str
@@ -81,10 +85,14 @@ class Shape:
     label: Label | None = None
     icon: Icon | None = None
     role: str = "node"         # node | zone | pill | swatch | chrome
+    parts: list | None = None  # symbol geometry (``shapes.Part``) for flow/activity/state kinds
+    dash: list[float] | None = None    # explicit dash pattern (CSS stroke-dasharray); None = default dash
+    shadow: tuple | None = None        # (dx, dy, blur, colour, alpha) drop shadow (CSS box-shadow)
+    fill_opacity: float = 1.0          # alpha of the fill only (CSS fill-opacity)
 
     def anchor(self, side: str, frac: float = 0.5) -> Point:
         x, y, w, h = self.x, self.y, self.w, self.h
-        if self.kind == "diamond":
+        if self.kind == "diamond" or self.kind in _MIDPOINT_KINDS:
             pts = {"top": (x + w / 2, y), "bottom": (x + w / 2, y + h), "left": (x, y + h / 2),
                    "right": (x + w, y + h / 2)}
             return pts.get(side, (x + w / 2, y + h / 2))
@@ -112,6 +120,10 @@ class Connector:
     src: Binding | None = None
     dst: Binding | None = None
     label: Shape | None = None
+    dash: list[float] | None = None
+    marker_start: str = "arrow"        # arrow | open-arrow | diamond | open-diamond | circle | bar | none
+    marker_end: str = "arrow"
+    opacity: float = 1.0
 
 
 @dataclass
@@ -196,6 +208,8 @@ class Scene:
     sources: list[dict] = field(default_factory=list)               # review records of every fact used
     meta_tooltips: dict[str, str] = field(default_factory=dict)     # fact id → one-line provenance
     layout_overflow: tuple[int, int] | None = None  # auto layout exceeding its area (px wide, px tall)
+    model_issues: list[tuple[str, str]] = field(default_factory=list)  # (item, message) from model rules
+    style_warnings: list[str] = field(default_factory=list)            # stylesheet diagnostics
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}

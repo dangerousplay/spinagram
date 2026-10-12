@@ -21,6 +21,7 @@ import warnings
 from pathlib import Path
 from typing import Sequence
 
+from .. import shapes
 from ..scene import Connector, Image, Label, Line, Scene, Shape, TableGrid, Text, TextBlock
 
 EMU = 6350
@@ -116,27 +117,89 @@ class _Slide:
 
     # styling helpers ----------------------------------------------------------
     @staticmethod
-    def _line(shape, color: str | None, width: float, dashed: bool = False) -> None:
+    def _line(shape, color: str | None, width: float, dashed: bool = False, dash: list[float] | None = None) -> None:
+        from lxml import etree
         from pptx.enum.dml import MSO_LINE_DASH_STYLE
+        from pptx.oxml.ns import qn
 
         if not color or not width:
             shape.line.fill.background()
             return
         shape.line.color.rgb = _rgb(color)
         shape.line.width = _e(width)
-        if dashed:
+        if dash:  # exact pattern: custDash lengths are in 1/1000 % of the line width
+            ln = shape.line._get_or_add_ln()
+            for old in ln.findall(qn("a:prstDash")) + ln.findall(qn("a:custDash")):
+                ln.remove(old)
+            cust = etree.SubElement(ln, qn("a:custDash"))
+            pat = list(dash) + (list(dash) if len(dash) % 2 else [])
+            for d, sp in zip(pat[0::2], pat[1::2]):
+                ds = etree.SubElement(cust, qn("a:ds"))
+                ds.set("d", str(round(d / width * 100000)))
+                ds.set("sp", str(round(sp / width * 100000)))
+            # schema order: fill, prstDash/custDash, join, headEnd, tailEnd
+            for tag in ("a:round", "a:bevel", "a:miter", "a:headEnd", "a:tailEnd"):
+                for el in ln.findall(qn(tag)):
+                    ln.remove(el)
+                    ln.append(el)
+        elif dashed:
             shape.line.dash_style = MSO_LINE_DASH_STYLE.DASH
 
     @staticmethod
-    def _arrows(shape, start: bool, end: bool) -> None:
+    def _shadow(shape, sh: tuple | None) -> None:
+        """CSS box-shadow → DrawingML outer shadow."""
+        if not sh:
+            return
+        import math
+
+        from lxml import etree
+        from pptx.oxml.ns import qn
+
+        dx, dy, blur, color, alpha = sh
+        sp_pr = shape._element.spPr
+        eff = etree.SubElement(sp_pr, qn("a:effectLst"))
+        o = etree.SubElement(eff, qn("a:outerShdw"))
+        o.set("blurRad", str(_e(blur)))
+        o.set("dist", str(_e(math.hypot(dx, dy))))
+        o.set("dir", str(round((math.degrees(math.atan2(dy, dx)) % 360) * 60000)))
+        o.set("algn", "ctr")
+        o.set("rotWithShape", "0")
+        clr = etree.SubElement(o, qn("a:srgbClr"))
+        clr.set("val", color.strip("#").upper())
+        etree.SubElement(clr, qn("a:alpha")).set("val", str(round(alpha * 100000)))
+
+    @staticmethod
+    def _fill_alpha(shape, alpha: float) -> None:
+        """CSS fill-opacity → alpha on the solid fill colour (the line keeps full opacity)."""
+        if alpha >= 1:
+            return
+        from lxml import etree
+        from pptx.oxml.ns import qn
+
+        clr = shape._element.spPr.find(f"{qn('a:solidFill')}/{qn('a:srgbClr')}")
+        if clr is not None:
+            etree.SubElement(clr, qn("a:alpha")).set("val", str(round(alpha * 100000)))
+
+    _MARKER = {"arrow": "triangle", "open-arrow": "arrow", "diamond": "diamond", "open-diamond": "diamond",
+               "circle": "oval", "bar": None}
+
+    @classmethod
+    def _arrows(cls, shape, start: bool, end: bool, kinds: tuple[str, str] = ("arrow", "arrow")) -> None:
         from pptx.oxml.ns import qn
         from lxml import etree
 
         ln = shape.line._get_or_add_ln()
-        for tag, on in (("a:headEnd", start), ("a:tailEnd", end)):
+        for tag, on, kind, prop in (("a:headEnd", start, kinds[0], "marker-start"),
+                                    ("a:tailEnd", end, kinds[1], "marker-end")):
             if on:
+                typ = cls._MARKER.get(kind, "triangle")
+                if kind in ("open-diamond", "bar"):
+                    _warn_once(f"pptx-marker:{kind}", f"pptx: {prop} '{kind}' has no PowerPoint arrowhead; "
+                               f"drawn as {typ or 'no arrowhead'}")
+                if typ is None:
+                    continue
                 el = etree.SubElement(ln, qn(tag))
-                el.set("type", "triangle")
+                el.set("type", typ)
                 el.set("w", "med")
                 el.set("len", "med")
 
@@ -235,6 +298,8 @@ class _Slide:
             ic = s.icon
             self.picture(group.shapes, ic.path, ic.x, ic.y, ic.size, ic.size, f"{s.id} icon")
             return sh
+        if s.parts:
+            return self.symbol(s, target)
         kind = {"diamond": MSO_SHAPE.DIAMOND}.get(s.kind)
         if kind is None:
             kind = MSO_SHAPE.ROUNDED_RECTANGLE if s.radius else MSO_SHAPE.RECTANGLE
@@ -246,12 +311,76 @@ class _Slide:
             sh.fill.solid()
             fill = _blend(s.fill, self.scene.background, s.opacity) if s.opacity < 1 else s.fill
             sh.fill.fore_color.rgb = _rgb(fill)
+            self._fill_alpha(sh, s.fill_opacity)
         else:
             sh.fill.background()
-        self._line(sh, s.stroke, s.stroke_width, s.dashed)
+        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
         self._no_shadow(sh)
+        self._shadow(sh, s.shadow)
         if s.label:
             self._text_frame(sh, s, s.label, prewrapped=s.kind in ("diamond", "pill"))
+        self.shapes[s.id] = sh
+        return sh
+
+    def _paint(self, sh, s: Shape, paint: str) -> None:
+        if paint == "stroke":
+            sh.fill.background()
+        else:
+            color = s.stroke if paint == "solid" else s.fill
+            if color:
+                sh.fill.solid()
+                fill = _blend(color, self.scene.background, s.opacity) if s.opacity < 1 else color
+                sh.fill.fore_color.rgb = _rgb(fill)
+                if paint != "solid":
+                    self._fill_alpha(sh, s.fill_opacity)
+            else:
+                sh.fill.background()
+        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
+        self._no_shadow(sh)
+        if paint != "stroke":
+            self._shadow(sh, s.shadow)
+
+    def symbol(self, s: Shape, target) -> object:
+        """Behavior symbol: preset geometry, a group of natives for multi-part symbols, else a freeform."""
+        from pptx.enum.shapes import MSO_SHAPE
+
+        plan = shapes.pptx_plan(s.kind)
+        if plan == "group":  # final: ring + dot
+            group = target.add_group_shape()
+            group.name = f"{s.id} (group)"
+            for part, scale in zip(s.parts, (0.92, 0.6)):
+                r = min(s.w, s.h) / 2 * scale
+                cx, cy = s.x + s.w / 2, s.y + s.h / 2
+                sh = group.shapes.add_shape(MSO_SHAPE.OVAL, _e(cx - r), _e(cy - r), _e(2 * r), _e(2 * r))
+                sh.name = f"{s.id} {part.paint}"
+                self._paint(sh, s, part.paint)
+            self.shapes[s.id] = group
+            return group
+        if plan == "freeform":
+            pts = []
+            for sub in shapes.parse(s.parts[0].d):
+                pts.append(sub.start)
+                for cmd, ps in sub.segments:
+                    if cmd == "L":
+                        pts += ps
+                    else:  # flatten cubic segments
+                        (x0, y0), ((x1, y1), (x2, y2), (x3, y3)) = pts[-1], ps
+                        for k in range(1, 9):
+                            t = k / 8
+                            pts.append(((1 - t) ** 3 * x0 + 3 * (1 - t) ** 2 * t * x1 + 3 * (1 - t) * t * t * x2
+                                        + t ** 3 * x3, (1 - t) ** 3 * y0 + 3 * (1 - t) ** 2 * t * y1
+                                        + 3 * (1 - t) * t * t * y2 + t ** 3 * y3))
+            fb = target.build_freeform(_e(pts[0][0]), _e(pts[0][1]), scale=1.0)
+            fb.add_line_segments([(_e(x), _e(y)) for x, y in pts[1:]], close=True)
+            sh = fb.convert_to_shape()
+        else:
+            sh = target.add_shape(getattr(MSO_SHAPE, plan), _e(s.x), _e(s.y), _e(s.w), _e(s.h))
+            if plan == "ROUNDED_RECTANGLE":
+                sh.adjustments[0] = min(0.5, {"state": 18, "action": 22}.get(s.kind, 18) / max(1.0, min(s.w, s.h)))
+        sh.name = s.id
+        self._paint(sh, s, s.parts[0].paint)
+        if s.label:
+            self._text_frame(sh, s, s.label, prewrapped=False)
         self.shapes[s.id] = sh
         return sh
 
@@ -282,8 +411,15 @@ class _Slide:
             shape.fill.background()
         shape.name = c.id
         self._no_shadow(shape)
-        self._line(shape, c.color, c.width, c.dashed)
-        self._arrows(shape, c.arrow_start, c.arrow_end)
+        self._line(shape, c.color, c.width, c.dashed, c.dash)
+        if c.opacity < 1:  # line transparency: alpha on the line colour
+            from lxml import etree
+            from pptx.oxml.ns import qn
+
+            clr = shape.line._get_or_add_ln().find(f"{qn('a:solidFill')}/{qn('a:srgbClr')}")
+            if clr is not None:
+                etree.SubElement(clr, qn("a:alpha")).set("val", str(round(c.opacity * 100000)))
+        self._arrows(shape, c.arrow_start, c.arrow_end, (c.marker_start, c.marker_end))
         if c.label:
             self.shape(c.label)
 

@@ -30,6 +30,29 @@ def _missing_packs(messages: list[str]) -> list[str]:
     return sorted(r for r in refs if r in reg and not (reg[r].dir / "index.json").exists())
 
 
+def geometry(laid: Diagram, scene) -> dict:
+    """Where each styled element sits in the scene, keyed like the CSS report (``node:<id>``, ...)."""
+    from ..scene import Connector, Shape, Text
+
+    zones = {f"z{i}": z.gid for i, z in enumerate(laid.zones) if z.gid}
+    out: dict[str, dict] = {"diagram": {"box": [0, 0, scene.width, scene.height]}}
+    nodes = {n.id for n in laid.nodes}
+    for it in scene.items:
+        if isinstance(it, Shape) and it.id in zones:
+            out[f"group:{zones[it.id]}"] = {"box": [it.x, it.y, it.w, it.h]}
+        elif isinstance(it, Shape) and it.id in nodes:
+            out[f"node:{it.id}"] = {"box": [it.x, it.y, it.w, it.h]}
+        elif isinstance(it, Text) and it.id in nodes:
+            out[f"node:{it.id}"] = {"box": [it.x - (it.width or 0) * {"middle": .5, "end": 1}.get(it.anchor, 0), it.top,
+                                            it.width or 0, it.block.height]}
+        elif isinstance(it, Connector) and it.id[1:].isdigit():
+            g = {"points": [list(p) for p in it.points], "route": it.route}
+            if it.label is not None:
+                g["label"] = [it.label.x, it.label.y, it.label.w, it.label.h]
+            out[f"edge:{it.id[1:]}"] = g
+    return {"geometry": out, "size": [scene.width, scene.height]}
+
+
 class RenderError(Exception):
     def __init__(self, message: str, file: str | None = None):
         super().__init__(message)
@@ -69,6 +92,7 @@ class Workspace:
         self.theme_gen = 0
         self.files: dict[str, SpecFile] = {}
         self._cache: dict[tuple, str] = {}
+        self._geom: dict[tuple, dict] = {}
         self._lock = threading.RLock()
         self.reload_theme()
         self.rescan()
@@ -139,6 +163,7 @@ class Workspace:
                 self.theme, self.theme_error = None, _message(exc)
             self.theme_gen += 1
             self._cache.clear()
+            self._geom.clear()
 
     def theme_roots(self) -> list[Path]:
         """Directories of the active theme and every theme it extends."""
@@ -180,8 +205,44 @@ class Workspace:
                 keys += [self.key(rel, d) for d in old.diagrams]
                 self.files[rel] = new = self._load(old.path, rel)
                 keys += [self.key(rel, d) for d in new.diagrams]
-            self._cache = {k: v for k, v in self._cache.items() if k[0] not in keys}
+            self._drop(keys)
             return sorted(set(keys))
+
+    def _drop(self, keys: list[str]) -> None:
+        self._cache = {k: v for k, v in self._cache.items() if k[0] not in keys}
+        self._geom = {k: v for k, v in self._geom.items() if k[0] not in keys}
+
+    def stylesheet_users(self) -> dict[Path, set[str]]:
+        """Stylesheet files referenced by loaded diagrams (existing or not) → the diagram keys using them."""
+        out: dict[Path, set[str]] = {}
+        with self._lock:
+            for rel, sf in self.files.items():
+                for d in sf.diagrams:
+                    for sheet in d.stylesheets:
+                        if "{" in sheet:
+                            continue  # CSS text, not a file
+                        p = Path(sheet).expanduser()
+                        if not p.is_absolute():
+                            base = Path(d.base_dir) if d.base_dir is not None else Path.cwd()
+                            p = base / p if (base / p).exists() or not p.exists() else p
+                        out.setdefault(p.resolve(), set()).add(self.key(rel, d))
+        return out
+
+    def stylesheets_changed(self, changed: list[Path]) -> list[str]:
+        """Forget renders of the diagrams whose cascade includes a changed stylesheet; returns their keys."""
+        users = self.stylesheet_users()
+        keys = sorted({k for c in changed for k in users.get(c.resolve(), ())})
+        with self._lock:
+            self._drop(keys)
+        return keys
+
+    def watch_dirs(self, theme_roots: list[Path]) -> set[Path]:
+        """Folders to watch: spec folders, the theme chain and folders of stylesheets referenced elsewhere."""
+        dirs = self.spec_dirs() | set(theme_roots)
+        for p in self.stylesheet_users():
+            if not any(p.is_relative_to(d) for d in dirs) and p.parent.is_dir():
+                dirs.add(p.parent)
+        return dirs
 
     def all_keys(self) -> list[str]:
         return [self.key(rel, d) for rel, sf in self.files.items() for d in sf.diagrams]
@@ -219,18 +280,38 @@ class Workspace:
             try:
                 with warnings.catch_warnings(record=True) as caught:
                     warnings.simplefilter("always")
-                    scene = build_scene(apply_layout(d, self.theme, engine), self.theme)
+                    laid = apply_layout(d, self.theme, engine)
+                    scene = build_scene(laid, self.theme)
                     svg = to_svg(scene)
             except Exception as exc:  # noqa: BLE001
                 raise RenderError(_message(exc), sf.rel) from exc
             msgs = list(dict.fromkeys(str(w.message) for w in caught))
             out = (svg, {"overflow": scene.layout_overflow, "warnings": msgs, "missing_packs": _missing_packs(msgs)})
             self._cache[ck] = out
+            self._geom[ck] = geometry(laid, scene)
             return out
+
+    def styles(self, key: str, layout: str | None = None) -> dict:
+        """The CSS inspector payload of one diagram: :func:`spinagram.css.inspect` plus ``geometry`` (scene
+        coordinates per element key: ``box`` [x, y, w, h], or ``points`` and ``route`` for edges) and the
+        scene ``size``. Raises like :meth:`render`."""
+        from .. import css
+
+        with self._lock:
+            self.render(key, layout)
+            sf, d = self.find(key)
+            engine = (layout or self.layout) if d.auto else None
+            geom = self._geom[(key, self.theme_gen, engine)]
+            try:
+                report = css.inspect(d, self.theme)
+            except Exception as exc:  # noqa: BLE001
+                raise RenderError(_message(exc), sf.rel) from exc
+            return {**report, **geom}
 
     def clear_cache(self) -> None:
         with self._lock:
             self._cache.clear()
+            self._geom.clear()
 
     # summary --------------------------------------------------------------------------------------
     def summary(self) -> dict:

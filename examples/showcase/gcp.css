@@ -1,0 +1,30 @@
+/* Google Cloud: the four brand colours as accents, light grey project canvas. */
+:root { --g-blue: #4285F4; --g-red: #EA4335; --g-yellow: #FBBC04; --g-green: #34A853; --g-grey: #5F6368; }
+
+group.edge          { fill: #F8F9FA; stroke: #DADCE0; border-radius: 16px; }
+group.edge::label   { color: var(--g-grey); }
+group.project       { fill: #F1F3F4; stroke: #DADCE0; border-radius: 18px; }
+group.project::label { color: #3C4043; }
+group.vpc           { fill: #FFFFFF; stroke: var(--g-blue); stroke-width: 2; border-radius: 14px; }
+group.vpc::label    { color: #1A73E8; }
+group.region        { fill: #E8F0FE; stroke: var(--g-blue); stroke-dasharray: 6 5; border-radius: 12px; }
+group.region::label { color: #1967D2; }
+group.services      { fill: #FFFFFF; stroke: #DADCE0; border-radius: 14px; }
+group.services::label { color: var(--g-grey); }
+
+node        { border-radius: 10px; }
+.client     { fill: #F8FAFC; stroke-dasharray: 6 4; box-shadow: none; }
+.net        { stroke: var(--g-blue); }
+.lb         { stroke-width: 3; box-shadow: 0 0 20px rgba(66, 133, 244, 0.45); }
+.security   { stroke: var(--g-red); fill: #FCE8E6; }
+.compute    { stroke: var(--g-blue); stroke-width: 2.5; }
+.data       { stroke: var(--g-green); }
+.db         { fill: #E6F4EA; stroke-width: 2.5; }
+.analytics  { stroke: var(--g-yellow); fill: #FEF7E0; }
+
+edge         { stroke: #80868B; }
+edge.policy  { stroke: var(--g-red); stroke-dasharray: 6 4; }
+edge.policy::label { color: #C5221F; }
+edge.db-edge { stroke: var(--g-green); }
+edge.async   { stroke: #E37400; stroke-dasharray: 6 4; }
+edge.soft    { stroke-dasharray: 2 4; }

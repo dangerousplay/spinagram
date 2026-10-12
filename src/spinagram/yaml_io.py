@@ -10,9 +10,10 @@ import yaml
 from .model import Diagram, Edge, Group, Legend, Table, Zone, parse_edge
 
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
-              "title_size", "body_size", "radius", "dashed", "color", "in"}
+              "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
 _NODE_EXTRA = {"weight", "font"}  # kind: text options
-_GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align"}
+_GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
+               "class", "css"}
 
 
 def _groups(d: Diagram, items: list, parent: Group | None) -> None:
@@ -33,6 +34,8 @@ def _groups(d: Diagram, items: list, parent: Group | None) -> None:
                               .strip("-")[:24])
         if any(o.id == g["id"] for o in d.groups):
             raise ValueError(f"{d.id}: duplicate group id {g['id']!r}")
+        if "class" in g:
+            g["cls"] = g.pop("class")
         grp = Group(**g)
         d.groups.append(grp)
         if parent is not None:
@@ -47,7 +50,8 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
     d = Diagram(id=str(data["id"]), title=str(data["title"]), subtitle=data.get("subtitle"),
                 source=data.get("source"), kicker=data.get("kicker"), base_dir=base_dir,
                 facts=data.get("facts"), locale=data.get("locale"),
-                meta=dict(data.get("meta") or {}))
+                meta=dict(data.get("meta") or {}), css=data.get("css"),
+                stylesheets=[str(x) for x in (data.get("stylesheets") or [])])
     if data.get("layout") is not None:
         lay = data["layout"]
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
@@ -70,7 +74,9 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
             raise ValueError(f"{data['id']}: node {n.get('id', title)!r} has unknown keys {unknown} "
                              "(unquoted commas in a flow mapping split the value — quote it)")
         parent = n.pop("in", None)
-        extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS}
+        if "class" in n:
+            n["cls"] = n.pop("class")
+        extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS | {"cls"}}
         node = d.add(kind, title, **n)
         node.extra.update(extra)
         if parent is not None:
@@ -83,6 +89,8 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
             d.edges.append(parse_edge(e))
             continue
         e = dict(e)
+        if "class" in e:
+            e["cls"] = e.pop("class")
         src, dst = e.pop("from"), e.pop("to")
         d.edge(src, dst, **e)
     for t in data.get("tables") or []:
@@ -115,7 +123,14 @@ def load_yaml(path: Path) -> list[Diagram]:
                         "containing , : ? or #") from None
     docs = data if isinstance(data, list) else [data]
     base = _dir_defaults(path.parent)
-    return [from_dict({**base, **doc}, base_dir=path.parent) for doc in docs]
+
+    def merged(doc: dict) -> dict:
+        out = {**base, **doc}
+        if base.get("stylesheets") and doc.get("stylesheets"):  # folder sheets come first, then the spec's
+            out["stylesheets"] = list(base["stylesheets"]) + list(doc["stylesheets"])
+        return out
+
+    return [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
 
 
 def load_python(path: Path) -> list[Diagram]:
@@ -144,6 +159,9 @@ def load_python(path: Path) -> list[Diagram]:
         for key in ("kicker", "source", "subtitle", "facts", "locale"):  # folder defaults fill what the script left unset
             if getattr(d, key) is None and base.get(key) is not None:
                 setattr(d, key, base[key])
+        if base.get("stylesheets"):  # folder stylesheets come before the script's own
+            d.stylesheets = [str(x) for x in base["stylesheets"]] + [x for x in d.stylesheets
+                                                                     if x not in base["stylesheets"]]
     return list(items)
 
 

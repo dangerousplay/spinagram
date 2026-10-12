@@ -1,0 +1,72 @@
+/* spinagram CSS recipes. Copy the blocks you need into your own stylesheet.
+   Every rule here passes `spinagram check`; see SKILL.md for when to use each one. */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────────── */
+:root {
+  --ink: #0F172A; --muted: #64748B; --line: #94A3B8;
+  --card: #FFFFFF; --card-stroke: #E2E8F0;
+  --danger: #DC2626; --ok: #059669; --warn: #D97706;
+}
+
+/* ── Base: soft cards, quiet edges, compact type ────────────────────────────── */
+node        { fill: var(--card); stroke: var(--card-stroke); stroke-width: 1.5; border-radius: 12px;
+              box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10); }
+node::title { color: var(--ink); font-weight: 600; font-size: 19px; }
+node::body  { color: var(--muted); font-size: 14px; }
+group::label { font-size: 14px; }
+edge        { stroke: var(--line); stroke-width: 2; }
+edge::label { color: var(--muted); font-size: 13px; }
+
+/* ── Layout-only group: arranges children, draws nothing (`fill: none` is not accepted) ── */
+group.bare { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
+
+/* ── Panels ─────────────────────────────────────────────────────────────────── */
+group.panel        { fill: #F8FAFC; stroke: var(--card-stroke); border-radius: 16px; }
+group.panel::label { color: var(--muted); }
+
+/* Dark canvas: zones are translucent by default, so force full opacity. */
+group.night              { fill: #0B1220; fill-opacity: 1; opacity: 1; stroke: #326CE5; stroke-width: 2;
+                           border-radius: 22px; box-shadow: 0 18px 36px rgba(11, 18, 32, 0.35); }
+group.night::label       { color: #93C5FD; }
+group.night node         { fill: #131C2E; stroke: #2A3954; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45); }
+group.night node::title  { color: #F8FAFC; }
+group.night node::body   { color: #94A3B8; }
+
+/* ── Emphasis ───────────────────────────────────────────────────────────────── */
+.hero     { stroke: #8C4FFF; stroke-width: 3; fill: #F5F3FF; box-shadow: 0 0 22px rgba(140, 79, 255, 0.45); }
+.hero::title { color: #5B21B6; }
+.external { fill: #F8FAFC; stroke-dasharray: 6 4; box-shadow: none; }
+.security { stroke: var(--danger); fill: #FFF5F5; }
+.blocked  { stroke: #F43F5E; stroke-dasharray: 5 4; box-shadow: 0 0 16px rgba(244, 63, 94, 0.35); }
+.faded    { opacity: 0.5; }
+
+/* ── Network tiers (subnets, zones) ─────────────────────────────────────────── */
+group.public          { fill: #F0FDF4; stroke: #7AA116; }
+group.public::label   { color: #3F6212; }
+group.private         { fill: #EFF6FF; stroke: #147EBA; }
+group.private::label  { color: #1E40AF; }
+group.data            { fill: #FAF5FF; stroke: #C925D1; }
+group.data::label     { color: #86198F; }
+
+/* ── Edge semantics ─────────────────────────────────────────────────────────── */
+edge.async       { stroke-dasharray: 6 4; }
+edge.control     { stroke: #F59E0B; stroke-dasharray: 6 4; }
+edge.replication { stroke: #C925D1; stroke-dasharray: 6 4; marker-start: arrow; }
+edge.hot         { stroke: var(--danger); stroke-width: 3; }
+edge.hot::label  { color: var(--danger); }
+edge.bind        { stroke: var(--ok); stroke-width: 3; marker-start: circle; }
+
+/* ── Vendor accents ─────────────────────────────────────────────────────────── */
+/* AWS service categories */
+.aws-compute  { stroke: #ED7100; }
+.aws-network  { stroke: #8C4FFF; }
+.aws-database { stroke: #C925D1; fill: #FDF4FF; }
+.aws-storage  { stroke: #7AA116; fill: #F7FEE7; }
+/* Google Cloud brand colours */
+.gcp-blue   { stroke: #4285F4; }
+.gcp-red    { stroke: #EA4335; fill: #FCE8E6; }
+.gcp-yellow { stroke: #FBBC04; fill: #FEF7E0; }
+.gcp-green  { stroke: #34A853; fill: #E6F4EA; }
+/* Kubernetes */
+.k8s      { stroke: #326CE5; stroke-width: 2.5; }
+.k8s-pod  { border-radius: 32px; stroke: #60A5FA; }

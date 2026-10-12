@@ -13,6 +13,27 @@
 - 2026-10-09 · Live UI (`spinagram serve`): Starlette + uvicorn + watchfiles (extra `ui`), SSE events,
   React + TS + Vite + Tailwind v4 SPA built with bun into `src/spinagram/ui/static` (committed, ships in wheel).
   `icons.AUTO_FETCH=False` under serve: packs are fetched explicitly from the UI. See `features/live-ui/`.
+- 2026-10-12 · Diagram import (D2, PlantUML): toolchain-backed parsing — D2 via official D2.js (WASM) under
+  bun/node installed into the cache like elkjs; PlantUML via own description-grammar parser over `--preproc`
+  (Java optional). Imports re-layout with spinagram engines. Native shape kinds (cylinder, ellipse, hexagon,
+  cloud, person, document) join the core model in the MVP. D2 ships first. See `features/diagram-import/`.
+- 2026-10-12 · Focus shifts to behavior diagrams (flow, activity, state) and CSS-like styling. Specs:
+  `features/layered-layout/` (built-in pure-Python Sugiyama engine, prerequisite), `features/behavior-diagrams/`
+  (specialized builders, embeddable as typed regions in one diagram), `features/css-styling/` (real CSS subset).
+  `features/diagram-import/` is parked (spec kept; native shapes and layered layout make it cheaper later).
+- 2026-10-12 · Layered engine (`layered`, pure Python Sugiyama) is the default for Flowchart/StateMachine/Activity
+  and typed regions; `flex` stays the default for plain diagrams. Right-flowing gaps are sized per label.
+  Determinism is pinned by a golden hash across PYTHONHASHSEED 0-9.
+- 2026-10-12 · Behavior symbols: geometry defined once in `spinagram.shapes` (absolute M/L/C/Z paths) and consumed
+  by scene, SVG, PPTX (presets / group / freeform) and Figma (vector networks). Regions are groups with an
+  `engine` hint laid out first and placed as blocks; crossing edges use the obstacle router.
+- 2026-10-12 · CSS: tinycss2 + own selectors/cascade; inline CSS is `css=` (style= keeps naming theme styles and
+  also matches as a class). Cascade: theme.css chain < _defaults stylesheets < diagram sheets/css < inline.
+  Resolved once in `css.prepare` before layout; unstyled diagrams skip it (golden SVG unchanged).
+- 2026-10-12 · CSS inspector: one trace (`css.compute(trace=)` → `css.inspect`) feeds `check --styles` and the
+  live UI. The UI hit-tests with scene geometry from `api/diagrams/<key>.styles`, so the SVG stays untouched.
+  `serve` maps saved `.css` files to diagrams through their cascade and watches external stylesheet folders.
+  See `features/css-inspector/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, sample diagram per theme, re-theme current spec, extends diff, icon copy-ref /
@@ -21,6 +42,11 @@
 - PPTX: honour a theme `pptx: {svg: raster}` key (needs theme access in backends).
 - Layout: d2 spacing is looser than dot/elk (example overflows by ~90 px); ELK intra-group layer gap is tight.
 - Layout: edge-label placement by engines; stable layout across edits.
+- Behavior: dashed dividers for orthogonal regions; YAML regions (BHV-27); connectors, interruptible regions.
+- CSS: `font-family` switching between theme fonts, remaining CSS-08..11 properties (padding, text-align,
+  icon-*), gradients, editing CSS from the inspector.
+- Layout: obstacle router port spreading (two edges into one side share a point); tracks may collapse (F4).
+- Import (parked 2026-10-12): D2/PlantUML spec in `features/diagram-import/`; Mermaid / draw.io / Structurizr frontends; remote icon URLs; PlantUML sprites → icon packs.
 
 ## Lessons
 - dot cluster margin is uniform: reserve the label band with a blank top label sized by fontsize.
@@ -32,4 +58,5 @@
 - A long-running process must drop `Theme` icon caches after a pack download (reload the theme).
 - `.py` specs under a watcher: purge helper modules (by folder and by name) and skip `.pyc` writes,
   or a same-size edit within one second reuses stale bytecode.
+- Static SPA under `serve`: a hash route change does not reload `index.html`; reload the page after a rebuild.
 - Starlette `TestClient` needs `base_url="http://127.0.0.1"` behind `TrustedHostMiddleware`.

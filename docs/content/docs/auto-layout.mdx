@@ -51,7 +51,8 @@ layout: {engine: elk, direction: down}
 
 | Engine | Needs | Strengths |
 |---|---|---|
-| `flex` (default) | nothing (pure Python) | Nested rows, columns and grids. Deterministic. Edges are straight, or elbowed with `route: ortho`. |
+| `flex` (default for plain diagrams) | nothing (pure Python) | Nested rows, columns and grids. Deterministic. Edges are straight, or elbowed with `route: ortho`. |
+| `layered` | nothing (pure Python) | Ranked flows with orthogonal routes, loops round the side, self-loops, swimlanes. Default for flowcharts, state machines and activities. Deterministic. |
 | `dot` | Graphviz (`dot` on `PATH`) | Ranked flows. Clusters for groups. Orthogonal routes (`splines=ortho`). |
 | `elk` | `bun` or `node`; `elkjs` is installed into the cache on first use | Layered layout with edges routed across group borders. Orthogonal routes. |
 | `d2` | `d2` on `PATH` | D2's own layouts (`options: {layout: elk\|dagre\|tala}`). |

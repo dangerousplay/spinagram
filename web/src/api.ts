@@ -16,6 +16,46 @@ export type Workspace = {
 
 export type DiagramInfo = { overflow: [number, number] | null; warnings: string[]; missing_packs: string[] };
 
+// CSS inspector (`api/diagrams/<key>.styles`, built by spinagram.css.inspect + ui.workspace.geometry)
+export type CssDecl = {
+  property: string;
+  value: string;
+  resolved: string;
+  origin: string;
+  line: number | null;
+  rule_line: number | null;
+  selector: string | null;
+  specificity: [number, number, number] | null;
+  important: boolean;
+  status: "applied" | "overridden" | "invalid" | "unknown";
+  message?: string;
+};
+export type CssInherited = { property: string; value: unknown; from: string | null };
+export type CssTrace = { decls: CssDecl[]; inherited: CssInherited[] };
+export type CssElement = {
+  key: string;
+  type: string;
+  kinds: string[];
+  id: string | null;
+  classes: string[];
+  attrs: Record<string, string>;
+  parent: string | null;
+  styles: Record<string, Record<string, unknown>>;
+  trace: Record<string, CssTrace>;
+};
+export type Geometry = { box?: [number, number, number, number]; points?: [number, number][]; route?: string; label?: [number, number, number, number] };
+export type StyleReport = {
+  diagram: string;
+  title: string;
+  styled: boolean;
+  sheets: { origin: string; theme: boolean; rules: number }[];
+  elements: CssElement[];
+  unused: { origin: string; line: number; selector: string }[];
+  warnings: string[];
+  geometry: Record<string, Geometry>;
+  size: [number, number];
+};
+
 export type ThemeEntry = { ref: string; name: string; builtin: boolean; active: boolean; error: string | null };
 export type ColorToken = { token: string; value: string; hex: string | null; via: string | null };
 export type FontFile = { key: string; weight: number; italic: boolean; format: string; available: boolean };
@@ -103,6 +143,10 @@ export const api = {
       /* older server */
     }
     return { svg: await r.text(), info };
+  },
+  styles: (key: string, layout: string | null, signal?: AbortSignal) => {
+    const q = layout ? `?layout=${enc(layout)}` : "";
+    return json<StyleReport>(`api/diagrams/${key.split("/").map(enc).join("/")}.styles${q}`, { signal });
   },
   themes: () => json<ThemeEntry[]>("api/themes"),
   theme: (ref: string) => json<ThemeSheet>(`api/themes/${enc(ref)}`),

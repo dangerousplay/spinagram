@@ -13,6 +13,7 @@ from ..graph import LGraph, LResult
 
 _BUILTIN = {
     "flex": "spinagram.autolayout.engines.flex:FlexEngine",
+    "layered": "spinagram.autolayout.engines.layered:LayeredEngine",
     "dot": "spinagram.autolayout.engines.dot:DotEngine",
     "elk": "spinagram.autolayout.engines.elk:ElkEngine",
     "d2": "spinagram.autolayout.engines.d2:D2Engine",

@@ -1,0 +1,6 @@
+/* Behavior diagrams: select by node kind and by region type. */
+state              { fill: #EEF2FF; stroke: #4F46E5; }
+state::title       { color: #312E81; }
+initial, final     { stroke: #312E81; }
+choice             { fill: #FDE68A; stroke: #B45309; }
+edge               { stroke: #6366F1; }

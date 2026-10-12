@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 7,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::pin determinism with a golden output hash checked across many pythonhashseed values not a few in process runs",
+      "text": "Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "layered-layout"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M9b (hash tie-break) (tests)"
+      ],
+      "created": "2026-10-12T04:39:39Z",
+      "last_seen": "2026-10-12T04:39:39Z"
+    },
+    {
+      "id": "L-002",
+      "key": "spec_precision_gap::give placement acs a measurable bound e g pill within 6 px of its segment before writing the test",
+      "text": "Give placement ACs a measurable bound (e.g. pill within 6 px of its segment) before writing the test.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "layered-layout"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "LAY-12 (spec)"
+      ],
+      "created": "2026-10-12T04:39:39Z",
+      "last_seen": "2026-10-12T04:39:39Z"
+    },
+    {
+      "id": "L-003",
+      "key": "surviving_mutant::guard output unchanged without the feature with a golden render captured before the feature not an identity check",
+      "text": "Guard output-unchanged-without-the-feature with a golden render captured before the feature, not an identity check.",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "css-styling"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M15 (CSS-27) (tests)"
+      ],
+      "created": "2026-10-12T04:39:39Z",
+      "last_seen": "2026-10-12T04:39:39Z"
+    },
+    {
+      "id": "L-004",
+      "key": "ac_gap::when an ac describes geometry that depends on layout bars spanning branches test the laid out result not the default size",
+      "text": "When an AC describes geometry that depends on layout (bars spanning branches), test the laid-out result, not the default size.",
+      "signal": "ac_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "behavior-diagrams"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "BHV-02 / G1 (tests)"
+      ],
+      "created": "2026-10-12T04:39:39Z",
+      "last_seen": "2026-10-12T04:39:39Z"
+    },
+    {
+      "id": "L-005",
+      "key": "gate_fail::never pipe the test command into tail before chaining a commit check pytest s own exit code",
+      "text": "Never pipe the test command into tail before chaining a commit; check pytest's own exit code.",
+      "signal": "gate_fail",
+      "scope": "process",
+      "status": "candidate",
+      "features": [
+        "layered-layout"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "99549c5 (process)"
+      ],
+      "created": "2026-10-12T04:39:39Z",
+      "last_seen": "2026-10-12T04:39:39Z"
+    },
+    {
+      "id": "L-006",
+      "key": "surviving_mutant::parse value formats with a full match lenient prefix parsing hides upstream bugs from tests",
+      "text": "Parse value formats with a full match; lenient prefix parsing hides upstream bugs from tests.",
+      "signal": "surviving_mutant",
+      "scope": "src",
+      "status": "candidate",
+      "features": [
+        "css-styling"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "F9 / R3 (CSS-16) (src)"
+      ],
+      "created": "2026-10-12T04:41:36Z",
+      "last_seen": "2026-10-12T04:41:36Z"
+    }
+  ]
+}

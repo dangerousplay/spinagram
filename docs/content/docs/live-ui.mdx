@@ -16,6 +16,9 @@ spinagram serve specs/ --layout elk --port 0 --no-open
   pan. Errors show over the last good render. Wheel zooms, drag pans, `f` fits, `0` is 100 %; the
   header switches the layout engine for diagrams with `layout:`. Overflow, icon warnings and
   not-downloaded icon packs are flagged.
+- **Styles**: **Inspect** (or `i`) opens the CSS inspector: click an element to see its classes,
+  computed style and the rules behind it. Saving any stylesheet a diagram uses, wherever it lives,
+  re-renders that diagram. See [CSS by backend](/docs/css-reference#live-inspector-and-live-reload).
 - **Themes**: token sheet of the built-in and active theme: colours (with the token they point to),
   font roles rendered in the embedded fonts, node and zone styles with previews, defaults and chrome.
 - **Icon packs**: registry state, a searchable grid per downloaded pack and **Fetch** for missing

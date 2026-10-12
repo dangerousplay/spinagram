@@ -1,7 +1,8 @@
-"""Command line: ``spinagram render``, ``check``, ``facts``, ``layout``, ``deck`` and ``serve``."""
+"""Command line: ``spinagram render``, ``check``, ``facts``, ``layout``, ``deck``, ``serve`` and ``skills``."""
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -42,6 +43,13 @@ def _main(argv: list[str] | None = None) -> int:
                        help="layout engine for specs with `layout:` (flex, dot, elk, d2; env SPINAGRAM_LAYOUT)")
         if name == "layout":
             p.add_argument("-o", "--out", help="output YAML (default: stdout)")
+        if name == "check":
+            p.add_argument("--styles", action="store_true",
+                           help="explain each element's computed style: matching rules, overrides, inheritance")
+            p.add_argument("--select", metavar="SELECTOR", help="with --styles: only elements matching this CSS selector")
+            p.add_argument("--json", action="store_true", help="print the style report as JSON (implies --styles)")
+            p.add_argument("--color", choices=("auto", "always", "never"), default="auto",
+                           help="colour the style report (auto: when stdout is a terminal and NO_COLOR is unset)")
         if name == "render":
             p.add_argument("-f", "--formats", default="svg,png",
                            help=f"comma list from: {', '.join(sorted(available()))}")
@@ -89,6 +97,21 @@ def _main(argv: list[str] | None = None) -> int:
     p.add_argument("deck", help="deck.yaml (title, authors, sections → slides → diagram ids)")
     p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
     p.add_argument("-o", "--out", help="output .html (default: next to deck.yaml)")
+    sk = sub.add_parser("skills", help="agent skills for coding assistants: list, show, path, install")
+    ssub = sk.add_subparsers(dest="scmd", required=True)
+    ssub.add_parser("list", help="bundled skills")
+    p = ssub.add_parser("show", help="print a skill's SKILL.md (paste it where your agent reads instructions)")
+    p.add_argument("name")
+    p = ssub.add_parser("path", help="folder of a skill, or of all skills")
+    p.add_argument("name", nargs="?")
+    p = ssub.add_parser("install", help="copy skills into the folder a coding agent reads")
+    p.add_argument("names", nargs="*", help="skills to install (default: all)")
+    p.add_argument("-a", "--agent", action="append", metavar="AGENT",
+                   help="target agent, repeatable: " + ", ".join(_skill_agents()) + " (default: agents)")
+    p.add_argument("--dest", help="install into this folder instead (any other tool)")
+    p.add_argument("--user", action="store_true", help="install for the user (home folder), not this project")
+    p.add_argument("--link", action="store_true", help="symlink instead of copying (follows spinagram upgrades)")
+    p.add_argument("--force", action="store_true", help="replace skills that are already installed")
     p = sub.add_parser("serve", help="live-reload UI: diagrams, theme token sheets, icon packs")
     p.add_argument("paths", nargs="*", default=["."], help="spec files or folders (default: .)")
     p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
@@ -100,6 +123,8 @@ def _main(argv: list[str] | None = None) -> int:
         return _serve(args)
     if args.cmd == "icons":
         return _icons(args)
+    if args.cmd == "skills":
+        return _skills(args)
     if args.cmd == "vectorize":
         return _vectorize(args)
     if args.cmd == "deck":
@@ -130,17 +155,38 @@ def _main(argv: list[str] | None = None) -> int:
                       f"{r.get('query', '')}\t{r.get('computed_at', '')}")
         return 0
     if args.cmd == "check":
-        issues = [i for sc in api.scenes(diagrams, theme, args.layout) for i in qa.check(sc)]
-        for i in issues:
-            print(i)
-        print(f"{len(diagrams)} diagram(s), {len(issues)} issue(s)")
-        return 1 if issues else 0
+        return _check(args, diagrams, theme)
     formats = [f.strip() for f in args.formats.split(",") if f.strip()]
     written = api.render(diagrams, args.out, theme=theme, formats=formats, gallery=not args.no_gallery,
                          layout=args.layout)
     for p in written:
         print(p)
     return 0
+
+
+def _check(args, diagrams, theme) -> int:
+    from . import css, inspect_fmt
+
+    reports = [css.inspect(d, theme) for d in diagrams]
+    selected = [css.select(d, args.select) if args.select else None for d in diagrams]
+    if args.json:
+        for r, keys in zip(reports, selected):
+            if keys is not None:
+                r["elements"] = [e for e in r["elements"] if e["key"] in keys]
+        print(json.dumps(reports if len(reports) > 1 else reports[0], indent=2, ensure_ascii=False))
+        return 0
+    color = inspect_fmt.use_color(args.color, sys.stdout)
+    if args.styles:
+        base = Path.cwd()
+        for r, keys in zip(reports, selected):
+            print(inspect_fmt.render(r, color=color, keys=keys, base=base, unused_selectors=False))
+    issues = [i for sc in api.scenes(diagrams, theme, args.layout) for i in qa.check(sc)]
+    for i in issues:
+        print(i)
+    for u in inspect_fmt.unused(reports):
+        print(f"info: unused selector {u['selector']} ({u['origin']}:{u['line']})")
+    print(f"{len(diagrams)} diagram(s), {len(issues)} issue(s)")
+    return 1 if issues else 0
 
 
 def _vectorize(args) -> int:
@@ -168,6 +214,39 @@ def _vectorize(args) -> int:
         print(f"{str(f)[-48:]:48} {sc.mean if sc else '-':>6} {sc.strong if sc else '-':>8}  {state}")
         ok += res.accepted
     print(f"{ok}/{len(files)} accepted (gate: mean ≤ {vectorize.MAX_MEAN}, strong ≤ {vectorize.MAX_STRONG:.0%})")
+    return 0
+
+
+def _skill_agents() -> list[str]:
+    from .skills import AGENTS
+
+    return list(AGENTS)
+
+
+def _skills(args) -> int:
+    from . import skills
+
+    if args.scmd == "list":
+        for s in skills.available().values():
+            print(f"{s.name:16} {s.summary}")
+        return 0
+    if args.scmd == "show":
+        print(skills.get(args.name).path.joinpath("SKILL.md").read_text(encoding="utf-8"), end="")
+        return 0
+    if args.scmd == "path":
+        print(skills.get(args.name).path if args.name else skills.ROOT)
+        return 0
+    if args.dest and (args.agent or args.user):
+        raise ValueError("--dest replaces --agent and --user; pass one or the other")
+    dests = [Path(args.dest)] if args.dest else \
+        list(dict.fromkeys(skills.target(a, args.user) for a in (args.agent or ["agents"])))
+    try:
+        for dest in dests:
+            for out in skills.install(args.names, dest, link=args.link, force=args.force):
+                print(f"{'linked' if args.link else 'installed'} {out}")
+    except FileExistsError as exc:
+        print(f"spinagram: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
