@@ -601,7 +601,7 @@ def test_no_free_side_falls_back_to_top_and_reports():  # ANN-24
     d.callout("target", "crowded")
     items, shapes, ann, t = _callout_items(d)
     assert _side(items["callout-0"], shapes["target"]) == "top"
-    assert ann.issues == [("callout-0", "overlap", "no free side around 'target'; placed on top")]
+    assert ann.issues == [("callout", "overlap", "no free side around 'target'; placed on top")]
 
 
 # T10 · scene integration ---------------------------------------------------------------------------
@@ -693,3 +693,52 @@ def test_sticky_note_is_unchanged():  # ANN-28
         st["fill"], st["stroke"], nd["note_stroke_width"], nd["radius"], None)
     assert "sticky-accent" not in items and "sticky-mark" not in items
     assert not any(b.font.italic for b in s.label.blocks)
+
+
+# T12 · checks ---------------------------------------------------------------------------------------
+def _issues(d):
+    from spinagram.layout import build_scene
+    from spinagram.qa import check
+    from spinagram.theme import Theme
+
+    return [str(i) for i in check(build_scene(d, Theme.load("default")))]
+
+
+def test_check_reports_unused_legend_entries():  # ANN-03
+    d = _panel_diagram()
+    d.add_legend({".hot": "Hot", ".ghost": "Nothing"})
+    assert [i for i in _issues(d) if "legend" in i] == [
+        "P1:legend: unused entry '.ghost' — matches no element; drawn from the theme default"]
+
+
+def test_check_reports_duplicate_step_numbers():  # ANN-16
+    d = _panel_diagram()
+    d.step("one", on="a", n=1)
+    d.step("again", on="b", n=1)
+    assert "P1:steps: duplicate number 1 — 2 steps share it" in _issues(d)
+
+
+def test_check_reports_band_overflow():  # ANN-11
+    d = _panel_diagram()
+    for k in range(30):
+        d.step(f"Step {k} does something long enough to wrap onto a second line in the panel", on="a")
+    over = [i for i in _issues(d) if "annotations: overflow" in i]
+    assert len(over) == 1 and "panels exceed the band by" in over[0]
+
+
+def test_check_reports_band_overlap_on_manual_layouts():  # ANN-12
+    d = Diagram("M1", "Manual")
+    d.box("Left", x=100, y=300, w=300, h=120)
+    d.box("Right", x=1500, y=300, w=300, h=120)
+    d.add_legend()
+    assert [i for i in _issues(d) if "overlap" in i] == ["M1:annotations: overlap — the band covers 'right'"]
+
+
+def test_check_reports_callout_overlap():  # ANN-24
+    d = _target("top", "right", "bottom", "left")
+    d.callout("target", "crowded")
+    assert "C1:callout: overlap — no free side around 'target'; placed on top" in _issues(d)
+
+
+def test_clean_annotated_diagram_has_no_issues():
+    assert _issues(_annotated()) == []

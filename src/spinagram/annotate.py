@@ -428,7 +428,7 @@ class Annotator:
                 side = next((s for s in self.SIDES if self._free(self._candidate(s, node, w, h), obstacles)), None)
                 if side is None:
                     side = self.SIDES[0]
-                    self.issues.append((f"callout-{i}", "overlap",
+                    self.issues.append(("callout", "overlap",
                                         f"no free side around {c.target!r}; placed on {side}"))
             x, y, _, _ = rect = self._candidate(side, node, w, h)
             self.rects.append(rect)
@@ -463,6 +463,30 @@ class Annotator:
                            color=bubble.stroke or accent, width=2, arrow_end=True, marker_start="none",
                            marker_end="circle")
         return [leader, bubble, g]
+
+    # checks ---------------------------------------------------------------------------------------
+    def check(self, shapes: list[Shape]) -> list[tuple[str, str, str]]:
+        """Issues for ``spinagram check``: unused legend entries, duplicate step numbers, panels overflowing
+        the band, and (manual layouts) the band covering content; plus the callout overlaps found earlier."""
+        out: list[tuple[str, str, str]] = []
+        for e in legend_entries(self.d):
+            if not e.used:
+                out.append(("legend", f"unused entry {e.key!r}", "matches no element; drawn from the theme default"))
+        counts: dict[int, int] = {}
+        for st in self.d.annotations.steps:
+            counts[st.n] = counts.get(st.n, 0) + 1
+        out += [("steps", f"duplicate number {n}", f"{k} steps share it") for n, k in sorted(counts.items()) if k > 1]
+        if self.overflow > 0.5:
+            out.append(("annotations", "overflow", f"panels exceed the band by {round(self.overflow)}px"))
+        b = band(self.d, self.t, self.area[2])
+        if b and not self.d.auto:
+            ax, ay, aw, ah = self.area
+            side, thick = b
+            rect = (ax + aw - thick, ay, thick, ah) if side == "right" else (ax, ay + ah - thick, aw, thick)
+            for s in shapes:
+                if s.role in ("node", "zone") and _overlaps(rect, (s.x, s.y, s.w, s.h)):
+                    out.append(("annotations", "overlap", f"the band covers {s.id!r}"))
+        return out + self.issues
 
 
 def _overlaps(r: Rect, s: Rect) -> bool:

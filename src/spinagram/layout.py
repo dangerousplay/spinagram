@@ -377,8 +377,9 @@ class _Builder:
             ann = Annotator(self)
             items.extend(ann.badges(edges))
             items.extend(ann.panels(edges))
-            items.extend(ann.callouts([s for s in items if isinstance(s, Shape) and s.role in ("node", "zone")]))
-            self.annotation_issues = ann.issues
+            content = [s for s in items if isinstance(s, Shape) and s.role in ("node", "zone")]
+            items.extend(ann.callouts(content))
+            self.annotation_issues = ann.check(content)
         if d.legend:
             ld = t.defaults("legend")
             x, y, sz, sw = d.legend.x, d.legend.y, ld.get("size", 18), ld.get("swatch", 20)

@@ -345,8 +345,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] each issue kind reported with the spec wording; clean annotated diagram has 0 issues
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] each issue kind reported with the spec wording; clean annotated diagram has 0 issues
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick
