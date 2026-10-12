@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from spinagram import Diagram, Theme, build_scene, load, render
+from spinagram import Diagram, Theme, build_scene, load, render, scenes
 from spinagram.model import parse_edge
 from spinagram.qa import check
 from spinagram.scene import Connector, Shape, TableGrid
@@ -50,7 +50,7 @@ def test_auto_side_and_binding():
 
 def test_examples_render_all_backends(tmp_path):
     diagrams = load(EXAMPLES)
-    assert {d.id for d in diagrams} == {"EX1", "EX2", "L01", "L02"}
+    assert {d.id for d in diagrams} == {"EX1", "EX2", "L01", "L02", "Q01"}
     out = render(diagrams, tmp_path, formats=["svg", "pptx", "figma"])
     names = {p.name for p in out}
     assert "diagrams.pptx" in names
@@ -58,6 +58,16 @@ def test_examples_render_all_backends(tmp_path):
     assert any(n.endswith("-01.js") for n in names)
     for sc in [build_scene(d, Theme.load()) for d in diagrams]:
         assert check(sc) == []
+
+
+def test_quickstart_yaml_and_python_match():
+    """The README shows the quickstart in both languages: they must stay the same diagram."""
+    (y,), (py,) = load(EXAMPLES / "quickstart.yaml"), load(EXAMPLES / "quickstart.py")
+    def boxes(d):
+        sc = scenes([d])[0]
+        return sorted((round(s.x), round(s.y), round(s.w), round(s.h)) for s in sc.shapes().values())
+
+    assert boxes(y) == boxes(py)
 
 
 def test_pptx_connectors_bound(tmp_path):

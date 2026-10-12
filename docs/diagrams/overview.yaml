@@ -1,0 +1,24 @@
+# The README hero, drawn with spinagram itself:
+#   spinagram render docs/diagrams/ -f svg -o docs/assets/
+id: S00
+title: spinagram
+subtitle: One diagram source, editable output everywhere
+layout: {engine: flex, direction: right, gap: 120}
+groups:
+  - {id: src, label: Write, style: soft, direction: down, gap: 28, children: [yaml, py]}
+  - {id: out, label: Get, style: soft, direction: down, gap: 28, children: [svg, png, pptx, figma]}
+nodes:
+  - {id: yaml, title: YAML, text: specs/*.yaml, icon: "aws:document"}
+  - {id: py, title: Python, text: Diagram API, icon: "terrastruct:python"}
+  - {id: engine, title: spinagram, text: "layout, themes, icons", icon: ../assets/logo.svg, style: dark}
+  - {id: svg, title: SVG, text: fonts embedded}
+  - {id: png, title: PNG, text: 2x raster}
+  - {id: pptx, title: PowerPoint, text: native shapes}
+  - {id: figma, title: Figma, text: editable nodes}
+edges:
+  - yaml.right -> engine.left@0.35
+  - py.right -> engine.left@0.65
+  - engine.right@0.2 -> svg.left
+  - engine.right@0.4 -> png.left
+  - engine.right@0.6 -> pptx.left
+  - engine.right@0.8 -> figma.left

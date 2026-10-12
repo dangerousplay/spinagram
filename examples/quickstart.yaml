@@ -1,0 +1,33 @@
+# Automatic layout: no coordinates. spinagram sizes every box from its text and icon,
+# places it and draws each group as a zone.
+#   spinagram render examples/quickstart.yaml -f svg,png,pptx -o out/
+id: Q01
+title: Web app on AWS
+subtitle: No coordinates, laid out automatically
+layout: {engine: flex, direction: right, gap: 60}
+groups:
+  - id: region
+    label: us-east-1
+    style: aws-region
+    direction: right
+    children:
+      - id: vpc
+        label: VPC
+        style: aws-vpc
+        direction: right
+        children: [alb, api, data]
+      - s3
+  - {id: data, direction: down, children: [db, cache]}
+nodes:
+  - {id: users, title: Users, icon: "aws:users"}
+  - {id: alb, title: Load balancer, icon: "aws:alb"}
+  - {id: api, title: API, text: FastAPI on ECS, icon: "terrastruct:python"}
+  - {id: db, title: Orders DB, text: PostgreSQL, icon: "terrastruct:postgres"}
+  - {id: cache, title: Cache, text: Redis, icon: "terrastruct:redis"}
+  - {id: s3, title: Uploads, text: S3 bucket, icon: "aws:s3"}
+edges:
+  - "users -> alb: HTTPS"
+  - "alb -> api"
+  - "api -> db: SQL"
+  - "api -> cache"
+  - "api -> s3"
