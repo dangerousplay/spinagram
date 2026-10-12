@@ -511,3 +511,94 @@ def test_badge_on_a_bent_edge_sits_halfway_along_it():  # ANN-13
 
     assert Annotator._midpoint([(0, 0), (100, 0), (100, 50)]) == (75, 0)
     assert Annotator._midpoint([(0, 0), (0, 40), (60, 40)]) == (10, 40)
+
+
+# T9 · callouts -------------------------------------------------------------------------------------
+def _target(*blockers):
+    """A target box in the middle of the canvas and boxes blocking the given sides."""
+    d = Diagram("C1", "Callouts")
+    d.box("Target", x=860, y=520, w=200, h=100)
+    spots = {"top": (860, 380, 200, 120), "right": (1200, 470, 300, 200), "bottom": (860, 690, 200, 120),
+             "left": (420, 470, 300, 200)}
+    for side in blockers:
+        x, y, w, h = spots[side]
+        d.box(f"Block {side}", x=x, y=y, w=w, h=h)
+    return d
+
+
+def _callout_items(d):
+    b, shapes, conns, ann, t = _parts(d)
+    items = ann.callouts([s for s in shapes.values()])
+    return _by_id(items), shapes, ann, t
+
+
+def _side(bubble, node):
+    if bubble.y + bubble.h <= node.y:
+        return "top"
+    if bubble.x >= node.x + node.w:
+        return "right"
+    if bubble.y >= node.y + node.h:
+        return "bottom"
+    if bubble.x + bubble.w <= node.x:
+        return "left"
+    return "overlapping"
+
+
+def test_callout_draws_a_bubble_and_a_leader_to_the_node():  # ANN-20
+    d = _target()
+    d.callout("target", "Snapshots every six hours", title="Backups")
+    items, shapes, ann, t = _callout_items(d)
+    bubble, leader, node = items["callout-0"], items["callout-0-leader"], shapes["target"]
+    texts = [" ".join(blk.lines) for blk in bubble.label.blocks]
+    assert texts == ["Backups", "Snapshots every six hours"]
+    (_, y1), (x2, y2) = leader.points[0], leader.points[-1]
+    assert bubble.y + bubble.h == y1 and node.y == y2 and node.x <= x2 <= node.x + node.w  # top side
+    assert leader.marker_end == "circle"
+
+
+@pytest.mark.parametrize("kind, token, glyph", [("info", "primary", "i"), ("tip", "success", "+"),
+                                                ("warning", "warning", "!"), ("risk", "alert", "×")])
+def test_callout_kind_sets_colour_and_glyph(kind, token, glyph):  # ANN-21
+    d = _target()
+    d.callout("target", "x", kind=kind)
+    items, shapes, ann, t = _callout_items(d)
+    assert items["callout-0"].stroke == t.color(token)
+    assert items["callout-0-glyph"].fill == t.color(token)
+    assert items["callout-0-glyph"].label.blocks[0].lines == [glyph]
+
+
+@pytest.mark.parametrize("blocked, expected", [((), "top"), (("top",), "right"), (("top", "right"), "bottom"),
+                                               (("top", "right", "bottom"), "left")])
+def test_auto_side_takes_the_first_free_side(blocked, expected):  # ANN-22
+    d = _target(*blocked)
+    d.callout("target", "note")
+    items, shapes, ann, t = _callout_items(d)
+    bubble = items["callout-0"]
+    assert _side(bubble, shapes["target"]) == expected
+    for s in shapes.values():
+        assert s.id == "target" or not _overlap((bubble.x, bubble.y, bubble.w, bubble.h), (s.x, s.y, s.w, s.h))
+    assert ann.issues == []
+
+
+def test_auto_side_avoids_earlier_callouts():  # ANN-22
+    d = _target()
+    d.callout("target", "first")
+    d.callout("target", "second")
+    items, shapes, ann, t = _callout_items(d)
+    assert (_side(items["callout-0"], shapes["target"]), _side(items["callout-1"], shapes["target"])) == (
+        "top", "right")
+
+
+def test_explicit_side_is_honoured():  # ANN-23
+    d = _target()
+    d.callout("target", "note", side="left")
+    items, shapes, ann, t = _callout_items(d)
+    assert _side(items["callout-0"], shapes["target"]) == "left"
+
+
+def test_no_free_side_falls_back_to_top_and_reports():  # ANN-24
+    d = _target("top", "right", "bottom", "left")
+    d.callout("target", "crowded")
+    items, shapes, ann, t = _callout_items(d)
+    assert _side(items["callout-0"], shapes["target"]) == "top"
+    assert ann.issues == [("callout-0", "overlap", "no free side around 'target'; placed on top")]

@@ -275,9 +275,9 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] auto side: first of top/right/bottom/left that fits and avoids nodes, zones, panels, callouts
-- [ ] explicit side honoured; no side fits → first side + overlap flagged
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] auto side: first of top/right/bottom/left that fits and avoids nodes, zones, panels, callouts
+- [x] explicit side honoured; no side fits → first side + overlap flagged
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

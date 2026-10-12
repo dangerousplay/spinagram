@@ -199,11 +199,11 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-17 | P1: Steps - panel order and badges | Tasks | Implementing |
 | ANN-18 | P1: Steps - badge beside label | Tasks | Implementing |
 | ANN-19 | P1: Steps - YAML references | Tasks | Implementing |
-| ANN-20 | P1: Callouts - bubble and leader | Tasks | Pending |
-| ANN-21 | P1: Callouts - kind colour and glyph | Tasks | Pending |
-| ANN-22 | P1: Callouts - auto side | Tasks | Pending |
-| ANN-23 | P1: Callouts - explicit side | Tasks | Pending |
-| ANN-24 | P1: Callouts - overlap check | Tasks | Pending |
+| ANN-20 | P1: Callouts - bubble and leader | Tasks | Implementing |
+| ANN-21 | P1: Callouts - kind colour and glyph | Tasks | Implementing |
+| ANN-22 | P1: Callouts - auto side | Tasks | Implementing |
+| ANN-23 | P1: Callouts - explicit side | Tasks | Implementing |
+| ANN-24 | P1: Callouts - overlap check | Tasks | Implementing |
 | ANN-25 | P1: Callouts - kind validation | Tasks | Implementing |
 | ANN-26 | P2: Notes - card | Tasks | Pending |
 | ANN-27 | P2: Notes - quote | Tasks | Pending |

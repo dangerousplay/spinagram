@@ -373,3 +373,102 @@ class Annotator:
                 cx, cy = node.x, node.y
             out.append(self.badge(f"step-{i}-badge", cx, cy, st.n, f"step:{i}"))
         return out
+
+    # callouts -------------------------------------------------------------------------------------
+    KIND_TOKENS = {"info": ("primary", "primary-bg", "i"), "tip": ("success", "success-bg", "+"),
+                   "warning": ("warning", "warning-bg", "!"), "risk": ("alert", "alert-bg", "×")}
+    SIDES = ("top", "right", "bottom", "left")
+
+    def _bubble_size(self, c, key: str) -> tuple[float, list[TextBlock], float]:
+        """Height, text blocks and glyph size of callout ``c`` at the theme's callout width."""
+        a = self.a
+        cs = self.b._css(key)
+        w, glyph = a["callout_width"], 26
+        avail = w - 2 * a["padding"] + 6 - glyph - 10
+        blocks = []
+        if c.title:
+            col, wt, it = self.b._text(cs, "title", self.t.color("text"), 700)
+            f = self._font("heading", wt, (cs.get("title") or {}).get("font-size") or a["text_size"] + 2, it)
+            blocks.append(self.b.block([c.title], f, col, f.size * 1.25, avail))
+        col, wt, it = self.b._text(cs, "body", self.t.color("text-muted"), 400)
+        f = self._font("body", wt, (cs.get("body") or {}).get("font-size") or a["text_size"], it)
+        blocks.append(self.b.block([c.text], f, col, f.size * 1.35, avail))
+        text_h = sum(b.height for b in blocks) + 6 * (len(blocks) - 1)
+        return max(glyph, text_h) + 2 * (a["padding"] - 6), blocks, glyph
+
+    def _candidate(self, side: str, node: Shape, w: float, h: float) -> Rect:
+        gap = self.a["callout_gap"]
+        ax, ay, aw, ah = self.area
+        if side in ("top", "bottom"):
+            x = min(max(node.x + node.w / 2 - w / 2, ax), ax + aw - w)
+            y = node.y - gap - h if side == "top" else node.y + node.h + gap
+        else:
+            y = min(max(node.y + node.h / 2 - h / 2, ay), ay + ah - h)
+            x = node.x + node.w + gap if side == "right" else node.x - gap - w
+        return x, y, w, h
+
+    def _free(self, r: Rect, obstacles: list[Rect]) -> bool:
+        ax, ay, aw, ah = self.area
+        inside = ax <= r[0] and ay <= r[1] and r[0] + r[2] <= ax + aw and r[1] + r[3] <= ay + ah
+        return inside and not any(_overlaps(r, o) for o in obstacles)
+
+    def callouts(self, shapes: list[Shape]) -> list:
+        """Bubbles with a leader line to their node, on the first free side (top, right, bottom, left)."""
+        out = []
+        for i, c in enumerate(self.d.annotations.callouts):
+            key = f"callout:{i}"
+            node = self.b.shapes[c.target]
+            h, blocks, glyph = self._bubble_size(c, key)
+            w = self.a["callout_width"]
+            obstacles = [(s.x, s.y, s.w, s.h) for s in shapes
+                         if not (s.role == "zone" and _contains((s.x, s.y, s.w, s.h), node))] + self.rects
+            if c.side != "auto":
+                side = c.side
+            else:
+                side = next((s for s in self.SIDES if self._free(self._candidate(s, node, w, h), obstacles)), None)
+                if side is None:
+                    side = self.SIDES[0]
+                    self.issues.append((f"callout-{i}", "overlap",
+                                        f"no free side around {c.target!r}; placed on {side}"))
+            x, y, _, _ = rect = self._candidate(side, node, w, h)
+            self.rects.append(rect)
+            out += self._callout(i, c, rect, side, node, blocks, glyph, key)
+        return out
+
+    def _callout(self, i, c, rect: Rect, side: str, node: Shape, blocks, glyph: float, key: str) -> list:
+        a = self.a
+        x, y, w, h = rect
+        stroke_tok, fill_tok, mark = self.KIND_TOKENS[c.kind]
+        accent = self.t.color(stroke_tok)
+        pad = a["padding"] - 6
+        text_x = x + pad + glyph + 10
+        label = Label(blocks, (text_x, y + pad, w - (text_x - x) - pad, h - 2 * pad), gap=6)
+        bubble = Shape(id=f"callout-{i}", kind="rect", x=x, y=y, w=w, h=h, fill=self.t.color(fill_tok),
+                       stroke=accent, stroke_width=2, radius=14, shadow=PANEL_SHADOW, role="callout", label=label)
+        self.b._decorate(bubble, self.b._css(key).get(""))
+        gfont = self._font("body", 700, 15)
+        gblk = TextBlock([mark], [mark], gfont, "#FFFFFF", gfont.size * 1.2)
+        gy = y + pad + (blocks[0].leading - glyph) / 2 if blocks else y + pad
+        g = Shape(id=f"callout-{i}-glyph", kind="pill", x=x + pad, y=gy, w=glyph, h=glyph, fill=accent,
+                  radius=glyph / 2, role="pill", label=Label([gblk], (x + pad, gy, glyph, glyph), align="center"))
+        start = {"top": (x + w / 2, y + h), "bottom": (x + w / 2, y), "right": (x, y + h / 2),
+                 "left": (x + w, y + h / 2)}[side]
+        end = {"top": node.anchor("top"), "bottom": node.anchor("bottom"), "right": node.anchor("right"),
+               "left": node.anchor("left")}[side]
+        if side in ("top", "bottom"):
+            end = (min(max(start[0], node.x + 12), node.x + node.w - 12), end[1])
+        else:
+            end = (end[0], min(max(start[1], node.y + 12), node.y + node.h - 12))
+        leader = Connector(id=f"callout-{i}-leader", points=[start, end], route="straight",
+                           color=bubble.stroke or accent, width=2, arrow_end=True, marker_start="none",
+                           marker_end="circle")
+        return [leader, bubble, g]
+
+
+def _overlaps(r: Rect, s: Rect) -> bool:
+    return r[0] < s[0] + s[2] and s[0] < r[0] + r[2] and r[1] < s[1] + s[3] and s[1] < r[1] + r[3]
+
+
+def _contains(outer: Rect, inner: Shape) -> bool:
+    ox, oy, ow, oh = outer
+    return ox <= inner.x and oy <= inner.y and inner.x + inner.w <= ox + ow and inner.y + inner.h <= oy + oh
