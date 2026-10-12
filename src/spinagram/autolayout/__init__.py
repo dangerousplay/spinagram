@@ -236,7 +236,7 @@ def _run_graph(graph: LGraph, name: str) -> LResult:
 def _area(d: Diagram, theme: Theme, reserve: bool = True) -> Box:
     """Where laid-out content goes: ``layout.area`` or the canvas minus margins and chrome, minus the
     annotation band (legend, steps) unless ``reserve`` is false."""
-    lay = d.layout or {}
+    lay = d.layout or {"area": d.meta.get("layout_area")}
     if lay.get("area"):
         x, y, w, h = (float(v) for v in lay["area"])
     else:
@@ -356,6 +356,9 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
         if e.label and (e.via or le.id in bound) and not e.label_at:
             e.label_at = _label_point(boxes, e, theme, node_boxes, placed)
     d.meta["layout_engine"] = name
+    d.meta["laid_out"] = True  # annotations: content came from a layout engine (not hand-placed)
+    if d.layout.get("area"):
+        d.meta["layout_area"] = list(d.layout["area"])  # the annotation band is drawn inside the same area
     d.layout = None  # positions are final; applying again is a no-op
     return d
 

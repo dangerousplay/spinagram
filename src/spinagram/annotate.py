@@ -306,6 +306,13 @@ class Annotator:
         self.rects.append((x, y, w, h))
         return out
 
+    def _fits_two_columns(self, entries: list[Entry], w: float) -> bool:
+        """Every label fits half the card next to its swatch (else one column, and ``check`` reports overflow)."""
+        a = self.a
+        font = self._font("body", 400, a["text_size"])
+        room = (w - 2 * a["padding"]) / 2 - a["swatch_w"] - 10 - 12
+        return all(measure(e.label, font) <= room for e in entries)
+
     def panels(self, connectors: list) -> list:
         """The legend card and the steps panel inside the reserved band."""
         ann = self.d.annotations
@@ -321,7 +328,7 @@ class Annotator:
             x, w = ax + aw - a["band"], a["band"]
             steps_h = steps_height(self.d, w, self.t) + a["gap"] if ann.steps else 0.0
             rows = legend_rows(entries, w, self.t, columns=1)
-            if ann.legend and legend_height(rows, self.t) + steps_h > ah:
+            if ann.legend and legend_height(rows, self.t) + steps_h > ah and self._fits_two_columns(entries, w):
                 rows = legend_rows(entries, w, self.t, columns=2)
             y = ay
             if ann.legend:
@@ -479,7 +486,7 @@ class Annotator:
         if self.overflow > 0.5:
             out.append(("annotations", "overflow", f"panels exceed the band by {round(self.overflow)}px"))
         b = band(self.d, self.t, self.area[2])
-        if b and not self.d.auto:
+        if b and not self.d.auto and not self.d.meta.get("laid_out"):
             ax, ay, aw, ah = self.area
             side, thick = b
             rect = (ax + aw - thick, ay, thick, ah) if side == "right" else (ax, ay + ah - thick, aw, thick)

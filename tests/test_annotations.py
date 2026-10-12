@@ -786,3 +786,35 @@ def test_figma_script_builds_the_annotations(tmp_path):  # ANN-07, ANN-13, ANN-2
         for f in files:
             run = subprocess.run([node, str(mock), str(f)], capture_output=True, text=True)
             assert run.returncode == 0, run.stderr
+
+
+def test_laid_out_diagrams_are_not_checked_for_band_overlap():  # ANN-12 applies to manual layouts only
+    d = _wide()
+    d.add_legend()
+    assert not [i for i in _issues(d) if "overlap" in i]
+
+
+def test_band_uses_a_custom_layout_area():  # ANN-08 with layout.area
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    d = _wide()
+    d.layout["area"] = [56, 176, 1808, 830]
+    d.add_legend()
+    card = _by_id(build_scene(d, Theme.load("default")).items)["legend"]
+    assert (card.x, card.y) == (56 + 1808 - 360, 176)
+
+
+def test_two_legend_columns_only_when_labels_fit():  # ANN edge case: tall legends
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    d = _wide()
+    for k in range(9):
+        d.box(f"N{k}", class_=f"a-rather-long-class-name-{k}")
+    for k in range(12):
+        d.step(f"step {k}", on="node-0")
+    d.add_legend()
+    items = _by_id(build_scene(d, Theme.load("default")).items)
+    xs = {round(items[f"legend-{j}-swatch"].x) for j in range(10)}
+    assert len(xs) == 1  # labels too long for two columns: one column
