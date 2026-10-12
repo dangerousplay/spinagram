@@ -26,6 +26,7 @@ from ..route import loop, route
 
 DIAMONDS = {"decision", "diamond", "choice", "merge"}
 ROUND = {"initial", "final", "flow_final", "connector", "history", "deep_history"}
+BARS = {"fork", "join"}
 MAX_NODES = 300
 SWEEPS = 24
 PASSES = 8
@@ -487,6 +488,25 @@ class LayeredEngine:
             k = item.rank
             lvl.boxes[m] = (item.pos - item.o / 2, r_top[k] + (band[k] - item.r) / 2, item.o - extra[m], item.r)
 
+        # fork / join bars stretch to span the branches they split or merge (never over a neighbour)
+        for m in members:
+            if it[m].kind not in BARS:
+                continue
+            nbrs = [it[n].pos for n, _ in up_n[m] + dn_n[m]]
+            if len(nbrs) < 2:
+                continue
+            o, r, os_, rs = lvl.boxes[m]
+            lo, hi = min(o, min(nbrs) - 24), max(o + os_, max(nbrs) + 24)
+            row = ranks[it[m].rank]
+            i = row.index(m)
+            if i > 0:
+                lo = max(lo, it[row[i - 1]].pos + it[row[i - 1]].o / 2 + self.gap / 2)
+            if i < len(row) - 1:
+                hi = min(hi, it[row[i + 1]].pos - it[row[i + 1]].o / 2 - self.gap / 2)
+            lo = max(lo, 0.0)
+            if hi - lo > os_:
+                lvl.boxes[m] = (lo, r, hi - lo, rs)
+
         # 6. routes (direct edges only; edges to nested items are routed after layout)
         direct = {eid for eid, a, b, d in edges if d and not (lane_of is not None and eid in reversed_)}
         self._route(lvl, it, chains, dag, reversed_, direct, ranks, r_top, band)
@@ -617,6 +637,15 @@ class LayeredEngine:
                 slots = [(o, mid_r, -1)] + [(cx, edge_r, 0)] * (n - 2) + [(o + os_, mid_r, 1)]
             for (_, eid), s in zip(lst, slots):
                 ports[(node, eid)] = s
+            return
+        if kind in BARS:  # straight down/up to the branch: attach at the other end's position
+            used: set[float] = set()
+            for i, (key, eid) in enumerate(lst):
+                p = min(max(key, o + 4), o + os_ - 4)
+                while round(p, 1) in used:  # two edges to the same column: keep them apart
+                    p = min(p + 8, o + os_ - 4)
+                used.add(round(p, 1))
+                ports[(node, eid)] = (p, edge_r, 0)
             return
         for i, (_, eid) in enumerate(lst):
             ports[(node, eid)] = (o + os_ * (i + 1) / (n + 1), edge_r, 0)

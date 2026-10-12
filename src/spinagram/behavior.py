@@ -262,10 +262,18 @@ _SCOPES = {"flowchart": _FlowScope, "state_machine": _StateScope, "activity": _A
 
 
 @contextmanager
-def region(d: Diagram, kind: str, title: Any, id: str | None, direction: str, **kw: Any) -> Iterator[Any]:
-    """A typed region inside ``d``: a group laid out by the layered engine, with the builder's verbs."""
+def region(d: Diagram, kind: str, title: Any, id: str | None, direction: str,
+           layout: dict[str, Any] | None = None, **kw: Any) -> Iterator[Any]:
+    """A typed region inside ``d``: a group with the builder's verbs, laid out by its own engine
+    (``layered`` unless ``layout={"engine": ..., "direction": ..., "gap": ...}`` says otherwise)."""
+    lay = dict(layout or {})
+    engine = lay.pop("engine", kw.pop("engine", "layered"))
+    direction = lay.pop("direction", direction)
+    for k in ("gap", "columns", "align", "padding"):
+        if k in lay:
+            kw.setdefault(k, lay.pop(k))
     kw.setdefault("style", "behavior")
-    with d.group(title, id=id, engine="layered", direction=direction, region=kind, **kw) as g:
+    with d.group(title, id=id, engine=engine, direction=direction, region=kind, **kw) as g:
         yield _SCOPES[kind](d, g, direction)
 
 

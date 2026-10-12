@@ -56,7 +56,7 @@ semantics, composable into one diagram, make spinagram usable for process and be
 2. WHEN a node of one of these kinds is rendered to SVG THEN the system SHALL draw the geometry listed in the design's shape table (e.g. `initial` filled circle 24 px, `final` bullseye, `fork` filled bar 8 px thick spanning its incoming/outgoing edges, `io` parallelogram, `state` rounded rectangle).  <!-- BHV-02 -->
 3. WHEN such a node is rendered to PowerPoint THEN the system SHALL use a native preset geometry (or a grouped native shape for `final` and `history`) with any text inside the shape.  <!-- BHV-03 -->
 4. WHEN such a node is rendered to Figma THEN the system SHALL draw it as editable vectors with the text inside.  <!-- BHV-04 -->
-5. WHEN a pseudostate (`initial`, `final`, `flow_final`, `fork`, `join`, `choice`, `history`) has no title THEN the system SHALL size it from the theme's symbol defaults, not from text.  <!-- BHV-05 -->
+5. WHEN a pseudostate (`initial`, `final`, `flow_final`, `fork`, `join`, `choice`, `history`) has no title THEN the system SHALL size it from the built-in symbol sizes of the shape table (`spinagram.shapes`), not from text.  <!-- BHV-05 -->
 
 **Independent Test**: Render one node of each kind to SVG, PPTX and Figma JS; assert geometry per the shape table and that `check` reports no overflow.
 
@@ -89,7 +89,7 @@ semantics, composable into one diagram, make spinagram usable for process and be
 
 1. WHEN the author calls `sm.state(title, entry=, do=, exit=)` THEN the system SHALL create a `state` node whose body lists `entry / …`, `do / …`, `exit / …` lines for the given activities.  <!-- BHV-10 -->
 2. WHEN the author calls `s.on(event, target, guard=None, action=None)` THEN the system SHALL create a transition labelled `event [guard] / action`, omitting empty parts.  <!-- BHV-11 -->
-3. WHEN the author writes `sm.initial >> s` or `s >> sm.final` THEN the system SHALL create an `initial` or `final` pseudostate (one per region unless more are requested) connected to `s`.  <!-- BHV-12 -->
+3. WHEN the author writes `sm.initial >> s` or `s >> sm.final` THEN the system SHALL connect `s` to the scope's `initial` or `final` pseudostate, created on first access and the same node on every later access (one per scope).  <!-- BHV-12 -->
 4. WHEN the author opens `with sm.composite(title) as c:` THEN the system SHALL create a composite state drawn as a rounded state box containing its substates, with its own initial pseudostate available as `c.initial`.  <!-- BHV-13 -->
 5. WHEN the author opens orthogonal regions with `c.region()` THEN the system SHALL separate regions inside the composite with dashed dividers.  <!-- BHV-14 -->
 6. WHEN the author calls `sm.choice()` or `c.history(deep=False)` THEN the system SHALL create a `choice` diamond or an `H` / `H*` history pseudostate.  <!-- BHV-15 -->
@@ -129,7 +129,7 @@ semantics, composable into one diagram, make spinagram usable for process and be
 1. WHEN the author opens `with d.state_machine(title) as sm:` (or `d.flowchart`, `d.activity`) inside a `Diagram` THEN the system SHALL create a region whose builder methods are those of the corresponding builder.  <!-- BHV-23 -->
 2. WHEN a region has its own `layout` THEN the system SHALL lay out the region's contents with that layout and treat the region as one box in the parent layout.  <!-- BHV-24 -->
 3. WHEN an edge connects a node outside a region to a node inside it THEN the system SHALL route it across the region border (LAY-17).  <!-- BHV-25 -->
-4. WHEN a standalone builder (`StateMachine(...)`) is saved THEN the system SHALL render it exactly as the same content embedded in an otherwise empty `Diagram`.  <!-- BHV-26 -->
+4. WHEN a standalone builder (`StateMachine(...)`) is laid out THEN its nodes SHALL have the same sizes and relative positions as the same content embedded as a region in an otherwise empty `Diagram` (the region adds only its own box).  <!-- BHV-26 -->
 5. The YAML front-end SHALL express regions as `regions: [{type: state_machine, id, title, layout, states: …, transitions: …}]` loading to the same model.  <!-- BHV-27 -->
 
 **Independent Test**: Render a diagram with an architecture group and an embedded state machine connected by one edge; assert both layouts, the region box and the crossing edge.

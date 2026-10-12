@@ -643,3 +643,86 @@ def test_lanes_hold_nodes_inside_an_embedded_activity():  # BHV-20 in a region (
     assert lanes["Ops"].children == [x.id, z.id] and lanes["Dev"].children == [y.id]
     region = next(g for g in d.groups if g.id == "act")
     assert region.children == [lanes["Ops"].id, lanes["Dev"].id] and region.lanes
+
+
+# verifier gaps (behavior validation.md, iteration 1) --------------------------------------------
+def test_fork_and_join_bars_span_their_branches():  # BHV-02 (G1)
+    act = Activity("A", "x")
+    with act.sequence():
+        act.start()
+        with act.parallel() as p:
+            for t in ("Pick items", "Send invoice", "Notify customer"):
+                with p.branch():
+                    act.action(t)
+        act.end()
+    out = apply_layout(act, _th())
+    fork, join = out.node(p.fork.id), out.node(p.join.id)
+    branches = [out.node(n.id) for n in act.nodes if n.kind == "action"]
+    centres = [b.x + b.w / 2 for b in branches]
+    for bar in (fork, join):
+        assert bar.x <= min(centres) and bar.x + bar.w >= max(centres)
+        assert bar.h == 8
+    for e in out.edges:  # edges leave/enter the bars straight above/below the branch they serve
+        if e.src.startswith(p.fork.id + "."):
+            assert e.via is None or len(e.via) == 0
+
+
+def test_region_takes_its_own_layout():  # BHV-24 (G2)
+    d = Diagram("D", "x")
+    with d.state_machine("Row", id="row", layout={"engine": "flex", "direction": "right", "gap": 30}) as sm:
+        a, b = sm.state("A"), sm.state("B")
+    g = next(g for g in d.groups if g.id == "row")
+    assert g.engine == "flex" and g.direction == "right" and g.gap == 30
+    out = apply_layout(d, _th())
+    na, nb = out.node(a.id), out.node(b.id)
+    assert na.x + na.w + 30 - 0.5 <= nb.x and abs(na.y - nb.y) < 0.5  # flex row, 30 px apart
+    with d.flowchart("Down", id="down", direction="right") as fc:
+        fc.process("P")
+    assert next(g for g in d.groups if g.id == "down").direction == "right"
+
+
+def test_edges_out_of_flow_finals_rejected():  # BHV-31 (G3)
+    act = Activity("A", "x")
+    ff, a = act.flow_end(), act.action("After")
+    with pytest.raises(ValueError, match=f"final node {ff.id} cannot have outgoing edges"):
+        ff >> a
+
+
+def test_figma_writes_symbol_text_inside(tmp_path):  # BHV-04 (G4)
+    sc = scenes([_all_kinds_diagram()])[0]
+    files = FigmaBackend().render([sc], tmp_path)
+    js = "\n".join(p.read_text() for p in files if p.suffix == ".js")
+    for title in ("State", "Signal Receive", "Decision"):
+        assert f'"{title}"' in js
+    state = next(i for i in sc.items if isinstance(i, Shape) and i.id == "state")
+    lx, ly, lw, lh = state.label.box
+    m = re.search(r'text\("[^"]*", "State", ([-\d.]+), ([-\d.]+)', js)
+    assert m and lx - 1 <= float(m.group(1)) <= lx + lw and ly - 1 <= float(m.group(2)) <= ly + lh
+
+
+def test_reentering_a_standalone_lane_reuses_it():  # BHV-20 (G5)
+    act = Activity("A", "x")
+    with act.lane("Ops"):
+        x = act.action("One")
+    with act.lane("Dev"):
+        act.action("Two")
+    with act.lane("Ops"):
+        z = act.action("Three")
+    lanes = [g for g in act.groups if g.style == "lane"]
+    assert [g.label for g in lanes] == ["Ops", "Dev"] and lanes[0].children == [x.id, z.id]
+
+
+def test_orthogonal_regions_render_dashed():  # BHV-14 deviation is visible (G6)
+    sm, _ = _lifecycle()
+    sc = scenes([sm])[0]
+    region_zones = [i for i in sc.items if isinstance(i, Shape) and i.role == "zone" and i.dashed]
+    assert len(region_zones) == 2
+    assert to_svg(sc).count("stroke-dasharray") >= 2
+
+
+def test_note_kind_still_renders():  # BHV-01 note keeps its renderer (G9)
+    d = Diagram("N", "x", layout={"engine": "layered"})
+    d.note("Remember")
+    sc = scenes([d])[0]
+    note = next(i for i in sc.items if isinstance(i, Shape) and i.id == "remember")
+    assert note.kind == "rect" and note.label.blocks[0].lines == ["Remember"]
