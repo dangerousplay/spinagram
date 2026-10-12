@@ -59,14 +59,19 @@ function PackCard({ p, rev }: { p: Pack; rev: number }) {
         ) : (
           <div className="grid h-full grid-cols-6 grid-rows-2 place-items-center gap-2">
             {(icons ?? []).map((i) => (
-              <img
+              // icons that only come in a dark tone are white artwork: show them on a dark chip
+              <span
                 key={i.name}
-                src={api.icon(p.name, i.name)}
-                alt={i.name}
-                title={`${p.name}:${i.name}`}
-                loading="lazy"
-                className="size-8 object-contain"
-              />
+                className={`grid size-10 place-items-center rounded-md ${i.tones.includes("light") ? "" : "bg-slate-800"}`}
+              >
+                <img
+                  src={api.icon(p.name, i.name)}
+                  alt={i.name}
+                  title={`${p.name}:${i.name}`}
+                  loading="lazy"
+                  className="size-8 object-contain"
+                />
+              </span>
             ))}
           </div>
         )}
