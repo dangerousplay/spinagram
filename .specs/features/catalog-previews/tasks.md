@@ -85,8 +85,8 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 **Done when**:
 
-- [ ] endpoint returns `image/svg+xml` with the theme's title; 404 and 422 paths tested
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] endpoint returns `image/svg+xml` with the theme's title; 404 and 422 paths tested
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: integration
 **Gate**: full

@@ -145,6 +145,22 @@ def test_theme_sample_uses_only_defined_node_styles():
     assert full.title == "default"
 
 
+def test_theme_thumbnail_endpoint(env):
+    """PREV-01..03: an SVG of the sample in that theme; 404 unknown ref; 422 broken theme."""
+    theme = env / "theme"
+    theme.mkdir()
+    (theme / "theme.yaml").write_text("name: corp\nextends: default\ncolors: {primary: '#FF0000'}\n")
+    with client(Workspace([env / "specs"], theme=str(theme))) as c:
+        r = c.get("/api/themes/active/thumbnail.svg")
+        assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml")
+        assert r.text.startswith("<svg") and ">corp<" in r.text and "#FF0000" in r.text
+        assert c.get("/api/themes/default/thumbnail.svg").status_code == 200
+        assert c.get("/api/themes/nope/thumbnail.svg").status_code == 404
+        (theme / "theme.yaml").write_text("name: corp\nextends: no-such-base\n")
+        r = c.get("/api/themes/active/thumbnail.svg")
+        assert r.status_code == 422 and r.json()["error"]
+
+
 def test_theme_list_marks_active(env):
     theme = env / "theme"
     theme.mkdir()

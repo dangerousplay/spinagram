@@ -78,9 +78,9 @@ visual card grid so a user sees what a theme looks like and what a pack contains
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| PREV-01 | P1: Theme cards - thumbnail endpoint | Tasks | Pending |
-| PREV-02 | P1: Theme cards - unknown ref 404 | Tasks | Pending |
-| PREV-03 | P1: Theme cards - broken theme 422 | Tasks | Pending |
+| PREV-01 | P1: Theme cards - thumbnail endpoint | Tasks | Implementing |
+| PREV-02 | P1: Theme cards - unknown ref 404 | Tasks | Implementing |
+| PREV-03 | P1: Theme cards - broken theme 422 | Tasks | Implementing |
 | PREV-04 | P1: Theme cards - defined styles only | Tasks | Implementing |
 | PREV-05 | P1: Theme cards - card grid and sections | Tasks | Pending |
 | PREV-06 | P1: Theme cards - search | Tasks | Pending |
