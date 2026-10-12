@@ -527,3 +527,16 @@ def test_layout_matches_frozen_golden():  # LAY-05 (identical on every run, seed
     r = _run(g)
     blob = json.dumps([sorted(r.boxes.items()), sorted(r.routes.items())])
     assert hashlib.sha256(blob.encode()).hexdigest() == GOLDEN
+
+
+def test_right_flow_gaps_fit_only_their_own_labels():  # LAY-03 / LAY-12 (gap per label, demo finding)
+    d = Diagram("g", "t", layout={"engine": "layered", "direction": "right"})
+    a, b, c = d.box("A"), d.box("B"), d.box("C")
+    a.to(b, "a rather long transition label here")
+    b >> c
+    out = apply_layout(d, _theme())
+    na, nb, nc = out.node("a"), out.node("b"), out.node("c")
+    th = _theme()
+    lw = measure("a rather long transition label here", th.font("body", 700, 17)) + 24
+    assert nb.x - (na.x + na.w) >= lw + 32 - 0.5          # the labelled gap fits its pill
+    assert abs(nc.x - (nb.x + nb.w) - 80) < 0.5            # the unlabelled gap keeps the base rank gap

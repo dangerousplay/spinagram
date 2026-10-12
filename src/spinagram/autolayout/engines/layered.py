@@ -79,7 +79,9 @@ class LayeredEngine:
     def run(self, graph: LGraph) -> LResult:
         self.g = graph
         self.gap = float(graph.spacing.get("node_gap", 48))
-        self.rank_gap = float(graph.spacing.get("rank_gap", 80))
+        # each gap is sized by the labels lying across it (direction right); rank_gap_base is the floor
+        self.rank_gap = float(graph.spacing.get("rank_gap_base", graph.spacing.get("rank_gap", 80)))
+        self.label_w = {e.id: e.label_w for e in graph.edges}
         n_nodes = sum(1 for c in graph.root.walk() if isinstance(c, LNode))
         if n_nodes > MAX_NODES:
             warnings.warn(f"layered layout: {n_nodes} nodes exceeds the {MAX_NODES}-node bound; "
@@ -475,13 +477,20 @@ class LayeredEngine:
         for k in it:
             it[k].pos -= lo
 
-        # rank bands
+        # rank bands; in a right-flowing layout labels lie across the gap, so each gap fits its widest label
         band = [max([it[k].r for k in row if not it[k].dummy] + [0.0]) for row in ranks]
+        gaps = [self.rank_gap] * max(0, n_ranks - 1)
+        if not down:
+            for eid, a, b in dag:
+                w = self.label_w.get(eid, 0.0)
+                lo, hi = sorted((rank[a], rank[b]))
+                if w and hi - lo == 1:
+                    gaps[lo] = max(gaps[lo], w + 32)
         r_top, r = [], 0.0
         for i in range(n_ranks):
             r_top.append(r)
-            r += band[i] + self.rank_gap
-        r_end = r - self.rank_gap if n_ranks else 0.0
+            r += band[i] + (gaps[i] if i < len(gaps) else 0.0)
+        r_end = r
         lvl = _Level()
         for m in members:
             item = it[m]

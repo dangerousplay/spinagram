@@ -38,6 +38,7 @@ class LEdge:
     id: str
     src: str
     dst: str
+    label_w: float = 0.0  # width of the edge's label pill (engines may reserve room for it)
 
 
 @dataclass

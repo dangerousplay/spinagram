@@ -127,10 +127,13 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
                                  for i in order],
                   hints={k: lay[k] for k in ("columns", "align", "lanes") if k in lay})
     edges, loops = [], []
+    ed0 = theme.defaults("edge")
     for i, e in enumerate(d.edges):
         a, b = _node_id(e.src)[0], _node_id(e.dst)[0]
         if a in nodes and b in nodes:
-            (edges if a != b else loops).append(LEdge(f"e{i}", a, b))
+            lw = measure(e.label, theme.font("body", 700, e.label_size or ed0.get("label_size", 17))) + 24 if e.label \
+                else 0.0
+            (edges if a != b else loops).append(LEdge(f"e{i}", a, b, lw))
     # ranks leave room for the widest edge label pill (+ arrow heads on both sides)
     ed = theme.defaults("edge")
     labels = [measure(e.label, theme.font("body", 700, e.label_size or ed.get("label_size", 17))) + 24
