@@ -85,11 +85,13 @@ T8
 **Requirement**: INS-05, INS-08, INS-12, INS-16
 
 **Done when**:
-- [ ] Report fields asserted; unused selectors only from the diagram's own sheets; selector filter
-- [ ] Gate passes
+- [x] Report fields asserted; unused selectors only from the diagram's own sheets; selector filter
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T3: `check --styles` CLI and pretty printer
 

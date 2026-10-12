@@ -73,3 +73,76 @@ def test_trace_does_not_change_computed_styles():  # INS-03
     plain = css.compute(root, rules, Theme.load(None), [])
     traced = css.compute(root, rules, Theme.load(None), [], {})
     assert {k.key: v for k, v in plain.items()} == {k.key: v for k, v in traced.items()}
+
+
+# T2: inspect report --------------------------------------------------------------------------------
+import json  # noqa: E402
+
+import pytest  # noqa: E402
+
+from spinagram import Diagram  # noqa: E402
+
+
+def _diagram(tmp_path=None):
+    d = Diagram("D", "Styled", css="node { fill: #EEEEEE } .ghost { fill: #000000 } #db::title { color: red }")
+    with d.group("Zone", id="zone", class_="trusted"):
+        api = d.box("API", class_="critical", css="stroke-width: 6")
+        db = d.box("DB", id="db")
+    api.to(db, "write", class_="async")
+    return d
+
+
+def test_inspect_report_fields():  # INS-12
+    r = css.inspect(_diagram(), Theme.load(None))
+    assert r["styled"] and r["diagram"] == "D"
+    assert [e["key"] for e in r["elements"]] == ["diagram", "group:zone", "node:api", "node:db", "edge:0"]
+    api = next(e for e in r["elements"] if e["key"] == "node:api")
+    assert api["type"] == "node" and api["classes"] == ["critical"] and api["parent"] == "group:zone"
+    assert api["attrs"]["label"] == "API"
+    assert api["styles"][""] == {"fill": "#EEEEEE", "stroke-width": 6.0}
+    assert [d["origin"] for d in api["trace"][""]["decls"]] == ["D css", "inline"]
+    db = next(e for e in r["elements"] if e["key"] == "node:db")
+    assert db["styles"]["title"] == {"color": "#FF0000"} and "body" not in db["styles"]
+    assert r["sheets"] == [{"origin": "D css", "theme": False, "rules": 3}]
+    json.dumps(r)                                                   # JSON-ready for the UI and --json
+
+
+def test_unused_selectors_only_from_own_sheets(tmp_path):  # INS-08
+    th_dir = tmp_path / "th"
+    th_dir.mkdir()
+    (th_dir / "theme.yaml").write_text("extends: default\nname: th\n")
+    (th_dir / "theme.css").write_text("decision { fill: #111111 }")      # unused here, but a theme sheet
+    r = css.inspect(_diagram(), Theme.load(th_dir))
+    assert r["unused"] == [{"origin": "D css", "line": 1, "selector": ".ghost"}]
+    assert r["sheets"][0]["theme"] is True
+
+
+def test_select_filters_by_selector():  # INS-05
+    d = _diagram()
+    assert css.select(d, "group .critical, edge.async") == ["node:api", "edge:0"]
+    assert css.select(d, "#db::title") == ["node:db"]
+    with pytest.raises(ValueError, match="invalid selector"):
+        css.select(d, "node[")
+
+
+def test_unstyled_diagram_reports_nothing():  # INS-16
+    d = Diagram("P", "Plain")
+    d.box("A")
+    r = css.inspect(d, Theme.load(None))
+    assert r["styled"] is False and r["elements"] == [] and r["unused"] == []
+
+
+def test_syntax_error_keeps_the_valid_trace():  # INS-17
+    d = Diagram("E", "Broken", css="node { fill: #EEEEEE } node { fill: ; stroke: #111111 } @media x { }")
+    d.box("A")
+    r = css.inspect(d, Theme.load(None))
+    a = next(e for e in r["elements"] if e["key"] == "node:a")
+    assert a["styles"][""]["fill"] == "#EEEEEE" and a["styles"][""]["stroke"] == "#111111"
+    assert any("at-rule" in w for w in r["warnings"])
+
+
+def test_empty_value_is_invalid_not_black():  # INS-17 (found while testing: `fill: ;` became #000000)
+    d = Diagram("E", "Empty", css="node { fill: }")
+    d.box("A")
+    styles, warnings = css.styles(d, Theme.load(None))
+    assert "fill" not in styles["node:a"][""] and any("empty value" in w for w in warnings)

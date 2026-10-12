@@ -461,6 +461,10 @@ def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = Non
                 continue
             raw = _substitute(d.value, custom)
             entry["resolved"] = raw
+            if not raw.strip():
+                warn(f"{where}: empty value for '{d.name}' ignored")
+                entry.update(status="invalid", message="empty value")
+                continue
             try:
                 vals[d.name] = PROPS[d.name](raw, theme)
                 src[d.name] = el.key or el.id
@@ -594,6 +598,62 @@ def styles(d, theme) -> tuple[dict[str, dict[str, dict]], list[str]]:
     root, keys = tree(d)
     comp = compute(root, rules, theme, warnings)
     return {k: comp[el] for k, el in keys.items()}, warnings
+
+
+def _walk(el: El):
+    yield el
+    for c in el.children:
+        yield from _walk(c)
+
+
+def select(d, selector: str) -> list[str]:
+    """Keys of the elements of ``d`` matching ``selector`` (pseudo-elements ignored); ValueError if invalid."""
+    try:
+        sels = parse_selectors(selector)
+    except _SelectorError as exc:
+        raise ValueError(f"invalid selector {selector!r}: {exc}") from None
+    root, _ = tree(d)
+    return [el.key for el in _walk(root) if any(matches(s, el) for s in sels)]
+
+
+def inspect(d, theme) -> dict:
+    """Why every element of ``d`` looks the way it does (JSON-ready; the CLI and the live UI share it).
+
+    ``styled``: whether any stylesheet or inline css applies; ``sheets``: origins in cascade order with
+    ``theme`` set for theme sheets; ``elements``: tree order, each with ``key``, ``type``, ``kinds``, ``id``,
+    ``classes``, ``attrs``, ``parent``, computed ``styles`` and the ``trace`` per pseudo-element (see
+    :func:`compute`); ``unused``: selectors of the diagram's own sheets matching nothing; ``warnings``."""
+    sheets = sheets_for(d, theme)
+    n_theme = len(getattr(theme, "stylesheets", lambda: [])())
+    inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups))
+    report: dict = {"diagram": d.id, "title": d.title, "styled": bool(sheets or inline), "sheets": [],
+                    "elements": [], "unused": [], "warnings": []}
+    if not report["styled"]:
+        return report
+    rules: list[Rule] = []
+    own: list[Rule] = []
+    for i, (text, origin) in enumerate(sheets):
+        rs, errs = parse(text, origin, order_base=len(rules))
+        rules += rs
+        if i >= n_theme:
+            own += rs
+        report["sheets"].append({"origin": origin, "theme": i < n_theme, "rules": len(rs)})
+        report["warnings"] += [str(e) for e in errs]
+    root, _ = tree(d)
+    trace: dict = {}
+    comp = compute(root, rules, theme, report["warnings"], trace)
+    els = list(_walk(root))
+    for el in els:
+        report["elements"].append({
+            "key": el.key, "type": el.type, "kinds": list(el.kinds), "id": el.id, "classes": list(el.classes),
+            "attrs": dict(el.attrs), "parent": el.parent.key if el.parent is not None else None,
+            "styles": {pe: {k: _jsonable(v) for k, v in st.items()} for pe, st in comp[el].items() if st},
+            "trace": {pe: t for pe, t in trace[el].items() if t["decls"] or t["inherited"]}})
+    for r in own:
+        for sel in r.selectors:
+            if not any(matches(sel, el) for el in els):
+                report["unused"].append({"origin": r.origin, "line": r.line, "selector": sel.text})
+    return report
 
 
 def prepare(d, theme):
