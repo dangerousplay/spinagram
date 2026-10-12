@@ -142,3 +142,21 @@ def test_dark_fill_draws_the_dark_variant(cache, monkeypatch):  # ICON-06
     shapes = build_scene(d, Theme.load("default")).shapes()
     assert shapes["pve"].icon.path.read_text() == (cache / "dashboard-icons" / "svg/proxmox-light.svg").read_text()
     assert shapes["pve-2"].icon.path.read_text() == (cache / "dashboard-icons" / "svg/proxmox.svg").read_text()
+
+
+# T3 · catalog inference --------------------------------------------------------------------------------
+def test_new_packs_add_tags_and_categories():  # ICON-13, ICON-14, ICON-15
+    from spinagram import Diagram
+    from spinagram.metadata import effective_category, effective_tags
+
+    lab = Diagram("L1", "Lab")
+    for n in ("proxmox", "opnsense", "truenas"):
+        lab.box(n, icon=f"selfhosted:{n}")
+    lab.box("Switch", icon="network:switch")
+    assert effective_tags(lab) == ["network", "self-hosted"]
+    assert effective_category(lab) == "Self-hosted"
+
+    net = Diagram("N1", "Net")
+    for n in ("router", "switch", "firewall"):
+        net.box(n, icon=f"network:{n}")
+    assert (effective_tags(net), effective_category(net)) == (["network"], "Network")

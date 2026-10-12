@@ -112,8 +112,8 @@ T4 → T5 → T6
 
 **Done when**:
 
-- [ ] tags and dominant categories asserted for both packs
-- [ ] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
+- [x] tags and dominant categories asserted for both packs
+- [x] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
 
 **Tests**: unit
 **Gate**: quick

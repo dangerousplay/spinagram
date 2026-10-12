@@ -124,9 +124,9 @@ firewalls). Authors fall back to generic glyphs or hand-managed files. Two built
 | ICON-10 | P1: Network - circles | Tasks | Implementing |
 | ICON-11 | P1: Network - plain | Tasks | Implementing |
 | ICON-12 | P1: Network - aliases | Tasks | Implementing |
-| ICON-13 | P1: Catalog - self-hosted tag | Tasks | Pending |
-| ICON-14 | P1: Catalog - network tag | Tasks | Pending |
-| ICON-15 | P1: Catalog - categories | Tasks | Pending |
+| ICON-13 | P1: Catalog - self-hosted tag | Tasks | Implementing |
+| ICON-14 | P1: Catalog - network tag | Tasks | Implementing |
+| ICON-15 | P1: Catalog - categories | Tasks | Implementing |
 | ICON-16 | P2: Showcase - homelab | Tasks | Pending |
 | ICON-17 | P2: Showcase - campus network | Tasks | Pending |
 | ICON-18 | P2: Showcase - check clean | Tasks | Pending |
