@@ -1,13 +1,15 @@
-/* AWS accents, layered on showcase.css. Colours follow the AWS architecture icon categories. */
-:root { --compute: #ED7100; --network: #8C4FFF; --database: #C925D1; --storage: #7AA116; }
+/* AWS accents, layered on showcase.css. Colours follow the AWS architecture icon categories.
+   Class names double as legend labels: `d.add_legend()` turns `.web-tier` into "Web tier". */
+:root { --compute: #ED7100; --network: #8C4FFF; --database: #C925D1; --storage: #7AA116; --hybrid: #0EA5E9; }
 
-.client   { fill: #F8FAFC; stroke-dasharray: 6 4; box-shadow: none; }
-.edge-svc { stroke: var(--network); }
-.security { stroke: var(--sec); fill: #FFF5F5; }
-.lb       { stroke: var(--network); fill: #F5F3FF; }
-.web, .app { stroke: var(--compute); }
-.db       { stroke: var(--database); fill: #FDF4FF; }
-.store    { stroke: var(--storage); fill: #F7FEE7; }
+.external      { fill: #F8FAFC; stroke: #94A3B8; stroke-dasharray: 6 4; box-shadow: none; }
+.edge-service  { stroke: var(--network); }
+.security      { stroke: var(--sec); fill: #FFF5F5; }
+.load-balancer { stroke: var(--network); fill: #F5F3FF; }
+.web-tier      { stroke: var(--compute); }
+.app-tier      { stroke: var(--compute); fill: #FFF7ED; }
+.database      { stroke: var(--database); fill: #FDF4FF; }
+.storage       { stroke: var(--storage); fill: #F7FEE7; }
 
 group.edge        { fill: #F8FAFC; stroke: var(--card-stroke); border-radius: 16px; }
 group.edge::label { color: var(--muted); }
@@ -21,21 +23,24 @@ group.data::label { color: #86198F; }
 
 edge.replication  { stroke: var(--database); stroke-dasharray: 6 4; marker-start: arrow; }
 edge.replication::label { color: #86198F; }
-edge.async        { stroke-dasharray: 6 4; }
 
 /* Networking */
 group.onprem        { fill: #F8FAFC; stroke: #475569; stroke-dasharray: 2 4; border-radius: 0; }
 group.onprem::label { color: #334155; }
-.onprem-gear { stroke: #475569; }
-.hybrid      { stroke: #0EA5E9; fill: #F0F9FF; }
-.hub         { stroke: var(--network); stroke-width: 3; fill: #F5F3FF; box-shadow: 0 0 22px rgba(140, 79, 255, 0.45); }
-.hub::title  { color: #5B21B6; }
-.egress      { stroke: var(--network); }
-.spoke       { border-radius: 6px; }
-.spoke.prod    { stroke: #16A34A; fill: #F0FDF4; }
-.spoke.staging { stroke: #D97706; fill: #FFFBEB; }
-.spoke.shared  { stroke: #0891B2; fill: #ECFEFF; }
-edge.hybrid  { stroke: #0EA5E9; stroke-width: 3; }
-edge.backup  { stroke-dasharray: 8 5; }
-edge.inspect { stroke: var(--sec); stroke-width: 3; }
-edge.inspect::label { color: var(--sec); }
+.on-premises  { stroke: #475569; }
+.hybrid-link  { stroke: var(--hybrid); fill: #F0F9FF; }
+.transit-hub  { stroke: var(--network); stroke-width: 3; fill: #F5F3FF; box-shadow: 0 0 22px rgba(140, 79, 255, 0.45); }
+.transit-hub::title { color: #5B21B6; }
+.egress       { stroke: var(--network); }
+.workload     { border-radius: 6px; stroke: #16A34A; fill: #F0FDF4; }
+#staging-vpc  { stroke: #D97706; fill: #FFFBEB; }
+#shared-services { stroke: #0891B2; fill: #ECFEFF; }
+edge.private-circuit { stroke: var(--hybrid); stroke-width: 3; }
+edge.backup-path     { stroke: var(--hybrid); stroke-width: 3; stroke-dasharray: 8 5; }
+edge.inspection      { stroke: var(--sec); stroke-width: 3; }
+edge.inspection::label { color: var(--sec); }
+
+/* Annotations */
+step { fill: #232F3E; stroke: #FFFFFF; }
+step::label { color: #FF9900; }
+legend::title { color: #232F3E; }
