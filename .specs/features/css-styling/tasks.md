@@ -146,11 +146,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-08, CSS-09, CSS-10, CSS-27, CSS-29
 
 **Done when**:
-- [ ] Scene values match computed styles; examples render byte-identically without CSS
-- [ ] Gate passes
+- [x] Scene values match computed styles; examples render byte-identically without CSS
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T7: SVG style properties
 

@@ -37,6 +37,39 @@ class _Builder:
         self.t = theme
         self.W, self.H = theme.canvas
         self.shapes: dict[str, Shape] = {}
+        self.warnings: list[str] = []
+        self.styles = diagram.meta.get("css") or {}
+
+    # css ----------------------------------------------------------------------
+    def _css(self, key: str) -> dict:
+        return self.styles.get(key) or {}
+
+    def _text(self, cs: dict, pe: str, color: str, weight: int) -> tuple[str, int, bool]:
+        """Colour, weight and italic of a text part after the cascade (``pe``: title, body, label)."""
+        st = cs.get(pe) or {}
+        fam = st.get("font-family")
+        if fam and fam not in {f.get("family") for f in (self.t.get("fonts") or {}).values() if isinstance(f, dict)}:
+            msg = f"font-family {fam!r} is not embedded in the theme; using the theme font"
+            if msg not in self.warnings:
+                self.warnings.append(msg)
+        return st.get("color", color), int(st.get("font-weight", weight)), st.get("font-style") == "italic"
+
+    @staticmethod
+    def _decorate(s: Shape, st: dict) -> Shape:
+        """Box-level computed properties onto a scene shape."""
+        if not st:
+            return s
+        s.fill = st.get("fill", s.fill)
+        s.stroke = st.get("stroke", s.stroke)
+        s.stroke_width = st.get("stroke-width", s.stroke_width)
+        s.radius = st.get("border-radius", s.radius)
+        s.opacity = st.get("opacity", s.opacity)
+        if "stroke-dasharray" in st:
+            s.dash = st["stroke-dasharray"] or None
+            s.dashed = bool(st["stroke-dasharray"])
+        if "box-shadow" in st:
+            s.shadow = st["box-shadow"]
+        return s
 
     # helpers ------------------------------------------------------------------
     def block(self, paragraphs: list[str], font: FontRef, color: str, leading: float, width: float | None,
@@ -107,20 +140,24 @@ class _Builder:
                 offset = isz + nd.get("icon_gap", 14)
         avail = w - 2 * pad - offset
         blocks = []
+        cs = self._css(f"node:{n.id}")
         titles = _as_list(n.title)
         if titles:
-            f = self.t.font("heading", 700, ts)
-            blocks.append(self.block(titles, f, st["title"], ts * nd.get("title_leading", 1.15), avail))
+            col, wt, it = self._text(cs, "title", st["title"], 700)
+            f = self.t.font("heading", wt, ts, it)
+            blocks.append(self.block(titles, f, col, ts * nd.get("title_leading", 1.15), avail))
         body = n.lines if n.lines is not None else ([n.text] if n.text else [])
         if body:
-            f = self.t.font("body", 400, bs)
-            blocks.append(self.block([str(b) for b in body], f, st["body"], bs * nd.get("body_leading", 1.32), avail))
+            col, wt, it = self._text(cs, "body", st["body"], 400)
+            f = self.t.font("body", wt, bs, it)
+            blocks.append(self.block([str(b) for b in body], f, col, bs * nd.get("body_leading", 1.32), avail))
         sw = nd.get("note_stroke_width", 2) if n.kind == "note" else nd.get("stroke_width", 3)
         label = Label(blocks, (x + pad + offset, y + top, avail, h - top), align="center" if center else "left",
                       gap=nd.get("title_body_gap", 10)) if blocks else None
         s = Shape(id=n.id, kind="rect", x=x, y=y, w=w, h=h, fill=st["fill"], stroke=st["stroke"], stroke_width=sw,
                   radius=n.radius if n.radius is not None else nd.get("radius", 22), dashed=n.dashed,
                   label=label, icon=icon)
+        self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s
 
@@ -134,23 +171,27 @@ class _Builder:
         tx, ty, tw, th = shapes.text_box(n.kind, x, y, w, h)
         pad = TEXT_PAD if n.kind not in shapes.ROUND_KINDS else 0
         avail = max(1.0, tw - 2 * pad)
+        cs = self._css(f"node:{n.id}")
         titles = _as_list(n.title)
         if titles:
             ts = n.title_size or nd.get("title_size", 24)
             if n.kind in shapes.ROUND_KINDS:  # "H", "H*", connector letters scale with the circle
                 ts = n.title_size or max(10, h * 0.42)
-            f = self.t.font("heading", 700, ts)
-            blocks.append(self.block(titles, f, st["title"], ts * nd.get("title_leading", 1.15), avail))
+            col, wt, it = self._text(cs, "title", st["title"], 700)
+            f = self.t.font("heading", wt, ts, it)
+            blocks.append(self.block(titles, f, col, ts * nd.get("title_leading", 1.15), avail))
         body = n.lines if n.lines is not None else ([n.text] if n.text else [])
         if body:
             bs = n.body_size or nd.get("body_size", 18)
-            f = self.t.font("body", 400, bs)
-            blocks.append(self.block([str(b) for b in body], f, st["body"], bs * nd.get("body_leading", 1.32), avail))
+            col, wt, it = self._text(cs, "body", st["body"], 400)
+            f = self.t.font("body", wt, bs, it)
+            blocks.append(self.block([str(b) for b in body], f, col, bs * nd.get("body_leading", 1.32), avail))
         label = Label(blocks, (tx + pad, ty, avail, th), align="center",
                       gap=nd.get("title_body_gap", 10)) if blocks else None
         s = Shape(id=n.id, kind=n.kind, x=x, y=y, w=w, h=h, fill=st["fill"], stroke=st["stroke"],
                   stroke_width=nd.get("stroke_width", 3), dashed=n.dashed, label=label,
                   parts=shapes.parts(n.kind, x, y, w, h))
+        self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s
 
@@ -159,11 +200,14 @@ class _Builder:
         st = self.t.node_style(n.style or dd.get("style", "soft"))
         size = n.title_size or dd.get("title_size", 21)
         inner = n.w * dd.get("text_width", 0.72)
-        f = self.t.font("heading", 700, size)
-        blk = self.block(_as_list(n.title), f, st["title"], size * dd.get("leading", 1.22), inner)
+        cs = self._css(f"node:{n.id}")
+        col, wt, it = self._text(cs, "title", st["title"], 700)
+        f = self.t.font("heading", wt, size, it)
+        blk = self.block(_as_list(n.title), f, col, size * dd.get("leading", 1.22), inner)
         s = Shape(id=n.id, kind="diamond", x=n.x, y=n.y, w=n.w, h=n.h, fill=st["fill"], stroke=st["stroke"],
                   stroke_width=self.t.defaults("node").get("stroke_width", 3), dashed=n.dashed,
                   label=Label([blk], (n.x + (n.w - inner) / 2, n.y, inner, n.h), align="center"))
+        self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s
 
@@ -198,7 +242,9 @@ class _Builder:
         ed = self.t.defaults("edge")
         p1, b1 = self.endpoint(e.src, e.via[0] if e.via else e.dst)
         p2, b2 = self.endpoint(e.dst, e.via[-1] if e.via else e.src)
-        color = self.t.edge_color(e.color)
+        cs = self._css(f"edge:{i}")
+        est = cs.get("") or {}
+        color = est.get("stroke") or self.t.edge_color(e.color)
         if e.via:
             pts, route = [p1, *e.via, p2], "poly"
         elif e.curve:
@@ -208,10 +254,17 @@ class _Builder:
         label = None
         if e.label:
             lx, ly = e.label_at or ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 - 8)
-            label = self.pill(f"e{i}-label", lx, ly, e.label, color, e.label_size or ed.get("label_size", 17))
-        return Connector(id=f"e{i}", points=pts, route=route, color=color, width=e.width or ed.get("width", 3.5),
-                         dashed=e.dashed, arrow_start=e.arrow in ("start", "both"),
-                         arrow_end=e.arrow in ("end", "both"), src=b1, dst=b2, label=label)
+            lst = cs.get("label") or {}
+            size = lst.get("font-size") or e.label_size or ed.get("label_size", 17)
+            label = self.pill(f"e{i}-label", lx, ly, e.label, lst.get("color", color), size)
+        m_start = est.get("marker-start", "arrow" if e.arrow in ("start", "both") else "none")
+        m_end = est.get("marker-end", "arrow" if e.arrow in ("end", "both") else "none")
+        dash = est.get("stroke-dasharray")
+        return Connector(id=f"e{i}", points=pts, route=route, color=color,
+                         width=est.get("stroke-width") or e.width or ed.get("width", 3.5),
+                         dashed=bool(dash) if dash is not None else e.dashed, arrow_start=m_start != "none",
+                         arrow_end=m_end != "none", src=b1, dst=b2, label=label, dash=dash or None,
+                         marker_start=m_start, marker_end=m_end)
 
     def table(self, i: int, t: Table) -> TableGrid:
         td = self.t.defaults("table")
@@ -262,9 +315,11 @@ class _Builder:
             zs = t.zone_style(z.color)
             radius = zs["radius"] if zs["radius"] is not None else zd.get("radius", 26)
             opacity = zs["opacity"] if zs["opacity"] is not None else (zd.get("opacity", 0.6) if zs["fill"] else 1.0)
-            items.append(Shape(id=f"z{i}", kind="rect", x=z.x, y=z.y, w=z.w, h=z.h, fill=zs["fill"],
-                               stroke=zs["stroke"], stroke_width=zs["stroke_width"], dashed=zs["dashed"],
-                               radius=radius, opacity=opacity, role="zone"))
+            zcs = self._css(f"group:{z.gid}") if z.gid else {}
+            items.append(self._decorate(Shape(id=f"z{i}", kind="rect", x=z.x, y=z.y, w=z.w, h=z.h, fill=zs["fill"],
+                                              stroke=zs["stroke"], stroke_width=zs["stroke_width"],
+                                              dashed=zs["dashed"], radius=radius, opacity=opacity, role="zone"),
+                                        zcs.get("")))
             lx = z.x + 24
             icon_name = z.icon or zs["icon"]
             if icon_name:
@@ -277,8 +332,9 @@ class _Builder:
             if z.label:
                 lab = z.label.upper() if zs["upper"] else z.label
                 ly = z.y + (22 if icon_name else 36)
-                items.append(self.text(f"z{i}-label", lx, ly, lab,
-                                       t.font("body", 700, zd.get("label_size", 16)), zs["label"]))
+                col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color", zs["label"]), 700)
+                size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
+                items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col))
         nodes = [self.node(n) for n in d.nodes]
         items.extend(nodes)
         items.extend(self.table(i, tb) for i, tb in enumerate(d.tables))
@@ -384,9 +440,11 @@ def apply_facts(diagram: Diagram) -> tuple[Diagram, dict[str, list[str]], FactRe
 def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     from .autolayout import apply_layout
 
-    diagram = apply_layout(diagram, theme)
+    diagram = apply_layout(diagram, theme)  # resolves the CSS cascade first (css.prepare)
     resolved, refs, reg = apply_facts(diagram)
-    scene = _Builder(resolved, theme).build()
+    builder = _Builder(resolved, theme)
+    scene = builder.build()
+    scene.style_warnings = list(diagram.meta.get("css_warnings") or []) + builder.warnings
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

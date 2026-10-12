@@ -556,3 +556,25 @@ def styles(d, theme) -> tuple[dict[str, dict[str, dict]], list[str]]:
     root, keys = tree(d)
     comp = compute(root, rules, theme, warnings)
     return {k: comp[el] for k, el in keys.items()}, warnings
+
+
+def prepare(d, theme):
+    """Resolve the cascade once: a copy of ``d`` with computed styles in ``meta["css"]`` and title/body
+    font sizes written into the nodes (so automatic sizing sees them). ``d`` itself when unstyled."""
+    import copy
+
+    if "css" in d.meta:
+        return d
+    comp, warnings = styles(d, theme)
+    if not comp and not warnings:
+        return d
+    d = copy.deepcopy(d)
+    d.meta["css"] = comp
+    d.meta["css_warnings"] = warnings
+    for n in d.nodes:
+        st = comp.get(f"node:{n.id}") or {}
+        if "font-size" in st.get("title", {}):
+            n.title_size = st["title"]["font-size"]
+        if "font-size" in st.get("body", {}):
+            n.body_size = st["body"]["font-size"]
+    return d

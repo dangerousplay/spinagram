@@ -86,6 +86,8 @@ class Shape:
     icon: Icon | None = None
     role: str = "node"         # node | zone | pill | swatch | chrome
     parts: list | None = None  # symbol geometry (``shapes.Part``) for flow/activity/state kinds
+    dash: list[float] | None = None    # explicit dash pattern (CSS stroke-dasharray); None = default dash
+    shadow: tuple | None = None        # (dx, dy, blur, colour, alpha) drop shadow (CSS box-shadow)
 
     def anchor(self, side: str, frac: float = 0.5) -> Point:
         x, y, w, h = self.x, self.y, self.w, self.h
@@ -117,6 +119,9 @@ class Connector:
     src: Binding | None = None
     dst: Binding | None = None
     label: Shape | None = None
+    dash: list[float] | None = None
+    marker_start: str = "arrow"        # arrow | open-arrow | diamond | open-diamond | circle | bar | none
+    marker_end: str = "arrow"
 
 
 @dataclass
@@ -202,6 +207,7 @@ class Scene:
     meta_tooltips: dict[str, str] = field(default_factory=dict)     # fact id → one-line provenance
     layout_overflow: tuple[int, int] | None = None  # auto layout exceeding its area (px wide, px tall)
     model_issues: list[tuple[str, str]] = field(default_factory=list)  # (item, message) from model rules
+    style_warnings: list[str] = field(default_factory=list)            # stylesheet diagnostics
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}

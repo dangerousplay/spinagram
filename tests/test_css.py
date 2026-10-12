@@ -259,3 +259,95 @@ def test_theme_css_comes_first_and_inherits(tmp_path):  # cascade order: theme <
     s, _ = css.styles(d, th)
     assert s["node:n"][""]["fill"] == "#444444" and s["node:n"][""]["stroke"] == "#333333"
     assert s["node:m"][""]["fill"] == "#111111"
+
+
+# T6: computed styles in the scene ---------------------------------------------------------------
+from pathlib import Path  # noqa: E402
+
+from spinagram.api import scenes  # noqa: E402
+from spinagram.scene import Connector, Shape  # noqa: E402
+
+BRAND = """
+node.critical { fill: #FEE2E2; stroke: #DC2626; stroke-width: 5; border-radius: 4; box-shadow: 2px 4px 8px rgba(0,0,0,.3) }
+node.critical::title { color: #7F1D1D; font-size: 30; font-style: italic }
+node::body { color: #374151; font-weight: bold }
+edge.async { stroke: #F59E0B; stroke-width: 2; stroke-dasharray: 6 4; marker-end: diamond; marker-start: circle }
+edge.async::label { color: #92400E; font-size: 14 }
+group.trusted { fill: #ECFDF5; stroke: #059669; stroke-dasharray: 2 2; opacity: 1 }
+#db { opacity: 0.5 }
+"""
+
+
+def _styled():
+    d = Diagram("S", "Styled", css=BRAND, layout={"engine": "layered", "direction": "right"})
+    with d.group("Trusted", id="trusted", class_="trusted"):
+        api = d.box("API", text="Python", class_="critical")
+        db = d.box("DB", id="db")
+    api.to(db, "write", class_="async")
+    return d
+
+
+def test_scene_applies_computed_styles():  # CSS-08, CSS-09, CSS-10
+    sc = scenes([_styled()])[0]
+    shapes = {s.id: s for s in sc.items if isinstance(s, Shape)}
+    api = shapes["api"]
+    assert (api.fill, api.stroke, api.stroke_width, api.radius) == ("#FEE2E2", "#DC2626", 5.0, 4.0)
+    assert api.shadow == (2.0, 4.0, 8.0, "#000000", 0.3)
+    title, body = api.label.blocks
+    assert title.color == "#7F1D1D" and title.font.size == 30 and title.font.italic
+    assert body.color == "#374151" and body.font.weight == 700
+    assert shapes["db"].opacity == 0.5
+    conn = next(c for c in sc.items if isinstance(c, Connector))
+    assert (conn.color, conn.width, conn.dash, conn.marker_end, conn.marker_start) == (
+        "#F59E0B", 2.0, [6.0, 4.0], "diamond", "circle")
+    assert conn.arrow_end and conn.arrow_start and conn.dashed
+    lab = conn.label.label.blocks[0]
+    assert lab.color == "#92400E" and lab.font.size == 14
+    zone = next(s for s in sc.items if isinstance(s, Shape) and s.role == "zone")
+    assert (zone.fill, zone.stroke, zone.dash, zone.opacity) == ("#ECFDF5", "#059669", [2.0, 2.0], 1.0)
+
+
+def test_font_size_from_css_drives_auto_size():  # CSS-09 before layout (no overflow)
+    from spinagram.qa import check
+    d = Diagram("S", "x", css="node::title { font-size: 40 }", layout={"engine": "layered"})
+    d.box("A much longer title than usual")
+    sc = scenes([d])[0]
+    assert [i for i in check(sc) if i.kind.startswith("overflow-")] == []
+    node = next(s for s in sc.items if isinstance(s, Shape) and s.role == "node")
+    assert node.label.blocks[0].font.size == 40
+
+
+def test_marker_none_removes_arrow():  # CSS-10
+    d = Diagram("S", "x", css="edge { marker-end: none }", layout={"engine": "layered"})
+    d.box("A") >> d.box("B")
+    conn = next(c for c in scenes([d])[0].items if isinstance(c, Connector))
+    assert not conn.arrow_end and conn.marker_end == "none"
+
+
+def test_unknown_font_family_falls_back_and_warns():  # CSS-29
+    from spinagram.qa import check
+    d = Diagram("S", "x", css="node { font-family: 'Comic Sans' }", layout={"engine": "layered"})
+    d.box("A")
+    sc = scenes([d])[0]
+    node = next(s for s in sc.items if isinstance(s, Shape) and s.role == "node")
+    assert node.label.blocks[0].font.family != "Comic Sans"
+    msgs = [i.detail for i in check(sc) if i.kind == "style"]
+    assert msgs == ["font-family 'Comic Sans' is not embedded in the theme; using the theme font"]
+
+
+def test_unknown_property_reported_by_check():  # CSS-22 through check
+    from spinagram.qa import check
+    d = Diagram("S", "x", css="node { fil: red }")
+    d.box("A", x=100, y=200, w=200, h=100)
+    msgs = [i.detail for i in check(scenes([d])[0]) if i.kind == "style"]
+    assert msgs == ["S css:1: unknown property 'fil' (did you mean 'fill'?)"]
+
+
+def test_examples_untouched_without_css():  # CSS-27
+    from spinagram import css as css_mod
+    from spinagram.theme import Theme
+    from spinagram.yaml_io import load as load_specs
+    th = Theme.load(None)
+    examples = Path(__file__).parent.parent / "examples"
+    for d in load_specs(examples):
+        assert css_mod.prepare(d, th) is d and "css" not in d.meta

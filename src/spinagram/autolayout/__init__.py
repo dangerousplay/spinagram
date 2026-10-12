@@ -283,6 +283,9 @@ def _simplify(pts: list[tuple[float, float]]) -> list[tuple[float, float]]:
 
 def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> Diagram:
     """A copy of ``diagram`` with automatic positions, or ``diagram`` itself when it has no ``layout``."""
+    from ..css import prepare
+
+    diagram = prepare(diagram, theme)
     if not diagram.auto:
         return diagram
     d = copy.deepcopy(diagram)
@@ -306,7 +309,7 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
         if isinstance(item, LGroup) and item.id in by_group:
             g = by_group[item.id]
             x, y, w, h = boxes[g.id]
-            zones.append(Zone(x=x, y=y, w=w, h=h, label=g.label, color=g.style or "soft", icon=g.icon))
+            zones.append(Zone(x=x, y=y, w=w, h=h, label=g.label, color=g.style or "soft", icon=g.icon, gid=g.id))
     d.zones = zones + d.zones
     bound: set[str] = set()
     for le in graph.edges + graph.loops:

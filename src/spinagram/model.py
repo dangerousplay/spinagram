@@ -153,6 +153,7 @@ class Zone:
     label: str | None = None
     color: str = "soft"
     icon: str | None = None   # group icon in the top-left corner (AWS-style groups); overrides the style's icon
+    gid: str | None = None    # the group this zone was laid out from (styles target it)
 
 
 @dataclass

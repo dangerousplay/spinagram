@@ -44,6 +44,7 @@ def behavior_issues(d) -> list[tuple[str, str]]:
 
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
+    issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
     over = scene.layout_overflow
     if over:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "
