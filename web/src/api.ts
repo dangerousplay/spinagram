@@ -1,7 +1,15 @@
 // Types and fetchers for the `spinagram serve` API (src/spinagram/ui/server.py).
 
 export type Engine = { name: string; hint: string | null };
-export type DiagramRef = { key: string; id: string; title: string; auto: boolean };
+export type DiagramRef = {
+  key: string;
+  id: string;
+  title: string;
+  auto: boolean;
+  subtitle: string | null;
+  category: string; // effective: declared, else the dominant provider ("" when none)
+  tags: string[]; // effective: declared plus provider tags, sorted
+};
 export type SpecFile = { path: string; error: string | null; diagrams: DiagramRef[] };
 export type Workspace = {
   paths: string[];

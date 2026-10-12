@@ -175,19 +175,19 @@ grouped by category, so that I find a diagram in seconds.
 | META-11 | P1: Inference - declared category wins | Tasks | Implementing |
 | META-12 | P1: Inference - uncategorised | Tasks | Implementing |
 | META-13 | P1: UI - workspace API fields | Tasks | Implementing |
-| META-14 | P1: UI - grouped cards | Tasks | Pending |
-| META-15 | P1: UI - text search | Tasks | Pending |
-| META-16 | P1: UI - tag chips | Tasks | Pending |
+| META-14 | P1: UI - grouped cards | Tasks | Implementing |
+| META-15 | P1: UI - text search | Tasks | Implementing |
+| META-16 | P1: UI - tag chips | Tasks | Implementing |
 | META-17 | P1: UI - empty result | Tasks | Pending |
 | META-18 | P1: UI - card opens diagram | Tasks | Pending |
 | META-19 | P1: UI - file errors listed | Tasks | Pending |
 | META-20 | P1: Nav - navbar sections | Tasks | Pending |
 | META-21 | P1: Nav - docs link | Tasks | Pending |
 | META-22 | P1: Nav - themes and packs pages | Tasks | Pending |
-| META-23 | P1: Nav - record recents | Tasks | Pending |
+| META-23 | P1: Nav - record recents | Tasks | Implementing |
 | META-24 | P1: Nav - recents sidebar | Tasks | Pending |
-| META-25 | P1: Nav - stale recents omitted | Tasks | Pending |
-| META-26 | P1: Nav - storage unavailable | Tasks | Pending |
+| META-25 | P1: Nav - stale recents omitted | Tasks | Implementing |
+| META-26 | P1: Nav - storage unavailable | Tasks | Implementing |
 | META-27 | P1: Nav - default route | Tasks | Pending |
 | META-28 | P2: CLI - --tag | Tasks | Implementing |
 | META-29 | P2: CLI - --category | Tasks | Implementing |

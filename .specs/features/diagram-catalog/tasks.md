@@ -194,8 +194,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] tests cover every term matching, AND tag chips, sort with Uncategorised last, recents cap/dedupe/order, stale removal, throwing storage
-- [ ] Gate check passes: `cd web && bun test`
+- [x] tests cover every term matching, AND tag chips, sort with Uncategorised last, recents cap/dedupe/order, stale removal, throwing storage
+- [x] Gate check passes: `cd web && bun test`
 
 **Tests**: unit
 **Gate**: web
