@@ -177,7 +177,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 **Done when**:
 
-- [ ] build gate passes; browser walkthrough of both pages
+- [x] build gate passes; browser walkthrough of both pages
 
 **Tests**: none
 **Gate**: build

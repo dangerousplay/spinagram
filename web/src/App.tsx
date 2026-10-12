@@ -4,7 +4,9 @@ import { pushRecent, recentStore, visibleRecents } from "./catalog";
 import DiagramsPage from "./DiagramsPage";
 import DiagramView from "./DiagramView";
 import { href, useEvents, useRoute, type Route } from "./hooks";
+import PacksPage from "./PacksPage";
 import PackView from "./PackView";
+import ThemesPage from "./ThemesPage";
 import ThemeView from "./ThemeView";
 
 export type Revs = { diagrams: Record<string, number>; theme: number; packs: number };
@@ -178,9 +180,9 @@ export default function App() {
               onFetched={loadPacks}
             />
           ) : route.kind === "themes" ? (
-            <ThemesPage themes={themes} />
+            <ThemesPage themes={themes} rev={revs.theme} />
           ) : route.kind === "packs" ? (
-            <PacksPage packs={packs.packs} />
+            <PacksPage packs={packs.packs} rev={revs.packs} />
           ) : ws ? (
             <DiagramsPage ws={ws} revs={revs.diagrams} />
           ) : null}
@@ -248,62 +250,5 @@ function Recents({ route, diagrams, ws }: { route: Route; diagrams: DiagramRef[]
         </p>
       )}
     </aside>
-  );
-}
-
-function PageList({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-3xl px-6 py-6">
-        <h1 className="mb-4 text-lg font-semibold">{title}</h1>
-        <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
-          {children}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-const rowClass = "flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-900";
-
-function ThemesPage({ themes }: { themes: ThemeEntry[] }) {
-  return (
-    <PageList title="Themes">
-      {themes.map((t) => (
-        <li key={t.ref}>
-          <a href={href({ kind: "theme", ref: t.ref })} className={rowClass}>
-            <span className="font-medium">{t.name}</span>
-            <span className="truncate font-mono text-[11px] text-slate-400">{t.builtin ? "built-in" : t.ref}</span>
-            {t.active && (
-              <span className="ml-auto rounded bg-emerald-100 px-1.5 text-[10px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                active
-              </span>
-            )}
-            {t.error && <span className={`text-red-600 ${t.active ? "" : "ml-auto"}`}>error</span>}
-          </a>
-        </li>
-      ))}
-    </PageList>
-  );
-}
-
-function PacksPage({ packs }: { packs: Pack[] }) {
-  return (
-    <PageList title="Icon packs">
-      {packs.map((p) => (
-        <li key={p.name}>
-          <a href={href({ kind: "pack", name: p.name })} className={rowClass}>
-            <span
-              className={`size-2 shrink-0 rounded-full ${
-                p.fetching ? "animate-pulse bg-amber-500" : p.error ? "bg-red-500" : p.fetched ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
-              }`}
-            />
-            <span className="font-medium">{p.name}</span>
-            <span className="truncate text-slate-500">{p.title}</span>
-            <span className="ml-auto text-xs text-slate-400">{p.fetched ? `${p.count} icons` : "not downloaded"}</span>
-          </a>
-        </li>
-      ))}
-    </PageList>
   );
 }
