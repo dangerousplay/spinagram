@@ -283,13 +283,13 @@ def dump(d: Diagram) -> dict[str, Any]:
     if d.tags:
         out["tags"] = list(d.tags)
     if d.meta:
-        out["meta"] = {k: v for k, v in d.meta.items() if not k.startswith("layout_")} or None
+        out["meta"] = {k: v for k, v in d.meta.items() if not k.startswith("layout_") and k != "laid_out"} or None
         if out["meta"] is None:
             del out["meta"]
 
     def changed(obj, cls, skip=()) -> dict[str, Any]:
         base = {f.name: f.default for f in fields(cls) if f.default is not f.default_factory}  # type: ignore[misc]
-        return {k: _clean(v) for k, v in asdict(obj).items()
+        return {"class" if k == "cls" else k: _clean(v) for k, v in asdict(obj).items()
                 if k not in skip and v not in (None, [], {}) and base.get(k, object()) != v}
 
     out["zones"] = [changed(z, _Z) | {"x": _clean(z.x), "y": _clean(z.y), "w": _clean(z.w), "h": _clean(z.h)}
