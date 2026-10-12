@@ -44,7 +44,7 @@ T1 → T2 → T3 → T4
 ### Phase 2: Docs and showcase
 
 ```
-T5 → T6
+T5 → T6 → T7
 ```
 
 ---
@@ -189,6 +189,29 @@ T5 → T6
 
 ---
 
+### T7: Close verifier test gaps (iteration 1)
+
+**What**: Tests for columns on top/bottom bands, explicit columns beating the automatic two columns, the YAML path leaving position unset, manual overlap on left/top bands, and an invalid placement keeping the default side.
+**Where**: `tests/test_legend_css.py`
+**Depends on**: T6
+**Reuses**: existing helpers
+**Requirement**: LCSS-04, LCSS-05, LCSS-08
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] each surviving mutant (M12, M13, M15, M20, M21, M30) has a test that fails on it
+- [x] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
 ## Diagram-Definition Cross-Check
 
 | Task | Depends On (task body) | Diagram Shows | Status |
@@ -199,6 +222,7 @@ T5 → T6
 | T4 | T3 | T3 → T4 | ✅ |
 | T5 | None | start of phase | ✅ |
 | T6 | T5 | T5 → T6 | ✅ |
+| T7 | T6 | T6 → T7 | ✅ |
 
 ## Test Co-location Validation
 
@@ -210,3 +234,4 @@ T5 → T6
 | T4 | Model/annotate/qa | unit | unit | ✅ |
 | T5 | Config/showcase/docs | none | none | ✅ |
 | T6 | Config/showcase/docs | none | none | ✅ |
+| T7 | Model/annotate/qa | unit | unit | ✅ |

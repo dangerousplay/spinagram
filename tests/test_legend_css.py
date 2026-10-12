@@ -189,3 +189,60 @@ def test_content_starts_after_a_left_or_top_band(side):  # LCSS-06
         assert min(n.x for n in laid.nodes) >= card.x + card.w
     else:
         assert min(n.y for n in laid.nodes) >= card.y + card.h
+
+
+# T7 · verifier gaps -----------------------------------------------------------------------------------------
+@pytest.mark.parametrize("side", ["top", "bottom"])
+def test_columns_on_a_top_or_bottom_band(side):  # LCSS-08 on every band side
+    d = _four()
+    d.css = f"legend {{ placement: {side}; columns: 3 }}"
+    items = _scene(d)
+    card = items["legend"]
+    sw = [items[f"legend-{j}-swatch"] for j in range(4)]
+    assert sw[0].y == sw[1].y == sw[2].y < sw[3].y
+    step = (card.w - 2 * 22) / 3
+    assert sw[1].x - sw[0].x == pytest.approx(step) and sw[2].x - sw[1].x == pytest.approx(step)
+
+
+def test_explicit_columns_beat_the_automatic_two_columns():  # LCSS-08 "forces"
+    d = Diagram("LC3", "Tall legend", layout={"engine": "flex", "direction": "right"})
+    for k in range(30):
+        d.box(f"N{k}", class_=f"c{k}")
+    d.add_legend()
+    auto = _scene(d)
+    assert len({round(auto[f"legend-{j}-swatch"].x) for j in range(30)}) == 2  # tall: two columns by default
+    d.css = "legend { columns: 1 }"
+    forced = _scene(d)
+    assert len({round(forced[f"legend-{j}-swatch"].x) for j in range(30)}) == 1
+
+
+def test_yaml_legend_without_position_follows_the_stylesheet():  # LCSS-04 (YAML path)
+    from spinagram.yaml_io import from_dict
+
+    d = from_dict({"id": "Y1", "title": "YAML", "layout": {"engine": "flex"},
+                   "nodes": [{"id": "a", "title": "A", "class": "web"}],
+                   "annotations": {"legend": {"title": "Key"}}, "css": "legend { placement: left }"})
+    assert d.annotations.legend.position is None
+    ax, ay, aw, ah = _area(d)
+    assert _scene(d)["legend"].x == ax
+
+
+@pytest.mark.parametrize("side, covered", [("left", "left-box"), ("top", "top-box")])
+def test_manual_layout_overlap_on_left_and_top_bands(side, covered):  # ANN-12 with the new sides
+    from spinagram.layout import build_scene
+    from spinagram.qa import check
+
+    d = Diagram("M2", "Manual")
+    d.box("Left box", x=100, y=500, w=200, h=100)
+    d.box("Top box", x=900, y=200, w=200, h=80)
+    d.box("Clear", x=900, y=600, w=200, h=100)
+    d.add_legend()
+    d.css = f"legend {{ placement: {side} }}"
+    issues = [str(i) for i in check(build_scene(d, Theme.load("default"))) if "overlap" in str(i)]
+    assert issues == [f"M2:annotations: overlap — the band covers {covered!r}"]
+
+
+def test_invalid_placement_keeps_the_default_side():  # LCSS-05 clause 2
+    d = _diagram("legend { placement: middle }")
+    ax, ay, aw, ah = _area(d)
+    assert _scene(d)["legend"].x == ax + aw - 360
