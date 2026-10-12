@@ -1,6 +1,8 @@
 """CSS-like styling (spec: .specs/features/css-styling/spec.md)."""
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from spinagram import css
@@ -351,3 +353,27 @@ def test_examples_untouched_without_css():  # CSS-27
     examples = Path(__file__).parent.parent / "examples"
     for d in load_specs(examples):
         assert css_mod.prepare(d, th) is d and "css" not in d.meta
+
+
+# T7: SVG ----------------------------------------------------------------------------------------
+from spinagram.backends.svg import to_svg  # noqa: E402
+
+
+def test_svg_renders_style_properties():  # CSS-12 (SVG)
+    sc = scenes([_styled()])[0]
+    svg = to_svg(sc)
+    api = re.search(r'<rect [^>]*fill="#FEE2E2"[^>]*/?>', svg).group(0)
+    assert 'stroke="#DC2626"' in api and 'stroke-width="5"' in api and 'rx="4"' in api
+    fid = re.search(r'filter="url\(#([^)]+)\)"', api).group(1)
+    assert re.search(rf'<filter id="{fid}"[^>]*><feDropShadow dx="2" dy="4" stdDeviation="4" '
+                     r'flood-color="#000000" flood-opacity="0.3"/></filter>', svg)
+    path = re.search(r'<path d="M[^"]*" fill="none" stroke="#F59E0B"[^>]*>', svg).group(0)
+    assert 'stroke-width="2"' in path and 'stroke-dasharray="6 4"' in path
+    end = re.search(r'marker-end="url\(#([^)]+)\)"', path).group(1)
+    start = re.search(r'marker-start="url\(#([^)]+)\)"', path).group(1)
+    assert re.search(rf'<marker id="{end}"[^>]*>.*?M0,5 L5,0 L10,5 L5,10 z', svg)        # diamond
+    assert re.search(rf'<marker id="{start}"[^>]*><circle ', svg)                       # circle
+    assert re.search(r'<rect [^>]*fill="#ECFDF5"[^>]*stroke-dasharray="2 2"', svg)       # zone dash
+    assert 'font-style="italic"' in svg and 'fill="#7F1D1D"' in svg                     # title text
+    assert re.search(r'<rect [^>]*opacity="0.5"', svg)                                   # #db opacity
+

@@ -163,11 +163,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-12
 
 **Done when**:
-- [ ] SVG attributes asserted per property
-- [ ] Gate passes
+- [x] SVG attributes asserted per property
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T8: PowerPoint style properties
 
