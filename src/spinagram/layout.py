@@ -264,7 +264,7 @@ class _Builder:
                          width=est.get("stroke-width") or e.width or ed.get("width", 3.5),
                          dashed=bool(dash) if dash is not None else e.dashed, arrow_start=m_start != "none",
                          arrow_end=m_end != "none", src=b1, dst=b2, label=label, dash=dash or None,
-                         marker_start=m_start, marker_end=m_end)
+                         marker_start=m_start, marker_end=m_end, opacity=est.get("opacity", 1.0))
 
     def table(self, i: int, t: Table) -> TableGrid:
         td = self.t.defaults("table")

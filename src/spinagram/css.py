@@ -379,23 +379,25 @@ PROPS = {
     "marker-start": _keyword(MARKERS),
     "marker-end": _keyword(MARKERS),
 }
-COLOUR_PROPS = {"fill", "stroke", "color"}
+COLOUR_PROPS = {"fill", "stroke", "color", "box-shadow"}
 
 
 def _substitute(value: str, custom: dict[str, str]) -> str:
-    """Replace var(--x[, fallback]); an unknown --x falls back to the theme token ``x``."""
-    def rep(m: re.Match) -> str:
-        name, _, fb = m.group(1).partition(",")
-        name = name.strip()
-        if name in custom:
-            return custom[name]
-        return fb.strip() if fb.strip() else name[2:]
-
+    """Replace var(--x[, fallback]); an unknown --x falls back to the theme token ``x``.
+    Fallbacks may contain functions (``var(--x, rgb(1, 2, 3))``)."""
     for _ in range(8):  # nested var()
-        new = re.sub(r"var\(\s*(--[\w-]+(?:\s*,[^()]*)?)\)", rep, value)
-        if new == value:
+        i = value.find("var(")
+        if i < 0:
             break
-        value = new
+        depth, j = 1, i + 4
+        while j < len(value) and depth:
+            depth += {"(": 1, ")": -1}.get(value[j], 0)
+            j += 1
+        inner = value[i + 4:j - 1]
+        name, _, fb = inner.partition(",")
+        name = name.strip()
+        rep = custom.get(name) if name in custom else (fb.strip() if fb.strip() else name[2:])
+        value = value[:i] + rep + value[j:]
     return value
 
 

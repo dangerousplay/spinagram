@@ -397,6 +397,13 @@ class _Slide:
         shape.name = c.id
         self._no_shadow(shape)
         self._line(shape, c.color, c.width, c.dashed, c.dash)
+        if c.opacity < 1:  # line transparency: alpha on the line colour
+            from lxml import etree
+            from pptx.oxml.ns import qn
+
+            clr = shape.line._get_or_add_ln().find(f"{qn('a:solidFill')}/{qn('a:srgbClr')}")
+            if clr is not None:
+                etree.SubElement(clr, qn("a:alpha")).set("val", str(round(c.opacity * 100000)))
         self._arrows(shape, c.arrow_start, c.arrow_end, (c.marker_start, c.marker_end))
         if c.label:
             self.shape(c.label)

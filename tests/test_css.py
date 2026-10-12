@@ -456,3 +456,164 @@ def test_figma_renders_style_properties(tmp_path):  # CSS-12 (Figma)
         for f in files:
             r = subprocess.run([node, str(mock), str(f)], capture_output=True, text=True)
             assert r.returncode == 0, r.stderr
+
+
+# verifier gaps (css validation.md, iteration 1) -------------------------------------------------
+import hashlib  # noqa: E402
+import warnings as _warnings  # noqa: E402
+
+
+def _golden_diagram():
+    d = Diagram("G", "Unstyled golden", subtitle="no stylesheet anywhere",
+                layout={"engine": "layered", "direction": "down"})
+    with d.group("Zone", id="zone"):
+        a = d.box("Gateway", text="NGINX")
+        q = d.diamond("Valid?")
+    s = d.add("state", "Paid", id="paid")
+    t = d.add("terminator", "Done", id="done")
+    a >> q
+    q.to(s, "yes")
+    q.to(t, "no", dashed=True)
+    d.edge(s, t, arrow="both")
+    return d
+
+
+def _placed_diagram():
+    d = Diagram("P", "Placed by hand")
+    a = d.box("A", x=100, y=250, w=300, h=140, style="dark")
+    b = d.box("B", x=700, y=250, w=300, h=140)
+    d.zone("Zone", x=60, y=200, w=1000, h=260)
+    d.edge(a.right, b.left, "go", dashed=True)
+    return d
+
+
+# SVG of the two diagrams above rendered at 7ee7f55, before any CSS code existed (scene, markers, dashes).
+UNSTYLED_GOLDEN = "5184abedc45144744c87ae80d9b9f4309e9d09591a496987b6f3f2cf8f8c07b7"
+
+
+def test_unstyled_svg_matches_pre_css_golden():  # CSS-27
+    svgs = [to_svg(sc) for sc in scenes([_golden_diagram(), _placed_diagram()])]
+    assert hashlib.sha256("".join(svgs).encode()).hexdigest() == UNSTYLED_GOLDEN
+
+
+def test_folder_and_spec_stylesheets_both_apply(tmp_path):  # CSS-19
+    (tmp_path / "_defaults.yaml").write_text("stylesheets: [team.css]\n")
+    (tmp_path / "team.css").write_text("node { fill: #ABCDEF; stroke: #111111 }")
+    (tmp_path / "own.css").write_text("node { stroke: #222222 }")
+    (tmp_path / "a.yaml").write_text("id: A\ntitle: A\nstylesheets: [own.css]\nnodes: [{id: n, title: N}]\n")
+    (tmp_path / "b.py").write_text("from spinagram import Diagram\nd = Diagram('B', 'B')\nd.box('M', id='m')\n"
+                                   "diagram = d\n")
+    th = Theme.load(None)
+    (a,) = load(tmp_path / "a.yaml")
+    st = css.styles(a, th)[0]["node:n"][""]
+    assert st["fill"] == "#ABCDEF" and st["stroke"] == "#222222"  # folder first, spec's own later
+    (b,) = load(tmp_path / "b.py")
+    assert css.styles(b, th)[0]["node:m"][""]["fill"] == "#ABCDEF"  # Python specs get folder sheets too
+
+
+def test_pptx_fill_radius_and_shadow_geometry(tmp_path):  # CSS-12 (PowerPoint)
+    import math
+    from spinagram.backends.pptx import _e
+    slide = _slide(tmp_path, _styled())
+    api = next(sh for sh in _all_shapes(slide.shapes) if sh.name == "api")
+    assert str(api.fill.fore_color.rgb) == "FEE2E2"
+    from spinagram.backends.pptx import EMU
+    w_px, h_px = api.width / EMU, api.height / EMU
+    assert abs(api.adjustments[0] - 4 / min(w_px, h_px)) < 1e-3  # border-radius: 4 → roundRect adjustment
+    shdw = api._element.spPr.find(f"{A}effectLst/{A}outerShdw")
+    assert int(shdw.get("blurRad")) == _e(8)
+    assert int(shdw.get("dist")) == _e(math.hypot(2, 4))
+    assert int(shdw.get("dir")) == round(math.degrees(math.atan2(4, 2)) * 60000)
+
+
+def test_figma_italic_title_font(tmp_path):  # CSS-12 (Figma fonts)
+    sc = scenes([_styled()])[0]
+    js = "\n".join(p.read_text() for p in FigmaBackend().render([sc], tmp_path) if p.suffix == ".js")
+    m = re.search(r'text\("[^"]*", "API", [-\d.]+, [-\d.]+, (\{.*?\})\);', js)
+    o = _json.loads(m.group(1))
+    assert o["style"] == "Bold Italic" and o["color"] == "#7F1D1D"
+
+
+def test_edge_opacity_reaches_every_backend(tmp_path):  # CSS-10 opacity
+    d = Diagram("O", "x", css="edge { opacity: 0.4 }", layout={"engine": "layered"})
+    d.box("A") >> d.box("B")
+    sc = scenes([d])[0]
+    conn = next(c for c in sc.items if isinstance(c, Connector))
+    assert conn.opacity == 0.4
+    assert re.search(r'<path d="M[^"]*" fill="none"[^>]*opacity="0.4"', to_svg(sc))
+    slide = _slide(tmp_path, d)
+    ln = next(sh for sh in slide.shapes if sh.name == "e0")._element.spPr.find(f"{A}ln")
+    assert ln.find(f"{A}solidFill/{A}srgbClr/{A}alpha").get("val") == "40000"
+    js = "\n".join(p.read_text() for p in FigmaBackend().render([sc], tmp_path / "f") if p.suffix == ".js")
+    assert '"lineOpacity":0.4' in js
+
+
+def test_unresolvable_shadow_colour_raises():  # CSS-16
+    root, *_ = _tree()
+    with pytest.raises(ValueError, match=r"cannot resolve colour"):
+        _compute("#api { box-shadow: 1px 1px 2px not-a-token }", root)
+
+
+def test_var_fallback_may_contain_a_function():  # CSS-14
+    root, vpc, api, db, edge = _tree()
+    out = _compute("#api { fill: var(--missing, rgb(1, 2, 3)) }", root)
+    assert out[api][""]["fill"] == "#010203"
+
+
+def test_one_warning_per_backend_property_and_value(tmp_path):  # CSS-13 ("one warning")
+    from spinagram.backends import figma as fig_mod
+    from spinagram.backends import pptx as pptx_mod
+    pptx_mod._warned.clear()
+    fig_mod._WARNED.clear()
+    d = Diagram("W", "x", css="edge { marker-end: open-diamond }", layout={"engine": "layered"})
+    a, b, c = d.box("A"), d.box("B"), d.box("C")
+    a >> b
+    a >> c
+    with _warnings.catch_warnings(record=True) as rec:
+        _warnings.simplefilter("always")
+        _slide(tmp_path, d)
+        FigmaBackend().render(scenes([d]), tmp_path / "f")
+    msgs = [str(r.message) for r in rec if "open-diamond" in str(r.message)]
+    assert sorted(m.split(":")[0] for m in msgs) == ["figma", "pptx"]
+
+
+def test_edge_to_selector_on_a_real_diagram():  # CSS-06
+    d = Diagram("D", "x", css="edge[to=db] { stroke: #00FF00 } edge[from=db] { stroke: #FF0000 }")
+    api, db, web = d.box("API"), d.box("DB", id="db"), d.box("Web")
+    api >> db
+    web >> api
+    st, _ = css.styles(d, Theme.load(None))
+    assert st["edge:0"][""]["stroke"] == "#00FF00" and "stroke" not in st["edge:1"][""]
+
+
+def test_unknown_font_family_warned_once_for_many_nodes():  # CSS-29 ("once per family")
+    from spinagram.qa import check
+    d = Diagram("S", "x", css="node { font-family: 'Comic Sans' }", layout={"engine": "layered"})
+    d.box("A") >> d.box("B")
+    msgs = [i.detail for i in check(scenes([d])[0]) if i.kind == "style"]
+    assert msgs == ["font-family 'Comic Sans' is not embedded in the theme; using the theme font"]
+
+
+def test_group_label_styling_in_scene():  # CSS-09 (group ::label)
+    d = Diagram("G", "x", css="group::label { color: #065F46; font-size: 22 }", layout={"engine": "layered"})
+    with d.group("Trusted", id="t"):
+        d.box("A")
+    lab = next(i for i in scenes([d])[0].items if getattr(i, "id", "") == "z0-label")
+    assert lab.block.color == "#065F46" and lab.block.font.size == 22
+
+
+def test_figma_deco_sets_shadow_effects_and_dashes():  # CSS-12 (Figma JS behaviour)
+    node = shutil.which("node") or shutil.which("bun")
+    if not node:
+        pytest.skip("node/bun not installed")
+    from spinagram.backends import figma as fig_mod
+    src = next(v for v in vars(fig_mod).values() if isinstance(v, str) and "function deco(" in v)
+    rgb = re.search(r"const rgb = .*?;\n", src).group(0)
+    deco = re.search(r"function deco\(n, o\) \{.*?\n\}\n", src, re.S).group(0)
+    script = rgb + deco + ("const n = {}; deco(n, {dashes: [6, 4], lineOpacity: 0.5, shadow: {x: 2, y: 4, blur: 8, "
+                           "color: '#000000', a: 0.3}}); console.log(JSON.stringify(n));")
+    out = _json.loads(subprocess.run([node, "-e", script], capture_output=True, text=True, check=True).stdout)
+    assert out["dashPattern"] == [6, 4] and out["opacity"] == 0.5
+    eff = out["effects"][0]
+    assert eff["type"] == "DROP_SHADOW" and eff["offset"] == {"x": 2, "y": 4} and eff["radius"] == 8
+    assert eff["color"] == {"r": 0, "g": 0, "b": 0, "a": 0.3}

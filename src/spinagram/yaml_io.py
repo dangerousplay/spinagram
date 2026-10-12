@@ -123,7 +123,14 @@ def load_yaml(path: Path) -> list[Diagram]:
                         "containing , : ? or #") from None
     docs = data if isinstance(data, list) else [data]
     base = _dir_defaults(path.parent)
-    return [from_dict({**base, **doc}, base_dir=path.parent) for doc in docs]
+
+    def merged(doc: dict) -> dict:
+        out = {**base, **doc}
+        if base.get("stylesheets") and doc.get("stylesheets"):  # folder sheets come first, then the spec's
+            out["stylesheets"] = list(base["stylesheets"]) + list(doc["stylesheets"])
+        return out
+
+    return [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
 
 
 def load_python(path: Path) -> list[Diagram]:
@@ -152,6 +159,9 @@ def load_python(path: Path) -> list[Diagram]:
         for key in ("kicker", "source", "subtitle", "facts", "locale"):  # folder defaults fill what the script left unset
             if getattr(d, key) is None and base.get(key) is not None:
                 setattr(d, key, base[key])
+        if base.get("stylesheets"):  # folder stylesheets come before the script's own
+            d.stylesheets = [str(x) for x in base["stylesheets"]] + [x for x in d.stylesheets
+                                                                     if x not in base["stylesheets"]]
     return list(items)
 
 

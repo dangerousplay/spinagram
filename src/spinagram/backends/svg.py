@@ -166,8 +166,9 @@ class _Svg:
             d = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in pts)
         ends = (f' marker-end="url(#{self.marker(c.color, c.marker_end)})"' if c.arrow_end else "") + (
             f' marker-start="url(#{self.marker(c.color, c.marker_start)})"' if c.arrow_start else "")
+        op = f' opacity="{c.opacity:g}"' if c.opacity < 1 else ""
         self.mid.append(f'<path d="{d}" fill="none" stroke="{c.color}" stroke-width="{c.width:g}"'
-                        f'{_dash(c.dashed, c.dash)}{ends}/>')
+                        f'{_dash(c.dashed, c.dash)}{op}{ends}/>')
         if c.label:
             self.shape(c.label)
 

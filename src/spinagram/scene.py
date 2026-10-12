@@ -122,6 +122,7 @@ class Connector:
     dash: list[float] | None = None
     marker_start: str = "arrow"        # arrow | open-arrow | diamond | open-diamond | circle | bar | none
     marker_end: str = "arrow"
+    opacity: float = 1.0
 
 
 @dataclass

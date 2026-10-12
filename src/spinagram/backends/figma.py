@@ -35,8 +35,9 @@ const NAME = %(name)s, W = %(w)s, H = %(h)s, BG = %(bg)s, FIRST = %(first)s;
 const isSlides = figma.editorType === 'slides', isJam = figma.editorType === 'figjam';
 const rgb = (h) => ({ r: parseInt(h.slice(1,3),16)/255, g: parseInt(h.slice(3,5),16)/255, b: parseInt(h.slice(5,7),16)/255 });
 const solid = (h, o) => (o === undefined || o >= 1) ? [{ type: 'SOLID', color: rgb(h) }] : [{ type: 'SOLID', color: rgb(h), opacity: o }];
-function deco(n, o) {  // CSS dash patterns and drop shadows
+function deco(n, o) {  // CSS dash patterns, drop shadows and line opacity
   if (o.dashes) n.dashPattern = o.dashes;
+  if (o.lineOpacity !== undefined) n.opacity = o.lineOpacity;
   if (o.shadow) { const s = o.shadow;
     n.effects = [{ type: 'DROP_SHADOW', color: Object.assign(rgb(s.color), { a: s.a }), offset: { x: s.x, y: s.y },
                    radius: s.blur, spread: 0, visible: true, blendMode: 'NORMAL' }]; }
@@ -221,10 +222,14 @@ _CAP = {"arrow": "ARROW_EQUILATERAL", "open-arrow": "ARROW_LINES", "diamond": "D
         "open-diamond": "DIAMOND_FILLED", "circle": "CIRCLE_FILLED", "bar": "NONE"}
 
 
+_WARNED: set[tuple[str, str]] = set()
+
+
 def _cap(kind: str, prop: str) -> str:
-    if kind in ("open-diamond", "bar"):
+    if kind in ("open-diamond", "bar") and (prop, kind) not in _WARNED:  # once per property and value
         import warnings
 
+        _WARNED.add((prop, kind))
         warnings.warn(f"figma: {prop} '{kind}' has no Figma stroke cap; drawn as {_CAP[kind].lower()}", stacklevel=3)
     return _CAP.get(kind, "ARROW_EQUILATERAL")
 
@@ -234,6 +239,8 @@ def _style(s) -> dict:
     out: dict = {}
     if getattr(s, "dash", None):
         out["dashes"] = [_r(v) for v in s.dash]
+    if isinstance(s, Connector) and s.opacity < 1:
+        out["lineOpacity"] = round(s.opacity, 3)
     sh = getattr(s, "shadow", None)
     if sh:
         out["shadow"] = {"x": _r(sh[0]), "y": _r(sh[1]), "blur": _r(sh[2]), "color": sh[3], "a": round(sh[4], 3)}
