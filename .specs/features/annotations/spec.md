@@ -192,12 +192,12 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-10 | P1: Band - sizes | Tasks | Implementing |
 | ANN-11 | P1: Band - overflow check | Tasks | Pending |
 | ANN-12 | P1: Band - manual layout overlap check | Tasks | Pending |
-| ANN-13 | P1: Steps - edge badge and panel | Tasks | Pending |
-| ANN-14 | P1: Steps - node badge | Tasks | Pending |
+| ANN-13 | P1: Steps - edge badge and panel | Tasks | Implementing |
+| ANN-14 | P1: Steps - node badge | Tasks | Implementing |
 | ANN-15 | P1: Steps - numbering | Tasks | Implementing |
 | ANN-16 | P1: Steps - duplicate check | Tasks | Pending |
 | ANN-17 | P1: Steps - panel order and badges | Tasks | Implementing |
-| ANN-18 | P1: Steps - badge beside label | Tasks | Pending |
+| ANN-18 | P1: Steps - badge beside label | Tasks | Implementing |
 | ANN-19 | P1: Steps - YAML references | Tasks | Implementing |
 | ANN-20 | P1: Callouts - bubble and leader | Tasks | Pending |
 | ANN-21 | P1: Callouts - kind colour and glyph | Tasks | Pending |

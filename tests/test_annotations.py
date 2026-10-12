@@ -449,3 +449,65 @@ def test_steps_panel_sits_below_the_legend():
     b, shapes, conns, ann, t = _parts(d)
     items = _by_id(ann.panels(conns))
     assert items["steps"].y >= items["legend"].y + items["legend"].h and items["steps"].x == items["legend"].x
+
+
+# T8 · step badges -----------------------------------------------------------------------------------
+def _badge_diagram():
+    d = Diagram("S1", "Steps", layout={"engine": "flex", "direction": "right"})
+    a, b, c = d.box("A"), d.box("B"), d.box("C")
+    d.edge(a, b, "HTTPS")
+    d.edge(b, c)
+    d.step("labelled", on=("a", "b"))
+    d.step("plain", on=("b", "c"))
+    d.step("node", on="c")
+    return d
+
+
+def _overlap(r, s):
+    return r[0] < s[0] + s[2] and s[0] < r[0] + r[2] and r[1] < s[1] + s[3] and s[1] < r[1] + r[3]
+
+
+def test_badge_sits_beside_the_edge_label():  # ANN-13, ANN-18
+    b, shapes, conns, ann, t = _parts(_badge_diagram())
+    badge = _by_id(ann.badges(conns))["step-0-badge"]
+    lab = conns[0].label
+    assert badge.x >= lab.x + lab.w
+    assert abs((badge.y + badge.h / 2) - (lab.y + lab.h / 2)) < 0.5
+    assert not _overlap((badge.x, badge.y, badge.w, badge.h), (lab.x, lab.y, lab.w, lab.h))
+    assert badge.label.blocks[0].lines == ["1"]
+
+
+def test_badge_on_an_unlabelled_edge_sits_at_its_midpoint():  # ANN-13
+    b, shapes, conns, ann, t = _parts(_badge_diagram())
+    badge = _by_id(ann.badges(conns))["step-1-badge"]
+    pts = conns[1].points
+    seg = [((x1 + x2) / 2, (y1 + y2) / 2, ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5)
+           for (x1, y1), (x2, y2) in zip(pts, pts[1:])]
+    assert len(seg) == 1  # flex without route: a straight edge
+    mx, my = seg[0][0], seg[0][1]
+    assert (round(badge.x + badge.w / 2, 1), round(badge.y + badge.h / 2, 1)) == (round(mx, 1), round(my, 1))
+    assert badge.label.blocks[0].lines == ["2"]
+
+
+def test_node_badge_is_centred_on_the_top_left_corner():  # ANN-14
+    b, shapes, conns, ann, t = _parts(_badge_diagram())
+    badge = _by_id(ann.badges(conns))["step-2-badge"]
+    node = shapes["c"]
+    assert (badge.x + badge.w / 2, badge.y + badge.h / 2) == (node.x, node.y)
+
+
+def test_panel_badges_match_diagram_badges():  # ANN-17
+    b, shapes, conns, ann, t = _parts(_badge_diagram())
+    on_edges = _by_id(ann.badges(conns))
+    panel = _by_id(ann.panels(conns))
+    for k in range(3):
+        a_, p = on_edges[f"step-{k}-badge"], panel[f"steps-{k}-badge"]
+        assert (a_.w, a_.h, a_.fill, a_.stroke, a_.radius, a_.label.blocks[0].lines) == (
+            p.w, p.h, p.fill, p.stroke, p.radius, p.label.blocks[0].lines)
+
+
+def test_badge_on_a_bent_edge_sits_halfway_along_it():  # ANN-13
+    from spinagram.annotate import Annotator
+
+    assert Annotator._midpoint([(0, 0), (100, 0), (100, 50)]) == (75, 0)
+    assert Annotator._midpoint([(0, 0), (0, 40), (60, 40)]) == (10, 40)

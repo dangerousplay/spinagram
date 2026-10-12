@@ -251,9 +251,9 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] edge badge at the label's right edge + gap, or the path midpoint; node badge centred on the top-left corner
-- [ ] badge never overlaps the edge label
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] edge badge at the label's right edge + gap, or the path midpoint; node badge centred on the top-left corner
+- [x] badge never overlaps the edge label
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

@@ -343,3 +343,33 @@ class Annotator:
             used = thickness - a["gap"]
         self.overflow = max(0.0, used - ah)  # px the panels exceed the area height
         return out
+
+    # step badges ----------------------------------------------------------------------------------
+    @staticmethod
+    def _midpoint(points: list[tuple[float, float]]) -> tuple[float, float]:
+        """Halfway along a polyline, by length."""
+        segs = [(p, q, ((q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2) ** 0.5) for p, q in zip(points, points[1:])]
+        half = sum(s[2] for s in segs) / 2
+        for (x1, y1), (x2, y2), ln in segs:
+            if half <= ln and ln > 0:
+                f = half / ln
+                return x1 + (x2 - x1) * f, y1 + (y2 - y1) * f
+            half -= ln
+        return points[len(points) // 2]
+
+    def badges(self, connectors: list) -> list:
+        """A numbered badge per step: beside the edge label, at the edge's midpoint, or on a node's corner."""
+        out = []
+        for i, st in enumerate(self.d.annotations.steps):
+            if st.edge is not None:
+                c = connectors[st.edge]
+                if c.label is not None:
+                    lab = c.label
+                    cx, cy = lab.x + lab.w + 6 + self.a["badge"] / 2, lab.y + lab.h / 2
+                else:
+                    cx, cy = self._midpoint(c.points) if c.route != "curve" else c.points[1]
+            else:
+                node = self.b.shapes[st.node]
+                cx, cy = node.x, node.y
+            out.append(self.badge(f"step-{i}-badge", cx, cy, st.n, f"step:{i}"))
+        return out
