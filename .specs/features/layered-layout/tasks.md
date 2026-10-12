@@ -89,11 +89,13 @@ T1 → T2 → T3 → T4 → T5 → T6
 **Requirement**: LAY-08, LAY-09, LAY-17
 
 **Done when**:
-- [ ] Routes are axis-aligned, avoid every obstacle, end on the target box; loops leave and re-enter one side
-- [ ] Gate passes
+- [x] Routes are axis-aligned, avoid every obstacle, end on the target box; loops leave and re-enter one side
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T4: Groups and lanes in the layered engine
 

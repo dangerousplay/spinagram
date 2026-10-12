@@ -162,3 +162,41 @@ def test_large_graph_warns_but_completes():  # LAY-22
         res = _run(g)
     assert any("300" in str(x.message) for x in w)
     assert len([k for k in res.boxes if k.startswith("n")]) == 301
+
+
+# T3: obstacle router ----------------------------------------------------------------------------
+from spinagram.autolayout.route import loop, route  # noqa: E402
+
+
+def _on_border(pt, box, tol=0.6):
+    x, y, w, h = box
+    px, py = pt
+    on_v = (abs(px - x) < tol or abs(px - x - w) < tol) and y - tol <= py <= y + h + tol
+    on_h = (abs(py - y) < tol or abs(py - y - h) < tol) and x - tol <= px <= x + w + tol
+    return on_v or on_h
+
+
+def test_router_avoids_obstacles_and_is_orthogonal():  # LAY-17
+    src, dst = (0, 0, 100, 60), (400, 300, 100, 60)
+    walls = [(150, -100, 60, 400), (250, 200, 300, 40)]
+    pts = route(src, dst, walls + [src, dst])
+    assert _on_border(pts[0], src) and _on_border(pts[-1], dst)
+    for p, q in zip(pts, pts[1:]):
+        assert abs(p[0] - q[0]) < 1e-6 or abs(p[1] - q[1]) < 1e-6
+        for b in walls + [src, dst]:
+            assert not _seg_hits_box(p, q, b), (p, q, b)
+
+
+def test_router_straight_when_unobstructed():  # LAY-11 (no needless bends)
+    pts = route((0, 0, 100, 60), (0, 200, 100, 60), [])
+    assert len(pts) == 2 and pts[0][0] == pts[1][0]
+
+
+def test_self_loop_leaves_and_reenters_one_side():  # LAY-09
+    box = (100, 100, 160, 80)
+    pts = loop(box, "right")
+    assert pts[0][0] == pts[-1][0] == 260
+    assert pts[0][1] != pts[-1][1]
+    assert max(x for x, _ in pts) > 260
+    for p, q in zip(pts, pts[1:]):
+        assert not _seg_hits_box(p, q, box)
