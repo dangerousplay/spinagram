@@ -136,11 +136,13 @@ T8
 **Requirement**: INS-12, INS-17
 
 **Done when**:
-- [ ] Payload keys, node box, edge polyline, group box asserted via TestClient
-- [ ] Gate passes
+- [x] Payload keys, node box, edge polyline, group box asserted via TestClient
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T6: Stylesheet live reload
 

@@ -261,3 +261,56 @@ def test_concurrent_fetch_of_one_pack_is_serialised(env):
     with ThreadPoolExecutor(4) as ex:
         dirs = list(ex.map(lambda _: icons.fetch(pack), range(4)))
     assert len(set(dirs)) == 1 and (dirs[0] / "index.json").exists() and not dirs[0].with_name("1.tmp").exists()
+
+
+# css inspector (spec: .specs/features/css-inspector) ----------------------------------------------
+STYLED = """\
+id: ST
+title: Styled
+layout: {engine: layered}
+stylesheets: [brand.css]
+groups:
+  - {id: zone, label: Zone, children: [a, b]}
+nodes:
+  - {id: a, title: A, class: critical}
+  - {id: b, title: B}
+  - {id: note, kind: text, title: a note, x: 40, y: 40}
+edges:
+  - {from: a, to: b, label: go}
+"""
+
+
+def test_styles_endpoint_returns_report_and_geometry(env):  # INS-12
+    specs = env / "specs"
+    (specs / "styled.yaml").write_text(STYLED)
+    (specs / "brand.css").write_text(".critical { fill: #FEE2E2 } .nothing { fill: red } node { fill: ; }")
+    ws = Workspace([specs])
+    with client(ws) as c:
+        r = c.get("/api/diagrams/styled.yaml%23ST.styles")
+        assert r.status_code == 200
+        body = r.json()
+    assert body["styled"] and body["size"] == [1920, 1080]
+    keys = [e["key"] for e in body["elements"]]
+    assert keys[:3] == ["diagram", "group:zone", "node:a"] and "edge:0" in keys
+    a = next(e for e in body["elements"] if e["key"] == "node:a")
+    assert a["styles"][""]["fill"] == "#FEE2E2" and a["classes"] == ["critical"]
+    g = body["geometry"]
+    x, y, w, h = g["node:a"]["box"]
+    zx, zy, zw, zh = g["group:zone"]["box"]
+    assert w > 0 and h > 0 and zx <= x and zy <= y and x + w <= zx + zw and y + h <= zy + zh  # node inside its group
+    assert len(g["edge:0"]["points"]) >= 2 and g["edge:0"]["route"] in ("straight", "poly", "curve")
+    assert len(g["edge:0"]["label"]) == 4
+    assert g["node:note"]["box"][2] > 0                                  # text nodes get a box too
+    assert g["diagram"]["box"] == [0, 0, 1920, 1080]
+    assert body["unused"][0]["selector"] == ".nothing"
+    assert any("empty value" in w for w in body["warnings"])           # INS-17: broken decl listed, rest applies
+
+
+def test_styles_endpoint_errors(env):  # INS-12
+    ws = Workspace([env / "specs"])
+    with client(ws) as c:
+        assert c.get("/api/diagrams/nope.yaml%23X.styles").status_code == 404
+        (env / "specs" / "one.yaml").write_text("id: D1\ntitle: [x\n")
+        apply_changes(ws, ws.theme_roots(), {env / "specs" / "one.yaml"})
+        assert c.get("/api/diagrams/one.yaml%23D1.styles").status_code == 422
+        assert c.get("/api/diagrams/auto.yaml%23AU.styles").json()["styled"] is False

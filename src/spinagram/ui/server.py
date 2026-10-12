@@ -65,6 +65,16 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         meta = quote(json.dumps({**info, "overflow": list(info["overflow"]) if info.get("overflow") else None}))
         return Response(svg, media_type="image/svg+xml", headers={**NO_STORE, "X-Diagram-Info": meta})
 
+    async def styles(req: Request) -> Response:
+        key = req.path_params["key"]
+        try:
+            report = await run_in_threadpool(ws.styles, key, req.query_params.get("layout") or None)
+        except KeyError:
+            return _err(404, f"unknown diagram {key}")
+        except RenderError as exc:
+            return _err(422, str(exc), file=exc.file)
+        return JSONResponse(report, headers=NO_STORE)
+
     async def theme_list(_: Request) -> Response:
         return JSONResponse(await run_in_threadpool(themes.list_themes, ws.theme_ref), headers=NO_STORE)
 
@@ -136,6 +146,7 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
     routes = [
         Route("/api/workspace", workspace),
         Route("/api/diagrams/{key:path}.svg", diagram),
+        Route("/api/diagrams/{key:path}.styles", styles),
         Route("/api/themes", theme_list),
         Route("/api/themes/{ref}", theme_sheet),
         Route("/api/themes/{ref}/preview/{kind}/{style}.svg", theme_preview),
