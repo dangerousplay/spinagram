@@ -192,9 +192,11 @@ def _simplify(pts: list[tuple[float, float]]) -> list[tuple[float, float]]:
 
 def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> Diagram:
     """A copy of ``diagram`` with automatic positions, or ``diagram`` itself when it has no ``layout``."""
-    if diagram.layout is None:
+    if not diagram.auto:
         return diagram
     d = copy.deepcopy(diagram)
+    if d.layout is None:
+        d.layout = {}  # nothing placed by hand: lay out with the defaults
     graph, nodes = build_graph(d, theme)
     if not graph.root.children:
         return d

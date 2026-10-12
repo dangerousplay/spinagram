@@ -1,0 +1,84 @@
+---
+title: Getting started
+description: Install spinagram and render your first diagram.
+---
+
+<Steps>
+<Step>
+
+### Install
+
+spinagram needs Python 3.11 or newer.
+
+```bash
+pip install "spinagram[all]"         # or: uv add "spinagram[all]"
+playwright install chromium          # only for PNG output
+```
+
+The base package renders SVG. Extras add the rest:
+
+| Extra | Adds |
+|---|---|
+| `pptx` | PowerPoint output |
+| `png` | PNG output (Playwright) |
+| `vector` | Traces PNG icons into SVG |
+| `ui` | `spinagram serve`, the live preview |
+| `all` | Everything above |
+
+</Step>
+<Step>
+
+### Write a diagram
+
+Save this as `web.py`:
+
+```python title="web.py"
+from spinagram import Diagram
+
+d = Diagram("W01", "My web app")
+
+users = d.box("Users", icon="aws:users")
+with d.group("AWS", style="aws-cloud", direction="right"):
+    api = d.box("API", text="FastAPI", icon="terrastruct:python")
+    db = d.box("Database", text="PostgreSQL", icon="terrastruct:postgres")
+
+users.to(api, "HTTPS") >> db
+
+d.save("out/", formats=["svg", "png", "pptx"])
+```
+
+</Step>
+<Step>
+
+### Render it
+
+```bash
+python web.py
+```
+
+`out/` now holds `W01-my-web-app.svg`, its PNG and `diagrams.pptx`. Icon packs are downloaded into
+`~/.cache/spinagram/icons` the first time a diagram uses them.
+
+</Step>
+<Step>
+
+### Preview while you edit
+
+```bash
+spinagram serve web.py
+```
+
+A browser tab opens and re-renders every time you save. For `spinagram serve` and
+`spinagram render` to find the diagram, keep `diagram = d` at the end of the file and guard the save
+with `if __name__ == "__main__":`, like [`examples/quickstart.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/quickstart.py).
+
+In Jupyter, a `Diagram` as the last expression of a cell shows inline.
+
+</Step>
+</Steps>
+
+## Where next
+
+- [Python guide](./python.mdx): everything you can do with a `Diagram`.
+- [Automatic layout](./auto-layout.mdx): groups, engines and hand-tuning.
+- [Icon packs](./icons.mdx) and [themes](./themes.mdx).

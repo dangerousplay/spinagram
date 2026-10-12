@@ -481,3 +481,37 @@ def test_theme_packs_bare_names_and_fallback(icon_env):
         assert th.icon("vault-box").name == "brand__vault-box.svg"      # bare name → pack (broken pack skipped)
     assert th.icon("safe").name == "brand__vault-box.svg"              # theme alias onto a pack name
     assert th.icon("teams").name == "teams.svg"                         # not in packs → local dir
+
+
+def test_node_operators_draw_edges():
+    d = Diagram("op", "Operators")
+    a, b, c, e = (d.box(t) for t in "abce")
+    assert (a >> b >> c) is c
+    a.to(c, "HTTPS", dashed=True)
+    assert a >> [b, c] == [b, c]
+    [b, c] >> e
+    c << e
+    a - e
+    got = [(x.src, x.dst, x.label, x.arrow) for x in d.edges]
+    assert got == [("a", "b", None, "end"), ("b", "c", None, "end"), ("a", "c", "HTTPS", "end"),
+                   ("a", "b", None, "end"), ("a", "c", None, "end"), ("b", "e", None, "end"),
+                   ("c", "e", None, "end"), ("e", "c", None, "end"), ("a", "e", None, "none")]
+    assert d.edges[2].dashed
+
+
+def test_unplaced_nodes_lay_out_automatically():
+    d = Diagram("auto", "No layout given")
+    d.box("a") >> d.box("b")
+    assert d.auto
+    sc = scenes([d])[0]
+    assert all(s.w > 0 and s.h > 0 for s in sc.shapes().values())
+    placed = Diagram("p", "Placed")
+    placed.box("a", x=10, y=10, w=100, h=80)
+    assert not placed.auto
+
+
+def test_diagram_svg_string():
+    d = Diagram("s", "Inline")
+    d.box("Hello")
+    svg = d._repr_svg_()
+    assert svg.lstrip().startswith("<svg") and "Hello" in svg

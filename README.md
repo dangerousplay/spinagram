@@ -6,12 +6,13 @@
 
 <p align="center">
   <b>Diagrams as code, delivered editable everywhere.</b><br>
-  Write YAML or Python. Get SVG, PNG, PowerPoint with native shapes, and Figma or FigJam nodes you can keep editing.
+  Write a few lines of Python. Get SVG, PNG, PowerPoint with native shapes, and Figma or FigJam nodes you can keep editing.
 </p>
 
 <p align="center">
-  <a href="https://dangerousplay.github.io/spinagram/"><b>Documentation</b></a> ·
-  <a href="https://dangerousplay.github.io/spinagram/getting-started/">Getting started</a> ·
+  <a href="https://dangerousplay.github.io/spinagram/docs/"><b>Documentation</b></a> ·
+  <a href="https://dangerousplay.github.io/spinagram/docs/getting-started/">Getting started</a> ·
+  <a href="https://dangerousplay.github.io/spinagram/docs/python/">Python guide</a> ·
   <a href="examples/">Examples</a>
 </p>
 
@@ -21,14 +22,16 @@
   <a href="https://pypi.org/project/spinagram/"><img src="https://img.shields.io/pypi/v/spinagram" alt="PyPI"></a>
 </p>
 
-![One source: YAML or Python, rendered by spinagram to SVG, PNG, PowerPoint and Figma](https://dangerousplay.github.io/spinagram/assets/overview.svg)
+![One source: Python or YAML, rendered by spinagram to SVG, PNG, PowerPoint and Figma](https://dangerousplay.github.io/spinagram/assets/overview.svg)
 
 ## Why spinagram
 
 - **Editable output, not screenshots.** PowerPoint slides get native shapes with the text inside and
   connectors bound to the boxes, so moving a box drags its arrows along. Figma gets real frames and nodes.
-- **No coordinates needed.** Add `layout:` and spinagram sizes every box from its text and icon, nests
-  groups such as an AWS Region, a VPC and its zones, and places everything.
+- **Python that reads like the picture.** `users >> lb >> api`, groups as `with` blocks, loops and
+  functions for the repetitive parts. YAML works too, for generated diagrams.
+- **No coordinates needed.** spinagram sizes every box from its text and icon, nests groups such as an
+  AWS Region, a VPC and its zones, and places everything with one of four layout engines.
 - **Brand once, render anywhere.** A theme directory holds colours, fonts, styles, icons and page chrome.
 - **Thousands of icons.** AWS, GCP, Azure, Kubernetes, OCI, OpenStack and Terrastruct packs download on
   first use. Add your own from a folder, npm or GitHub.
@@ -38,18 +41,47 @@
 ## Quick start
 
 ```bash
-uv tool install "spinagram[all]"        # or: pip install "spinagram[all]"
+pip install "spinagram[all]"            # or: uv add "spinagram[all]"
 ```
 
-Describe what is connected to what. spinagram does the layout. Pick YAML or Python, they produce the same diagram.
+Say what is connected to what. spinagram sizes, places and styles everything:
 
-**YAML** ([`examples/quickstart.yaml`](examples/quickstart.yaml))
+```python
+from spinagram import Diagram
+
+d = Diagram("Q01", "Web app on AWS", subtitle="No coordinates, laid out automatically")
+
+users = d.box("Users", icon="aws:users")
+with d.group("us-east-1", style="aws-region", direction="right"):
+    with d.group("VPC", style="aws-vpc", direction="right"):
+        lb = d.box("Load balancer", icon="aws:alb")
+        api = d.box("API", text="FastAPI on ECS", icon="terrastruct:python")
+        with d.group():  # no style: a light "soft" zone
+            db = d.box("Orders DB", text="PostgreSQL", icon="terrastruct:postgres")
+            cache = d.box("Cache", text="Redis", icon="terrastruct:redis")
+    s3 = d.box("Uploads", text="S3 bucket", icon="aws:s3")
+
+users.to(lb, "HTTPS") >> api
+api.to(db, "SQL")
+api >> [cache, s3]
+
+d.save("out/", formats=["svg", "png", "pptx"])
+```
+
+![Web app on AWS, laid out automatically](https://dangerousplay.github.io/spinagram/assets/quickstart.svg)
+
+- `d.box(...)` adds a node; its size comes from its text and icon. No coordinates needed.
+- `a >> b` draws an arrow, `a.to(b, "label")` a labelled one, `a >> [b, c]` fans out.
+- `with d.group(...)` nests nodes in a zone (an AWS Region, a VPC, or any style from your theme).
+- `d.save()` writes the files; in Jupyter the diagram shows inline. `spinagram serve file.py` previews it live.
+
+<details>
+<summary>The same diagram in YAML</summary>
 
 ```yaml
 id: Q01
 title: Web app on AWS
 subtitle: No coordinates, laid out automatically
-layout: {engine: flex, direction: right, gap: 60}
 groups:
   - id: region
     label: us-east-1
@@ -60,61 +92,33 @@ groups:
         label: VPC
         style: aws-vpc
         direction: right
-        children: [alb, api, data]
+        children: [lb, api, data]
       - s3
-  - {id: data, direction: down, children: [db, cache]}
+  - {id: data, children: [db, cache]}
 nodes:
   - {id: users, title: Users, icon: "aws:users"}
-  - {id: alb, title: Load balancer, icon: "aws:alb"}
+  - {id: lb, title: Load balancer, icon: "aws:alb"}
   - {id: api, title: API, text: FastAPI on ECS, icon: "terrastruct:python"}
   - {id: db, title: Orders DB, text: PostgreSQL, icon: "terrastruct:postgres"}
   - {id: cache, title: Cache, text: Redis, icon: "terrastruct:redis"}
   - {id: s3, title: Uploads, text: S3 bucket, icon: "aws:s3"}
 edges:
-  - "users -> alb: HTTPS"
-  - "alb -> api"
+  - "users -> lb: HTTPS"
+  - lb -> api
   - "api -> db: SQL"
-  - "api -> cache"
-  - "api -> s3"
+  - api -> cache
+  - api -> s3
 ```
 
 ```bash
 spinagram render examples/quickstart.yaml -f svg,png,pptx -o out/
 ```
 
-**Python** ([`examples/quickstart.py`](examples/quickstart.py))
+</details>
 
-```python
-from spinagram import Diagram
-
-d = Diagram("Q01", "Web app on AWS", subtitle="No coordinates, laid out automatically",
-            layout={"engine": "flex", "direction": "right", "gap": 60})
-users = d.box("Users", icon="aws:users")
-with d.group("us-east-1", style="aws-region", direction="right"):
-    with d.group("VPC", style="aws-vpc", direction="right"):
-        alb = d.box("Load balancer", icon="aws:alb")
-        api = d.box("API", text="FastAPI on ECS", icon="terrastruct:python")
-        with d.group(direction="down"):
-            db = d.box("Orders DB", text="PostgreSQL", icon="terrastruct:postgres")
-            cache = d.box("Cache", text="Redis", icon="terrastruct:redis")
-    s3 = d.box("Uploads", text="S3 bucket", icon="aws:s3")
-
-d.edge(users, alb, label="HTTPS")
-d.chain(alb, api)
-d.edge(api, db, label="SQL")
-d.edge(api, cache)
-d.edge(api, s3)
-
-d.save("out/", formats=["svg", "png", "pptx"])
-```
-
-Result:
-
-![Web app on AWS, laid out automatically](https://dangerousplay.github.io/spinagram/assets/quickstart.svg)
-
-Need pixel-exact slides instead? Drop `layout:` and give nodes coordinates
-([manual layout](https://dangerousplay.github.io/spinagram/manual-layout/)), or freeze an automatic layout
-with `spinagram layout spec.yaml -o frozen.yaml` and tune it by hand.
+Need pixel-exact slides instead? Give nodes coordinates
+([manual layout](https://dangerousplay.github.io/spinagram/docs/manual-layout/)), or freeze an automatic layout with
+`spinagram layout spec.py -o frozen.yaml` and tune it by hand.
 
 ## Outputs
 
@@ -128,20 +132,20 @@ with `spinagram layout spec.yaml -o frozen.yaml` and tune it by hand.
 
 ## Learn more
 
-The [documentation](https://dangerousplay.github.io/spinagram/) covers:
+The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable) covers:
 
-- [Automatic layout](https://dangerousplay.github.io/spinagram/auto-layout/): groups and the `flex`, `dot`, `elk` and `d2` engines
-- [Icon packs](https://dangerousplay.github.io/spinagram/icons/) and [themes](https://dangerousplay.github.io/spinagram/themes/)
-- [Facts](https://dangerousplay.github.io/spinagram/facts/): numbers with traceable sources
-- [Figma and FigJam](https://dangerousplay.github.io/spinagram/figma/) hand-off
-- [CLI](https://dangerousplay.github.io/spinagram/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/live-ui/)
-- [Extending](https://dangerousplay.github.io/spinagram/extending/) with your own backends and layout engines
+- [Automatic layout](https://dangerousplay.github.io/spinagram/docs/auto-layout/): groups and the `flex`, `dot`, `elk` and `d2` engines
+- [Icon packs](https://dangerousplay.github.io/spinagram/docs/icons/) and [themes](https://dangerousplay.github.io/spinagram/docs/themes/)
+- [Facts](https://dangerousplay.github.io/spinagram/docs/facts/): numbers with traceable sources
+- [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/figma/) hand-off
+- [CLI](https://dangerousplay.github.io/spinagram/docs/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/live-ui/)
+- [Extending](https://dangerousplay.github.io/spinagram/docs/extending/) with your own backends and layout engines
 
 ## Development
 
 ```bash
 uv sync --all-extras && uv run pytest
-uv run --group docs mkdocs serve        # docs at http://127.0.0.1:8000
+cd docs && bun install && bun run dev  # docs at http://localhost:3000
 ```
 
-See [Development](https://dangerousplay.github.io/spinagram/development/) for the UI frontend, docs and releases.
+See [Development](https://dangerousplay.github.io/spinagram/docs/development/) for the UI frontend, docs and releases.

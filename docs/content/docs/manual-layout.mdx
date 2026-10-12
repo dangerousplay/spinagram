@@ -1,0 +1,87 @@
+---
+title: Manual layout
+description: Exact coordinates for slides where every pixel matters.
+---
+
+Give nodes `x`, `y`, `w` and `h` on the 1920×1080 canvas (the default theme's size) and spinagram
+draws them exactly there. Use this for presentation slides, or start from automatic layout and
+[freeze it](./auto-layout.mdx#hand-tuning).
+
+<Tabs groupId="lang" items={['Python', 'YAML']} persist>
+<Tab value="Python">
+```python
+from spinagram import Diagram
+
+d = Diagram("D01", "How a change is routed", subtitle="Facts decide the path")
+req, eng, out = d.row(["Change request", "Risk engine", "Route"], x=80, y=220, w=420, h=300, gap=80,
+                      styles=["default", "dark", "default"])
+req >> eng
+d.edge(eng.right, out.left, "classify")
+d.save("out/", formats=["svg", "pptx"])
+```
+</Tab>
+<Tab value="YAML">
+```yaml
+id: D01
+title: How a change is routed
+subtitle: Facts decide the path
+nodes:
+  - {id: req, x: 80, y: 220, w: 420, h: 300, title: Change request, text: Created by the source tool, icon: document}
+  - {id: eng, x: 600, y: 220, w: 420, h: 300, style: dark, title: Risk engine}
+  - {id: cab, kind: diamond, x: 1120, y: 260, w: 260, h: 220, title: [Business, impact?]}
+edges:
+  - req -> eng
+  - "eng -> cab: classify"
+  - {from: cab.bottom, to: [1250, 700], color: alert, dashed: true}
+```
+</Tab>
+</Tabs>
+
+## Placement helpers
+
+| Python | Does |
+|---|---|
+| `d.box(title, x=, y=, w=, h=)` | One node at a fixed position |
+| `d.row(items, x=, y=, w=, h=, gap=)` | Nodes left to right; items are titles or dicts of node fields |
+| `d.column(items, x=, y=, w=, h=, gap=)` | Nodes top to bottom |
+| `d.pill(title, x=, y=)` | A rounded tag centred on (x, y) |
+| `d.label(text, x=, y=)` | Free text; (x, y) is the first baseline |
+| `d.zone(label, x=, y=, w=, h=, color=)` | A background zone |
+
+In YAML, `at: [x, y, w, h]` is a shorthand for the four fields, and `kind:` is `box`, `note`,
+`diamond`, `pill` or `text`.
+
+## Edge endpoints
+
+An endpoint is a node (the facing side is picked automatically), a side anchor (`api.right`,
+`api.at("right", 0.3)`; in YAML `api.right@0.3`), or a point `(x, y)`. Waypoints go in `via`.
+
+## Zones, tables and legends
+
+<Tabs groupId="lang" items={['Python', 'YAML']} persist>
+<Tab value="Python">
+```python
+d.zone("Automatic", x=60, y=180, w=1800, h=380, color="soft")
+d.table(["Signal", "Source", "Effect"],
+        [["Chaos test failed", "Stress cluster", "Window or approval"]],
+        x=80, y=760, widths=[400, 400, 600])
+d.set_legend([("default", "automatic"), ("warning", "review")], x=100, y=640)
+```
+</Tab>
+<Tab value="YAML">
+```yaml
+zones:
+  - {x: 60, y: 180, w: 1800, h: 380, label: Automatic, color: soft}
+legend:
+  x: 100
+  y: 640
+  items:
+    - {color: default, label: automatic}
+    - {color: warning, label: review}
+```
+</Tab>
+</Tabs>
+
+Full examples: [`examples/release_flow.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/release_flow.py)
+(table) and [`examples/decision.yaml`](https://github.com/dangerousplay/spinagram/blob/main/examples/decision.yaml)
+(zones and legend).

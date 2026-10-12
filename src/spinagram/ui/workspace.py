@@ -212,7 +212,7 @@ class Workspace:
                 raise KeyError(key)
             if self.theme is None:
                 raise RenderError(f"theme: {self.theme_error}")
-            engine = (layout or self.layout) if d.layout is not None else None
+            engine = (layout or self.layout) if d.auto else None
             ck = (key, self.theme_gen, engine)
             if ck in self._cache:
                 return self._cache[ck]
@@ -245,7 +245,7 @@ class Workspace:
             engines.append({"name": name, "hint": hint})
         with self._lock:
             files = [{"path": sf.rel, "error": sf.error,
-                      "diagrams": [{"key": self.key(rel, d), "id": d.id, "title": d.title, "auto": d.layout is not None}
+                      "diagrams": [{"key": self.key(rel, d), "id": d.id, "title": d.title, "auto": d.auto}
                                    for d in sf.diagrams]}
                      for rel, sf in sorted(self.files.items())]
         import os

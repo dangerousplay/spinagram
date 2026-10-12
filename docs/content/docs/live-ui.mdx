@@ -1,0 +1,24 @@
+---
+title: Live UI
+description: A local preview that re-renders on save.
+---
+
+`spinagram serve` opens a local, read-only web UI with live reload. It needs the `ui` extra
+(`pip install 'spinagram[ui]'`); the web bundle ships in the wheel, no Node needed.
+
+```bash
+spinagram serve specs/ --theme ../my-theme          # http://127.0.0.1:8765, opens the browser
+spinagram serve specs/ --layout elk --port 0 --no-open
+```
+
+- **Diagrams**: every spec under the paths. Saving a spec, its `_defaults.yaml`, a `.py` helper or
+  any file of the theme (including the themes it `extends`) re-renders in place, keeping zoom and
+  pan. Errors show over the last good render. Wheel zooms, drag pans, `f` fits, `0` is 100 %; the
+  header switches the layout engine for diagrams with `layout:`. Overflow, icon warnings and
+  not-downloaded icon packs are flagged.
+- **Themes**: token sheet of the built-in and active theme: colours (with the token they point to),
+  font roles rendered in the embedded fonts, node and zone styles with previews, defaults and chrome.
+- **Icon packs**: registry state, a searchable grid per downloaded pack and **Fetch** for missing
+  ones. `serve` never downloads during a render (a missing pack is flagged with a link to fetch it).
+
+The server binds 127.0.0.1 only and rejects other `Host` headers.

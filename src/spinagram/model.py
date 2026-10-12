@@ -67,6 +67,47 @@ class Node:
     def center(self) -> str:
         return self.at("center")
 
+    # edges by operator ----------------------------------------------------------
+    # ``a >> b`` draws a -> b, ``a << b`` draws b -> a, ``a - b`` a plain line. Each returns its right-hand
+    # side, so ``a >> b >> c`` chains, and lists fan out or in: ``lb >> [web1, web2] >> db``.
+    def _diagram_or_raise(self) -> "Diagram":
+        d = self.__dict__.get("_diagram")
+        if d is None:
+            raise TypeError(f"node {self.id!r} is not in a diagram: create it with d.box(...)")
+        return d
+
+    def to(self, other: Any, label: str | None = None, **kw: Any) -> Any:
+        """Connect to ``other`` (a node or a list) and return it: ``users.to(lb, "HTTPS").to(api)``."""
+        d = self._diagram_or_raise()
+        for t in other if isinstance(other, (list, tuple)) else [other]:
+            d.edge(self, t, label, **kw)
+        return other
+
+    def __rshift__(self, other: Any) -> Any:
+        return self.to(other)
+
+    def __lshift__(self, other: Any) -> Any:
+        for t in other if isinstance(other, (list, tuple)) else [other]:
+            t.to(self)
+        return other
+
+    def __sub__(self, other: Any) -> Any:
+        return self.to(other, arrow="none")
+
+    def __rrshift__(self, other: Any) -> "Node":  # [a, b] >> c
+        for s in other:
+            s.to(self)
+        return self
+
+    def __rlshift__(self, other: Any) -> "Node":  # [a, b] << c
+        self.to(other)
+        return self
+
+    def __rsub__(self, other: Any) -> "Node":  # [a, b] - c
+        for s in other:
+            s.to(self, arrow="none")
+        return self
+
 
 @dataclass
 class Edge:
@@ -187,6 +228,12 @@ class Diagram:
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
 
+    @property
+    def auto(self) -> bool:
+        """Laid out automatically: ``layout`` is set, or no node has a position or a size."""
+        return self.layout is not None or (bool(self.nodes) and
+                                           not any(n.x or n.y or n.w or n.h for n in self.nodes))
+
     # lookup -------------------------------------------------------------------
     def node(self, node_id: str) -> Node:
         for n in self.nodes:
@@ -211,6 +258,7 @@ class Diagram:
         if any(o.id == n.id for o in self.nodes):
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")
         self.nodes.append(n)
+        n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
             self._open[-1].children.append(n.id)
         return n
@@ -232,8 +280,11 @@ class Diagram:
         """Free text; (x, y) is the first baseline."""
         return self.add("text", text, x=x, y=y, **kw)
 
-    def edge(self, src: Any, dst: Any = None, **kw: Any) -> Edge:
-        """``d.edge(a, b)``, ``d.edge(a.right, b.left@0.3)``, or ``d.edge("a -> b: label")``."""
+    def edge(self, src: Any, dst: Any = None, label: str | None = None, **kw: Any) -> Edge:
+        """``d.edge(a, b)``, ``d.edge(a, b, "label")``, ``d.edge(a.right, b.left@0.3)``, or
+        ``d.edge("a -> b: label")``. ``a >> b`` on nodes is the short form."""
+        if label is not None:
+            kw["label"] = label
         if dst is None and isinstance(src, str):
             e = parse_edge(src)
             for k, v in kw.items():
@@ -319,7 +370,19 @@ class Diagram:
         return self._seq(items, "y", x, y, w, h, gap, kind, styles, **common)
 
     # rendering shortcut -------------------------------------------------------
-    def save(self, out_dir: str | Path, *, theme: Any = None, formats: Sequence[str] = ("svg",)) -> list[Path]:
+    def save(self, out_dir: str | Path = "out", *, theme: Any = None, formats: Sequence[str] = ("svg",),
+             layout: str | None = None) -> list[Path]:
+        """Render to ``out_dir``: ``d.save()``, ``d.save("out/", formats=["svg", "png", "pptx"])``."""
         from .api import render
 
-        return render([self], out_dir, theme=theme, formats=formats)
+        return render([self], out_dir, theme=theme, formats=formats, layout=layout)
+
+    def svg(self, *, theme: Any = None, layout: str | None = None) -> str:
+        """The rendered SVG as a string."""
+        from .api import scenes
+        from .backends.svg import to_svg
+
+        return to_svg(scenes([self], theme, layout)[0])
+
+    def _repr_svg_(self) -> str:  # Jupyter shows the diagram inline
+        return self.svg()

@@ -15,7 +15,7 @@ spec (YAML/.py) + theme dir ──► layout (fonts, wrap, anchors) ──► sv
 
 1. **Message first.** State the single question the diagram answers. That becomes the `subtitle`, a full sentence with the conclusion. The `title` names the topic in 2–6 words.
 2. **Pick a pattern** (table below) and sketch the grid on paper: columns, rows, gaps.
-3. **Write the spec.** Use YAML for one-off diagrams. Use Python when you repeat geometry (`row`, `column`, `chain`) or generate diagrams from data.
+3. **Write the spec.** Prefer Python: `a >> b` arrows, `with d.group(...)` zones, loops for repetition, and automatic layout when no node has coordinates. Use YAML when another tool generates the diagram.
 4. **`spinagram check`** must report 0 issues (text overflow).
 5. **Render PNG and look at it.** Check overlaps, arrows crossing text, label pills on borders, and empty zones. Fix the spec, never the output.
 6. **Deliver.** Use `-f svg,png,pptx` for decks. Add `figma` and follow the Figma hand-off below.
@@ -167,6 +167,21 @@ Account › Region › VPC › AZ; regional services (S3, KMS) sit inside the Re
 Keep AZ labels short (`AZ 1a`) so arrows entering the boxes below do not cross them.
 
 ## Python DSL
+
+Automatic layout (no coordinates anywhere: the diagram is laid out with `flex`):
+
+```python
+from spinagram import Diagram
+d = Diagram("Q01", "Web app on AWS")
+users = d.box("Users", icon="aws:users")
+with d.group("VPC", style="aws-vpc", direction="right"):
+    api = d.box("API", text="FastAPI", icon="terrastruct:python")
+    db, cache = d.box("Orders DB", icon="terrastruct:postgres"), d.box("Cache", icon="terrastruct:redis")
+users.to(api, "HTTPS") >> [db, cache]   # a >> b, a << b, a - b (no head); lists fan out/in
+diagram = d
+```
+
+Fixed coordinates:
 
 ```python
 from spinagram import Diagram

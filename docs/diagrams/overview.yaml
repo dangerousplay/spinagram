@@ -1,5 +1,5 @@
 # The README hero, drawn with spinagram itself:
-#   spinagram render docs/diagrams/ -f svg -o docs/assets/
+#   spinagram render docs/diagrams/ -f svg -o out/ && cp out/S00-spinagram.svg docs/public/assets/overview.svg
 id: S00
 title: spinagram
 subtitle: One diagram source, editable output everywhere
@@ -10,7 +10,7 @@ groups:
 nodes:
   - {id: yaml, title: YAML, text: specs/*.yaml, icon: "aws:document"}
   - {id: py, title: Python, text: Diagram API, icon: "terrastruct:python"}
-  - {id: engine, title: spinagram, text: "layout, themes, icons", icon: ../assets/logo.svg, style: dark}
+  - {id: engine, title: spinagram, text: "layout, themes, icons", icon: ../public/assets/logo.svg, style: dark}
   - {id: svg, title: SVG, text: fonts embedded}
   - {id: png, title: PNG, text: 2x raster}
   - {id: pptx, title: PowerPoint, text: native shapes}

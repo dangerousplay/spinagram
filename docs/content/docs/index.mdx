@@ -1,0 +1,44 @@
+---
+title: Introduction
+description: Diagrams as code, delivered editable everywhere.
+---
+
+spinagram turns a few lines of Python into architecture diagrams you can keep editing: SVG, PNG,
+PowerPoint slides with native shapes, and Figma or FigJam nodes. Say what is connected to what;
+spinagram sizes, places and styles everything.
+
+![One source: Python or YAML, rendered by spinagram to SVG, PNG, PowerPoint and Figma](/assets/overview.svg)
+
+## A diagram in Python
+
+<include meta='title="examples/quickstart.py"'>../../../examples/quickstart.py</include>
+
+```bash
+python examples/quickstart.py
+```
+
+![Web app on AWS, laid out automatically](/assets/quickstart.svg)
+
+No coordinates, no sizes: boxes grow to fit their text and icon, groups wrap their children and
+`a >> b` draws an arrow. Prefer a data file? The [same diagram in YAML](./yaml.mdx) renders identically.
+
+## Why spinagram
+
+- **Editable output, not screenshots.** PowerPoint gets native shapes with the text inside and
+  connectors bound to the boxes: move a box and the arrows follow. Figma gets real frames and nodes.
+- **Python that reads like the picture.** `users >> lb >> api`, `with d.group("VPC"):`, lists fan
+  out. It is plain Python, so loops, functions and imports build big diagrams from small parts.
+- **Automatic layout.** Four engines (`flex`, `dot`, `elk`, `d2`), nested groups such as an AWS
+  Region, a VPC and its zones, and a way to freeze the result for hand-tuning.
+- **Brand once, render anywhere.** A theme directory holds colours, fonts, styles, icons and chrome.
+- **Thousands of icons.** AWS, GCP, Azure, Kubernetes, OCI, OpenStack and Terrastruct packs download
+  on first use.
+- **Built for reviews.** `spinagram check` catches text overflow, `spinagram serve` previews live,
+  and numbers can come from a facts file with their provenance in every render.
+
+<Cards>
+  <Card title="Getting started" href="./getting-started" description="Install and render your first diagram." />
+  <Card title="Python guide" href="./python" description="Nodes, arrows, groups and rendering." />
+  <Card title="Automatic layout" href="./auto-layout" description="Groups, engines and hand-tuning." />
+  <Card title="Icon packs" href="./icons" description="AWS, GCP, Azure, Kubernetes and more." />
+</Cards>

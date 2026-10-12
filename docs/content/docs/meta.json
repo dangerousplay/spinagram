@@ -1,0 +1,25 @@
+{
+  "title": "spinagram",
+  "pages": [
+    "index",
+    "getting-started",
+    "---Write diagrams---",
+    "python",
+    "auto-layout",
+    "manual-layout",
+    "yaml",
+    "---Make them yours---",
+    "icons",
+    "themes",
+    "facts",
+    "---Outputs---",
+    "outputs",
+    "figma",
+    "---Tools---",
+    "cli",
+    "live-ui",
+    "---Reference---",
+    "extending",
+    "development"
+  ]
+}

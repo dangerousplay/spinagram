@@ -1,9 +1,0 @@
-:root, [data-md-color-scheme="default"], [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #2563EB;
-  --md-primary-fg-color--light: #60A5FA;
-  --md-primary-fg-color--dark: #1E40AF;
-  --md-accent-fg-color: #1E40AF;
-}
-[data-md-color-scheme="slate"] { --md-accent-fg-color: #93C5FD; }
-/* rendered diagrams are white slides: keep them readable on the dark scheme */
-.md-typeset img[src$=".svg"]:not(.md-logo img) { border-radius: 8px; }

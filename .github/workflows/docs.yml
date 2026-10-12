@@ -15,18 +15,24 @@ concurrency:
 
 jobs:
   build:
-    name: Build site (MkDocs)
+    name: Build site (Fumadocs)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: "0.10.4"
-          enable-cache: true
-      - run: uv run --locked --only-group docs mkdocs build --strict
+          bun-version: "1.4.2"
+      - run: bun install --frozen-lockfile
+      - name: Static export with the search index
+        run: bun run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /spinagram # served at https://dangerousplay.github.io/spinagram/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site/
+          path: docs/out/
 
   deploy:
     name: Deploy to GitHub Pages
