@@ -197,8 +197,10 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-12
 
 **Done when**:
-- [ ] Figma JS options asserted; script runs on the mock API
-- [ ] Build gate passes
+- [x] Figma JS options asserted; script runs on the mock API
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
+**Status**: ✅ Complete
+

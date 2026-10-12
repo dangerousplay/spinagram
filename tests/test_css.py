@@ -428,3 +428,31 @@ def test_pptx_warns_for_markers_it_cannot_draw(tmp_path):  # CSS-13
     msgs = [str(r.message) for r in rec]
     assert any("pptx" in m and "marker-end" in m and "open-diamond" in m for m in msgs)
     assert any("pptx" in m and "marker-start" in m and "bar" in m for m in msgs)
+
+
+# T9: Figma --------------------------------------------------------------------------------------
+import json as _json  # noqa: E402
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+from spinagram.backends.figma import FigmaBackend  # noqa: E402
+
+
+def test_figma_renders_style_properties(tmp_path):  # CSS-12 (Figma)
+    sc = scenes([_styled()])[0]
+    files = [p for p in FigmaBackend().render([sc], tmp_path) if p.suffix == ".js"]
+    js = "\n".join(p.read_text() for p in files)
+    m = re.search(r'rect\("api", [-\d.]+, [-\d.]+, [-\d.]+, [-\d.]+, (\{.*?\})\);', js)
+    o = _json.loads(m.group(1))
+    assert o["fill"] == "#FEE2E2" and o["stroke"] == "#DC2626" and o["sw"] == 5 and o["radius"] == 4
+    assert o["shadow"] == {"x": 2, "y": 4, "blur": 8, "color": "#000000", "a": 0.3}
+    edge = re.search(r'await vec\("e0", [-\d.]+, [-\d.]+, (\{.*?\}), (\{.*?\})\);', js)
+    net, eo = _json.loads(edge.group(1)), _json.loads(edge.group(2))
+    assert eo["dashes"] == [6, 4] and eo["stroke"] == "#F59E0B" and eo["sw"] == 2
+    assert net["vertices"][-1]["strokeCap"] == "DIAMOND_FILLED" and net["vertices"][0]["strokeCap"] == "CIRCLE_FILLED"
+    node = shutil.which("node") or shutil.which("bun")
+    if node:
+        mock = Path(__file__).parent / "js" / "figma_mock.mjs"
+        for f in files:
+            r = subprocess.run([node, str(mock), str(f)], capture_output=True, text=True)
+            assert r.returncode == 0, r.stderr
