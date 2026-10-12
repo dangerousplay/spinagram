@@ -130,11 +130,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-03
 
 **Done when**:
-- [ ] `prstGeom` per kind asserted; `final` is a group of two ovals; text frames present for titled symbols
-- [ ] Gate passes
+- [x] `prstGeom` per kind asserted; `final` is a group of two ovals; text frames present for titled symbols
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T6: Figma symbols
 

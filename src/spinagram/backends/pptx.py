@@ -21,6 +21,7 @@ import warnings
 from pathlib import Path
 from typing import Sequence
 
+from .. import shapes
 from ..scene import Connector, Image, Label, Line, Scene, Shape, TableGrid, Text, TextBlock
 
 EMU = 6350
@@ -235,6 +236,8 @@ class _Slide:
             ic = s.icon
             self.picture(group.shapes, ic.path, ic.x, ic.y, ic.size, ic.size, f"{s.id} icon")
             return sh
+        if s.parts:
+            return self.symbol(s, target)
         kind = {"diamond": MSO_SHAPE.DIAMOND}.get(s.kind)
         if kind is None:
             kind = MSO_SHAPE.ROUNDED_RECTANGLE if s.radius else MSO_SHAPE.RECTANGLE
@@ -252,6 +255,64 @@ class _Slide:
         self._no_shadow(sh)
         if s.label:
             self._text_frame(sh, s, s.label, prewrapped=s.kind in ("diamond", "pill"))
+        self.shapes[s.id] = sh
+        return sh
+
+    def _paint(self, sh, s: Shape, paint: str) -> None:
+        if paint == "stroke":
+            sh.fill.background()
+        else:
+            color = s.stroke if paint == "solid" else s.fill
+            if color:
+                sh.fill.solid()
+                fill = _blend(color, self.scene.background, s.opacity) if s.opacity < 1 else color
+                sh.fill.fore_color.rgb = _rgb(fill)
+            else:
+                sh.fill.background()
+        self._line(sh, s.stroke, s.stroke_width, s.dashed)
+        self._no_shadow(sh)
+
+    def symbol(self, s: Shape, target) -> object:
+        """Behavior symbol: preset geometry, a group of natives for multi-part symbols, else a freeform."""
+        from pptx.enum.shapes import MSO_SHAPE
+
+        plan = shapes.pptx_plan(s.kind)
+        if plan == "group":  # final: ring + dot
+            group = target.add_group_shape()
+            group.name = f"{s.id} (group)"
+            for part, scale in zip(s.parts, (0.92, 0.6)):
+                r = min(s.w, s.h) / 2 * scale
+                cx, cy = s.x + s.w / 2, s.y + s.h / 2
+                sh = group.shapes.add_shape(MSO_SHAPE.OVAL, _e(cx - r), _e(cy - r), _e(2 * r), _e(2 * r))
+                sh.name = f"{s.id} {part.paint}"
+                self._paint(sh, s, part.paint)
+            self.shapes[s.id] = group
+            return group
+        if plan == "freeform":
+            pts = []
+            for sub in shapes.parse(s.parts[0].d):
+                pts.append(sub.start)
+                for cmd, ps in sub.segments:
+                    if cmd == "L":
+                        pts += ps
+                    else:  # flatten cubic segments
+                        (x0, y0), ((x1, y1), (x2, y2), (x3, y3)) = pts[-1], ps
+                        for k in range(1, 9):
+                            t = k / 8
+                            pts.append(((1 - t) ** 3 * x0 + 3 * (1 - t) ** 2 * t * x1 + 3 * (1 - t) * t * t * x2
+                                        + t ** 3 * x3, (1 - t) ** 3 * y0 + 3 * (1 - t) ** 2 * t * y1
+                                        + 3 * (1 - t) * t * t * y2 + t ** 3 * y3))
+            fb = target.build_freeform(_e(pts[0][0]), _e(pts[0][1]), scale=1.0)
+            fb.add_line_segments([(_e(x), _e(y)) for x, y in pts[1:]], close=True)
+            sh = fb.convert_to_shape()
+        else:
+            sh = target.add_shape(getattr(MSO_SHAPE, plan), _e(s.x), _e(s.y), _e(s.w), _e(s.h))
+            if plan == "ROUNDED_RECTANGLE":
+                sh.adjustments[0] = min(0.5, {"state": 18, "action": 22}.get(s.kind, 18) / max(1.0, min(s.w, s.h)))
+        sh.name = s.id
+        self._paint(sh, s, s.parts[0].paint)
+        if s.label:
+            self._text_frame(sh, s, s.label, prewrapped=False)
         self.shapes[s.id] = sh
         return sh
 

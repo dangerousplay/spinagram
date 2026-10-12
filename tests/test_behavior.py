@@ -169,3 +169,45 @@ def test_svg_draws_every_part_with_its_paint():  # BHV-02
                 assert 'fill="none"' in el and f'stroke="{s.stroke}"' in el
             else:
                 assert f'fill="{s.fill}"' in el and f'stroke="{s.stroke}"' in el
+
+
+# T5: PowerPoint ---------------------------------------------------------------------------------
+PRST = {"terminator": "flowChartTerminator", "process": "rect", "decision": "diamond", "io": "flowChartInputOutput",
+        "document": "flowChartDocument", "predefined": "flowChartPredefinedProcess", "data": "can",
+        "connector": "ellipse", "initial": "ellipse", "flow_final": "flowChartSummingJunction", "fork": "rect",
+        "join": "rect", "merge": "diamond", "choice": "diamond", "history": "ellipse", "deep_history": "ellipse",
+        "state": "roundRect", "action": "roundRect", "object": "rect", "signal_send": "homePlate"}
+
+
+def _pptx_shapes(tmp_path):
+    pptx = pytest.importorskip("pptx")
+    from spinagram import render
+    render([_all_kinds_diagram()], tmp_path, formats=["pptx"])
+    slide = pptx.Presentation(str(tmp_path / "diagrams.pptx")).slides[0]
+    return {sh.name: sh for sh in slide.shapes}
+
+
+def test_pptx_uses_preset_geometry_per_kind(tmp_path):  # BHV-03
+    by_name = _pptx_shapes(tmp_path)
+    for kind, prst in PRST.items():
+        geom = by_name[kind]._element.spPr.find(
+            "{http://schemas.openxmlformats.org/drawingml/2006/main}prstGeom")
+        assert geom is not None and geom.get("prst") == prst, kind
+
+
+def test_pptx_final_is_a_group_of_two_ovals(tmp_path):  # BHV-03
+    grp = _pptx_shapes(tmp_path)["final (group)"]
+    prsts = [s._element.spPr.prstGeom.get("prst") for s in grp.shapes]
+    assert prsts == ["ellipse", "ellipse"]
+
+
+def test_pptx_signal_receive_is_a_freeform_with_text(tmp_path):  # BHV-03
+    sh = _pptx_shapes(tmp_path)["signal_receive"]
+    assert sh._element.spPr.find("{http://schemas.openxmlformats.org/drawingml/2006/main}custGeom") is not None
+    assert sh.text_frame.text == "Signal Receive"
+
+
+def test_pptx_text_inside_titled_symbols(tmp_path):  # BHV-03
+    by_name = _pptx_shapes(tmp_path)
+    assert by_name["state"].text_frame.text == "State"
+    assert by_name["history"].text_frame.text == "H"
