@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `inline (pack YAML only; see spec assumptions)`
-**Status**: In Progress
+**Status**: Done
 
 ---
 
@@ -227,8 +227,8 @@ T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] `selfhosted:nginx-pm` resolves to nginx-proxy-manager in the real cache; docs updated
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] `selfhosted:nginx-pm` resolves to nginx-proxy-manager in the real cache; docs updated
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: none
 **Gate**: build

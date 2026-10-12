@@ -20,7 +20,7 @@ selfhosted:
     nsx: vmware-nsx
     pihole: pi-hole
     hass: home-assistant
-    npm: nginx-proxy-manager
+    nginx-pm: nginx-proxy-manager   # not `npm`: upstream has its own npm logo
     omv: openmediavault
     xcpng: xcp-ng
     wg: wireguard
