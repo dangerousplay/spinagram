@@ -79,11 +79,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-05
 
 **Done when**:
-- [ ] Untitled pseudostates get theme symbol sizes; titled symbols fit their text inside the text box
-- [ ] Gate passes
+- [x] Untitled pseudostates get theme symbol sizes; titled symbols fit their text inside the text box
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T3: Scene symbols
 

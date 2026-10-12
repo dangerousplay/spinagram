@@ -61,3 +61,42 @@ def test_path_parser_round_trip():
     assert subs[0].closed and not subs[1].closed
     assert subs[0].start == (0, 0)
     assert subs[0].segments[1] == ("C", [(10, 5), (5, 10), (0, 10)])
+
+
+# T2: sizing -------------------------------------------------------------------------------------
+from spinagram.autolayout.sizing import auto_size  # noqa: E402
+from spinagram.model import Node  # noqa: E402
+from spinagram.text import measure, wrap_paragraphs  # noqa: E402
+from spinagram.theme import Theme  # noqa: E402
+
+
+def _th():
+    return Theme.load(None)
+
+
+@pytest.mark.parametrize("kind", PSEUDO)
+def test_untitled_pseudostates_use_symbol_sizes(kind):  # BHV-05
+    assert auto_size(Node(id="p", kind=kind), _th()) == shapes.fixed_size(kind)
+
+
+def test_vertical_fork_for_horizontal_flows():  # BHV-05
+    assert auto_size(Node(id="f", kind="fork", extra={"orient": "v"}), _th()) == (8, 140)
+
+
+@pytest.mark.parametrize("kind", ["terminator", "process", "io", "document", "data", "state", "action",
+                                  "object", "signal_send", "signal_receive", "predefined", "decision"])
+def test_titled_symbols_fit_their_text_box(kind):  # BHV-02 text inside shape
+    th = _th()
+    n = Node(id="s", kind=kind, title="Validate payment details", text="Checks card, address and fraud score")
+    w, h = auto_size(n, th)
+    tx, ty, tw, tht = shapes.text_box(kind, 0, 0, w, h)
+    nd = th.defaults("node")
+    tf = th.font("heading", 700, nd.get("title_size", 24))
+    bf = th.font("body", 400, nd.get("body_size", 18))
+    avail = tw - 2 * 12
+    lines_t = wrap_paragraphs([n.title], tf, avail)
+    lines_b = wrap_paragraphs([n.text], bf, avail)
+    assert all(measure(t, tf) <= avail + 1 for t in lines_t)
+    total = len(lines_t) * tf.size * nd.get("title_leading", 1.15) + len(lines_b) * bf.size * nd.get(
+        "body_leading", 1.32) + nd.get("title_body_gap", 10)
+    assert total <= tht - 2 * 12 + 1
