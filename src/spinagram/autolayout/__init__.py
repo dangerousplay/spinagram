@@ -122,10 +122,10 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
                     owner_top[k] = t
                     nxt.append(k)
             cur = nxt
-    order = lay.get("order") or _rank_order(tops, owner_top, d)
+    order = lay.get("order") or (tops if lay.get("lanes") else _rank_order(tops, owner_top, d))  # lanes keep their order
     root = LGroup("__root__", [build(i) if i in by_group else LNode(i, nodes[i].w, nodes[i].h, nodes[i].kind)
                                  for i in order],
-                  hints={k: lay[k] for k in ("columns", "align") if k in lay})
+                  hints={k: lay[k] for k in ("columns", "align", "lanes") if k in lay})
     edges, loops = [], []
     for i, e in enumerate(d.edges):
         a, b = _node_id(e.src)[0], _node_id(e.dst)[0]

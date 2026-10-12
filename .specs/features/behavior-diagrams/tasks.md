@@ -198,11 +198,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-18..22, BHV-34
 
 **Done when**:
-- [ ] Fulfilment fixture: lane membership, fork/join wiring, implicit sequence edges, empty lane drawn
-- [ ] Gate passes
+- [x] Fulfilment fixture: lane membership, fork/join wiring, implicit sequence edges, empty lane drawn
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T10: Typed regions in any diagram
 

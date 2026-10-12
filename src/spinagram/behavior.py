@@ -44,7 +44,11 @@ class _Verbs:
 
     def _add(self, kind: str, title: Any = None, **kw: Any) -> Node:
         with self._scope():
-            return self._d.add(kind, title, **kw)
+            n = self._d.add(kind, title, **kw)
+        collect = getattr(self, "_collect", None)
+        if collect:
+            collect[-1].append((n, n))
+        return n
 
     def _once(self, key: str, kind: str, title: Any = None, **kw: Any) -> Node:
         """One pseudostate per scope (``sm.initial``, ``sm.final``)."""
@@ -118,6 +122,126 @@ class _StateVerbs(_Verbs):
         return self._once("final", "final")
 
 
+class _Parallel:
+    """``with act.parallel() as p:`` — a fork, branches opened with ``p.branch()``, and a join on exit."""
+
+    def __init__(self, act: "_ActivityVerbs") -> None:
+        self._act = act
+        self.fork: Node | None = None
+        self.join: Node | None = None
+        self._branches: list[list[tuple[Node, Node]]] = []
+
+    @contextmanager
+    def branch(self) -> Iterator[None]:
+        units: list[tuple[Node, Node]] = []
+        self._act._collect.append(units)
+        try:
+            yield
+        finally:
+            self._act._collect.pop()
+            _chain_units(units)
+            if units:
+                self._branches.append(units)
+
+
+def _chain_units(units: list[tuple[Node, Node]]) -> None:
+    for (_, out), (inn, _) in zip(units, units[1:]):
+        out >> inn
+
+
+class _ActivityVerbs(_Verbs):
+    def _bar(self, kind: str) -> Node:
+        extra = {"orient": "v"} if self._direction == "right" else {}
+        with self._scope():
+            return self._d.add(kind, None, **extra)
+
+    def action(self, title: Any, **kw: Any) -> Node:
+        return self._add("action", title, **kw)
+
+    def decision(self, title: Any, **kw: Any) -> Node:
+        return self._add("decision", title, **kw)
+
+    def merge(self, title: Any = None, **kw: Any) -> Node:
+        return self._add("merge", title, **kw)
+
+    def start(self, **kw: Any) -> Node:
+        return self._add("initial", None, **kw)
+
+    def end(self, **kw: Any) -> Node:
+        return self._add("final", None, **kw)
+
+    def flow_end(self, **kw: Any) -> Node:
+        return self._add("flow_final", None, **kw)
+
+    def send(self, title: Any, **kw: Any) -> Node:
+        return self._add("signal_send", title, **kw)
+
+    def receive(self, title: Any, **kw: Any) -> Node:
+        return self._add("signal_receive", title, **kw)
+
+    def object(self, title: Any, **kw: Any) -> Node:
+        return self._add("object", title, **kw)
+
+    @contextmanager
+    def sequence(self) -> Iterator[None]:
+        """Nodes (and parallel blocks) created inside are connected in creation order."""
+        units: list[tuple[Node, Node]] = []
+        self._collect.append(units)
+        try:
+            yield
+        finally:
+            self._collect.pop()
+            _chain_units(units)
+            if units and self._collect:
+                self._collect[-1].append((units[0][0], units[-1][1]))
+
+    @contextmanager
+    def parallel(self) -> Iterator[_Parallel]:
+        p = _Parallel(self)
+        p.fork = self._bar("fork")
+        hold = self._collect
+        self._collect = []  # branches collect their own units
+        try:
+            yield p
+        finally:
+            self._collect = hold
+            p.join = self._bar("join")
+            for units in p._branches:
+                p.fork >> units[0][0]
+                units[-1][1] >> p.join
+            if self._collect:
+                self._collect[-1].append((p.fork, p.join))
+
+    @contextmanager
+    def _lane_cm(self, g: Group) -> Iterator[Group]:
+        d = self._d
+        with self._scope():
+            d._open.append(g)
+            try:
+                yield g
+            finally:
+                d._open.pop()
+
+    def lane(self, title: str, **kw: Any):
+        """Swimlane: ``with act.lane("Customer"):`` puts the nodes created inside into that lane.
+        Re-entering a lane reuses it; calling it without ``with`` just declares it."""
+        d = self._d
+        container = self._group
+        for g in d.groups:
+            if g.style == "lane" and g.label == title and (
+                    container is None and not any(g.id in o.children for o in d.groups)
+                    or container is not None and g.id in container.children):
+                return self._lane_cm(g)
+        if container is None:
+            d.layout = dict(d.layout or {}, lanes=True)
+        else:
+            container.lanes = True
+        kw.setdefault("style", "lane")
+        with self._scope(), d.group(title, **kw) as g:
+            pass
+        return self._lane_cm(g)
+
+
 class _StateScope(_StateVerbs):
     def __init__(self, d: Diagram, group: Group, direction: str) -> None:
         self._bind(d, group, direction)
@@ -145,13 +269,14 @@ class StateMachine(Diagram, _StateVerbs):
         self._bind(self, None, direction)
 
 
-class Activity(Diagram, _FlowVerbs):
+class Activity(Diagram, _ActivityVerbs):
     """An activity diagram (actions, decisions, forks and joins, swimlanes)."""
 
     def __init__(self, id: str, title: str, *, direction: str = "down", **kw: Any) -> None:
         kw.setdefault("layout", _layout(direction))
         super().__init__(id, title, **kw)
         self._bind(self, None, direction)
+        self._collect = []
 
 
 __all__ = ["Activity", "Flowchart", "StateMachine"]

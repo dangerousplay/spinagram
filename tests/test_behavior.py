@@ -414,3 +414,91 @@ def test_edge_labels_keep_group_labels_clear():  # LAY-12 with zones (found rend
             px, py, pw, ph = pill
             bx, by, bw, bh = band
             assert not (px < bx + bw and bx < px + pw and py < by + bh and by < py + ph), e.label
+
+
+# T9: Activity -----------------------------------------------------------------------------------
+def _fulfilment(direction="down"):
+    act = Activity("A1", "Order fulfilment", direction=direction)
+    with act.sequence():
+        with act.lane("Customer"):
+            start = act.start()
+            order = act.action("Place order")
+        with act.lane("Shop"):
+            check = act.action("Check stock")
+            with act.parallel() as par:
+                with par.branch():
+                    pick = act.action("Pick items")
+                    pack = act.action("Pack")
+                with par.branch():
+                    bill = act.action("Send invoice")
+        with act.lane("Warehouse"):
+            ship = act.send("Ship parcel")
+            end = act.end()
+    act.lane("Audit")  # declared, never used
+    slip = act.object("Packing slip")
+    pack >> slip
+    return act, dict(start=start, order=order, check=check, pick=pick, pack=pack, bill=bill, ship=ship, end=end,
+                     par=par, slip=slip)
+
+
+def test_activity_verbs_create_kinds():  # BHV-18, BHV-21
+    act = Activity("A", "x")
+    kinds = [act.action("a").kind, act.decision("d?").kind, act.merge().kind, act.start().kind, act.end().kind,
+             act.flow_end().kind, act.send("s").kind, act.receive("r").kind, act.object("o").kind]
+    assert kinds == ["action", "decision", "merge", "initial", "final", "flow_final", "signal_send",
+                     "signal_receive", "object"]
+
+
+def test_parallel_creates_fork_and_join_around_branches():  # BHV-19
+    act, n = _fulfilment()
+    fork, join = n["par"].fork, n["par"].join
+    assert fork.kind == "fork" and join.kind == "join"
+    pairs = {(e.src, e.dst) for e in act.edges}
+    assert (fork.id, n["pick"].id) in pairs and (fork.id, n["bill"].id) in pairs
+    assert (n["pick"].id, n["pack"].id) in pairs
+    assert (n["pack"].id, join.id) in pairs and (n["bill"].id, join.id) in pairs
+
+
+def test_sequence_connects_units_in_creation_order():  # BHV-22
+    act, n = _fulfilment()
+    pairs = {(e.src, e.dst) for e in act.edges}
+    for a, b in [("start", "order"), ("order", "check"), ("ship", "end")]:
+        assert (n[a].id, n[b].id) in pairs
+    assert (n["check"].id, n["par"].fork.id) in pairs and (n["par"].join.id, n["ship"].id) in pairs
+
+
+def test_lanes_hold_their_nodes_and_lay_out_as_bands():  # BHV-20
+    act, n = _fulfilment()
+    lanes = {g.label: g for g in act.groups if g.style == "lane"}
+    assert list(lanes) == ["Customer", "Shop", "Warehouse", "Audit"]
+    assert n["order"].id in lanes["Customer"].children and n["ship"].id in lanes["Warehouse"].children
+    out = apply_layout(act, _th())
+    zones = {z.label: z for z in out.zones}
+    c, s = zones["Customer"], zones["Shop"]
+    assert c.x + c.w <= s.x + 0.5 and c.y == s.y  # vertical bands side by side for direction down
+    xs = [zones[k].x for k in ("Customer", "Shop", "Warehouse", "Audit")]
+    assert xs == sorted(xs)  # bands in declaration order
+    o = out.node(n["order"].id)
+    assert c.x <= o.x and o.x + o.w <= c.x + c.w
+
+
+def test_horizontal_lanes_for_direction_right():  # BHV-20
+    act, n = _fulfilment("right")
+    out = apply_layout(act, _th())
+    zones = {z.label: z for z in out.zones}
+    c, s = zones["Customer"], zones["Shop"]
+    assert c.y + c.h <= s.y + 0.5 and c.x == s.x
+    assert out.node(n["par"].fork.id).w < out.node(n["par"].fork.id).h  # bars turn vertical
+
+
+def test_object_flows_are_dashed():  # BHV-21
+    act, n = _fulfilment()
+    flow = next(e for e in act.edges if e.dst == n["slip"].id)
+    assert flow.dashed
+
+
+def test_empty_lane_drawn_with_minimum_width():  # BHV-34
+    act, _ = _fulfilment()
+    out = apply_layout(act, _th())
+    audit = next(z for z in out.zones if z.label == "Audit")
+    assert audit.w >= 200

@@ -313,6 +313,10 @@ class Diagram:
         if e.via:
             e.via = [(float(p[0]), float(p[1])) for p in e.via]
         self._check_pseudo(e)
+        kinds = {n.id: n.kind for n in self.nodes}
+        if "dashed" not in kw and "object" in (kinds.get(str(e.src).partition(".")[0]),
+                                              kinds.get(str(e.dst).partition(".")[0])):
+            e.dashed = True  # object flows (UML activity) are dashed
         self.edges.append(e)
         return e
 
