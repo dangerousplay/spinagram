@@ -403,8 +403,15 @@ def _substitute(value: str, custom: dict[str, str]) -> str:
     return value
 
 
-def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = None) -> dict[El, dict[str, dict]]:
-    """Computed style per element and pseudo-element (``""``, ``"title"``, ``"body"``, ``"label"``)."""
+def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = None,
+            trace: dict | None = None) -> dict[El, dict[str, dict]]:
+    """Computed style per element and pseudo-element (``""``, ``"title"``, ``"body"``, ``"label"``).
+
+    With ``trace`` (a dict), also records why: ``trace[el][pseudo] = {"decls": [...], "inherited": [...]}``.
+    Each declaration entry has ``property``, ``value``, ``resolved`` (after ``var()``), ``origin``, ``line``,
+    ``selector``, ``specificity``, ``important`` and ``status`` (``applied``, ``overridden``, ``invalid`` or
+    ``unknown``, the last two with a ``message``), in cascade order (the winner of a property comes last).
+    Inherited entries have ``property``, ``value`` and ``from`` (the key of the element that set it)."""
     warnings = warnings if warnings is not None else []
     out: dict[El, dict[str, dict]] = {}
     warned: set[tuple] = set()
@@ -427,44 +434,71 @@ def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = Non
         found.sort(key=lambda f: f[0])
         return found
 
-    def resolve(el: El, pseudo: str | None, parent_vals: dict, parent_custom: dict) -> tuple[dict, dict]:
+    def resolve(el: El, pseudo: str | None, parent_vals: dict, parent_custom: dict,
+                parent_src: dict) -> tuple[dict, dict, dict]:
         decls = declared(el, pseudo)
         custom = dict(parent_custom)
         for _, d, _, _ in decls:
             if d.name.startswith("--"):
                 custom[d.name] = d.value
         vals = {k: v for k, v in parent_vals.items() if k in INHERITED}
+        src = {k: v for k, v in parent_src.items() if k in vals}
+        rec: list[dict] = []
         for _, d, r, sel in decls:
+            where = f"{r.origin}:{d.line}" if r else f"{el.key or el.id}: inline css"
+            entry = {"property": d.name, "value": d.value, "resolved": d.value,
+                     "origin": r.origin if r else "inline", "line": d.line if r else None,
+                     "selector": sel.text if sel else None, "specificity": list(sel.specificity) if sel else None,
+                     "important": d.important, "status": "applied"}
+            rec.append(entry)
             if d.name.startswith("--"):
                 continue
-            where = f"{r.origin}:{d.line}" if r else f"{el.key or el.id}: inline css"
             if d.name not in PROPS:
                 near = difflib.get_close_matches(d.name, list(PROPS), n=1)
                 hint = f" (did you mean '{near[0]}'?)" if near else ""
                 warn(f"{where}: unknown property '{d.name}'{hint}")
+                entry.update(status="unknown", message=f"unknown property{hint}")
                 continue
             raw = _substitute(d.value, custom)
+            entry["resolved"] = raw
             try:
                 vals[d.name] = PROPS[d.name](raw, theme)
+                src[d.name] = el.key or el.id
             except KeyError:
                 if d.name in COLOUR_PROPS:
                     who = sel.text if sel else (el.key or el.id)
                     raise CssValueError(f"{where}: {who}: cannot resolve colour {raw!r}") from None
                 warn(f"{where}: invalid value {raw!r} for '{d.name}'")
+                entry.update(status="invalid", message=f"invalid value {raw!r}")
             except ValueError as exc:
                 warn(f"{where}: '{d.name}: {raw}' ignored — {exc}")
-        return vals, custom
+                entry.update(status="invalid", message=str(exc))
+        if trace is not None:
+            winner: dict[str, dict] = {}
+            for entry in rec:
+                if entry["status"] == "applied":
+                    if entry["property"] in winner:
+                        winner[entry["property"]]["status"] = "overridden"
+                    winner[entry["property"]] = entry
+            inherited = [{"property": k, "value": _jsonable(v), "from": src.get(k)}
+                         for k, v in vals.items() if k not in winner and k in parent_vals]
+            trace.setdefault(el, {})[pseudo or ""] = {"decls": rec, "inherited": inherited}
+        return vals, custom, src
 
-    def walk(el: El, parent_vals: dict, parent_custom: dict) -> None:
-        vals, custom = resolve(el, None, parent_vals, parent_custom)
+    def walk(el: El, parent_vals: dict, parent_custom: dict, parent_src: dict) -> None:
+        vals, custom, src = resolve(el, None, parent_vals, parent_custom, parent_src)
         out[el] = {"": vals}
         for pe in ("title", "body", "label"):
-            out[el][pe] = resolve(el, pe, vals, custom)[0]
+            out[el][pe] = resolve(el, pe, vals, custom, src)[0]
         for c in el.children:
-            walk(c, vals, custom)
+            walk(c, vals, custom, src)
 
-    walk(root, {}, {})
+    walk(root, {}, {}, {})
     return out
+
+
+def _jsonable(v: Any) -> Any:
+    return [_jsonable(x) for x in v] if isinstance(v, (list, tuple)) else v
 
 
 def _inline(text: str) -> list[Decl]:
