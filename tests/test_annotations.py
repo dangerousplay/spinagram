@@ -841,3 +841,118 @@ def test_quote_keeps_explicit_css_sizes():  # ANN-27 with CSS sizes
     d.css = "note.quote::body { font-size: 40px } note.quote::title { font-size: 20px }"
     body, attribution = _by_id(build_scene(d, Theme.load("default")).items)["author"].label.blocks
     assert (body.font.size, attribution.font.size) == (40, 20)
+
+
+# T18 · verifier gaps --------------------------------------------------------------------------------
+def test_css_reaches_the_drawn_legend_badges_and_callouts():  # ANN-31, ANN-32, ANN-33
+    from spinagram.layout import build_scene
+
+    d, theme = _styled()
+    items = _by_id(build_scene(d, theme).items)
+    card = items["legend"]
+    assert (card.fill, card.stroke, card.radius) == ("#111827", "#374151", 4) and card.shadow is not None
+    assert items["legend-title"].block.color == "#F9FAFB"
+    for k in ("step-0-badge", "step-1-badge", "steps-0-badge", "steps-1-badge"):
+        b = items[k]
+        assert (b.fill, b.stroke, b.label.blocks[0].color) == ("#7C3AED", "#4C1D95", "#FFFFFF"), k
+    assert (items["callout-0"].fill, items["callout-0"].stroke) == ("#FEF3C7", "#B45309")
+    assert items["callout-0"].label.blocks[-1].color == "#92400E"
+    assert items["callout-1"].fill != "#FEF3C7"  # a tip, not a warning
+
+
+def test_callout_avoids_the_legend_panel():  # ANN-22 (panels are obstacles)
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    d = Diagram("C3", "Near the band")
+    d.box("Target", x=1080, y=200, w=200, h=100)
+    d.box("Far", x=100, y=600, w=200, h=100)
+    d.add_legend({"style:default": "Box"})
+    d.callout("target", "beside the legend")
+    items = _by_id(build_scene(d, Theme.load("default")).items)
+    bubble, card, node = items["callout-0"], items["legend"], items["target"]
+    assert not _overlap((bubble.x, bubble.y, bubble.w, bubble.h), (card.x, card.y, card.w, card.h))
+    assert _side(bubble, node) == "bottom"  # top leaves the area, right runs into the legend
+
+
+def test_callout_avoids_zones_that_do_not_contain_its_node():  # ANN-22 (zones are obstacles)
+    d = _target()
+    d.zone("Busy", x=700, y=330, w=520, h=170)
+    d.callout("target", "not on the zone")
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    items = _by_id(build_scene(d, Theme.load("default")).items)
+    zone = (700, 330, 520, 170)
+    bubble = items["callout-0"]
+    assert not _overlap((bubble.x, bubble.y, bubble.w, bubble.h), zone)
+    assert _side(bubble, items["target"]) == "right"
+
+
+def test_bottom_band_is_legend_height_plus_gap_and_spans_the_area():  # ANN-09, ANN-10
+    from spinagram.annotate import legend_entries, legend_height, legend_rows
+    from spinagram.autolayout import _area
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _wide()
+    d.add_legend(position="bottom")
+    ax, ay, aw, ah = _area(d, t, reserve=False)
+    legend_h = legend_height(legend_rows(legend_entries(d), aw, t, columns=0), t)
+    assert _area(d, t) == (ax, ay, aw, ah - (legend_h + 32))
+    card = _by_id(build_scene(d, t).items)["legend"]
+    assert (card.x, card.w, card.h) == (ax, aw, legend_h)
+    assert card.y + card.h == ay + ah  # the band sits on the area's bottom edge
+
+
+def test_bottom_band_shares_the_width_with_steps():  # ANN-09, ANN-10
+    from spinagram.autolayout import _area
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _wide()
+    d.add_legend(position="bottom")
+    d.step("go", on="node-0")
+    ax, ay, aw, ah = _area(d, t, reserve=False)
+    items = _by_id(build_scene(d, t).items)
+    assert (items["legend"].x, items["legend"].w) == (ax, aw - 360 - 32)
+    assert (items["steps"].x, items["steps"].w) == (ax + aw - 360, 360)
+
+
+def test_overflow_reports_the_exact_excess():  # ANN-11
+    from spinagram.annotate import steps_height
+    from spinagram.autolayout import _area
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _panel_diagram()
+    for k in range(30):
+        d.step(f"Step {k} does something long enough to wrap onto a second line in the panel", on="a")
+    ah = _area(d, t, reserve=False)[3]
+    excess = round(steps_height(d, 360, t) - ah)
+    assert excess > 0
+    assert f"P1:annotations: overflow — panels exceed the band by {excess}px" in _issues(d)
+
+
+def test_step_on_a_pair_takes_the_first_parallel_edge(tmp_path):  # ANN-19
+    d = Diagram("F1", "Parallel")
+    a, b = d.box("A"), d.box("B")
+    d.edge(b, a, "back")
+    d.edge(a, b, "first")
+    d.edge(a, b, "second")
+    assert d.step("x", on=(a, b)).edge == 1
+    spec = ("id: F2\ntitle: Parallel\nnodes: [{id: a, title: A}, {id: b, title: B}]\n"
+            "edges: ['b -> a: back', 'a -> b: first', 'a -> b: second']\n"
+            "annotations:\n  steps: [{'on': 'a -> b', text: x}]\n")
+    assert _load(tmp_path, spec).annotations.steps[0].edge == 1
+
+
+def test_unused_legend_entry_is_drawn_from_the_theme_default():  # ANN-03
+    d = _panel_diagram()
+    d.add_legend({".ghost": "Nothing"})
+    b, shapes, conns, ann, t = _parts(d)
+    sw = _by_id(ann.panels(conns))["legend-0-swatch"]
+    st = t.node_style(None)
+    assert (sw.fill, sw.stroke) == (st["fill"], st["stroke"])

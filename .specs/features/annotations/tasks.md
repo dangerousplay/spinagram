@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/annotations/design.md`
-**Status**: Done
+**Status**: In Progress
 
 ---
 
@@ -62,7 +62,7 @@ T13
 ### Phase 5: Showcase and docs
 
 ```
-T14 → T15 → T16 → T17
+T14 → T15 → T16 → T17 → T18 → T19
 ```
 
 ---
@@ -468,6 +468,52 @@ T14 → T15 → T16 → T17
 
 ---
 
+### T18: Close verifier test gaps (iteration 1)
+
+**What**: Tests pin CSS on drawn annotations, callout avoidance of panels and zones, bottom band size and width, the exact overflow excess, first-of-parallel edges, and unused-entry defaults.
+**Where**: `tests/test_annotations.py`
+**Depends on**: T17
+**Reuses**: existing helpers
+**Requirement**: ANN-03, ANN-09, ANN-10, ANN-11, ANN-19, ANN-22, ANN-31, ANN-32
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] each surviving mutant (M07, M21, M35-M40) has a test that fails on it
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
+### T19: Pin legend entry order in the spec (verifier spec-precision gap)
+
+**What**: ANN-01 states that node entries come first, in node order, then edge entries in edge order.
+**Where**: `.specs/features/annotations/spec.md`
+**Depends on**: T18
+**Reuses**: none
+**Requirement**: ANN-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] ANN-01 wording amended; existing test asserts that order
+- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+
+**Tests**: none
+**Gate**: build
+
+---
+
 ## Diagram-Definition Cross-Check
 
 | Task | Depends On (task body) | Diagram Shows | Status |
@@ -489,6 +535,8 @@ T14 → T15 → T16 → T17
 | T15 | T14 | T14 → T15 | ✅ |
 | T16 | T15 | T15 → T16 | ✅ |
 | T17 | T16 | T16 → T17 | ✅ |
+| T18 | T17 | T17 → T18 | ✅ |
+| T19 | T18 | T18 → T19 | ✅ |
 
 ## Test Co-location Validation
 
@@ -511,3 +559,5 @@ T14 → T15 → T16 → T17
 | T15 | Config/showcase/docs | none | none | ✅ |
 | T16 | Config/showcase/docs | none | none | ✅ |
 | T17 | Config/showcase/docs | none | none | ✅ |
+| T18 | Model/annotate/qa | unit | unit | ✅ |
+| T19 | Config/showcase/docs | none | none | ✅ |
