@@ -135,6 +135,8 @@ All notable changes to spinagram are listed here. The format follows
 ### Build and CI
 
 - **deps:** Add tinycss2 for stylesheet parsing ([c9e6b74](https://github.com/dangerousplay/spinagram/commit/c9e6b74e1c9f85e67cd77161ba9817e49d412f90))
+- **release:** Generate the changelog and release notes with git-cliff ([557bb5d](https://github.com/dangerousplay/spinagram/commit/557bb5d79548a072a1ef056d7c5a5f7387070c63))
+- License spinagram under MIT ([7273a6a](https://github.com/dangerousplay/spinagram/commit/7273a6ac892ef6724323d702691d493321a4f307))
 
 ### Other
 
