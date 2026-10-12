@@ -93,3 +93,68 @@ def test_note_variants_are_validated():  # ANN-29
     assert "variant" not in d.note("Plain").extra
     with pytest.raises(ValueError, match="sticky, card, quote"):
         d.note("Bad", variant="banner")
+
+
+# T2 · YAML -------------------------------------------------------------------------------------------
+SPEC = """id: Y1
+title: Flow
+nodes:
+  - {id: users, title: Users}
+  - {id: api, title: API}
+  - {id: db, title: DB}
+  - {id: why, kind: note, variant: quote, title: Why}
+edges: ["users -> api: HTTPS", "api.bottom -> db.top"]
+annotations:
+  legend: {title: Key, position: bottom, items: {".hot": Hot path}}
+  steps:
+    - {on: "users -> api", text: Users call the API}
+    - {on: "api -> db", text: The API reads}
+    - {on: db, n: 9, text: Stored}
+  callouts:
+    - {on: db, text: Nightly backup, title: Backup, kind: tip, side: left, class: quiet}
+"""
+
+
+def _load(tmp_path, text):
+    from spinagram.yaml_io import load
+
+    (tmp_path / "s.yaml").write_text(text)
+    return load(tmp_path / "s.yaml")[0]
+
+
+def test_yaml_annotations_load(tmp_path):  # ANN-19, ANN-02, ANN-29
+    d = _load(tmp_path, SPEC)
+    a = d.annotations
+    assert (a.legend.title, a.legend.position, a.legend.items) == ("Key", "bottom", {".hot": "Hot path"})
+    assert [(s.n, s.text, s.edge, s.node) for s in a.steps] == [
+        (1, "Users call the API", 0, None), (2, "The API reads", 1, None), (9, "Stored", None, "db")]
+    c = a.callouts[0]
+    assert (c.target, c.text, c.title, c.kind, c.side, c.cls) == ("db", "Nightly backup", "Backup", "tip", "left",
+                                                                 "quiet")
+    assert d.node("why").extra["variant"] == "quote"
+
+
+@pytest.mark.parametrize("bad, message", [
+    ('    - {on: "db -> users", text: x}\n', "no edge from 'db' to 'users'"),
+    ("    - {on: ghost, text: x}\n", "unknown node 'ghost'"),
+])
+def test_yaml_step_reference_must_exist(tmp_path, bad, message):  # ANN-19
+    text = SPEC.replace('    - {on: db, n: 9, text: Stored}\n', bad)
+    with pytest.raises(ValueError, match=message):
+        _load(tmp_path, text)
+
+
+def test_yaml_invalid_variant_and_kind(tmp_path):  # ANN-29, ANN-25
+    with pytest.raises(ValueError, match="sticky, card, quote"):
+        _load(tmp_path, SPEC.replace("variant: quote", "variant: banner"))
+    with pytest.raises(ValueError, match="info, tip, warning, risk"):
+        _load(tmp_path, SPEC.replace("kind: tip", "kind: danger"))
+
+
+def test_yaml_annotations_round_trip(tmp_path):
+    from spinagram.yaml_io import dump, from_dict
+
+    d = _load(tmp_path, SPEC)
+    again = from_dict(dump(d))
+    assert again.annotations == d.annotations
+    assert again.node("why").extra["variant"] == "quote"

@@ -108,9 +108,9 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] `on: "a -> b"` attaches to the first a→b edge; unknown reference fails naming it
-- [ ] round-trip through `dump` keeps annotations
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] `on: "a -> b"` attaches to the first a→b edge; unknown reference fails naming it
+- [x] round-trip through `dump` keeps annotations
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

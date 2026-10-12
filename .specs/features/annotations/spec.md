@@ -198,7 +198,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-16 | P1: Steps - duplicate check | Tasks | Pending |
 | ANN-17 | P1: Steps - panel order and badges | Tasks | Pending |
 | ANN-18 | P1: Steps - badge beside label | Tasks | Pending |
-| ANN-19 | P1: Steps - YAML references | Tasks | Pending |
+| ANN-19 | P1: Steps - YAML references | Tasks | Implementing |
 | ANN-20 | P1: Callouts - bubble and leader | Tasks | Pending |
 | ANN-21 | P1: Callouts - kind colour and glyph | Tasks | Pending |
 | ANN-22 | P1: Callouts - auto side | Tasks | Pending |
