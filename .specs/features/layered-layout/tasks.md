@@ -32,7 +32,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/layered-layout/design.md`
-**Status**: Done
+**Status**: Done (verification iteration 3 escalated; see validation.md)
 
 **MVP scope**: LAY-01..17, LAY-20..22. Deferred: LAY-18, LAY-19 (P2).
 

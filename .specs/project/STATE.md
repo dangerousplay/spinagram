@@ -21,6 +21,15 @@
   `features/layered-layout/` (built-in pure-Python Sugiyama engine, prerequisite), `features/behavior-diagrams/`
   (specialized builders, embeddable as typed regions in one diagram), `features/css-styling/` (real CSS subset).
   `features/diagram-import/` is parked (spec kept; native shapes and layered layout make it cheaper later).
+- 2026-10-12 · Layered engine (`layered`, pure Python Sugiyama) is the default for Flowchart/StateMachine/Activity
+  and typed regions; `flex` stays the default for plain diagrams. Right-flowing gaps are sized per label.
+  Determinism is pinned by a golden hash across PYTHONHASHSEED 0-9.
+- 2026-10-12 · Behavior symbols: geometry defined once in `spinagram.shapes` (absolute M/L/C/Z paths) and consumed
+  by scene, SVG, PPTX (presets / group / freeform) and Figma (vector networks). Regions are groups with an
+  `engine` hint laid out first and placed as blocks; crossing edges use the obstacle router.
+- 2026-10-12 · CSS: tinycss2 + own selectors/cascade; inline CSS is `css=` (style= keeps naming theme styles and
+  also matches as a class). Cascade: theme.css chain < _defaults stylesheets < diagram sheets/css < inline.
+  Resolved once in `css.prepare` before layout; unstyled diagrams skip it (golden SVG unchanged).
 
 ## Deferred ideas
 - UI: QA panel, export buttons, sample diagram per theme, re-theme current spec, extends diff, icon copy-ref /
@@ -29,6 +38,9 @@
 - PPTX: honour a theme `pptx: {svg: raster}` key (needs theme access in backends).
 - Layout: d2 spacing is looser than dot/elk (example overflows by ~90 px); ELK intra-group layer gap is tight.
 - Layout: edge-label placement by engines; stable layout across edits.
+- Behavior: dashed dividers for orthogonal regions; YAML regions (BHV-27); connectors, interruptible regions.
+- CSS: check --styles trace, live-UI stylesheet reload/inspector, remaining CSS-08..11 properties, gradients.
+- Layout: obstacle router port spreading (two edges into one side share a point); tracks may collapse (F4).
 - Import (parked 2026-10-12): D2/PlantUML spec in `features/diagram-import/`; Mermaid / draw.io / Structurizr frontends; remote icon URLs; PlantUML sprites → icon packs.
 
 ## Lessons

@@ -32,7 +32,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/css-styling/design.md`
-**Status**: In Progress
+**Status**: Done (verification iteration 3 escalated; see validation.md)
 
 **MVP scope**: CSS-01..07, CSS-08 (fill, stroke, stroke-width, stroke-dasharray, border-radius, opacity, box-shadow), CSS-09 (color, font-size, font-weight, font-style), CSS-10 (stroke, stroke-width, stroke-dasharray, opacity, marker-start/end), CSS-12..22, CSS-27, CSS-29, CSS-30. Deferred: CSS-11, CSS-23..26, CSS-28 and the remaining CSS-08..10 properties.
 
