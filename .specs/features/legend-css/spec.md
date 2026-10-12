@@ -89,21 +89,21 @@ whole set of diagrams with one stylesheet cannot move or reshape every legend fr
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| LCSS-01 | P1: Placement - left | Tasks | Implementing |
-| LCSS-02 | P1: Placement - top | Tasks | Implementing |
-| LCSS-03 | P1: Placement - bottom/right | Tasks | Implementing |
-| LCSS-04 | P1: Placement - explicit wins | Tasks | Implementing |
-| LCSS-05 | P1: Placement - invalid value | Tasks | Implementing |
-| LCSS-06 | P1: Placement - area after the band | Tasks | Implementing |
-| LCSS-07 | P1: Size - width | Tasks | Implementing |
-| LCSS-08 | P1: Size - columns | Tasks | Implementing |
-| LCSS-09 | P1: Size - gap | Tasks | Implementing |
-| LCSS-10 | P1: Size - padding | Tasks | Implementing |
-| LCSS-11 | P1: Size - swatch size | Tasks | Implementing |
-| LCSS-12 | P1: Size - label font size | Tasks | Implementing |
-| LCSS-13 | P1: Size - display none | Tasks | Implementing |
-| LCSS-14 | P2: Docs | Tasks | Implementing |
-| LCSS-15 | P2: Showcase | Tasks | Implementing |
+| LCSS-01 | P1: Placement - left | Tasks | Verified |
+| LCSS-02 | P1: Placement - top | Tasks | Verified |
+| LCSS-03 | P1: Placement - bottom/right | Tasks | Verified |
+| LCSS-04 | P1: Placement - explicit wins | Tasks | Verified |
+| LCSS-05 | P1: Placement - invalid value | Tasks | Verified |
+| LCSS-06 | P1: Placement - area after the band | Tasks | Verified |
+| LCSS-07 | P1: Size - width | Tasks | Verified |
+| LCSS-08 | P1: Size - columns | Tasks | Verified |
+| LCSS-09 | P1: Size - gap | Tasks | Verified |
+| LCSS-10 | P1: Size - padding | Tasks | Verified |
+| LCSS-11 | P1: Size - swatch size | Tasks | Verified |
+| LCSS-12 | P1: Size - label font size | Tasks | Verified |
+| LCSS-13 | P1: Size - display none | Tasks | Verified |
+| LCSS-14 | P2: Docs | Tasks | Verified |
+| LCSS-15 | P2: Showcase | Tasks | Verified |
 
 **Coverage:** 15 total, 15 mapped to tasks, 0 unmapped
 

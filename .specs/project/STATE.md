@@ -50,6 +50,9 @@
   the dark-fill variant) and `network` (ecceman/affinity, Unlicense; `name[-colour]`, `-circle`, `-plain`), both pinned
   GitHub sources fetched file by file. Their icons infer the `self-hosted` / `network` catalog tags. See
   `features/selfhosted-icons/`.
+- 2026-10-12 · Legend from CSS: `legend { placement; width; columns; gap; padding; swatch-width; swatch-height;
+  display }` and `legend::body { font-size }` drive the annotation band (right, left, top, bottom); an explicit
+  `add_legend(position=...)` beats the stylesheet like inline style. See `features/legend-css/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
