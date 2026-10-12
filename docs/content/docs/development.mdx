@@ -52,9 +52,16 @@ cp out/Q01-web-app-on-aws.svg docs/public/assets/quickstart.svg
 
 ## Releasing
 
+Commits follow [Conventional Commits](https://www.conventionalcommits.org): `feat`, `fix`, `docs`, `test`,
+`refactor`, `perf`, `build`, `ci`, `chore`. [git-cliff](https://git-cliff.org) turns them into
+`CHANGELOG.md` (configuration in `cliff.toml`).
+
 ```bash
-uv version --bump minor && git commit -am "Release v$(uv version --short)"
+uv version --bump minor
+uvx git-cliff --tag "v$(uv version --short)" -o CHANGELOG.md
+git commit -am "chore(release): v$(uv version --short)"
 git tag "v$(uv version --short)" && git push --follow-tags
 ```
 
-The tag triggers CI, publishes to PyPI with trusted publishing and creates a GitHub release.
+The tag triggers CI, publishes to PyPI with trusted publishing and creates a GitHub release whose notes
+come from git-cliff (`uvx git-cliff --latest --strip header`).

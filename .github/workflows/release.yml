@@ -1,7 +1,9 @@
 name: Release
 
-# Push a tag that matches the version in pyproject.toml:
-#   uv version --bump minor && git commit -am "Release v$(uv version --short)"
+# Push a tag that matches the version in pyproject.toml, with the changelog regenerated for it:
+#   uv version --bump minor
+#   uvx git-cliff --tag "v$(uv version --short)" -o CHANGELOG.md
+#   git commit -am "chore(release): v$(uv version --short)"
 #   git tag "v$(uv version --short)" && git push --follow-tags
 on:
   push:
@@ -26,6 +28,8 @@ jobs:
       contents: write # GitHub release
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # git-cliff reads the whole history and the tags
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.10.4"
@@ -41,7 +45,9 @@ jobs:
           name: dist
           path: dist/
       - run: uv publish --trusted-publishing always
+      - name: Release notes (git-cliff)
+        run: uvx git-cliff@2.14.2 --latest --strip header -o RELEASE_NOTES.md
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
