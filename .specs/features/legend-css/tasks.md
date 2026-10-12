@@ -112,8 +112,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] each property changes the drawn card as specified; left/top cards start at the area edge
-- [ ] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
+- [x] each property changes the drawn card as specified; left/top cards start at the area edge
+- [x] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
 
 **Tests**: unit
 **Gate**: quick

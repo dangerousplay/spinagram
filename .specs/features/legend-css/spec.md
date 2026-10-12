@@ -89,19 +89,19 @@ whole set of diagrams with one stylesheet cannot move or reshape every legend fr
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| LCSS-01 | P1: Placement - left | Tasks | Pending |
-| LCSS-02 | P1: Placement - top | Tasks | Pending |
-| LCSS-03 | P1: Placement - bottom/right | Tasks | Pending |
+| LCSS-01 | P1: Placement - left | Tasks | Implementing |
+| LCSS-02 | P1: Placement - top | Tasks | Implementing |
+| LCSS-03 | P1: Placement - bottom/right | Tasks | Implementing |
 | LCSS-04 | P1: Placement - explicit wins | Tasks | Implementing |
 | LCSS-05 | P1: Placement - invalid value | Tasks | Implementing |
 | LCSS-06 | P1: Placement - area after the band | Tasks | Pending |
-| LCSS-07 | P1: Size - width | Tasks | Pending |
-| LCSS-08 | P1: Size - columns | Tasks | Pending |
-| LCSS-09 | P1: Size - gap | Tasks | Pending |
-| LCSS-10 | P1: Size - padding | Tasks | Pending |
-| LCSS-11 | P1: Size - swatch size | Tasks | Pending |
-| LCSS-12 | P1: Size - label font size | Tasks | Pending |
-| LCSS-13 | P1: Size - display none | Tasks | Pending |
+| LCSS-07 | P1: Size - width | Tasks | Implementing |
+| LCSS-08 | P1: Size - columns | Tasks | Implementing |
+| LCSS-09 | P1: Size - gap | Tasks | Implementing |
+| LCSS-10 | P1: Size - padding | Tasks | Implementing |
+| LCSS-11 | P1: Size - swatch size | Tasks | Implementing |
+| LCSS-12 | P1: Size - label font size | Tasks | Implementing |
+| LCSS-13 | P1: Size - display none | Tasks | Implementing |
 | LCSS-14 | P2: Docs | Tasks | Pending |
 | LCSS-15 | P2: Showcase | Tasks | Pending |
 
