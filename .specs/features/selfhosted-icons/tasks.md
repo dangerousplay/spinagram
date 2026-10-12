@@ -66,8 +66,8 @@ T4 → T5 → T6
 
 **Done when**:
 
-- [ ] classify maps each source layout to the spec name; a fixture tree indexes and resolves every name form and alias
-- [ ] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
+- [x] classify maps each source layout to the spec name; a fixture tree indexes and resolves every name form and alias
+- [x] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
 
 **Tests**: unit
 **Gate**: quick

@@ -118,12 +118,12 @@ firewalls). Authors fall back to generic glyphs or hand-managed files. Two built
 | ICON-04 | P1: Self-hosted - dark file keeps its name | Tasks | Pending |
 | ICON-05 | P1: Self-hosted - aliases | Tasks | Pending |
 | ICON-06 | P1: Self-hosted - dark fill uses dark tone | Tasks | Pending |
-| ICON-07 | P1: Network - registry entry | Tasks | Pending |
-| ICON-08 | P1: Network - square blue default | Tasks | Pending |
-| ICON-09 | P1: Network - square colours | Tasks | Pending |
-| ICON-10 | P1: Network - circles | Tasks | Pending |
-| ICON-11 | P1: Network - plain | Tasks | Pending |
-| ICON-12 | P1: Network - aliases | Tasks | Pending |
+| ICON-07 | P1: Network - registry entry | Tasks | Implementing |
+| ICON-08 | P1: Network - square blue default | Tasks | Implementing |
+| ICON-09 | P1: Network - square colours | Tasks | Implementing |
+| ICON-10 | P1: Network - circles | Tasks | Implementing |
+| ICON-11 | P1: Network - plain | Tasks | Implementing |
+| ICON-12 | P1: Network - aliases | Tasks | Implementing |
 | ICON-13 | P1: Catalog - self-hosted tag | Tasks | Pending |
 | ICON-14 | P1: Catalog - network tag | Tasks | Pending |
 | ICON-15 | P1: Catalog - categories | Tasks | Pending |
