@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: inline (reuses diagram-catalog patterns: `web/src/catalog.ts`, `DiagramsPage.tsx`, `ui/themes.py` previews)
-**Status**: Done
+**Status**: In Progress
 
 ---
 
@@ -40,7 +40,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ### Phase 1: Previews
 
 ```
-T1 → T2 → T3 → T4 → T5 → T6 → T7
+T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9
 ```
 
 ---
@@ -206,6 +206,51 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 ---
 
+### T8: Sorted pack sample in tested logic (Verifier gap 1, iteration 1)
+
+**What**: `packSample` sorts by name then samples; PacksPage calls it.
+**Where**: `web/src/catalog.ts`
+**Depends on**: T7
+**Reuses**: `sampleIcons`
+**Requirement**: PREV-07
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] unsorted input yields the sample of the sorted list; caller's list untouched
+- [x] Gate check passes: `cd web && bun test`
+
+**Tests**: unit
+**Gate**: web
+
+---
+
+### T9: Assert the 422 message (Verifier gap 2, iteration 1)
+
+**What**: The broken-theme thumbnail test asserts the error text names the missing base theme.
+**Where**: `tests/test_ui.py`
+**Depends on**: T8
+**Reuses**: `test_theme_thumbnail_endpoint`
+**Requirement**: PREV-03
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] assertion on the message text; Gate check passes: `uv run pytest tests/test_ui.py -q`
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
 ## Diagram-Definition Cross-Check
 
 | Task | Depends On (task body) | Diagram Shows | Status |
@@ -217,6 +262,8 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 | T5 | T4 | T4 → T5 | ✅ |
 | T6 | T5 | T5 → T6 | ✅ |
 | T7 | T6 | T6 → T7 | ✅ |
+| T8 | T7 | T7 → T8 | ✅ |
+| T9 | T8 | T8 → T9 | ✅ |
 
 ## Test Co-location Validation
 
@@ -229,3 +276,5 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 | T5 | UI component | none | none | ✅ |
 | T6 | UI component | none | none | ✅ |
 | T7 | Docs | none | none | ✅ |
+| T8 | UI pure logic | unit | unit | ✅ |
+| T9 | UI server API | integration | unit | ✅ |

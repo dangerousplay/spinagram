@@ -1,6 +1,6 @@
 // Catalog logic: search, tag filter, sections and recents for diagrams; search, sections and icon samples for
 // themes and packs. Pure functions tested by `bun test` (catalog.test.ts, previews.test.ts).
-import type { DiagramRef, Pack, ThemeEntry } from "./api";
+import type { DiagramRef, Pack, PackIcon, ThemeEntry } from "./api";
 
 export const UNCATEGORISED = "Uncategorised";
 export const MAX_RECENTS = 10;
@@ -104,6 +104,11 @@ export function filterPacks(packs: Pack[], query: string): Pack[] {
 export function sampleIcons<T>(icons: T[], n = 12): T[] {
   if (icons.length <= n) return icons;
   return Array.from({ length: n }, (_, i) => icons[Math.floor((i * icons.length) / n)]);
+}
+
+/** A pack card's icons: ``sampleIcons`` over the pack's icons sorted by name (the API keeps index order). */
+export function packSample(icons: PackIcon[], n = 12): PackIcon[] {
+  return sampleIcons([...icons].sort((a, b) => a.name.localeCompare(b.name)), n);
 }
 
 export type Section<T> = { label: string; items: T[] };

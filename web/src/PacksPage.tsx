@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type Pack, type PackIcon } from "./api";
-import { filterPacks, packSections, sampleIcons } from "./catalog";
+import { filterPacks, packSample, packSections } from "./catalog";
 import { CardSection, CatalogShell, cardClass, NoMatch } from "./CatalogShell";
 import { href } from "./hooks";
 
@@ -42,7 +42,7 @@ function PackCard({ p, rev }: { p: Pack; rev: number }) {
     let live = true;
     api
       .packIcons(p.name)
-      .then((xs) => live && setIcons(sampleIcons([...xs].sort((a, b) => a.name.localeCompare(b.name)))))
+      .then((xs) => live && setIcons(packSample(xs)))
       .catch(() => live && setIcons([]));
     return () => {
       live = false;

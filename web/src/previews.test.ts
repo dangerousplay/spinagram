@@ -1,7 +1,7 @@
 // Theme and pack catalog logic (spec: .specs/features/catalog-previews/spec.md). Run: `bun test`.
 import { describe, expect, test } from "bun:test";
 import type { Pack, ThemeEntry } from "./api";
-import { filterPacks, filterThemes, packSections, sampleIcons, themeSections } from "./catalog";
+import { filterPacks, filterThemes, packSample, packSections, sampleIcons, themeSections } from "./catalog";
 
 const theme = (ref: string, name: string, builtin: boolean, active = false): ThemeEntry => ({
   ref,
@@ -55,6 +55,19 @@ describe("PREV-07 sample icons", () => {
     expect(sampleIcons([1, 2, 3])).toEqual([1, 2, 3]);
     expect(sampleIcons(Array.from({ length: 12 }, (_, i) => i)).length).toBe(12);
     expect(sampleIcons([])).toEqual([]);
+  });
+});
+
+describe("PREV-07 pack sample comes from the sorted icon list", () => {
+  test("icons are sorted by name before sampling", () => {
+    const names = Array.from({ length: 24 }, (_, i) => `icon-${String(i).padStart(2, "0")}`);
+    const shuffled = [...names].reverse().map((name) => ({ name, aliases: [], tones: ["light"], ext: "svg" }));
+    expect(packSample(shuffled).map((i) => i.name)).toEqual(names.filter((_, i) => i % 2 === 0));
+  });
+  test("does not reorder the caller's list", () => {
+    const icons = ["b", "a"].map((name) => ({ name, aliases: [], tones: ["light"], ext: "svg" }));
+    expect(packSample(icons).map((i) => i.name)).toEqual(["a", "b"]);
+    expect(icons.map((i) => i.name)).toEqual(["b", "a"]);
   });
 });
 
