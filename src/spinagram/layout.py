@@ -13,6 +13,7 @@ from . import shapes
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
+from .qa import behavior_issues
 from .scene import (Binding, Cell, Connector, Icon, Image, Label, Line, Scene, Shape, TableGrid, Text,
                     TextBlock)
 from .text import measure, wrap_paragraphs
@@ -387,6 +388,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     resolved, refs, reg = apply_facts(diagram)
     scene = _Builder(resolved, theme).build()
     scene.layout_overflow = diagram.meta.get("layout_overflow")
+    scene.model_issues = behavior_issues(diagram)
     if reg is not None:
         scene.item_facts = refs
         seen: list[str] = []

@@ -232,8 +232,10 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-09, BHV-16, BHV-33
 
 **Done when**:
-- [ ] Exact messages from the spec asserted
-- [ ] Build gate passes
+- [x] Exact messages from the spec asserted
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
+**Status**: ✅ Complete
+

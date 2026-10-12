@@ -588,3 +588,43 @@ def test_builders_exported():
     import spinagram
     assert spinagram.Flowchart is Flowchart and spinagram.StateMachine is StateMachine
     assert spinagram.Activity is Activity
+
+
+# T11: checks ------------------------------------------------------------------------------------
+def _issues(d):
+    return [str(i.detail) for i in check(scenes([d])[0]) if i.kind == "behavior"]
+
+
+def test_decision_with_one_branch_reported():  # BHV-09
+    fc = Flowchart("F", "x")
+    ok = fc.decision("OK?")
+    fc.start() >> ok
+    ok.yes(fc.end())
+    assert _issues(fc) == ["decision ok has 1 outgoing edges (expected ≥ 2)"]
+
+
+def test_region_without_initial_reported():  # BHV-16
+    sm = StateMachine("S", "x")
+    a = sm.state("Idle")
+    with sm.composite("Busy", id="busy") as c:
+        c.state("Working")
+    a >> sm.final
+    msgs = _issues(sm)
+    assert "region S has no initial state" in msgs and "region busy has no initial state" in msgs
+
+
+def test_fork_with_one_branch_reported():  # BHV-33
+    act = Activity("A", "x")
+    with act.sequence():
+        act.start()
+        with act.parallel() as p:
+            with p.branch():
+                act.action("Only")
+        act.end()
+    assert _issues(act) == [f"fork {p.fork.id} has 1 branch"]
+
+
+def test_well_formed_diagrams_have_no_behavior_issues():  # BHV-09/16/33 negative
+    sm, _ = _lifecycle()
+    act, _ = _fulfilment()
+    assert _issues(sm) == [] and _issues(act) == []
