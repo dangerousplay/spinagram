@@ -212,6 +212,38 @@ class Workspace:
         self._cache = {k: v for k, v in self._cache.items() if k[0] not in keys}
         self._geom = {k: v for k, v in self._geom.items() if k[0] not in keys}
 
+    def stylesheet_users(self) -> dict[Path, set[str]]:
+        """Stylesheet files referenced by loaded diagrams (existing or not) → the diagram keys using them."""
+        out: dict[Path, set[str]] = {}
+        with self._lock:
+            for rel, sf in self.files.items():
+                for d in sf.diagrams:
+                    for sheet in d.stylesheets:
+                        if "{" in sheet:
+                            continue  # CSS text, not a file
+                        p = Path(sheet).expanduser()
+                        if not p.is_absolute():
+                            base = Path(d.base_dir) if d.base_dir is not None else Path.cwd()
+                            p = base / p if (base / p).exists() or not p.exists() else p
+                        out.setdefault(p.resolve(), set()).add(self.key(rel, d))
+        return out
+
+    def stylesheets_changed(self, changed: list[Path]) -> list[str]:
+        """Forget renders of the diagrams whose cascade includes a changed stylesheet; returns their keys."""
+        users = self.stylesheet_users()
+        keys = sorted({k for c in changed for k in users.get(c.resolve(), ())})
+        with self._lock:
+            self._drop(keys)
+        return keys
+
+    def watch_dirs(self, theme_roots: list[Path]) -> set[Path]:
+        """Folders to watch: spec folders, the theme chain and folders of stylesheets referenced elsewhere."""
+        dirs = self.spec_dirs() | set(theme_roots)
+        for p in self.stylesheet_users():
+            if not any(p.is_relative_to(d) for d in dirs) and p.parent.is_dir():
+                dirs.add(p.parent)
+        return dirs
+
     def all_keys(self) -> list[str]:
         return [self.key(rel, d) for rel, sf in self.files.items() for d in sf.diagrams]
 

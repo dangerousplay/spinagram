@@ -153,11 +153,13 @@ T8
 **Requirement**: INS-09, INS-10, INS-11, INS-18
 
 **Done when**:
-- [ ] Only diagrams using the saved sheet get events; external folder in targets; deleted sheet errors then recovers
-- [ ] Gate passes
+- [x] Only diagrams using the saved sheet get events; external folder in targets; deleted sheet errors then recovers
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T7: Inspector panel in the SPA
 

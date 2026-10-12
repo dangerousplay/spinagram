@@ -182,32 +182,38 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
 
 
 # watcher ------------------------------------------------------------------------------------------
-def classify(ws: Workspace, roots: list[Path], paths: set[Path]) -> tuple[bool, list[Path]]:
-    """(theme changed, spec-side files changed) for a batch of changed paths."""
-    theme_hit, spec = False, []
+def classify(ws: Workspace, roots: list[Path], paths: set[Path]) -> tuple[bool, list[Path], list[Path]]:
+    """(theme changed, spec-side files changed, stylesheets changed) for a batch of changed paths.
+    A theme's ``theme.css`` counts as a theme change."""
+    theme_hit, spec, sheets = False, [], []
     spec_dirs = ws.spec_dirs()
     for p in paths:
         if any(p.is_relative_to(r) for r in roots):
             theme_hit = True
+        elif p.suffix == ".css":
+            sheets.append(p)
         elif p.parent in spec_dirs and (p.suffix in {".yaml", ".yml", ".py"}):
             spec.append(p)
-    return theme_hit, spec
+    return theme_hit, spec, sheets
 
 
 def apply_changes(ws: Workspace, roots: list[Path], paths: set[Path]) -> list[dict]:
     """Reload what a batch of changes touches; returns the events to publish (sync, for a thread)."""
-    theme_hit, spec = classify(ws, roots, paths)
+    theme_hit, spec, sheets = classify(ws, roots, paths)
     out: list[dict] = []
     if theme_hit:
         ws.reload_theme()
         out.append({"type": "theme", "ref": "active"})
+    keys: list[str] = []
     if spec or theme_hit:
         rescanned = ws.rescan()
         keys = ws.all_keys() if theme_hit else (ws.reload_files(spec) if spec else [])
         if rescanned or keys:
             out.append({"type": "workspace"})  # titles, errors and the file list may have changed
-        if keys:
-            out.append({"type": "diagram", "keys": keys})
+    if sheets and not theme_hit:
+        keys = sorted(set(keys) | set(ws.stylesheets_changed(sheets)))
+    if keys:
+        out.append({"type": "diagram", "keys": keys})
     return out
 
 
@@ -216,13 +222,15 @@ async def watch_loop(ws: Workspace, bus: EventBus, stop: asyncio.Event) -> None:
 
     while not stop.is_set():
         roots = await run_in_threadpool(ws.theme_roots)
-        targets = sorted({str(d) for d in ws.spec_dirs()} | {str(r) for r in roots})
+        dirs = await run_in_threadpool(ws.watch_dirs, roots)
+        targets = sorted(str(d) for d in dirs)
         async for changes in awatch(*targets, stop_event=stop, debounce=150, step=50):
             paths = {Path(p).resolve() for _, p in changes}
             for event in await run_in_threadpool(apply_changes, ws, roots, paths):
                 bus.publish(event)
-            if await run_in_threadpool(ws.theme_roots) != roots:
-                break  # `extends` changed: watch the new chain
+            new_roots = await run_in_threadpool(ws.theme_roots)
+            if new_roots != roots or await run_in_threadpool(ws.watch_dirs, new_roots) != dirs:
+                break  # `extends` or the referenced stylesheet folders changed: watch the new set
 
 
 # entry point --------------------------------------------------------------------------------------

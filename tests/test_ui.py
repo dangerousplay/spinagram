@@ -314,3 +314,67 @@ def test_styles_endpoint_errors(env):  # INS-12
         apply_changes(ws, ws.theme_roots(), {env / "specs" / "one.yaml"})
         assert c.get("/api/diagrams/one.yaml%23D1.styles").status_code == 422
         assert c.get("/api/diagrams/auto.yaml%23AU.styles").json()["styled"] is False
+
+
+def test_saving_a_stylesheet_rerenders_only_its_users(env):  # INS-09
+    specs = env / "specs"
+    (specs / "styled.yaml").write_text(STYLED)
+    (specs / "brand.css").write_text(".critical { fill: #FEE2E2 }")
+    ws = Workspace([specs])
+    svg1, _ = ws.render("styled.yaml#ST")
+    ws.render("one.yaml#D1")
+    (specs / "brand.css").write_text(".critical { fill: #123456 }")
+    events = apply_changes(ws, ws.theme_roots(), {(specs / "brand.css").resolve()})
+    assert events == [{"type": "diagram", "keys": ["styled.yaml#ST"]}]
+    svg2, _ = ws.render("styled.yaml#ST")
+    assert "#FEE2E2" in svg1 and "#123456" in svg2
+    assert apply_changes(ws, ws.theme_roots(), {(specs / "other.css").resolve()}) == []  # nobody uses it
+
+
+def test_external_stylesheet_folder_is_watched(env):  # INS-10
+    specs, shared = env / "specs", env / "shared"
+    shared.mkdir()
+    (shared / "brand.css").write_text(".critical { fill: #FEE2E2 }")
+    (specs / "styled.yaml").write_text(STYLED.replace("[brand.css]", "[../shared/brand.css]"))
+    ws = Workspace([specs])
+    roots = ws.theme_roots()
+    assert shared.resolve() in ws.watch_dirs(roots) and specs.resolve() in ws.watch_dirs(roots)
+    ws.render("styled.yaml#ST")
+    (shared / "brand.css").write_text(".critical { fill: #654321 }")
+    events = apply_changes(ws, roots, {(shared / "brand.css").resolve()})
+    assert events == [{"type": "diagram", "keys": ["styled.yaml#ST"]}]
+    assert "#654321" in ws.render("styled.yaml#ST")[0]
+    (specs / "styled.yaml").write_text(STYLED.replace("stylesheets: [brand.css]\n", ""))
+    apply_changes(ws, roots, {(specs / "styled.yaml").resolve()})
+    assert shared.resolve() not in ws.watch_dirs(roots)                # the set follows the specs
+
+
+def test_theme_css_rerenders_everything(env):  # INS-11
+    theme = env / "brand-theme"
+    theme.mkdir()
+    (theme / "theme.yaml").write_text("extends: default\nname: brand\n")
+    (theme / "theme.css").write_text("node { fill: #FEE2E2 }")
+    ws = Workspace([env / "specs"], theme=str(theme))
+    assert "#FEE2E2" in ws.render("one.yaml#D1")[0]
+    (theme / "theme.css").write_text("node { fill: #ABCDEF }")
+    events = apply_changes(ws, ws.theme_roots(), {(theme / "theme.css").resolve()})
+    assert {"type": "theme", "ref": "active"} in events
+    assert sorted(next(e for e in events if e["type"] == "diagram")["keys"]) == sorted(ws.all_keys())
+    assert "#ABCDEF" in ws.render("one.yaml#D1")[0]
+
+
+def test_deleted_stylesheet_errors_then_recovers(env):  # INS-18
+    from spinagram.ui.workspace import RenderError
+    specs = env / "specs"
+    (specs / "styled.yaml").write_text(STYLED)
+    sheet = specs / "brand.css"
+    sheet.write_text(".critical { fill: #FEE2E2 }")
+    ws = Workspace([specs])
+    ws.render("styled.yaml#ST")
+    sheet.unlink()
+    assert apply_changes(ws, ws.theme_roots(), {sheet.resolve()}) == [{"type": "diagram", "keys": ["styled.yaml#ST"]}]
+    with pytest.raises(RenderError, match="brand.css"):
+        ws.render("styled.yaml#ST")
+    sheet.write_text(".critical { fill: #0A0B0C }")
+    apply_changes(ws, ws.theme_roots(), {sheet.resolve()})
+    assert "#0A0B0C" in ws.render("styled.yaml#ST")[0]
