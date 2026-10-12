@@ -158,3 +158,71 @@ def test_yaml_annotations_round_trip(tmp_path):
     again = from_dict(dump(d))
     assert again.annotations == d.annotations
     assert again.node("why").extra["variant"] == "quote"
+
+
+# T4 · CSS -------------------------------------------------------------------------------------------
+ANN_CSS = """
+legend { fill: #111827; stroke: #374151; border-radius: 4; box-shadow: 0 4px 8px #000000 }
+legend::title { color: #F9FAFB }
+step { fill: #7C3AED; stroke: #4C1D95 }
+step::label { color: #FFFFFF }
+callout.warning { fill: #FEF3C7; stroke: #B45309 }
+callout::title { color: #78350F }
+callout::body { color: #92400E }
+note.card { stroke: #0EA5E9 }
+note.sticky { fill: #FEF9C3 }
+"""
+
+
+def _styled():
+    from spinagram.theme import Theme
+
+    d, users, api, db, e1, e2 = _flow()
+    d.add_legend()
+    d.step("one", on=e1)
+    d.step("two", on=e2)
+    d.callout(api, "careful", kind="warning")
+    d.callout(db, "fine", kind="tip")
+    d.note("Card", variant="card")
+    d.note("Plain")
+    d.css = ANN_CSS
+    return d, Theme.load("default")
+
+
+def test_css_targets_legend_steps_callouts_and_notes():  # ANN-31..34
+    from spinagram import css
+
+    d, theme = _styled()
+    comp, warnings = css.styles(d, theme)
+    assert not warnings
+    assert comp["legend"][""]["fill"] == "#111827" and comp["legend"][""]["border-radius"] == 4
+    assert comp["legend"]["title"]["color"] == "#F9FAFB"
+    for i in (0, 1):
+        assert comp[f"step:{i}"][""]["fill"] == "#7C3AED" and comp[f"step:{i}"]["label"]["color"] == "#FFFFFF"
+    assert comp["callout:0"][""]["fill"] == "#FEF3C7" and comp["callout:0"]["body"]["color"] == "#92400E"
+    assert "fill" not in comp["callout:1"].get("", {})  # .tip, not .warning
+    assert comp["callout:1"]["title"]["color"] == "#78350F"
+    assert comp["node:card"][""]["stroke"] == "#0EA5E9"
+    assert comp["node:plain"][""]["fill"] == "#FEF9C3"
+
+
+def test_selectors_and_inspector_list_annotations():  # ANN-35
+    from spinagram import css
+
+    d, theme = _styled()
+    assert css.select(d, "legend") == ["legend"]
+    assert css.select(d, "step") == ["step:0", "step:1"]
+    assert css.select(d, "callout.warning") == ["callout:0"]
+    report = css.inspect(d, theme)
+    legend = next(e for e in report["elements"] if e["key"] == "legend")
+    assert legend["type"] == "legend" and legend["trace"][""]["decls"][0]["selector"] == "legend"
+
+
+def test_callout_inline_css_alone_turns_styling_on():
+    from spinagram import css
+    from spinagram.theme import Theme
+
+    d, users, *_ = _flow()
+    d.callout(users, "x", css="fill: #ABCDEF")
+    comp, _ = css.styles(d, Theme.load("default"))
+    assert comp["callout:0"][""]["fill"] == "#ABCDEF"

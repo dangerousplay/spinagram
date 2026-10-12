@@ -155,9 +155,9 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] selectors `legend`, `step::label`, `callout.warning`, `note.card` match; computed under `legend`, `step:<n>`, `callout:<i>`
-- [ ] `check --styles --select legend` lists the legend
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] selectors `legend`, `step::label`, `callout.warning`, `note.card` match; computed under `legend`, `step:<n>`, `callout:<i>`
+- [x] `check --styles --select legend` lists the legend
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

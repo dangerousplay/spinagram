@@ -210,11 +210,11 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-28 | P2: Notes - sticky unchanged | Tasks | Pending |
 | ANN-29 | P2: Notes - variant validation | Tasks | Implementing |
 | ANN-30 | P2: Notes - icon | Tasks | Pending |
-| ANN-31 | P2: CSS - legend | Tasks | Pending |
-| ANN-32 | P2: CSS - steps | Tasks | Pending |
-| ANN-33 | P2: CSS - callouts | Tasks | Pending |
-| ANN-34 | P2: CSS - note variants | Tasks | Pending |
-| ANN-35 | P2: CSS - inspector report | Tasks | Pending |
+| ANN-31 | P2: CSS - legend | Tasks | Implementing |
+| ANN-32 | P2: CSS - steps | Tasks | Implementing |
+| ANN-33 | P2: CSS - callouts | Tasks | Implementing |
+| ANN-34 | P2: CSS - note variants | Tasks | Implementing |
+| ANN-35 | P2: CSS - inspector report | Tasks | Implementing |
 | ANN-36 | P2: Showcase - AWS legend and steps | Tasks | Pending |
 | ANN-37 | P2: Showcase - K8s/GCP callouts and legend | Tasks | Pending |
 | ANN-38 | P2: Showcase - notes slide | Tasks | Pending |
