@@ -133,6 +133,7 @@ class _Svg:
         op = f' opacity="{s.opacity:g}"' if s.opacity < 1 else ""
         op += self.shadow(s.shadow)
         fill = s.fill or "none"
+        fop = f' fill-opacity="{s.fill_opacity:g}"' if s.fill_opacity < 1 and s.fill else ""
         if s.parts:
             for i, part in enumerate(s.parts):
                 if part.paint == "solid":
@@ -140,17 +141,17 @@ class _Svg:
                 elif part.paint == "stroke":
                     paint = f'fill="none" stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"'
                 else:
-                    paint = f'fill="{fill}"{stroke}'
+                    paint = f'fill="{fill}"{fop}{stroke}'
                 el = f'<path d="{part.d}" {paint}{dash}{op}/>'
                 layer.append(self._with_tip(el, "path", self.tip(s.id)) if i == 0 else el)
         elif s.kind == "diamond":
             cx, cy = s.x + s.w / 2, s.y + s.h / 2
             pts = f"{cx:.1f},{s.y:.1f} {s.x + s.w:.1f},{cy:.1f} {cx:.1f},{s.y + s.h:.1f} {s.x:.1f},{cy:.1f}"
-            layer.append(self._with_tip(f'<polygon points="{pts}" fill="{fill}"{stroke}{dash}{op}/>', "polygon",
+            layer.append(self._with_tip(f'<polygon points="{pts}" fill="{fill}"{fop}{stroke}{dash}{op}/>', "polygon",
                                         self.tip(s.id)))
         else:
             layer.append(self._with_tip(f'<rect x="{s.x:.1f}" y="{s.y:.1f}" width="{s.w:.1f}" height="{s.h:.1f}" '
-                                        f'rx="{s.radius:g}" fill="{fill}"{stroke}{dash}{op}/>', "rect", self.tip(s.id)))
+                                        f'rx="{s.radius:g}" fill="{fill}"{fop}{stroke}{dash}{op}/>', "rect", self.tip(s.id)))
         tl = self.front if s.role != "zone" else self.back
         if s.icon:
             self.icon(self.front, s.icon)

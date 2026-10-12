@@ -88,6 +88,7 @@ class Shape:
     parts: list | None = None  # symbol geometry (``shapes.Part``) for flow/activity/state kinds
     dash: list[float] | None = None    # explicit dash pattern (CSS stroke-dasharray); None = default dash
     shadow: tuple | None = None        # (dx, dy, blur, colour, alpha) drop shadow (CSS box-shadow)
+    fill_opacity: float = 1.0          # alpha of the fill only (CSS fill-opacity)
 
     def anchor(self, side: str, frac: float = 0.5) -> Point:
         x, y, w, h = self.x, self.y, self.w, self.h

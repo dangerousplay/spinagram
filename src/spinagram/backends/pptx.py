@@ -168,6 +168,18 @@ class _Slide:
         clr.set("val", color.strip("#").upper())
         etree.SubElement(clr, qn("a:alpha")).set("val", str(round(alpha * 100000)))
 
+    @staticmethod
+    def _fill_alpha(shape, alpha: float) -> None:
+        """CSS fill-opacity → alpha on the solid fill colour (the line keeps full opacity)."""
+        if alpha >= 1:
+            return
+        from lxml import etree
+        from pptx.oxml.ns import qn
+
+        clr = shape._element.spPr.find(f"{qn('a:solidFill')}/{qn('a:srgbClr')}")
+        if clr is not None:
+            etree.SubElement(clr, qn("a:alpha")).set("val", str(round(alpha * 100000)))
+
     _MARKER = {"arrow": "triangle", "open-arrow": "arrow", "diamond": "diamond", "open-diamond": "diamond",
                "circle": "oval", "bar": None}
 
@@ -299,6 +311,7 @@ class _Slide:
             sh.fill.solid()
             fill = _blend(s.fill, self.scene.background, s.opacity) if s.opacity < 1 else s.fill
             sh.fill.fore_color.rgb = _rgb(fill)
+            self._fill_alpha(sh, s.fill_opacity)
         else:
             sh.fill.background()
         self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
@@ -318,6 +331,8 @@ class _Slide:
                 sh.fill.solid()
                 fill = _blend(color, self.scene.background, s.opacity) if s.opacity < 1 else color
                 sh.fill.fore_color.rgb = _rgb(fill)
+                if paint != "solid":
+                    self._fill_alpha(sh, s.fill_opacity)
             else:
                 sh.fill.background()
         self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)

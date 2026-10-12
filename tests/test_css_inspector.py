@@ -239,3 +239,69 @@ def test_unused_needs_every_diagram_to_miss_it():  # INS-08 across diagrams
     a = {"sheets": [{"origin": "x.css"}], "unused": [{"origin": "x.css", "line": 1, "selector": ".a"}]}
     b = {"sheets": [{"origin": "x.css"}], "unused": []}
     assert inspect_fmt.unused([a, b]) == [] and inspect_fmt.unused([a, a]) == a["unused"]
+
+
+# T4: fill-opacity -----------------------------------------------------------------------------------
+import re  # noqa: E402
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+from spinagram.api import scenes  # noqa: E402
+from spinagram.backends.svg import to_svg  # noqa: E402
+from spinagram.scene import Shape  # noqa: E402
+
+A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
+
+def _translucent():
+    d = Diagram("F", "Fill opacity", css="#api { fill: #FF0000; fill-opacity: 0.4 } decision { fill-opacity: .5 } "
+                                          "group { fill-opacity: 0.25 }", layout={"engine": "layered"})
+    with d.group("Zone", id="zone"):
+        api = d.box("API")
+        q = d.add("decision", "OK?")
+    api >> q
+    return d
+
+
+def test_fill_opacity_reaches_the_scene_and_svg():  # INS-15 (SVG, PNG uses the SVG)
+    sc = scenes([_translucent()])[0]
+    by = {s.id: s for s in sc.items if isinstance(s, Shape)}
+    assert by["api"].fill_opacity == 0.4 and by["api"].opacity == 1.0
+    assert by["z0"].fill_opacity == 0.25
+    svg = to_svg(sc)
+    assert re.search(r'<rect [^>]*fill="#FF0000" fill-opacity="0.4"', svg)
+    assert re.search(r'<path d="[^"]+" fill="[^"]+" fill-opacity="0.5"', svg)   # symbol geometry (decision)
+    assert 'opacity="0.4"' not in svg.replace('fill-opacity="0.4"', "")       # the stroke stays opaque
+
+
+def test_fill_opacity_in_pptx(tmp_path):  # INS-15 (PowerPoint)
+    pptx = pytest.importorskip("pptx")
+    from spinagram import render
+    render([_translucent()], tmp_path, formats=["pptx"])
+    slide = pptx.Presentation(str(tmp_path / "diagrams.pptx")).slides[0]
+    by = {sh.name: sh for sh in slide.shapes}
+    fill = by["api"]._element.spPr.find(f"{A}solidFill/{A}srgbClr")
+    assert fill.get("val") == "FF0000" and fill.find(f"{A}alpha").get("val") == "40000"
+    assert by["api"]._element.spPr.find(f"{A}ln/{A}solidFill/{A}srgbClr/{A}alpha") is None
+    dec = by["ok"]
+    assert dec._element.spPr.find(f"{A}solidFill/{A}srgbClr/{A}alpha").get("val") == "50000"
+
+
+def test_fill_opacity_in_figma(tmp_path):  # INS-15 (Figma)
+    from spinagram.backends import figma as fig_mod
+    from spinagram.backends.figma import FigmaBackend
+    sc = scenes([_translucent()])[0]
+    js = "\n".join(p.read_text() for p in FigmaBackend().render([sc], tmp_path) if p.suffix == ".js")
+    o = json.loads(re.search(r'rect\("api", [-\d.]+, [-\d.]+, [-\d.]+, [-\d.]+, (\{.*?\})\);', js).group(1))
+    assert o["fillOpacity"] == 0.4
+    node = shutil.which("node") or shutil.which("bun")
+    if not node:
+        pytest.skip("node/bun not installed")
+    src = next(v for v in vars(fig_mod).values() if isinstance(v, str) and "function rect(" in v)
+    pieces = [re.search(p, src, re.S).group(0) for p in (r"const rgb = .*?;\n", r"const solid = .*?;\n",
+                                                          r"function rect\(.*?\n\}\n")]
+    script = ("const figma = {createRectangle: () => ({resize() {}})}; const deco = () => {}; "
+              "const put = (n) => n;\n" + "".join(pieces) +
+              "console.log(JSON.stringify(rect('a', 0, 0, 10, 10, {fill: '#FF0000', fillOpacity: 0.4, opacity: 0.5}).fills));")
+    fills = json.loads(subprocess.run([node, "-e", script], capture_output=True, text=True, check=True).stdout)
+    assert fills[0]["opacity"] == pytest.approx(0.2)                 # zone opacity × fill-opacity

@@ -119,11 +119,13 @@ T8
 **Requirement**: INS-15, INS-03
 
 **Done when**:
-- [ ] Attribute/XML/JS asserted per backend; unstyled SVG unchanged
-- [ ] Gate passes
+- [x] Attribute/XML/JS asserted per backend; unstyled SVG unchanged
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T5: Styles endpoint with geometry
 

@@ -64,6 +64,7 @@ class _Builder:
         s.stroke_width = st.get("stroke-width", s.stroke_width or (2.0 if "stroke" in st else 0))
         s.radius = st.get("border-radius", s.radius)
         s.opacity = st.get("opacity", s.opacity)
+        s.fill_opacity = st.get("fill-opacity", s.fill_opacity)
         if "stroke-dasharray" in st:
             s.dash = st["stroke-dasharray"] or None
             s.dashed = bool(st["stroke-dasharray"])

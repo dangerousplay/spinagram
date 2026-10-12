@@ -69,7 +69,7 @@ const created = [], imageTargets = [];
 function put(node, name) { node.name = name; root.appendChild(node); created.push(node.id); return node; }
 function rect(name, x, y, w, h, o) {
   const r = figma.createRectangle(); r.resize(Math.max(w, 0.01), Math.max(h, 0.01)); r.x = x; r.y = y;
-  r.fills = o.fill ? solid(o.fill, o.opacity) : [];
+  r.fills = o.fill ? solid(o.fill, (o.opacity ?? 1) * (o.fillOpacity ?? 1)) : [];
   if (o.stroke && o.sw) { r.strokes = solid(o.stroke); r.strokeWeight = o.sw; r.strokeAlign = 'CENTER';
                           if (o.dash) r.dashPattern = [10, 7]; }
   if (o.radius) r.cornerRadius = o.radius;
@@ -80,7 +80,7 @@ async function vec(name, x0, y0, net, o) {
   const v = figma.createVector();
   if (v.setVectorNetworkAsync) await v.setVectorNetworkAsync(net); else v.vectorNetwork = net;
   v.x = x0; v.y = y0;
-  v.fills = o.fill ? solid(o.fill) : [];
+  v.fills = o.fill ? solid(o.fill, o.fillOpacity) : [];
   v.strokes = o.stroke ? solid(o.stroke) : []; v.strokeWeight = o.sw || 1; v.strokeJoin = 'ROUND';
   if (o.dash) v.dashPattern = [10, 7];
   deco(v, o);
@@ -241,6 +241,8 @@ def _style(s) -> dict:
         out["dashes"] = [_r(v) for v in s.dash]
     if isinstance(s, Connector) and s.opacity < 1:
         out["lineOpacity"] = round(s.opacity, 3)
+    if getattr(s, "fill_opacity", 1.0) < 1:
+        out["fillOpacity"] = round(s.fill_opacity, 3)
     sh = getattr(s, "shadow", None)
     if sh:
         out["shadow"] = {"x": _r(sh[0]), "y": _r(sh[1]), "blur": _r(sh[2]), "color": sh[3], "a": round(sh[4], 3)}
