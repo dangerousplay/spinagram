@@ -254,7 +254,7 @@ class Annotator:
         s = Shape(id=f"legend-{j}-swatch", kind="rect", x=x, y=y, w=w, h=h,
                   fill=node.fill if node else st["fill"], stroke=node.stroke if node else st["stroke"],
                   stroke_width=node.stroke_width if node else self.t.defaults("node").get("stroke_width", 3),
-                  radius=node.radius if node else 6, dashed=node.dashed if node else False,
+                  radius=node.radius * h / node.h if node and node.h else 6, dashed=node.dashed if node else False,
                   dash=node.dash if node else None, fill_opacity=node.fill_opacity if node else 1.0,
                   role="swatch")
         return [s]
@@ -364,8 +364,8 @@ class Annotator:
             if st.edge is not None:
                 c = connectors[st.edge]
                 if c.label is not None:
-                    lab = c.label
-                    cx, cy = lab.x + lab.w + 6 + self.a["badge"] / 2, lab.y + lab.h / 2
+                    lab = c.label  # before the label: after it the badge would cover the arrowhead
+                    cx, cy = lab.x - 6 - self.a["badge"] / 2, lab.y + lab.h / 2
                 else:
                     cx, cy = self._midpoint(c.points) if c.route != "curve" else c.points[1]
             else:

@@ -299,8 +299,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] annotated diagram renders badges, panels and callouts; unannotated output byte-identical
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] annotated diagram renders badges, panels and callouts; unannotated output byte-identical
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: integration
 **Gate**: full

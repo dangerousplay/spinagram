@@ -387,8 +387,8 @@ def test_legend_node_swatch_copies_the_computed_node_style(monkeypatch, tmp_path
     b, shapes, conns, ann, t = _parts(d)
     sw = _by_id(ann.panels(conns))["legend-0-swatch"]
     node = shapes["a"]
-    assert (sw.fill, sw.stroke, sw.stroke_width, sw.dash, sw.dashed, sw.radius) == (
-        "#FEE2E2", "#DC2626", 4, node.dash, True, 6)
+    assert (sw.fill, sw.stroke, sw.stroke_width, sw.dash, sw.dashed) == ("#FEE2E2", "#DC2626", 4, node.dash, True)
+    assert sw.radius == pytest.approx(6 * sw.h / node.h)
     assert node.dash == [6.0, 3.0]
 
 
@@ -471,7 +471,7 @@ def test_badge_sits_beside_the_edge_label():  # ANN-13, ANN-18
     b, shapes, conns, ann, t = _parts(_badge_diagram())
     badge = _by_id(ann.badges(conns))["step-0-badge"]
     lab = conns[0].label
-    assert badge.x >= lab.x + lab.w
+    assert badge.x + badge.w <= lab.x  # before the label, clear of the arrowhead
     assert abs((badge.y + badge.h / 2) - (lab.y + lab.h / 2)) < 0.5
     assert not _overlap((badge.x, badge.y, badge.w, badge.h), (lab.x, lab.y, lab.w, lab.h))
     assert badge.label.blocks[0].lines == ["1"]
@@ -602,3 +602,47 @@ def test_no_free_side_falls_back_to_top_and_reports():  # ANN-24
     items, shapes, ann, t = _callout_items(d)
     assert _side(items["callout-0"], shapes["target"]) == "top"
     assert ann.issues == [("callout-0", "overlap", "no free side around 'target'; placed on top")]
+
+
+# T10 · scene integration ---------------------------------------------------------------------------
+def _annotated():
+    d = Diagram("I1", "Integrated", subtitle="every annotation", layout={"engine": "flex", "direction": "right"})
+    users, api, db = d.box("Users", class_="ext"), d.box("API", class_="svc"), d.box("DB", class_="store")
+    users.to(api, "HTTPS", step="Users call the API")
+    api.to(db, step="The API reads", class_="async")
+    d.add_legend()
+    d.callout(db, "Encrypted at rest", kind="tip")
+    d.note("Why", text="Explain the choice", variant="card")
+    return d
+
+
+def test_scene_contains_badges_panels_and_callouts():  # ANN-07, ANN-13, ANN-20
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    sc = build_scene(_annotated(), Theme.load("default"))
+    ids = [getattr(i, "id", None) for i in sc.items]
+    for want in ("step-0-badge", "step-1-badge", "legend", "legend-title", "steps", "steps-0-badge", "callout-0",
+                 "callout-0-leader", "callout-0-glyph"):
+        assert want in ids, want
+    # z-order: badges after edges, callouts after panels, chrome title last of the content
+    assert ids.index("step-0-badge") > ids.index("e1") and ids.index("callout-0") > ids.index("steps")
+
+
+def test_unannotated_scene_has_no_annotation_items():
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    d = Diagram("I2", "Plain", layout={"engine": "flex"})
+    d.box("A") >> d.box("B")
+    ids = [getattr(i, "id", "") or "" for i in build_scene(d, Theme.load("default")).items]
+    assert not [i for i in ids if i.startswith(("legend", "steps", "step-", "callout"))]
+
+
+def test_annotated_svg_renders():
+    from spinagram.backends.svg import to_svg
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    svg = to_svg(build_scene(_annotated(), Theme.load("default")))
+    assert ">Legend<" in svg and ">Steps<" in svg and ">Encrypted at rest<" in svg and ">Users call the API<" in svg

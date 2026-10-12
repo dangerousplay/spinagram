@@ -39,6 +39,7 @@ class _Builder:
         self.shapes: dict[str, Shape] = {}
         self.warnings: list[str] = []
         self.styles = diagram.meta.get("css") or {}
+        self.annotation_issues: list[tuple[str, str, str]] = []
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -339,7 +340,16 @@ class _Builder:
         nodes = [self.node(n) for n in d.nodes]
         items.extend(nodes)
         items.extend(self.table(i, tb) for i, tb in enumerate(d.tables))
-        items.extend(self.edge(i, e) for i, e in enumerate(d.edges))
+        edges = [self.edge(i, e) for i, e in enumerate(d.edges)]
+        items.extend(edges)
+        if d.annotations:  # badges over edges, then the band's panels, then callouts placed around everything
+            from .annotate import Annotator
+
+            ann = Annotator(self)
+            items.extend(ann.badges(edges))
+            items.extend(ann.panels(edges))
+            items.extend(ann.callouts([s for s in items if isinstance(s, Shape) and s.role in ("node", "zone")]))
+            self.annotation_issues = ann.issues
         if d.legend:
             ld = t.defaults("legend")
             x, y, sz, sw = d.legend.x, d.legend.y, ld.get("size", 18), ld.get("swatch", 20)
@@ -446,6 +456,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     builder = _Builder(resolved, theme)
     scene = builder.build()
     scene.style_warnings = list(diagram.meta.get("css_warnings") or []) + builder.warnings
+    scene.annotation_issues = builder.annotation_issues
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

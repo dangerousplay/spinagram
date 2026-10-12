@@ -35,7 +35,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | Python API names | `d.add_legend(...)`, `d.step(...)`, `d.callout(...)`, `d.note(..., variant=...)` | `legend` is already a `Diagram` field; `add_legend` avoids the clash | n |
 | Legend entry keys | `.class` / `node.class` (node class), `edge.class` (edge class), `style:<name>` (theme node style), `pack:name` (icon) | Mirrors CSS selectors and icon refs the author already writes | n |
 | Automatic legend | Without `items`, every node class, edge class and non-default node style used appears once, labelled from its name (`async-event` → "Async event") | Zero-config legend; explicit labels override | n |
-| Legend swatch | Drawn with the computed style of the first element carrying that key (fill, stroke, width, dash, radius, shadow for nodes; colour, width, dash, markers for edges) | The legend must look exactly like the diagram | n |
+| Legend swatch | Drawn with the computed style of the first element carrying that key (fill, stroke, width, dash for nodes, radius scaled to the swatch; colour, width, dash, markers for edges) | The legend must look like the diagram; an unscaled 22 px radius turns a 28 px swatch into an oval | n |
 | Step badges | Numbered circles at the edge's label position (beside the label when present) or a node's top-left corner | Reference-architecture convention | n |
 | Step numbering | Explicit `n`, or the next free number in call order | Deterministic | n |
 | Steps panel | Same band as the legend, below it, titled "Steps" | One band, one reading column | n |
@@ -60,7 +60,7 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 1. WHEN `d.add_legend()` is called without items THEN the legend SHALL list each node class, edge class and non-default node style used in the diagram exactly once, in first-use order, labelled from its name with dashes as spaces and the first letter capitalised.
 2. WHEN items are given as `{key: label}` THEN the legend SHALL list exactly those entries in the given order with the given labels.
 3. IF an item key matches nothing in the diagram THEN `spinagram check` SHALL report `legend: unused entry '<key>'` and the entry SHALL still be drawn from the theme default.
-4. WHEN a node entry is drawn THEN its swatch SHALL use the computed fill, stroke, stroke width, dash pattern and corner radius of the first node carrying that key.
+4. WHEN a node entry is drawn THEN its swatch SHALL use the computed fill, stroke, stroke width and dash pattern of the first node carrying that key, and its corner radius scaled by swatch height / node height.
 5. WHEN an edge entry is drawn THEN its sample line SHALL use the computed colour, width, dash pattern and end markers of the first edge carrying that key.
 6. WHEN an icon entry (`pack:name`) is drawn THEN it SHALL show that icon at swatch size.
 7. The legend SHALL be drawn as a titled card (default title "Legend") inside the reserved band.
