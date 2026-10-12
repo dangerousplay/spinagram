@@ -106,11 +106,13 @@ T1 → T2 → T3 → T4 → T5 → T6
 **Requirement**: LAY-08, LAY-09, LAY-15, LAY-16, LAY-17
 
 **Done when**:
-- [ ] Containment of group members, lane bands full-span and disjoint, routes never cross node boxes
-- [ ] Gate passes
+- [x] Containment of group members, lane bands full-span and disjoint, routes never cross node boxes
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T5: Per-group engines in apply_layout
 

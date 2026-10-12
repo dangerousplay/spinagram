@@ -200,3 +200,79 @@ def test_self_loop_leaves_and_reenters_one_side():  # LAY-09
     assert max(x for x, _ in pts) > 260
     for p, q in zip(pts, pts[1:]):
         assert not _seg_hits_box(p, q, box)
+
+
+# T4: groups, lanes, loops, cross-block edges ----------------------------------------------------
+def _inside(inner, outer, tol=0.5):
+    ix, iy, iw, ih = inner
+    ox, oy, ow, oh = outer
+    return ix >= ox - tol and iy >= oy - tol and ix + iw <= ox + ow + tol and iy + ih <= oy + oh + tol
+
+
+def _grouped():
+    """a → [b → c] (group g) → d, plus an edge from outside into the group's second node."""
+    g = LGroup("g", [LNode("b", 160, 80), LNode("c", 160, 80)], pad=(50, 20, 20, 20))
+    root = LGroup("__root__", [LNode("a", 160, 80), g, LNode("d", 160, 80)])
+    edges = [LEdge("e0", "a", "b"), LEdge("e1", "b", "c"), LEdge("e2", "c", "d"), LEdge("e3", "a", "c")]
+    return LGraph(root, edges, "down", {"gap": 40, "node_gap": 48, "rank_gap": 80})
+
+
+def test_group_members_inside_and_others_outside():  # LAY-15
+    res = _run(_grouped())
+    g = res.boxes["g"]
+    assert _inside(res.boxes["b"], g) and _inside(res.boxes["c"], g)
+    assert min(res.boxes["b"][1], res.boxes["c"][1]) - g[1] >= 50 - 0.5  # label band kept free
+    for n in ("a", "d"):
+        assert not _overlap(res.boxes[n], g)
+
+
+def test_cross_group_edges_routed_without_crossing_nodes():  # LAY-17
+    res = _run(_grouped())
+    for eid in ("e0", "e2", "e3"):
+        pts = res.routes[eid]
+        for p, q in zip(pts, pts[1:]):
+            assert abs(p[0] - q[0]) < 1e-6 or abs(p[1] - q[1]) < 1e-6
+            for n in "abcd":
+                assert not _seg_hits_box(p, q, res.boxes[n]), (eid, n)
+    assert _on_border(res.routes["e3"][0], res.boxes["a"]) and _on_border(res.routes["e3"][-1], res.boxes["c"])
+
+
+def _lanes(direction="down", empty=False):
+    lanes = [LGroup("L1", [LNode("a", 160, 80), LNode("c", 160, 80)], pad=(50, 16, 16, 16)),
+             LGroup("L2", [LNode("b", 160, 80)], pad=(50, 16, 16, 16))]
+    if empty:
+        lanes.append(LGroup("L3", [], pad=(50, 16, 16, 16)))
+    act = LGroup("act", lanes, pad=(20, 20, 20, 20), hints={"lanes": True})
+    edges = [LEdge("e0", "a", "b"), LEdge("e1", "b", "c")]
+    return LGraph(LGroup("__root__", [act]), edges, direction, {"gap": 40, "node_gap": 48, "rank_gap": 80})
+
+
+@pytest.mark.parametrize("direction", ["down", "right"])
+def test_lanes_are_disjoint_full_span_bands(direction):  # LAY-16
+    res = _run(_lanes(direction))
+    l1, l2 = res.boxes["L1"], res.boxes["L2"]
+    assert _inside(res.boxes["a"], l1) and _inside(res.boxes["c"], l1) and _inside(res.boxes["b"], l2)
+    assert not _overlap(l1, l2)
+    if direction == "down":  # vertical bands side by side, same top and height
+        assert l1[0] + l1[2] <= l2[0] + 0.5 and l1[1] == l2[1] and l1[3] == l2[3]
+    else:  # horizontal bands stacked
+        assert l1[1] + l1[3] <= l2[1] + 0.5 and l1[0] == l2[0] and l1[2] == l2[2]
+    # ranks are shared across lanes: b sits between a and c along the flow
+    ax = 1 if direction == "down" else 0
+    assert res.boxes["a"][ax] < res.boxes["b"][ax] < res.boxes["c"][ax]
+
+
+def test_empty_lane_still_drawn_200px():  # BHV-34 (layout side)
+    res = _run(_lanes(empty=True))
+    assert res.boxes["L3"][2] >= 200
+
+
+def test_self_loop_routed_beside_its_node():  # LAY-09
+    g = _graph(["a", "b"], [("a", "b")], loops=["b"])
+    res = _run(g)
+    pts = res.routes["l0"]
+    bx, by, bw, bh = res.boxes["b"]
+    assert pts[0][0] == pts[-1][0] == bx + bw
+    for p, q in zip(pts, pts[1:]):
+        for n in "ab":
+            assert not _seg_hits_box(p, q, res.boxes[n])

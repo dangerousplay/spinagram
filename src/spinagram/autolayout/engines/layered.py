@@ -22,6 +22,7 @@ import warnings
 from dataclasses import dataclass, field
 
 from ..graph import LEdge, LGraph, LGroup, LNode, LResult
+from ..route import loop, route
 
 DIAMONDS = {"decision", "diamond", "choice", "merge"}
 ROUND = {"initial", "final", "flow_final", "connector", "history", "deep_history"}
@@ -90,6 +91,9 @@ class LayeredEngine:
         self.local: dict[str, tuple[float, float, float, float]] = {}  # id → x, y, w, h in parent content
         self.local_routes: dict[str, tuple[str, list[tuple[float, float]]]] = {}  # eid → (group id, pts)
         self.sizes: dict[str, tuple[float, float]] = {}
+        self.loop_nodes = {e.src for e in graph.loops}
+        self.loop_w = 28.0 + 12.0 + float(graph.spacing.get("loop_label", 0))
+        self.dir_of: dict[str, str] = {}
         self._measure(graph.root, graph.direction)
         boxes: dict[str, tuple[float, float, float, float]] = {}
         origin: dict[str, tuple[float, float]] = {graph.root.id: (0.0, 0.0)}
@@ -105,6 +109,13 @@ class LayeredEngine:
         for eid, (gid, pts) in self.local_routes.items():
             ox, oy = origin[gid]
             routes[eid] = [(round(ox + x, 1), round(oy + y, 1)) for x, y in pts]
+        nodes = [boxes[c.id] for c in graph.root.walk() if isinstance(c, LNode)]
+        for e in graph.edges:  # edges between nested items: routed around every node on the final geometry
+            if e.id not in routes and e.src in boxes and e.dst in boxes:
+                routes[e.id] = route(boxes[e.src], boxes[e.dst], nodes)
+        for e in graph.loops:
+            side = "right" if self.dir_of.get(e.src, "down") == "down" else "bottom"
+            routes[e.id] = [(round(x, 1), round(y, 1)) for x, y in loop(boxes[e.src], side)]
         return LResult(boxes=boxes, routes=routes)
 
     # levels -------------------------------------------------------------------------------------
@@ -133,7 +144,10 @@ class LayeredEngine:
     def _measure(self, group: LGroup, direction: str) -> tuple[float, float]:
         direction = group.hints.get("direction", direction) if group is not self.g.root else direction
         direction = "down" if direction in ("down", "column") else "right"
+        if group.hints.get("lanes"):
+            return self._measure_lanes(group, direction)
         for c in group.children:
+            self.dir_of[c.id] = direction
             if isinstance(c, LGroup):
                 self.sizes[c.id] = self._measure(c, direction)
             else:
@@ -151,6 +165,103 @@ class LayeredEngine:
             self.local_routes[eid] = (group.id, [(left + x, top + y) for x, y in pts])
         so, sr = lvl.size
         w, h = (so, sr) if direction == "down" else (sr, so)
+        return (w + left + right, h + top + bottom)
+
+    def _measure_lanes(self, group: LGroup, direction: str) -> tuple[float, float]:
+        """Swimlanes: every lane member is laid out at one level (shared ranks), lanes become bands."""
+        down = direction == "down"
+        lanes = [c for c in group.children if isinstance(c, LGroup)]
+        loose = [c for c in group.children if not isinstance(c, LGroup)]
+        lane_ids = {ln.id for ln in lanes}
+        buckets: list[tuple[LGroup | None, list]] = ([(None, loose)] if loose else []) + [(ln, ln.children) for ln in lanes]
+        members: list[str] = []
+        lane_of: dict[str, int] = {}
+        kinds: dict[str, str] = {}
+        for li, (_, kids) in enumerate(buckets):
+            for c in kids:
+                self.dir_of[c.id] = direction
+                if isinstance(c, LGroup):
+                    self.sizes[c.id] = self._measure(c, direction)
+                else:
+                    self.sizes[c.id] = (c.w, c.h)
+                    kinds[c.id] = getattr(c, "kind", "box")
+                members.append(c.id)
+                lane_of[c.id] = li
+        edges = []
+        for e in self.g.edges:
+            ends = []
+            for nid in (e.src, e.dst):
+                ch = self._chain(nid)
+                if group.id not in ch:
+                    break
+                p = ch.index(group.id)
+                if p + 1 >= len(ch):
+                    break
+                item = ch[p + 1]
+                if item in lane_ids:
+                    if p + 2 >= len(ch):
+                        break
+                    item = ch[p + 2]
+                ends.append(item)
+            if len(ends) == 2 and ends[0] != ends[1]:
+                a, b = ends
+                edges.append((e.id, a, b, a == e.src and b == e.dst and lane_of[a] == lane_of[b]))
+        lvl = self._sugiyama(members, kinds, edges, direction, lane_of=lane_of)
+        top, right, bottom, left = group.pad
+
+        def opads(g: LGroup | None) -> tuple[float, float, float, float]:
+            if g is None:
+                return 0.0, 0.0, 0.0, 0.0
+            t, rt, b, lf = g.pad
+            return (lf, rt, t, b) if down else (t, b, lf, rt)  # o-start, o-end, r-start, r-end
+
+        r0 = max([opads(g)[2] for g, _ in buckets] + [0.0])
+        r1 = max([opads(g)[3] for g, _ in buckets] + [0.0])
+        r_end = lvl.size[1]
+        cursor = 0.0
+        shift: dict[int, float] = {}
+        lane_box: dict[str, tuple[float, float, float, float]] = {}
+        for li, (g, kids) in enumerate(buckets):
+            os0, os1, _, _ = opads(g)
+            if kids:
+                lo = min(lvl.boxes[c.id][0] for c in kids)
+                hi = max(lvl.boxes[c.id][0] + lvl.boxes[c.id][2] for c in kids)
+            else:
+                lo = hi = 0.0
+            width = max(os0 + (hi - lo) + os1, 200.0 if g is not None and not kids else 0.0)
+            shift[li] = cursor + os0 - lo
+            if g is not None:
+                lane_box[g.id] = (cursor, 0.0, width, r_end + r0 + r1)
+            cursor += width
+        frame: dict[str, tuple[float, float, float, float]] = {}
+        for m in members:
+            o, r, os_, rs = lvl.boxes[m]
+            frame[m] = (o + shift[lane_of[m]], r + r0, os_, rs)
+
+        def to_xy(b):
+            o, r, os_, rs = b
+            return (o, r, os_, rs) if down else (r, o, rs, os_)
+
+        for g, kids in buckets:
+            if g is not None:
+                lx, ly, lw, lh = to_xy(lane_box[g.id])
+                self.local[g.id] = (left + lx, top + ly, lw, lh)
+                self.sizes[g.id] = (lw, lh)
+                for c in kids:
+                    x, y, w, h = to_xy(frame[c.id])
+                    self.local[c.id] = (x - lx, y - ly, w, h)
+            else:
+                for c in kids:
+                    x, y, w, h = to_xy(frame[c.id])
+                    self.local[c.id] = (left + x, top + y, w, h)
+        for eid, pts in lvl.routes.items():
+            a = next(e[1] for e in edges if e[0] == eid)
+            dx = shift[lane_of[a]]
+            moved = [(o + dx, r + r0) for o, r in pts]
+            moved = moved if down else [(r, o) for o, r in moved]
+            self.local_routes[eid] = (group.id, [(left + x, top + y) for x, y in moved])
+        so, sr = cursor, r_end + r0 + r1
+        w, h = (so, sr) if down else (sr, so)
         return (w + left + right, h + top + bottom)
 
     def _layout_level(self, items: list[str], kinds: dict[str, str], edges, direction: str) -> _Level:
@@ -185,13 +296,17 @@ class LayeredEngine:
         return out
 
     # the pipeline -------------------------------------------------------------------------------
-    def _sugiyama(self, members: list[str], kinds: dict[str, str], edges, direction: str) -> _Level:
+    def _sugiyama(self, members: list[str], kinds: dict[str, str], edges, direction: str,
+                  lane_of: dict[str, int] | None = None) -> _Level:
         idx = {m: i for i, m in enumerate(members)}
         down = direction == "down"
+        lane = dict(lane_of or {})
         it: dict[str, _Item] = {}
+        extra: dict[str, float] = {}
         for m in members:
             w, h = self.sizes[m]
-            it[m] = _Item(m, w if down else h, h if down else w, kinds.get(m, "box"))
+            extra[m] = self.loop_w if m in self.loop_nodes else 0.0  # room for a self-loop on the o-end side
+            it[m] = _Item(m, (w if down else h) + extra[m], h if down else w, kinds.get(m, "box"))
 
         # 1. cycles: DFS in declaration order; edges to a node on the stack are reversed
         out_adj: dict[str, list[tuple[str, str]]] = {m: [] for m in members}
@@ -257,6 +372,7 @@ class LayeredEngine:
             for k in range(rank[a] + 1, rank[b]):
                 did = f"__d{eid}_{k}"
                 it[did] = _Item(did, dummy_o, 0.0, "dummy", True, k)
+                lane[did] = lane.get(a, 0)
                 chain.append(did)
             chain.append(b)
             chains[eid] = chain
@@ -277,7 +393,7 @@ class LayeredEngine:
         for k, item in it.items():
             if item.dummy:
                 key[k] = float(idx[chains[k[3:].rsplit("_", 1)[0]][0]]) + 0.5
-        for k in sorted(it, key=lambda k: (key[k], k)):
+        for k in sorted(it, key=lambda k: (lane.get(k, 0), key[k], k)):
             ranks[it[k].rank].append(k)
 
         def positions() -> None:
@@ -307,7 +423,7 @@ class LayeredEngine:
                     ns = nb[k]
                     return sum(it[n].order for n, _ in ns) / len(ns) if ns else float(it[k].order)
 
-                ranks[i].sort(key=lambda k: (bary(k), it[k].order))
+                ranks[i].sort(key=lambda k: (lane.get(k, 0), bary(k), it[k].order))
                 for j, k in enumerate(ranks[i]):
                     it[k].order = j
             c = crossings()
@@ -369,10 +485,10 @@ class LayeredEngine:
         for m in members:
             item = it[m]
             k = item.rank
-            lvl.boxes[m] = (item.pos - item.o / 2, r_top[k] + (band[k] - item.r) / 2, item.o, item.r)
+            lvl.boxes[m] = (item.pos - item.o / 2, r_top[k] + (band[k] - item.r) / 2, item.o - extra[m], item.r)
 
         # 6. routes (direct edges only; edges to nested items are routed after layout)
-        direct = {eid for eid, a, b, d in edges if d}
+        direct = {eid for eid, a, b, d in edges if d and not (lane_of is not None and eid in reversed_)}
         self._route(lvl, it, chains, dag, reversed_, direct, ranks, r_top, band)
         o_end = max((it[k].pos + it[k].o / 2 for k in it), default=0.0)
         for pts in lvl.routes.values():
