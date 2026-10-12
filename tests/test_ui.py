@@ -158,7 +158,7 @@ def test_theme_thumbnail_endpoint(env):
         assert c.get("/api/themes/nope/thumbnail.svg").status_code == 404
         (theme / "theme.yaml").write_text("name: corp\nextends: no-such-base\n")
         r = c.get("/api/themes/active/thumbnail.svg")
-        assert r.status_code == 422 and r.json()["error"]
+        assert r.status_code == 422 and "no-such-base" in r.json()["error"]
 
 
 def test_theme_list_marks_active(env):

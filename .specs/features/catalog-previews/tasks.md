@@ -244,7 +244,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9
 
 **Done when**:
 
-- [ ] assertion on the message text; Gate check passes: `uv run pytest tests/test_ui.py -q`
+- [x] assertion on the message text; Gate check passes: `uv run pytest tests/test_ui.py -q`
 
 **Tests**: unit
 **Gate**: quick
