@@ -53,7 +53,7 @@ T5 → T6 → T7
 ### Phase 3: UI
 
 ```
-T8 → T9 → T10
+T8 → T9 → T10 → T11
 ```
 
 ---
@@ -294,6 +294,29 @@ T8 → T9 → T10
 
 ---
 
+### T11: Fix falsy tags passing validation (Verifier gap, iteration 1)
+
+**What**: `tags: 0`, `false` or `{}` in a spec or `_defaults.yaml` must fail like any non-list value.
+**Where**: `src/spinagram/yaml_io.py`
+**Depends on**: T10
+**Reuses**: `normalize_tags`
+**Requirement**: META-03
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] spec and folder `tags: 0|false|{}` raise "<id>: tags must be a list of strings" (YAML and Python specs)
+- [x] Gate check passes: `uv run pytest -q`
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
 ## Phase Execution Map
 
 ```
@@ -301,7 +324,7 @@ Phase 1 → Phase 2 → Phase 3
 
 Phase 1:  T1 → T2 → T3 → T4
 Phase 2:  T5 → T6 → T7
-Phase 3:  T8 → T9 → T10
+Phase 3:  T8 → T9 → T10 → T11 (fix)
 ```
 
 ## Diagram-Definition Cross-Check
@@ -318,6 +341,7 @@ Phase 3:  T8 → T9 → T10
 | T8 | None (phase order) | Phase 2 → T8 | ✅ |
 | T9 | T8 | T8 → T9 | ✅ |
 | T10 | T9 | T9 → T10 | ✅ |
+| T11 | T10 | T10 → T11 | ✅ |
 
 ## Test Co-location Validation
 
@@ -333,3 +357,4 @@ Phase 3:  T8 → T9 → T10
 | T8 | UI component | none | none | ✅ |
 | T9 | UI component | none | none | ✅ |
 | T10 | Docs | none | none | ✅ |
+| T11 | Loaders | unit | unit | ✅ |

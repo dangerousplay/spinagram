@@ -52,7 +52,8 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
                 facts=data.get("facts"), locale=data.get("locale"),
                 meta=dict(data.get("meta") or {}), css=data.get("css"),
                 stylesheets=[str(x) for x in (data.get("stylesheets") or [])],
-                category=data.get("category"), tags=data.get("tags") or [])
+                category=data.get("category"),
+                tags=data["tags"] if data.get("tags") is not None else [])
     if data.get("layout") is not None:
         lay = data["layout"]
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
@@ -134,7 +135,7 @@ def load_yaml(path: Path) -> list[Diagram]:
         out = {**base, **doc}
         if base.get("stylesheets") and doc.get("stylesheets"):  # folder sheets come first, then the spec's
             out["stylesheets"] = list(base["stylesheets"]) + list(doc["stylesheets"])
-        if base.get("tags") and doc.get("tags"):  # folder tags join the spec's
+        if base.get("tags") is not None and doc.get("tags") is not None:  # folder tags join the spec's
             out["tags"] = _tag_list(base["tags"]) + _tag_list(doc["tags"])
         return out
 
@@ -170,7 +171,7 @@ def load_python(path: Path) -> list[Diagram]:
         if base.get("category") is not None and d.category is None:
             d.category = base["category"]
             d.__post_init__()  # validate the folder value like a declared one
-        if base.get("tags"):
+        if base.get("tags") is not None:
             d.tags = normalize_tags(_tag_list(base["tags"]) + d.tags, d.id)
         if base.get("stylesheets"):  # folder stylesheets come before the script's own
             d.stylesheets = [str(x) for x in base["stylesheets"]] + [x for x in d.stylesheets

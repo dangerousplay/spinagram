@@ -63,6 +63,7 @@ def test_yaml_single_string_tag(tmp_path):
 
 
 @pytest.mark.parametrize("meta, key", [("tags: 5\n", "tags"), ("tags: [ok, 3]\n", "tags"),
+                                       ("tags: 0\n", "tags"), ("tags: false\n", "tags"), ("tags: {}\n", "tags"),
                                        ("category: [x]\n", "category")])
 def test_yaml_invalid_metadata_names_id_and_key(tmp_path, meta, key):
     with pytest.raises(ValueError, match=rf"Y1: {key} must be a"):
@@ -102,6 +103,20 @@ def test_spec_category_beats_folder_category(tmp_path):
     (tmp_path / "a.yaml").write_text(YAML.format(meta="category: Networking\n"))
     (tmp_path / "b.py").write_text(PY.format(args="category='Data'"))
     assert [d.category for d in load(tmp_path)] == ["Networking", "Data"]
+
+
+@pytest.mark.parametrize("bad", ["0", "false", "{}"])
+def test_invalid_folder_tags_fail_for_yaml_and_python(tmp_path, bad):
+    from spinagram.yaml_io import load
+
+    _folder(tmp_path, f"tags: {bad}\n")
+    (tmp_path / "a.yaml").write_text(YAML.format(meta="tags: [aws]\n"))
+    with pytest.raises(ValueError, match="Y1: tags must be a list of strings"):
+        load(tmp_path / "a.yaml")
+    (tmp_path / "a.yaml").unlink()
+    (tmp_path / "b.py").write_text(PY.format(args=""))
+    with pytest.raises(ValueError, match="P1: tags must be a list of strings"):
+        load(tmp_path / "b.py")
 
 
 def test_folder_tags_union_with_spec_tags(tmp_path):
