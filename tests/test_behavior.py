@@ -628,3 +628,18 @@ def test_well_formed_diagrams_have_no_behavior_issues():  # BHV-09/16/33 negativ
     sm, _ = _lifecycle()
     act, _ = _fulfilment()
     assert _issues(sm) == [] and _issues(act) == []
+
+
+def test_lanes_hold_nodes_inside_an_embedded_activity():  # BHV-20 in a region (found by css tree)
+    d = Diagram("D", "x")
+    with d.activity("Act", id="act") as act:
+        with act.lane("Ops"):
+            x = act.action("Do")
+        with act.lane("Dev"):
+            y = act.action("Build")
+        with act.lane("Ops"):
+            z = act.action("Run")
+    lanes = {g.label: g for g in d.groups if g.style == "lane"}
+    assert lanes["Ops"].children == [x.id, z.id] and lanes["Dev"].children == [y.id]
+    region = next(g for g in d.groups if g.id == "act")
+    assert region.children == [lanes["Ops"].id, lanes["Dev"].id] and region.lanes

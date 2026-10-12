@@ -33,7 +33,7 @@ class _Verbs:
     @contextmanager
     def _scope(self) -> Iterator[None]:
         d, g = self._d, self._group
-        if g is None or (d._open and d._open[-1] is g):
+        if g is None or any(o is g for o in d._open):  # already inside it (directly or via a lane)
             yield
             return
         d._open.append(g)
