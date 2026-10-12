@@ -315,3 +315,102 @@ def test_on_composes_transition_labels():  # BHV-11 helper
     a.on("tick", b)
     b.on("done", a, action="log")
     assert [e.label for e in sm.edges] == ["click [enabled] / beep", "tick", "done / log"]
+
+
+# T8: StateMachine -------------------------------------------------------------------------------
+def _lifecycle():
+    sm = StateMachine("S1", "Order lifecycle")
+    created = sm.state("Created", entry="reserve stock")
+    paid = sm.state("Paid", do="notify warehouse", exit="log")
+    cancelled = sm.state("Cancelled")
+    sm.initial >> created
+    created.on("pay", paid, guard="amount ok", action="capture")
+    created.on("cancel", cancelled)
+    paid.on("cancel", cancelled, action="refund")
+    paid.on("retry", paid)
+    with sm.composite("Fulfilment") as f:
+        with f.region() as picking:
+            pick = picking.state("Picking")
+            picking.initial >> pick
+        with f.region() as billing:
+            bill = billing.state("Invoicing")
+            billing.initial >> bill
+        hist = f.history()
+    paid.on("ship", pick)
+    choice = sm.choice()
+    bill >> choice
+    choice.to(sm.final, "[delivered]")
+    cancelled >> sm.final
+    return sm, dict(created=created, paid=paid, cancelled=cancelled, pick=pick, bill=bill, hist=hist,
+                    choice=choice)
+
+
+def test_state_entry_do_exit_lines():  # BHV-10
+    _, n = _lifecycle()
+    assert n["created"].kind == "state" and n["created"].lines == ["entry / reserve stock"]
+    assert n["paid"].lines == ["do / notify warehouse", "exit / log"]
+
+
+def test_transition_labels():  # BHV-11
+    sm, _ = _lifecycle()
+    labels = [e.label for e in sm.edges]
+    assert "pay [amount ok] / capture" in labels and "cancel / refund" in labels and "cancel" in labels
+
+
+def test_initial_and_final_one_per_region():  # BHV-12
+    sm, n = _lifecycle()
+    kinds = [x.kind for x in sm.nodes]
+    assert kinds.count("final") == 1
+    assert kinds.count("initial") == 3  # machine + two orthogonal regions
+    assert sm.edges[0].src == "initial" and sm.edges[0].dst == "created"
+
+
+def test_composite_contains_substates_and_has_state_style():  # BHV-13
+    sm, n = _lifecycle()
+    comp = next(g for g in sm.groups if g.label == "Fulfilment")
+    assert comp.style == "state"
+    regions = [g for g in sm.groups if g.id in comp.children]
+    assert [g.style for g in regions] == ["region", "region"]  # BHV-14 (dashed boxes, see design deviation)
+    assert "picking" in regions[0].children and "invoicing" in regions[1].children
+    assert n["hist"].id in comp.children
+
+
+def test_choice_and_history_kinds():  # BHV-15
+    _, n = _lifecycle()
+    assert n["choice"].kind == "choice"
+    assert n["hist"].kind == "history" and n["hist"].title == "H"
+    sm = StateMachine("S2", "x")
+    with sm.composite("C") as c:
+        deep = c.history(deep=True)
+    assert deep.kind == "deep_history" and deep.title == "H*"
+
+
+def test_lifecycle_lays_out_and_renders_with_containment():  # BHV-13, BHV-17
+    sm, n = _lifecycle()
+    out = apply_layout(sm, _th())
+    zone = next(z for z in out.zones if z.label == "Fulfilment")
+    pick = out.node("picking")
+    assert zone.x <= pick.x and pick.x + pick.w <= zone.x + zone.w
+    retry = next(e for e in out.edges if e.label == "retry")
+    assert retry.src.startswith("paid.") and retry.dst.startswith("paid.") and retry.via  # self-transition loop
+    sc = scenes([sm])[0]
+    assert sc.items
+
+
+def test_edge_labels_keep_group_labels_clear():  # LAY-12 with zones (found rendering BHV-13)
+    from spinagram.text import measure as _m
+    sm, _ = _lifecycle()
+    th = _th()
+    out = apply_layout(sm, th)
+    zone = next(z for z in out.zones if z.label == "Fulfilment")
+    lf = th.font("body", 700, th.defaults("zone").get("label_size", 16))
+    band = (zone.x, zone.y, _m("Fulfilment", lf) + 48, 36)
+    size = th.defaults("edge").get("label_size", 17)
+    for e in out.edges:
+        if e.label and e.label_at:
+            w = _m(e.label, th.font("body", 700, size)) + 24
+            lx, ly = e.label_at
+            pill = (lx - w / 2, ly - size - 3, w, size + 14)
+            px, py, pw, ph = pill
+            bx, by, bw, bh = band
+            assert not (px < bx + bw and bx < px + pw and py < by + bh and by < py + ph), e.label

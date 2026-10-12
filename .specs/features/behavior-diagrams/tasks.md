@@ -181,11 +181,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-10..15, BHV-17
 
 **Done when**:
-- [ ] Order lifecycle fixture builds with the expected kinds, labels and containment
-- [ ] Gate passes
+- [x] Order lifecycle fixture builds with the expected kinds, labels and containment
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T9: Activity builder
 

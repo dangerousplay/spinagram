@@ -57,6 +57,11 @@ styles:
     warning: {fill: warning-soft, label: warning-text}
     alert: {fill: alert-soft, label: alert-text}
     neutral: {fill: neutral-soft, label: text-muted}
+    # behavior diagrams: composite states, orthogonal regions, swimlanes, typed regions
+    state:    {fill: primary-bg, stroke: primary, stroke_width: 2, label: primary-deep, radius: 18, opacity: 1, upper: false}
+    region:   {fill: none, stroke: gray, stroke_width: 1.5, dashed: true, label: text-muted, radius: 12, upper: false}
+    lane:     {fill: none, stroke: border, stroke_width: 1.5, label: primary-deep, radius: 0, upper: false}
+    behavior: {fill: neutral-soft, label: text-muted, opacity: 1, upper: false}
     # AWS Architecture Icons groups (icons from the `aws` pack): outline, no fill, corner icon.
     aws-cloud:   {fill: none, stroke: "#242F3E", label: "#242F3E", icon: "aws:group-aws-cloud", radius: 0, upper: false}
     aws-account: {fill: none, stroke: "#E7157B", label: "#E7157B", icon: "aws:group-aws-account", radius: 0, upper: false}

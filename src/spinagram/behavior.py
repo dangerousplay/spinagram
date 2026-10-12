@@ -88,6 +88,27 @@ class _StateVerbs(_Verbs):
             kw.setdefault("lines", lines)
         return self._add("state", title, **kw)
 
+    def choice(self, title: Any = None, **kw: Any) -> Node:
+        return self._add("choice", title, **kw)
+
+    @contextmanager
+    def composite(self, title: Any, **kw: Any) -> Iterator["_StateScope"]:
+        """Composite state: substates created on the yielded scope live inside it."""
+        kw.setdefault("style", "state")
+        with self._scope(), self._d.group(title, **kw) as g:
+            yield _StateScope(self._d, g, self._direction)
+
+    @contextmanager
+    def region(self, title: Any = None, **kw: Any) -> Iterator["_StateScope"]:
+        """Orthogonal region of a composite state (drawn as a dashed box)."""
+        # SPEC_DEVIATION: BHV-14 asks for dashed dividers; regions are dashed boxes until zones get dividers.
+        kw.setdefault("style", "region")
+        with self._scope(), self._d.group(title, **kw) as g:
+            yield _StateScope(self._d, g, self._direction)
+
+    def history(self, deep: bool = False, **kw: Any) -> Node:
+        return self._add("deep_history" if deep else "history", "H*" if deep else "H", **kw)
+
     @property
     def initial(self) -> Node:
         return self._once("initial", "initial")
@@ -95,6 +116,11 @@ class _StateVerbs(_Verbs):
     @property
     def final(self) -> Node:
         return self._once("final", "final")
+
+
+class _StateScope(_StateVerbs):
+    def __init__(self, d: Diagram, group: Group, direction: str) -> None:
+        self._bind(d, group, direction)
 
 
 def _layout(direction: str) -> dict[str, str]:

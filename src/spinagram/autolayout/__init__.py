@@ -325,6 +325,11 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
                 _elbow(e, boxes[le.src], boxes[le.dst], le)
     placed: list[Box] = []
     node_boxes = [b for k, b in boxes.items() if k in nodes]
+    lf = theme.font("body", 700, theme.defaults("zone").get("label_size", 16))
+    for item in graph.root.walk():  # group labels (top-left of each zone) are kept clear too
+        if isinstance(item, LGroup) and item.label and item.id in boxes:
+            gx, gy, gw, _ = boxes[item.id]
+            node_boxes.append((gx, gy, min(gw, measure(str(item.label), lf) + 48), max(item.pad[0], 36)))
     for le in graph.edges + graph.loops:  # labels of routed edges sit on the route, clear of every node
         e = d.edges[int(le.id[1:])]
         if e.label and (e.via or le.id in bound) and not e.label_at:
