@@ -357,6 +357,9 @@ def test_label_pills_avoid_node_boxes():  # LAY-12
     for i, p in enumerate(pills):
         for q in pills[i + 1:]:
             assert not _overlap(p, q)
+    for e in out.edges:
+        if e.label:
+            assert _gap_to_route(_pill_box(e, th), _route_pts(out, e)) <= 6.5, e.label
 
 
 def test_rank_gap_grows_with_label_width_only_across_the_flow():  # LAY-03 with labels
@@ -422,8 +425,9 @@ def test_deterministic_across_hash_seeds():  # LAY-05 (across runs, not only wit
     assert json.loads(outs[0])
 
 
-def test_routes_inside_lanes_are_orthogonal_and_avoid_nodes():  # LAY-16, LAY-17
-    g = _lanes()
+@pytest.mark.parametrize("direction", ["down", "right"])
+def test_routes_inside_lanes_are_orthogonal_and_avoid_nodes(direction):  # LAY-16, LAY-17
+    g = _lanes(direction)
     g.edges.append(LEdge("e2", "a", "c"))  # same lane, skips a rank
     res = _run(g)
     for eid in ("e0", "e1", "e2"):
@@ -432,8 +436,9 @@ def test_routes_inside_lanes_are_orthogonal_and_avoid_nodes():  # LAY-16, LAY-17
             assert abs(p[0] - q[0]) < 1e-6 or abs(p[1] - q[1]) < 1e-6, eid
             for n in "abc":
                 assert not _seg_hits_box(p, q, res.boxes[n]), (eid, n)
-    assert _on_border(res.routes["e0"][0], res.boxes["a"]) and _on_border(res.routes["e0"][-1], res.boxes["b"])
-    assert _on_border(res.routes["e2"][0], res.boxes["a"]) and _on_border(res.routes["e2"][-1], res.boxes["c"])
+    for eid, a, b in (("e0", "a", "b"), ("e1", "b", "c"), ("e2", "a", "c")):
+        assert _on_border(res.routes[eid][0], res.boxes[a]), (direction, eid)
+        assert _on_border(res.routes[eid][-1], res.boxes[b]), (direction, eid)
 
 
 def test_self_loop_clears_same_rank_neighbour_and_its_label_sits_beside_it():  # LAY-09
@@ -446,7 +451,6 @@ def test_self_loop_clears_same_rank_neighbour_and_its_label_sits_beside_it():  #
     out = apply_layout(d, th)
     n = {k.id: (k.x, k.y, k.w, k.h) for k in out.nodes}
     loop_e = out.edges[2]
-    pts = [(n["b"][0] + n["b"][2], 0)] + list(loop_e.via)
     xs = [x for x, _ in loop_e.via]
     for (x1, y1), (x2, y2) in zip(loop_e.via, loop_e.via[1:]):
         assert not _seg_hits_box((x1, y1), (x2, y2), n["c"]) and not _seg_hits_box((x1, y1), (x2, y2), n["b"])
@@ -455,7 +459,7 @@ def test_self_loop_clears_same_rank_neighbour_and_its_label_sits_beside_it():  #
         assert not _overlap(pill, box)
     assert pill[0] >= min(xs) - 0.5  # beside the loop, on its outer side (never over the node)
     assert abs(pill[1] + pill[3] / 2 - (loop_e.via[0][1] + loop_e.via[1][1]) / 2) < pill[3]  # level with the loop
-    assert pts
+    assert _gap_to_route(pill, _route_pts(out, loop_e)) <= 6.5
 
 
 def test_parallel_edges_get_separate_non_overlapping_labels():  # LAY-10, LAY-12
@@ -468,6 +472,8 @@ def test_parallel_edges_get_separate_non_overlapping_labels():  # LAY-10, LAY-12
     p1, p2 = _pill_box(out.edges[0], th), _pill_box(out.edges[1], th)
     assert out.edges[0].label_at != out.edges[1].label_at
     assert not _overlap(p1, p2)
+    assert _gap_to_route(p1, _route_pts(out, out.edges[0])) <= 6.5
+    assert _gap_to_route(p2, _route_pts(out, out.edges[1])) <= 6.5
 
 
 def test_overflow_reports_the_excess_in_px():  # LAY-20
@@ -484,3 +490,42 @@ def test_overflow_reports_the_excess_in_px():  # LAY-20
     assert over and over[1] > 0
     issue = next(i for i in check(sc) if i.kind == "overflow")
     assert f"{over[1]}px tall" in issue.detail
+
+
+def _route_pts(out, e):
+    """Polyline of a laid-out edge: anchor points from node sides plus its via."""
+    boxes = {n.id: (n.x, n.y, n.w, n.h) for n in out.nodes}
+
+    def anchor(ref):
+        nid, _, side = ref.partition(".")
+        side, _, frac = side.partition("@")
+        x, y, w, h = boxes[nid]
+        f = float(frac) if frac else 0.5
+        return {"left": (x, y + h * f), "right": (x + w, y + h * f), "top": (x + w * f, y),
+                "bottom": (x + w * f, y + h)}.get(side, (x + w / 2, y + h / 2))
+
+    return [anchor(e.src), *(e.via or []), anchor(e.dst)]
+
+
+def _gap_to_route(box, pts):
+    """Smallest distance between a box and any segment of the route (0 when they touch)."""
+    x, y, w, h = box
+    best = float("inf")
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+        sx0, sx1, sy0, sy1 = min(x1, x2), max(x1, x2), min(y1, y2), max(y1, y2)
+        dx = max(0.0, x - sx1, sx0 - (x + w))
+        dy = max(0.0, y - sy1, sy0 - (y + h))
+        best = min(best, (dx * dx + dy * dy) ** 0.5)
+    return best
+
+
+GOLDEN = "8fb4d9b2873e6bb703027e991f826d526f5f186b78ab0d7bf3e49cc777309288"
+
+
+def test_layout_matches_frozen_golden():  # LAY-05 (identical on every run, seed and Python version)
+    import hashlib
+    g = _graph(ORDER + ["x", "y"], ORDER_EDGES + [("backorder", "receive"), ("x", "y"), ("y", "x")],
+               kinds={"stock": "decision"}, loops=["ship"])
+    r = _run(g)
+    blob = json.dumps([sorted(r.boxes.items()), sorted(r.routes.items())])
+    assert hashlib.sha256(blob.encode()).hexdigest() == GOLDEN
