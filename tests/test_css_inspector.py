@@ -192,7 +192,7 @@ def test_check_styles_plain_output(spec, capsys):  # INS-04, INS-07 (pipe → pl
     assert "strok: red  ⚠ unknown property (did you mean 'stroke'?)" in api
     assert "edge api → db  'write'" not in out              # edge has no declarations ...
     assert "1 element(s) without declarations: edge api → db" in out  # ... so it is summarised
-    assert "info: unused selector .nothing brand.css:4" in out
+    assert "info: unused selector .nothing (brand.css:4)" in out
     assert "#db  S01 css:1 (1,0,0)" in out and "opacity: 0.5" in out
 
 
@@ -320,3 +320,68 @@ def test_figma_symbols_honour_opacity():  # INS-15 neighbour: vec() dropped `opa
               ".then(v => console.log(JSON.stringify(v.fills)));")
     fills = json.loads(subprocess.run([node, "-e", script], capture_output=True, text=True, check=True).stdout)
     assert fills[0]["opacity"] == pytest.approx(0.25)
+
+
+# verifier gaps (css-inspector validation.md, iteration 1) ----------------------------------------
+def test_check_styles_unused_counts_every_diagram(tmp_path, monkeypatch, capsys):  # INS-08 under --styles
+    (tmp_path / "s.css").write_text(".hot { fill: #FF0000 }\n.cold { fill: #0000FF }\n")
+    box = "  - {id: a, title: A, x: 0, y: 0, w: 200, h: 100%s}\n"
+    for name, cls in (("a", ", class: hot"), ("b", "")):
+        (tmp_path / f"{name}.yaml").write_text(f"id: {name.upper()}\ntitle: {name}\nstylesheets: [s.css]\nnodes:\n"
+                                               + box % cls)
+    monkeypatch.chdir(tmp_path)
+    for argv in (["check", "a.yaml", "b.yaml"], ["check", "--styles", "a.yaml", "b.yaml"]):
+        main(argv)
+        out = capsys.readouterr().out
+        assert out.count("info: unused selector .cold") == 1, argv   # once, not per diagram
+        assert "unused selector .hot" not in out, argv
+
+
+def test_check_styles_prints_inherited_and_pseudo_sections(tmp_path, monkeypatch, capsys):  # INS-04
+    (tmp_path / "g.yaml").write_text(
+        "id: G\ntitle: G\ncss: \"group { color: #123456 } node::body { font-style: italic }\"\n"
+        "groups:\n  - {id: zone, label: Zone, children: [a]}\n"
+        "nodes:\n  - {id: a, title: A, text: body, x: 100, y: 100, w: 300, h: 140}\n")
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--styles", "--select", "#a", "g.yaml"])
+    out = capsys.readouterr().out
+    assert "inherited from group#zone" in out and "color: #123456" in out
+    body = next(ln for ln in out.splitlines() if ln.strip().startswith("::body"))
+    assert "font-style italic" in body and "node::body  G css:1 (0,0,2)" in out
+
+
+def test_declared_properties_are_not_listed_as_inherited():  # INS-02 ("not declared on the element")
+    _, trace, (_, _, api, db) = _traced(SHEET + "#api { color: #654321 }")
+    assert "color" not in {e["property"] for e in trace[api][""]["inherited"]}
+    assert "color" in {e["property"] for e in trace[db][""]["inherited"]}
+
+
+def test_auto_colour_follows_tty_and_no_color(monkeypatch):  # INS-07
+    from spinagram.inspect_fmt import use_color
+
+    class Tty:
+        def isatty(self):
+            return True
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    assert use_color("auto", Tty()) is True
+    assert use_color("auto", object()) is False
+    assert use_color("never", Tty()) is False and use_color("always", object()) is True
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert use_color("auto", Tty()) is False
+
+
+def test_inspect_reports_kinds_and_ids():  # INS-12 fields
+    r = css.inspect(_diagram(), Theme.load(None))
+    by = {e["key"]: e for e in r["elements"]}
+    assert by["node:api"]["kinds"] == ["box"] and by["node:api"]["id"] == "api"
+    assert by["edge:0"]["id"] is None and by["group:zone"]["kinds"] == ["group"]
+
+
+def test_tracing_keeps_example_svgs_identical():  # INS-03 (byte-identical renders)
+    from pathlib import Path
+    from spinagram.yaml_io import load
+    root = Path(__file__).resolve().parents[1] / "examples" / "styling"
+    for d in load(root / "styled.py"):
+        before = to_svg(scenes([d])[0])
+        css.inspect(d, Theme.load(None))                               # tracing must not touch the diagram
+        assert to_svg(scenes([d])[0]) == before

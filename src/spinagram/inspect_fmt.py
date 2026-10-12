@@ -126,8 +126,11 @@ def _section(out: list[str], pen: _Pen, t: dict, base: Path | None, labels: dict
             out.append(f"{indent}    {pen.prop(i['property'])}: {pen.swatches(_fmt(i['value']))}")
 
 
-def render(report: dict, *, color: bool = False, keys: list[str] | None = None, base: Path | None = None) -> str:
-    """One diagram's report as text. ``keys`` limits the elements shown (``--select``)."""
+def render(report: dict, *, color: bool = False, keys: list[str] | None = None, base: Path | None = None,
+           unused_selectors: bool = True) -> str:
+    """One diagram's report as text. ``keys`` limits the elements shown (``--select``). With several
+    diagrams, pass ``unused_selectors=False`` and print :func:`unused` once (a selector used elsewhere
+    is not unused)."""
     pen = _Pen(color)
     out: list[str] = []
     title = f"{report['diagram']} · {report['title']}"
@@ -165,9 +168,10 @@ def render(report: dict, *, color: bool = False, keys: list[str] | None = None, 
     if quiet:
         out.append("")
         out.append(f"  {pen.dim(f'{len(quiet)} element(s) without declarations: ' + ', '.join(quiet))}")
-    if report["unused"] or report["warnings"]:
+    shown = report["unused"] if unused_selectors else []
+    if shown or report["warnings"]:
         out.append("")
-    for u in report["unused"]:
+    for u in shown:
         out.append(f"  {pen.dim('info: unused selector')} {pen.sel(u['selector'])} "
                    f"{pen.dim(_origin(u['origin'], u['line'], base))}")
     for w in report["warnings"]:

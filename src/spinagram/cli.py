@@ -162,13 +162,12 @@ def _check(args, diagrams, theme) -> int:
     if args.styles:
         base = Path.cwd()
         for r, keys in zip(reports, selected):
-            print(inspect_fmt.render(r, color=color, keys=keys, base=base))
+            print(inspect_fmt.render(r, color=color, keys=keys, base=base, unused_selectors=False))
     issues = [i for sc in api.scenes(diagrams, theme, args.layout) for i in qa.check(sc)]
     for i in issues:
         print(i)
-    if not args.styles:
-        for u in inspect_fmt.unused(reports):
-            print(f"info: unused selector {u['selector']} ({u['origin']}:{u['line']})")
+    for u in inspect_fmt.unused(reports):
+        print(f"info: unused selector {u['selector']} ({u['origin']}:{u['line']})")
     print(f"{len(diagrams)} diagram(s), {len(issues)} issue(s)")
     return 1 if issues else 0
 
