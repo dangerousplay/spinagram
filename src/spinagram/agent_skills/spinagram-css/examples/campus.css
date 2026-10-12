@@ -1,0 +1,14 @@
+/* Campus network: clean tiers, network symbols carry the colour. */
+group.tier         { fill: #F8FAFC; stroke: #E2E8F0; border-radius: 16px; }
+group.tier::label  { color: #64748B; }
+group.bare         { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
+
+.internet   { fill: #F8FAFC; stroke: #94A3B8; stroke-dasharray: 6 4; box-shadow: none; }
+.edge-gear  { stroke: #DC2626; }
+.core       { stroke: #16A34A; stroke-width: 2.5; }
+.access     { stroke: #2563EB; }
+.endpoint   { border-radius: 40px; stroke: #94A3B8; }
+
+edge                { stroke: #94A3B8; stroke-width: 2.5; }
+edge.uplink         { stroke: #16A34A; stroke-width: 3; }
+edge.redundant-link { stroke: #16A34A; stroke-width: 3; stroke-dasharray: 8 6; marker-start: arrow; }

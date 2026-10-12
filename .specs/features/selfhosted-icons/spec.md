@@ -128,8 +128,8 @@ firewalls). Authors fall back to generic glyphs or hand-managed files. Two built
 | ICON-14 | P1: Catalog - network tag | Tasks | Implementing |
 | ICON-15 | P1: Catalog - categories | Tasks | Implementing |
 | ICON-16 | P2: Showcase - homelab | Tasks | Implementing |
-| ICON-17 | P2: Showcase - campus network | Tasks | Pending |
-| ICON-18 | P2: Showcase - check clean | Tasks | Pending |
+| ICON-17 | P2: Showcase - campus network | Tasks | Implementing |
+| ICON-18 | P2: Showcase - check clean | Tasks | Implementing |
 | ICON-19 | P2: Docs | Tasks | Pending |
 
 **Coverage:** 19 total, 19 mapped to tasks, 0 unmapped

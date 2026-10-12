@@ -158,8 +158,8 @@ T4 → T5 → T6
 
 **Done when**:
 
-- [ ] `check examples/showcase` 0 issues; skill examples identical
-- [ ] Gate check passes: `build gate`
+- [x] `check examples/showcase` 0 issues; skill examples identical
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build
