@@ -305,3 +305,18 @@ def test_fill_opacity_in_figma(tmp_path):  # INS-15 (Figma)
               "console.log(JSON.stringify(rect('a', 0, 0, 10, 10, {fill: '#FF0000', fillOpacity: 0.4, opacity: 0.5}).fills));")
     fills = json.loads(subprocess.run([node, "-e", script], capture_output=True, text=True, check=True).stdout)
     assert fills[0]["opacity"] == pytest.approx(0.2)                 # zone opacity × fill-opacity
+
+
+def test_figma_symbols_honour_opacity():  # INS-15 neighbour: vec() dropped `opacity` for symbol fills
+    node = shutil.which("node") or shutil.which("bun")
+    if not node:
+        pytest.skip("node/bun not installed")
+    from spinagram.backends import figma as fig_mod
+    src = next(v for v in vars(fig_mod).values() if isinstance(v, str) and "async function vec(" in v)
+    pieces = [re.search(p, src, re.S).group(0) for p in (r"const rgb = .*?;\n", r"const solid = .*?;\n",
+                                                          r"async function vec\(.*?\n\}\n")]
+    script = ("const figma = {createVector: () => ({})}; const deco = () => {}; const put = (n) => n;\n"
+              + "".join(pieces) + "vec('a', 0, 0, {}, {fill: '#FF0000', opacity: 0.5, fillOpacity: 0.5})"
+              ".then(v => console.log(JSON.stringify(v.fills)));")
+    fills = json.loads(subprocess.run([node, "-e", script], capture_output=True, text=True, check=True).stdout)
+    assert fills[0]["opacity"] == pytest.approx(0.25)

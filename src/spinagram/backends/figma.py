@@ -80,7 +80,7 @@ async function vec(name, x0, y0, net, o) {
   const v = figma.createVector();
   if (v.setVectorNetworkAsync) await v.setVectorNetworkAsync(net); else v.vectorNetwork = net;
   v.x = x0; v.y = y0;
-  v.fills = o.fill ? solid(o.fill, o.fillOpacity) : [];
+  v.fills = o.fill ? solid(o.fill, (o.opacity ?? 1) * (o.fillOpacity ?? 1)) : [];
   v.strokes = o.stroke ? solid(o.stroke) : []; v.strokeWeight = o.sw || 1; v.strokeJoin = 'ROUND';
   if (o.dash) v.dashPattern = [10, 7];
   deco(v, o);
