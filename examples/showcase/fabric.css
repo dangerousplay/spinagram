@@ -1,0 +1,28 @@
+/* EVPN-VXLAN fabric: AS boundaries as dashed zones, VNI subnets tinted, links coloured by role. */
+:root { --underlay: #94A3B8; --evpn: #7C3AED; --esi: #EA580C; --ebgp: #DC2626; }
+
+group.as          { fill: #F8FAFC; stroke: #94A3B8; stroke-dasharray: 6 5; border-radius: 14px; }
+group.as::label   { color: #334155; }
+group.spine-as    { fill: #F0FDF4; stroke: #86EFAC; }
+group.spine-as::label { color: #166534; }
+group.border-as   { fill: #FEF2F2; stroke: #FCA5A5; }
+group.border-as::label { color: #991B1B; }
+group.vni         { fill: #F5F3FF; stroke: #C4B5FD; border-radius: 12px; }
+group.vni::label  { color: #5B21B6; }
+group.wan         { fill: #FFF7ED; stroke: #FDBA74; stroke-dasharray: 6 5; border-radius: 12px; }
+group.wan::label  { color: #9A3412; }
+group.bare        { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
+
+.spine        { stroke: #16A34A; stroke-width: 2.5; }
+.leaf         { stroke: #2563EB; }
+.border-leaf  { stroke: #DC2626; }
+.host         { border-radius: 40px; stroke: #7C3AED; }
+.isp          { fill: #F8FAFC; stroke: #EA580C; stroke-dasharray: 6 4; box-shadow: none; }
+
+edge                 { stroke: var(--underlay); stroke-width: 1.8; }
+edge.underlay-ebgp   { stroke: var(--underlay); stroke-width: 1.8; marker-start: none; marker-end: none; }
+edge.esi-multihoming { stroke: var(--esi); stroke-width: 3; marker-end: none; }
+edge.wan-ebgp        { stroke: var(--ebgp); stroke-width: 3; stroke-dasharray: 8 5; marker-end: none; }
+edge.vxlan-path      { stroke: var(--evpn); stroke-width: 3; }
+
+step        { fill: var(--evpn); stroke: #FFFFFF; }

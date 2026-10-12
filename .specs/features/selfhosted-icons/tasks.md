@@ -44,7 +44,7 @@ T1 → T2 → T3
 ### Phase 2: Showcase and docs
 
 ```
-T4 → T5 → T6 → T7 → T8
+T4 → T5 → T6 → T7 → T8 → T9 → T10
 ```
 
 ---
@@ -235,6 +235,52 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
+### T9: Packs registered after the theme loaded (user report: blank network icons in serve)
+
+**What**: `Theme.icon` refreshes the cached pack list when an icon names an unknown pack.
+**Where**: `src/spinagram/theme.py`
+**Depends on**: T8
+**Reuses**: `icon_packs`
+**Requirement**: ICON-06, ICON-12
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] a pack registered after the theme loaded resolves; the running preview shows the network icons
+- [x] Gate check passes: `uv run pytest -q`
+
+**Tests**: unit
+**Gate**: full
+
+---
+
+### T10: Showcase: EVPN-VXLAN fabric (user request)
+
+**What**: Spine-leaf fabric with AS numbers, eBGP underlay, VNI subnets, ESI multihoming, eBGP transit, steps, callouts, legend.
+**Where**: `examples/showcase/evpn_fabric.py`
+**Depends on**: T9
+**Reuses**: network pack, annotations
+**Requirement**: ICON-17, ICON-18
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] `check examples/showcase` 0 issues; PNG reviewed; skill examples synced
+- [x] Gate check passes: build gate
+
+**Tests**: none
+**Gate**: build
+
+---
+
 ## Diagram-Definition Cross-Check
 
 | Task | Depends On (task body) | Diagram Shows | Status |
@@ -247,6 +293,8 @@ T4 → T5 → T6 → T7 → T8
 | T6 | T5 | T5 → T6 | ✅ |
 | T7 | T6 | T6 → T7 | ✅ |
 | T8 | T7 | T7 → T8 | ✅ |
+| T9 | T8 | T8 → T9 | ✅ |
+| T10 | T9 | T9 → T10 | ✅ |
 
 ## Test Co-location Validation
 
@@ -260,3 +308,5 @@ T4 → T5 → T6 → T7 → T8
 | T6 | Config/showcase/docs | none | none | ✅ |
 | T7 | Model/annotate/qa | unit | unit | ✅ |
 | T8 | Config/showcase/docs | none | none | ✅ |
+| T9 | Integration | unit | unit | ✅ |
+| T10 | Config/showcase/docs | none | none | ✅ |

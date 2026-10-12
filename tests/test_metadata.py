@@ -204,7 +204,7 @@ def test_showcase_groups_by_provider_without_metadata():
     got = {d.id: effective_category(d) for d in load(showcase)}
     assert got == {"AWS01": "AWS", "AWS02": "AWS", "GCP01": "Google Cloud",
                    "K8S01": "Kubernetes", "K8S02": "Kubernetes", "NOTE01": "Decisions",  # NOTE01 declares one
-                   "HOME01": "Self-hosted", "NET01": "Network"}
+                   "HOME01": "Self-hosted", "NET01": "Network", "NET02": "Network"}
 
 
 # META-28..31: CLI filters -------------------------------------------------------------------------
