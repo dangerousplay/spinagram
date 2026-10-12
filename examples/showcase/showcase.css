@@ -1,0 +1,17 @@
+/* Shared showcase look: soft cards, crisp vendor accents, quiet edges. */
+:root {
+  --ink: #0F172A; --muted: #64748B; --line: #94A3B8;
+  --card: #FFFFFF; --card-stroke: #E2E8F0;
+  --aws: #FF9900; --gcp: #4285F4; --k8s: #326CE5;
+  --ok: #059669; --warn: #D97706; --sec: #DC2626;
+}
+node { fill: var(--card); stroke: var(--card-stroke); stroke-width: 1.5; border-radius: 12px;
+       box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10); }
+node::title { color: var(--ink); font-weight: 600; }
+node::body  { color: var(--muted); }
+edge        { stroke: var(--line); stroke-width: 2; }
+edge::label { color: var(--muted); }
+node::title { font-size: 19px; }
+node::body  { font-size: 14px; }
+group::label { font-size: 14px; }
+edge::label { font-size: 13px; }

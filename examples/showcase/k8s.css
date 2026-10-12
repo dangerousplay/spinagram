@@ -1,0 +1,42 @@
+/* Kubernetes: a dark cluster canvas with Kubernetes-blue accents. */
+:root { --k8s: #326CE5; --night: #0B1220; --panel: #131C2E; --rim: #2A3954; --frost: #E2E8F0; --mist: #94A3B8; }
+
+group.cluster        { fill: var(--night); fill-opacity: 1; opacity: 1; stroke: var(--k8s); stroke-width: 2; border-radius: 22px;
+                       box-shadow: 0 18px 36px rgba(11, 18, 32, 0.35); }
+group.cluster::label { color: #93C5FD; }
+group.cp             { fill: #0F1A30; stroke: var(--rim); border-radius: 14px; }
+group.ns             { fill: #0E1628; stroke: var(--k8s); stroke-dasharray: 8 6; border-radius: 16px; }
+group.cluster group::label { color: var(--mist); }
+group.pods           { fill: #10203D; stroke: var(--rim); border-radius: 12px; }
+group.bare           { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
+
+group.cluster node         { fill: var(--panel); stroke: var(--rim); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45); }
+group.cluster node::title  { color: #F8FAFC; }
+group.cluster node::body   { color: var(--mist); }
+group.cluster edge, edge   { stroke: #64748B; }
+
+.cp-part   { stroke: #475569; }
+.net       { stroke: #38BDF8; }
+.workload  { stroke: var(--k8s); stroke-width: 2.5; }
+.pod       { border-radius: 32px; stroke: #60A5FA; }
+.pod::title { font-size: 15px; font-weight: 500; }
+.scale     { stroke: #F59E0B; }
+.config    { stroke: #A78BFA; }
+.storage   { stroke: #34D399; }
+node.storage:not(.pod)::body { color: #6EE7B7; }
+
+.client    { fill: #F8FAFC; stroke-dasharray: 6 4; box-shadow: none; }
+#persistentvolume { fill: #ECFDF5; stroke: #059669; }
+
+edge.control     { stroke: #F59E0B; stroke-dasharray: 6 4; }
+edge.config-edge { stroke: #A78BFA; stroke-dasharray: 2 4; }
+edge.bind        { stroke: #059669; stroke-width: 3; marker-start: circle; }
+edge::label      { color: var(--mist); }
+
+/* Service networking */
+group.worker        { fill: #0F1A30; stroke: #3B82F6; border-radius: 16px; }
+group.worker::label { color: #93C5FD; }
+.vip      { stroke: #38BDF8; stroke-width: 3; box-shadow: 0 0 22px rgba(56, 189, 248, 0.45); }
+.policy   { stroke: #F43F5E; }
+.pod.blocked       { stroke: #F43F5E; stroke-dasharray: 5 4; box-shadow: 0 0 16px rgba(244, 63, 94, 0.35); }
+.pod.blocked::body { color: #FDA4AF; }
