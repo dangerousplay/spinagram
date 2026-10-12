@@ -208,3 +208,54 @@ def test_tree_types_and_attributes():  # CSS-02 on real diagrams
     assert styles[f"node:{x.id}"][""]["fill"] == "#020202"
     assert styles["edge:0"][""]["stroke"] == "#030303"
     assert styles[f"node:{q.id}"][""]["fill"] == "#040404"
+
+
+# T5: YAML, folder defaults and theme sheets -----------------------------------------------------
+from spinagram.yaml_io import from_dict, load  # noqa: E402
+
+
+def test_yaml_and_python_resolve_identical_styles(tmp_path):  # CSS-19
+    (tmp_path / "brand.css").write_text(".critical { stroke: #DC2626 } edge.async { stroke-dasharray: 6 4 }")
+    spec = {"id": "D", "title": "Styled", "css": "node { fill: #EEEEEE }", "stylesheets": ["brand.css"],
+            "groups": [{"id": "zone", "label": "Zone", "class": "edge-zone", "css": "fill: #FFFFFF",
+                        "children": ["api", "db"]}],
+            "nodes": [{"id": "api", "title": "API", "class": "critical", "css": "stroke-width: 6"},
+                      {"id": "db", "title": "DB"}],
+            "edges": [{"from": "api", "to": "db", "label": "write", "class": "async"}]}
+    y = from_dict(spec, base_dir=tmp_path)
+    p = Diagram("D", "Styled", css="node { fill: #EEEEEE }", base_dir=tmp_path)
+    p.stylesheet("brand.css")
+    with p.group("Zone", id="zone", class_="edge-zone", css="fill: #FFFFFF"):
+        api = p.box("API", id="api", class_="critical", css="stroke-width: 6")
+        db = p.box("DB", id="db")
+    api.to(db, "write", class_="async")
+    th = Theme.load(None)
+    assert css.styles(y, th) == css.styles(p, th)
+    assert css.styles(y, th)[0]["node:api"][""]["stroke"] == "#DC2626"
+
+
+def test_folder_defaults_stylesheets(tmp_path):  # CSS-19
+    (tmp_path / "_defaults.yaml").write_text("stylesheets: [team.css]\n")
+    (tmp_path / "team.css").write_text("node { fill: #ABCDEF }")
+    (tmp_path / "a.yaml").write_text("id: A\ntitle: A\nnodes: [{id: n, title: N}]\n")
+    (d,) = load(tmp_path / "a.yaml")
+    assert css.styles(d, Theme.load(None))[0]["node:n"][""]["fill"] == "#ABCDEF"
+
+
+def test_theme_css_comes_first_and_inherits(tmp_path):  # cascade order: theme < diagram
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "theme.yaml").write_text("extends: default\nname: base\n")
+    (base / "theme.css").write_text("node { fill: #111111; stroke: #222222 }")
+    child = tmp_path / "child"
+    child.mkdir()
+    (child / "theme.yaml").write_text("extends: ../base\nname: child\n")
+    (child / "theme.css").write_text("node { stroke: #333333 }")
+    th = Theme.load(child)
+    assert [p.name for p in th.stylesheets()] == ["theme.css", "theme.css"]
+    d = Diagram("D", "x", css="#n { fill: #444444 }")
+    d.box("N", id="n")
+    d.box("M", id="m")
+    s, _ = css.styles(d, th)
+    assert s["node:n"][""]["fill"] == "#444444" and s["node:n"][""]["stroke"] == "#333333"
+    assert s["node:m"][""]["fill"] == "#111111"

@@ -129,11 +129,13 @@ T5 → T6 → T7 → T8 → T9
 **Requirement**: CSS-19
 
 **Done when**:
-- [ ] Same styled diagram in YAML and Python resolves identical computed styles
-- [ ] Gate passes
+- [x] Same styled diagram in YAML and Python resolves identical computed styles
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T6: Computed styles in the scene
 
