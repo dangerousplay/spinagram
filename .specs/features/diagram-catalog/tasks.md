@@ -75,9 +75,9 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] `Diagram(..., category="Networking", tags=["aws", " Hub ", "AWS", ""])` reports `["aws", "hub"]`
-- [ ] single-string tags become a one-element list; non-string tags/category raise `ValueError` naming id and key
-- [ ] Gate check passes: `uv run pytest tests/test_metadata.py -q`
+- [x] `Diagram(..., category="Networking", tags=["aws", " Hub ", "AWS", ""])` reports `["aws", "hub"]`
+- [x] single-string tags become a one-element list; non-string tags/category raise `ValueError` naming id and key
+- [x] Gate check passes: `uv run pytest tests/test_metadata.py -q`
 
 **Tests**: unit
 **Gate**: quick

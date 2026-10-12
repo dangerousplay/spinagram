@@ -225,6 +225,15 @@ def _endpoint(v: Any) -> str | Point:
     return (float(v[0]), float(v[1]))
 
 
+def normalize_tags(tags: Any, owner: str) -> list[str]:
+    """Catalog tags as a sorted list of unique, trimmed, lower-case strings; a single string is one tag."""
+    if isinstance(tags, str):
+        tags = [tags]
+    if not isinstance(tags, (list, tuple, set)) or not all(isinstance(t, str) for t in tags):
+        raise ValueError(f"{owner}: tags must be a list of strings, got {tags!r}")
+    return sorted({t.strip().lower() for t in tags} - {""})
+
+
 @dataclass
 class Diagram:
     """A diagram and a fluent builder.
@@ -253,8 +262,15 @@ class Diagram:
     meta: dict[str, Any] = field(default_factory=dict)
     css: str | None = None        # stylesheet text for this diagram (after theme and folder sheets)
     stylesheets: list[str] = field(default_factory=list)  # paths or stylesheet texts, in cascade order
+    category: str | None = None   # catalog grouping (``group`` is taken by layout zones)
+    tags: list[str] = field(default_factory=list)  # catalog tags, normalised: trimmed, lower-case, unique, sorted
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.category is not None and not isinstance(self.category, str):
+            raise ValueError(f"{self.id}: category must be a string, got {self.category!r}")
+        self.tags = normalize_tags(self.tags, self.id)
 
     @property
     def auto(self) -> bool:
