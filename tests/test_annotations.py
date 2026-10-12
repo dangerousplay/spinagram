@@ -830,3 +830,14 @@ def test_auto_side_slides_along_the_side_before_giving_up():  # ANN-22
     items, shapes, ann, t = _callout_items(d)
     bubble, node = items["callout-0"], shapes["target"]
     assert _side(bubble, node) == "bottom" and bubble.x == node.x and ann.issues == []
+
+
+def test_quote_keeps_explicit_css_sizes():  # ANN-27 with CSS sizes
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    d = Diagram("V2", "Quote sizes")
+    d.note("Author", text="Words", variant="quote", x=100, y=300, w=600, h=240)
+    d.css = "note.quote::body { font-size: 40px } note.quote::title { font-size: 20px }"
+    body, attribution = _by_id(build_scene(d, Theme.load("default")).items)["author"].label.blocks
+    assert (body.font.size, attribution.font.size) == (40, 20)

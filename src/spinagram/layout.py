@@ -144,7 +144,9 @@ class _Builder:
         variant = n.extra.get("variant") if n.kind == "note" else None
         if variant == "quote":
             offset += 46  # room for the quote mark
-            ts, bs = bs, ts - 2  # the quote reads larger than its attribution
+            # the quote reads larger than its attribution (theme sizes only; CSS or explicit sizes win)
+            ts = n.title_size or nd.get("body_size", 18)
+            bs = n.body_size or nd.get("title_size", 24) - 2
         avail = w - 2 * pad - offset
         blocks = []
         cs = self._css(f"node:{n.id}")
