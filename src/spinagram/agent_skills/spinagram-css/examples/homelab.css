@@ -1,0 +1,26 @@
+/* Homelab private cloud: VLAN zones in calm tints, one accent per role. Class names are legend labels. */
+:root { --sec: #E11D48; --net: #2563EB; --hv: #EA580C; --wl: #7C3AED; --st: #0D9488; }
+
+group.vlan          { fill: #F8FAFC; stroke: #CBD5E1; stroke-dasharray: 6 5; border-radius: 16px; }
+group.vlan::label   { color: #475569; }
+group.dmz           { fill: #FFF1F2; stroke: #FDA4AF; }
+group.dmz::label    { color: #9F1239; }
+group.servers       { fill: #FFF7ED; stroke: #FDBA74; }
+group.servers::label { color: #9A3412; }
+group.storage-vlan  { fill: #F0FDFA; stroke: #5EEAD4; }
+group.storage-vlan::label { color: #115E59; }
+group.bare          { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
+
+.external    { fill: #F8FAFC; stroke: #94A3B8; stroke-dasharray: 6 4; box-shadow: none; }
+.security    { stroke: var(--sec); }
+.networking  { stroke: var(--net); }
+.hypervisor  { stroke: var(--hv); stroke-width: 2.5; }
+.workload    { stroke: var(--wl); border-radius: 22px; }
+.storage     { stroke: var(--st); }
+
+edge.storage-traffic { stroke: var(--st); stroke-width: 3; }
+edge.backup-job      { stroke: var(--st); stroke-dasharray: 7 5; }
+edge.remote-access   { stroke: var(--sec); stroke-dasharray: 3 4; }
+
+step        { fill: #0F172A; stroke: #FFFFFF; }
+step::label { color: #FBBF24; }

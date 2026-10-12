@@ -135,8 +135,8 @@ T4 → T5 → T6
 
 **Done when**:
 
-- [ ] `check` 0 issues; PNG reviewed
-- [ ] Gate check passes: `build gate`
+- [x] `check` 0 issues; PNG reviewed
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build
