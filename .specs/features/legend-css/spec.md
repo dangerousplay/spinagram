@@ -103,7 +103,7 @@ whole set of diagrams with one stylesheet cannot move or reshape every legend fr
 | LCSS-12 | P1: Size - label font size | Tasks | Implementing |
 | LCSS-13 | P1: Size - display none | Tasks | Implementing |
 | LCSS-14 | P2: Docs | Tasks | Implementing |
-| LCSS-15 | P2: Showcase | Tasks | Pending |
+| LCSS-15 | P2: Showcase | Tasks | Implementing |
 
 **Coverage:** 15 total, 15 mapped to tasks, 0 unmapped
 

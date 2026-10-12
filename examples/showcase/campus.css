@@ -12,3 +12,8 @@ group.bare         { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
 edge                { stroke: #94A3B8; stroke-width: 2.5; }
 edge.uplink         { stroke: #16A34A; stroke-width: 3; }
 edge.redundant-link { stroke: #16A34A; stroke-width: 3; stroke-dasharray: 8 6; marker-start: arrow; }
+
+/* The legend is placed and laid out here, not in the diagram code. */
+legend        { placement: bottom; columns: 7; padding: 18; swatch-width: 64; swatch-height: 24; fill: #F8FAFC; box-shadow: none; }
+legend::title { font-size: 16px; color: #475569; }
+legend::body  { font-size: 15px; }

@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `inline (extends annotate.py; see spec assumptions)`
-**Status**: Approved
+**Status**: Done
 
 ---
 
@@ -181,8 +181,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] `check examples/showcase` 0 issues; PNG reviewed
-- [ ] Gate check passes: `build gate`
+- [x] `check examples/showcase` 0 issues; PNG reviewed
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build
