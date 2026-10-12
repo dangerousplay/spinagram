@@ -189,3 +189,56 @@ def test_showcase_groups_by_provider_without_metadata():
     got = {d.id: effective_category(d) for d in load(showcase)}
     assert got == {"AWS01": "AWS", "AWS02": "AWS", "GCP01": "Google Cloud",
                    "K8S01": "Kubernetes", "K8S02": "Kubernetes"}
+
+
+# META-28..31: CLI filters -------------------------------------------------------------------------
+SHOWCASE = str(__import__("pathlib").Path(__file__).resolve().parents[1] / "examples" / "showcase")
+
+
+def _checked(capsys, *flags) -> str:
+    from spinagram import cli
+
+    assert cli.main(["check", SHOWCASE, *flags]) == 0
+    return capsys.readouterr().out.strip().splitlines()[-1]
+
+
+def test_cli_tag_filter(capsys):
+    # K8S01, K8S02 and GCP01 (which uses k8s:user) all carry the inferred kubernetes tag (META-08)
+    assert _checked(capsys, "--tag", "kubernetes").startswith("3 diagram(s)")
+
+
+def test_cli_repeated_tags_must_all_match(capsys):
+    from spinagram import cli
+
+    assert _checked(capsys, "--tag", "KUBERNETES", "--tag", "gcp").startswith("1 diagram(s)")  # GCP01 uses k8s:user
+    with pytest.raises(SystemExit, match="no diagrams found"):
+        cli.main(["check", SHOWCASE, "--tag", "kubernetes", "--tag", "azure"])
+
+
+def test_cli_category_filter(capsys):
+    assert _checked(capsys, "--category", "aws").startswith("2 diagram(s)")
+    assert _checked(capsys, "--category", "google cloud").startswith("1 diagram(s)")
+
+
+def test_cli_filters_combine_with_only(capsys):
+    assert _checked(capsys, "--only", "K8S01", "AWS01", "--tag", "kubernetes").startswith("1 diagram(s)")
+    # GCP01 carries the kubernetes tag but its category is Google Cloud: tag and category must both hold
+    assert _checked(capsys, "--tag", "kubernetes", "--category", "kubernetes").startswith("2 diagram(s)")
+
+
+def test_cli_no_match_exits(capsys):
+    from spinagram import cli
+
+    with pytest.raises(SystemExit, match="no diagrams found"):
+        cli.main(["check", SHOWCASE, "--tag", "aws", "--category", "kubernetes"])
+
+
+def test_cli_filters_on_render_facts_layout(tmp_path, capsys):
+    from spinagram import cli
+
+    assert cli.main(["render", SHOWCASE, "--tag", "gcp", "--category", "google cloud", "-f", "svg",
+                     "-o", str(tmp_path), "--no-gallery"]) == 0
+    assert sorted(p.name for p in tmp_path.glob("*.svg")) == ["GCP01-global-web-application-on-google-cloud.svg"]
+    assert cli.main(["facts", SHOWCASE, "--category", "AWS"]) == 0
+    assert cli.main(["layout", SHOWCASE, "--tag", "kubernetes", "--only", "K8S02"]) == 0
+    assert "id: K8S02" in capsys.readouterr().out

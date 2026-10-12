@@ -148,8 +148,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] `check examples/showcase --tag kubernetes` processes 2 diagrams; `--category aws` 2; combined with `--only` intersects; no match exits "no diagrams found"
-- [ ] Gate check passes: `uv run pytest -q`
+- [x] `check examples/showcase --tag kubernetes` processes 3 diagrams (META-08 tags GCP01 too); `--category aws` 2; combined with `--only` intersects; no match exits "no diagrams found"
+- [x] Gate check passes: `uv run pytest -q`
 
 **Tests**: integration
 **Gate**: full

@@ -146,7 +146,7 @@ grouped by category, so that I find a diagram in seconds.
 3. WHEN `--only`, `--tag` and `--category` are combined THEN a diagram SHALL be processed only if it satisfies all of them.
 4. IF no diagram matches THEN the command SHALL exit with "no diagrams found" (the existing behaviour).
 
-**Independent Test**: `spinagram check examples/showcase --tag kubernetes` reports 2 diagrams.
+**Independent Test**: `spinagram check examples/showcase --category kubernetes` reports 2 diagrams; `--tag kubernetes` reports 3 (GCP01 also uses a `k8s:` icon, META-08).
 
 ---
 
@@ -189,10 +189,10 @@ grouped by category, so that I find a diagram in seconds.
 | META-25 | P1: Nav - stale recents omitted | Tasks | Pending |
 | META-26 | P1: Nav - storage unavailable | Tasks | Pending |
 | META-27 | P1: Nav - default route | Tasks | Pending |
-| META-28 | P2: CLI - --tag | Tasks | Pending |
-| META-29 | P2: CLI - --category | Tasks | Pending |
-| META-30 | P2: CLI - combined filters | Tasks | Pending |
-| META-31 | P2: CLI - no match | Tasks | Pending |
+| META-28 | P2: CLI - --tag | Tasks | Implementing |
+| META-29 | P2: CLI - --category | Tasks | Implementing |
+| META-30 | P2: CLI - combined filters | Tasks | Implementing |
+| META-31 | P2: CLI - no match | Tasks | Implementing |
 
 **Coverage:** 31 total, 31 mapped to tasks, 0 unmapped
 
@@ -202,4 +202,4 @@ grouped by category, so that I find a diagram in seconds.
 
 - [ ] `spinagram serve examples/showcase` groups the five diagrams under AWS, Google Cloud and Kubernetes with no source edits.
 - [ ] Typing a term in the search box narrows the cards within one keystroke render.
-- [ ] `spinagram check examples/showcase --tag kubernetes` processes exactly 2 diagrams.
+- [ ] `spinagram check examples/showcase --category kubernetes` processes exactly 2 diagrams.
