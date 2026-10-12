@@ -170,11 +170,13 @@ T8
 **Requirement**: INS-13, INS-14
 
 **Done when**:
-- [ ] `bun run build` passes; manual check in the browser
-- [ ] Gate passes
+- [x] `bun run build` passes; manual check in the browser
+- [x] Gate passes
 
 **Tests**: none
 **Gate**: build
+**Status**: ✅ Complete
+
 
 ### T8: Backend support docs and examples
 
