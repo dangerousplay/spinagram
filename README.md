@@ -167,3 +167,9 @@ cd docs && bun install && bun run dev  # docs at http://localhost:3000
 ```
 
 See [Development](https://dangerousplay.github.io/spinagram/docs/development/) for the UI frontend, docs and releases.
+
+## Changelog and license
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release. spinagram is released under the
+[MIT License](LICENSE). Icon packs are downloaded from their upstream projects on first use and keep
+their own licenses (listed by `spinagram icons list`).

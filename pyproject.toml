@@ -3,6 +3,8 @@ name = "spinagram"
 version = "0.1.0"
 description = "Diagrams as code rendered to editable SVG, PNG, PowerPoint and Figma, with pluggable themes and backends."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{name = "Davi Ficanha Henrique", email = "24483153+dangerousplay@users.noreply.github.com"}]
 keywords = ["diagrams", "diagram-as-code", "architecture", "svg", "powerpoint", "pptx", "figma", "figjam"]
@@ -37,6 +39,8 @@ ui = [
 
 [project.urls]
 Homepage = "https://github.com/dangerousplay/spinagram"
+Documentation = "https://dangerousplay.github.io/spinagram/docs/"
+Changelog = "https://github.com/dangerousplay/spinagram/blob/main/CHANGELOG.md"
 Source = "https://github.com/dangerousplay/spinagram"
 Issues = "https://github.com/dangerousplay/spinagram/issues"
 
@@ -51,7 +55,7 @@ figma = "spinagram.backends.figma:FigmaBackend"
 figjam = "spinagram.backends.figma:FigjamBackend"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]  # PEP 639 license metadata
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
