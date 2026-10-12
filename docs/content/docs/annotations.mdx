@@ -40,6 +40,27 @@ A custom `layout.area` is honoured: the band takes its right or bottom edge.
 
 ## Legends
 
+The legend's place and shape come from CSS, so one stylesheet can move every legend of a deck:
+
+```css
+legend { placement: bottom; columns: 4; gap: 10; padding: 18; swatch-width: 36; swatch-height: 22 }
+legend::body { font-size: 15px }
+```
+
+| Property | Values | Default |
+|---|---|---|
+| `placement` | `right`, `left`, `top`, `bottom`: the band's edge | `right` |
+| `width` | Band width on the left or right, px | `360` (theme `defaults.annotations.band`) |
+| `columns` | Entries per row | One column on the side (two when tall and the labels fit); flowed by label width on top or bottom |
+| `gap` | Space between rows, px | `12` |
+| `padding` | Card padding, px | `22` |
+| `swatch-width`, `swatch-height` | Swatch size, px | `46`, `28` |
+| `display` | `none` hides the legend (steps keep the band) | `block` |
+| `font-size` on `legend::body` | Entry labels | `16` |
+
+An explicit `add_legend(position=...)` (or `position:` in YAML) beats `placement`, the way inline styles beat
+stylesheets. The steps panel follows the legend's band.
+
 `d.add_legend()` lists every node class, edge class and non-default node style the diagram uses, once each,
 in first-use order. Labels come from the names: `.web-tier` becomes **Web tier**, so name classes for what
 they mean. Each swatch is drawn with the computed style of the first element that carries it: fill, stroke,

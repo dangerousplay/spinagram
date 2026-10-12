@@ -258,3 +258,19 @@ def test_cli_filters_on_render_facts_layout(tmp_path, capsys):
     assert cli.main(["facts", SHOWCASE, "--category", "AWS"]) == 0
     assert cli.main(["layout", SHOWCASE, "--tag", "kubernetes", "--only", "K8S02"]) == 0
     assert "id: K8S02" in capsys.readouterr().out
+
+
+def test_frozen_spec_round_trips_classes_and_skips_layout_bookkeeping():
+    from spinagram.autolayout import apply_layout
+    from spinagram.theme import Theme
+    from spinagram.yaml_io import dump, from_dict
+
+    d = Diagram("R1", "Round trip", layout={"engine": "flex", "area": [56, 176, 1808, 830]})
+    a = d.box("A", class_="web")
+    d.edge(a, d.box("B"), class_="async")
+    out = dump(apply_layout(d, Theme.load("default")))
+    assert out["nodes"][0]["class"] == "web" and "cls" not in out["nodes"][0]
+    assert out["edges"][0]["class"] == "async"
+    assert not {"laid_out", "layout_area"} & set(out.get("meta") or {})
+    again = from_dict(out)
+    assert (again.node("a").cls, again.edges[0].cls) == ("web", "async")

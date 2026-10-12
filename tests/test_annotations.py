@@ -64,7 +64,7 @@ def test_legend_items_keep_order_and_labels():  # ANN-02
 def test_legend_position_is_validated():
     d, *_ = _flow()
     with pytest.raises(ValueError, match="right, bottom"):
-        d.add_legend(position="left")
+        d.add_legend(position="middle")  # left and top joined right and bottom with legend placement in CSS
 
 
 def test_callout_records_target_and_options():  # ANN-20

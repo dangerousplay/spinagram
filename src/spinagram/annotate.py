@@ -105,13 +105,32 @@ def _head(a: dict) -> float:
     return a["padding"] + a["title_size"] * 1.3 + 10
 
 
-def legend_rows(entries: list[Entry], width: float, theme: Theme, columns: int = 1) -> list[list[Entry]]:
-    """Entries packed into rows: ``columns`` per row in a right band, or flowed by label width when
-    ``columns`` is 0 (bottom band)."""
+def legend_style(d: Diagram, theme: Theme) -> dict:
+    """The legend's geometry: theme ``defaults.annotations`` overridden by the ``legend`` CSS (``placement``,
+    ``width``, ``columns``, ``gap``, ``padding``, ``swatch-width``, ``swatch-height``, ``display`` and
+    ``legend::body { font-size }``). An explicit ``add_legend(position=...)`` beats ``placement``."""
+    a = settings(theme)
+    comp = (d.meta.get("css") or {}).get("legend") or {}
+    st, body = comp.get("") or {}, comp.get("body") or {}
+    lg = d.annotations.legend
+    out = {**a, "side": (lg.position if lg else None) or st.get("placement") or "right",
+           "display": st.get("display", "block"), "columns": st.get("columns"),
+           "label_size": body.get("font-size") or a["text_size"]}
+    for prop, key in (("width", "band"), ("gap", "row_gap"), ("padding", "padding"), ("swatch-width", "swatch_w"),
+                      ("swatch-height", "swatch_h")):
+        if prop in st:
+            out[key] = st[prop]
+    return out
+
+
+def legend_rows(entries: list[Entry], width: float, theme: Theme, columns: int = 1,
+                a: dict | None = None) -> list[list[Entry]]:
+    """Entries packed into rows: ``columns`` per row (a side band, or ``columns`` set in CSS), or flowed by label
+    width when ``columns`` is 0 (top or bottom band). ``a``: the legend style (default: the theme's)."""
     if columns:
         return [entries[i:i + columns] for i in range(0, len(entries), columns)]
-    a = settings(theme)
-    font = theme.font("body", 400, a["text_size"])
+    a = a or settings(theme)
+    font = theme.font("body", 400, a.get("label_size", a["text_size"]))
     inner = width - 2 * a["padding"]
     rows: list[list[Entry]] = [[]]
     used = 0.0
@@ -125,8 +144,8 @@ def legend_rows(entries: list[Entry], width: float, theme: Theme, columns: int =
     return rows if rows[0] else []
 
 
-def legend_height(rows: list[list[Entry]], theme: Theme) -> float:
-    a = settings(theme)
+def legend_height(rows: list[list[Entry]], theme: Theme, a: dict | None = None) -> float:
+    a = a or settings(theme)
     n = len(rows)
     return _head(a) + n * a["swatch_h"] + max(0, n - 1) * a["row_gap"] + a["padding"]
 
@@ -151,22 +170,25 @@ def steps_height(d: Diagram, width: float, theme: Theme) -> float:
 
 def band(d: Diagram, theme: Theme, width: float) -> tuple[str, float] | None:
     """``(side, thickness)`` reserved for the legend and steps panels (thickness includes the gap to the
-    content), or ``None``. ``width`` is the layout area's width (for a bottom band's rows)."""
+    content), or ``None``. ``side`` is right, left, top or bottom; ``width`` is the layout area's width (for
+    the rows of a top or bottom band)."""
     ann = d.annotations
-    if not (ann.legend or ann.steps):
+    ls = legend_style(d, theme)
+    shown = bool(ann.legend) and ls["display"] != "none"
+    if not (shown or ann.steps):
         return None
-    a = settings(theme)
-    side = ann.legend.position if ann.legend else "right"
-    if side == "right":
-        return "right", a["band"] + a["gap"]
-    steps_w = a["band"] if ann.steps else 0
-    legend_w = width - (steps_w + a["gap"] if steps_w and ann.legend else 0) if ann.legend else 0
+    side = ls["side"]
+    if side in ("right", "left"):
+        return side, ls["band"] + ls["gap"]
+    steps_w = ls["band"] if ann.steps else 0
+    legend_w = width - (steps_w + ls["gap"] if steps_w and shown else 0) if shown else 0
     h = 0.0
-    if ann.legend:
-        h = legend_height(legend_rows(legend_entries(d), legend_w, theme, columns=0), theme)
+    if shown:
+        rows = legend_rows(legend_entries(d), legend_w, theme, columns=ls["columns"] or 0, a=ls)
+        h = legend_height(rows, theme, ls)
     if ann.steps:
         h = max(h, steps_height(d, steps_w, theme))
-    return "bottom", h + a["gap"]
+    return side, h + ls["gap"]
 
 
 # scene ----------------------------------------------------------------------------------------------
@@ -183,6 +205,7 @@ class Annotator:
 
         self.b, self.d, self.t = builder, builder.d, builder.t
         self.a = settings(self.t)
+        self.ls = legend_style(self.d, self.t)  # the legend's own geometry (CSS overrides)
         self.area: Rect = _area(self.d, self.t, reserve=False)
         self.rects: list[Rect] = []       # panels and callouts already placed (callouts avoid them)
         self.issues: list[tuple[str, str, str]] = []  # (item, kind, detail) for ``spinagram check``
@@ -230,9 +253,7 @@ class Annotator:
 
     # legend and steps -----------------------------------------------------------------------------
     def _swatch(self, j: int, e: Entry, x: float, y: float, connectors: list) -> list:
-
-        a = self.a
-        w, h = a["swatch_w"], a["swatch_h"]
+        w, h = self.ls["swatch_w"], self.ls["swatch_h"]
         if e.kind == "edge":
             ref = connectors[int(e.ref.split(":")[1])] if e.ref else None
             ed = self.t.defaults("edge")
@@ -261,14 +282,14 @@ class Annotator:
 
     def _legend(self, x: float, y: float, w: float, rows: list[list[Entry]], connectors: list,
                 flow: bool = False) -> list:
-        """The legend card; entries sit in equal columns, or one after another when ``flow`` (bottom band)."""
-        a = self.a
-        h = legend_height(rows, self.t)
+        """The legend card; entries sit in equal columns, or one after another when ``flow`` (top or bottom band)."""
+        a = self.ls
+        h = legend_height(rows, self.t, a)
         out = self.card("legend", x, y, w, h, "legend") + [
             self.title("legend-title", x + a["padding"], y + a["padding"], self.d.annotations.legend.title, "legend")]
         cs = self.b._css("legend")
         col, wt, it = self.b._text(cs, "body", self.t.color("text-muted"), 400)
-        font = self._font("body", wt, a["text_size"], it)
+        font = self._font("body", wt, a["label_size"], it)
         cols = max((len(r) for r in rows), default=1)
         inner = w - 2 * a["padding"]
         top = y + _head(a)
@@ -277,7 +298,7 @@ class Annotator:
             cx = x + a["padding"]
             for e in row:
                 out += self._swatch(j, e, cx, top, connectors)
-                ty = top + (a["swatch_h"] - a["text_size"] * 1.35) / 2
+                ty = top + (a["swatch_h"] - a["label_size"] * 1.35) / 2
                 out.append(self._text(f"legend-{j}-label", cx + a["swatch_w"] + 10, ty, [e.label], font, col))
                 cx += a["swatch_w"] + 10 + measure(e.label, font) + 28 if flow else inner / cols
                 j += 1
@@ -308,46 +329,49 @@ class Annotator:
 
     def _fits_two_columns(self, entries: list[Entry], w: float) -> bool:
         """Every label fits half the card next to its swatch (else one column, and ``check`` reports overflow)."""
-        a = self.a
-        font = self._font("body", 400, a["text_size"])
+        a = self.ls
+        font = self._font("body", 400, a["label_size"])
         room = (w - 2 * a["padding"]) / 2 - a["swatch_w"] - 10 - 12
         return all(measure(e.label, font) <= room for e in entries)
 
     def panels(self, connectors: list) -> list:
-        """The legend card and the steps panel inside the reserved band."""
+        """The legend card and the steps panel inside the reserved band (right, left, top or bottom)."""
         ann = self.d.annotations
         b = band(self.d, self.t, self.area[2])
         if b is None:
             return []
-        a = self.a
+        ls = self.ls
         ax, ay, aw, ah = self.area
         side, thickness = b
+        shown = bool(ann.legend) and ls["display"] != "none"
         out: list = []
-        entries = legend_entries(self.d)
-        if side == "right":
-            x, w = ax + aw - a["band"], a["band"]
-            steps_h = steps_height(self.d, w, self.t) + a["gap"] if ann.steps else 0.0
-            rows = legend_rows(entries, w, self.t, columns=1)
-            if ann.legend and legend_height(rows, self.t) + steps_h > ah and self._fits_two_columns(entries, w):
-                rows = legend_rows(entries, w, self.t, columns=2)
+        entries = legend_entries(self.d) if shown else []
+        if side in ("right", "left"):
+            w = ls["band"]
+            x = ax + aw - w if side == "right" else ax
+            steps_h = steps_height(self.d, w, self.t) + ls["gap"] if ann.steps else 0.0
+            rows = legend_rows(entries, w, self.t, columns=ls["columns"] or 1, a=ls)
+            if (shown and not ls["columns"] and legend_height(rows, self.t, ls) + steps_h > ah
+                    and self._fits_two_columns(entries, w)):
+                rows = legend_rows(entries, w, self.t, columns=2, a=ls)
             y = ay
-            if ann.legend:
+            if shown:
                 out += self._legend(x, y, w, rows, connectors)
-                y += legend_height(rows, self.t) + a["gap"]
+                y += legend_height(rows, self.t, ls) + ls["gap"]
             if ann.steps:
                 out += self._steps(x, y, w)
                 y += steps_h
-            used = y - a["gap"] - ay
+            used = y - ls["gap"] - ay
         else:
-            y = ay + ah - (thickness - a["gap"])
-            steps_w = a["band"] if ann.steps else 0
-            legend_w = aw - (steps_w + a["gap"] if steps_w and ann.legend else 0)
-            if ann.legend:
-                out += self._legend(ax, y, legend_w, legend_rows(entries, legend_w, self.t, columns=0), connectors,
-                                    flow=True)
+            y = ay + ah - (thickness - ls["gap"]) if side == "bottom" else ay
+            steps_w = ls["band"] if ann.steps else 0
+            legend_w = aw - (steps_w + ls["gap"] if steps_w and shown else 0)
+            if shown:
+                rows = legend_rows(entries, legend_w, self.t, columns=ls["columns"] or 0, a=ls)
+                out += self._legend(ax, y, legend_w, rows, connectors, flow=not ls["columns"])
             if ann.steps:
                 out += self._steps(ax + aw - steps_w, y, steps_w)
-            used = thickness - a["gap"]
+            used = thickness - ls["gap"]
         self.overflow = max(0.0, used - ah)  # px the panels exceed the area height
         return out
 
@@ -498,7 +522,8 @@ class Annotator:
         if b and not self.d.auto and not self.d.meta.get("laid_out"):
             ax, ay, aw, ah = self.area
             side, thick = b
-            rect = (ax + aw - thick, ay, thick, ah) if side == "right" else (ax, ay + ah - thick, aw, thick)
+            rect = {"right": (ax + aw - thick, ay, thick, ah), "left": (ax, ay, thick, ah),
+                    "top": (ax, ay, aw, thick), "bottom": (ax, ay + ah - thick, aw, thick)}[side]
             for s in shapes:
                 if s.role in ("node", "zone") and _overlaps(rect, (s.x, s.y, s.w, s.h)):
                     out.append(("annotations", "overlap", f"the band covers {s.id!r}"))

@@ -110,6 +110,42 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md M02 src/spinagram/icon_packs/network.yaml:13 tests/test_icon_packs.py:51 (ICON-09) (tests)
 - last seen: 2026-10-12T19:04:51Z
 
+### L-017 - Test each layout property on every band side or branch it applies to, not only the default side
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css
+- evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests)
+- last seen: 2026-10-12T20:03:34Z
+
+### L-018 - When an explicit setting overrides an automatic rule, test it under the condition that triggers the rule
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css
+- evidence: validation.md M15 src/spinagram/annotate.py:354 (LCSS-08) (tests)
+- last seen: 2026-10-12T20:03:34Z
+
+### L-019 - When a default moves from code to the stylesheet, test that every loader path, including YAML, leaves the value unset
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `yaml-loaders` · harmful: 0
+- features: legend-css
+- evidence: validation.md M30 src/spinagram/yaml_io.py:140 (LCSS-04) (yaml-loaders)
+- last seen: 2026-10-12T20:03:34Z
+
+### L-020 - When new enum values are added, cover each one in every consumer that branches on it, including qa checks
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css
+- evidence: validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests)
+- last seen: 2026-10-12T20:03:34Z
+
+### L-021 - Give every clause of a multi-clause acceptance criterion its own assertion
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css
+- evidence: validation.md LCSS-05 clause 2 tests/test_legend_css.py:42 (tests)
+- last seen: 2026-10-12T20:03:34Z
+
+### L-022 - When one function reserves space and another draws into it, assert both against the same independently derived size
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css
+- evidence: validation.md iter2 M12 src/spinagram/annotate.py:187 (LCSS-08) (tests)
+- last seen: 2026-10-12T20:09:01Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
