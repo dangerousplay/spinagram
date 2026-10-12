@@ -211,3 +211,52 @@ def test_pptx_text_inside_titled_symbols(tmp_path):  # BHV-03
     by_name = _pptx_shapes(tmp_path)
     assert by_name["state"].text_frame.text == "State"
     assert by_name["history"].text_frame.text == "H"
+
+
+# T6: Figma --------------------------------------------------------------------------------------
+import json as _json  # noqa: E402
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from spinagram.backends.figma import FigmaBackend  # noqa: E402
+
+MOCK = Path(__file__).parent / "js" / "figma_mock.mjs"
+
+
+def _vec_calls(js: str) -> dict[str, list[dict]]:
+    """name → vector networks passed to vec(name, x, y, net, o)."""
+    out: dict[str, list[dict]] = {}
+    for m in re.finditer(r'await vec\("([^"]+)", [-\d.]+, [-\d.]+, (\{.*?\}), (\{.*?\})\);', js):
+        out.setdefault(m.group(1), []).append({"net": _json.loads(m.group(2)), "o": _json.loads(m.group(3))})
+    return out
+
+
+def test_figma_draws_every_part_as_a_vector(tmp_path):  # BHV-04
+    sc = scenes([_all_kinds_diagram()])[0]
+    files = FigmaBackend().render([sc], tmp_path)
+    js = "\n".join(p.read_text() for p in files if p.suffix == ".js")
+    calls = _vec_calls(js)
+    for s in (i for i in sc.items if isinstance(i, Shape) and i.parts):
+        got = calls[s.id]
+        assert len(got) == len(s.parts), s.id
+        for part, call in zip(s.parts, got):
+            closed = any(sub.closed for sub in shapes.parse(part.d))
+            if part.paint == "stroke":
+                assert "fill" not in call["o"] and call["o"]["stroke"] == s.stroke
+            else:
+                assert call["o"]["fill"] == (s.stroke if part.paint == "solid" else s.fill)
+                assert ("regions" in call["net"]) == closed
+    curved = calls["initial"][0]["net"]["segments"]
+    assert any("tangentStart" in seg for seg in curved)  # circles keep their curves
+
+
+def test_figma_symbol_script_runs_on_mock(tmp_path):  # BHV-04
+    node = shutil.which("node") or shutil.which("bun")
+    if not node:
+        pytest.skip("node/bun not installed")
+    sc = scenes([_all_kinds_diagram()])[0]
+    files = [p for p in FigmaBackend().render([sc], tmp_path) if p.suffix == ".js"]
+    for f in files:
+        r = subprocess.run([node, str(MOCK), str(f)], capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr

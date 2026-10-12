@@ -25,6 +25,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .. import shapes
 from ..scene import Connector, Image, Label, Line, Scene, Shape, TableGrid, Text, TextBlock
 
 CHUNK_LIMIT = 45_000
@@ -170,6 +171,44 @@ def _compact(o: dict) -> dict:
     return {k: (_r(v) if isinstance(v, float) else v) for k, v in o.items() if v not in (None, False, 0, 0.0)}
 
 
+def _net(d: str, ox: float, oy: float, fill: bool) -> dict:
+    """Symbol path → Figma vector network relative to (ox, oy); closed subpaths become fill regions."""
+    verts: list[dict] = []
+    segs: list[dict] = []
+    loops: list[list[int]] = []
+
+    def vert(p) -> int:
+        verts.append({"x": _r(p[0] - ox), "y": _r(p[1] - oy)})
+        return len(verts) - 1
+
+    for sub in shapes.parse(d):
+        first = cur = vert(sub.start)
+        cur_pt = sub.start
+        loop: list[int] = []
+        for n, (cmd, pts) in enumerate(sub.segments):
+            end = pts[-1]
+            last = n == len(sub.segments) - 1
+            ei = first if sub.closed and last and abs(end[0] - sub.start[0]) < 1e-6 and abs(end[1] - sub.start[1]) < 1e-6 \
+                else vert(end)
+            seg = {"start": cur, "end": ei}
+            if cmd == "C":
+                (c1, c2) = pts[0], pts[1]
+                seg["tangentStart"] = {"x": _r(c1[0] - cur_pt[0]), "y": _r(c1[1] - cur_pt[1])}
+                seg["tangentEnd"] = {"x": _r(c2[0] - end[0]), "y": _r(c2[1] - end[1])}
+            segs.append(seg)
+            loop.append(len(segs) - 1)
+            cur, cur_pt = ei, end
+        if sub.closed:
+            if cur != first:
+                segs.append({"start": cur, "end": first})
+                loop.append(len(segs) - 1)
+            loops.append(loop)
+    net: dict = {"vertices": verts, "segments": segs}
+    if fill and loops:
+        net["regions"] = [{"windingRule": "NONZERO", "loops": loops}]
+    return net
+
+
 def _pos(b) -> dict:
     """Binding (side, frac) → FigJam endpoint position relative to the box (0–1)."""
     f = _r(b.frac)
@@ -227,6 +266,25 @@ class _Emitter:
         v = v or f"n_{len(self.parts)}"
         o = _compact({"fill": s.fill, "stroke": s.stroke, "sw": s.stroke_width, "dash": s.dashed, "radius": s.radius,
                       "opacity": s.opacity if s.opacity < 1 else None})
+        if s.parts:
+            code = []
+            members_v = []
+            for i, part in enumerate(s.parts):
+                pv = v if i == 0 else f"{v}_p{i}"
+                po = _compact({"fill": None if part.paint == "stroke" else (s.stroke if part.paint == "solid" else s.fill),
+                               "stroke": s.stroke, "sw": s.stroke_width, "dash": s.dashed,
+                               "opacity": s.opacity if s.opacity < 1 else None})
+                net = _net(part.d, s.x, s.y, fill=part.paint != "stroke")
+                code.append(f"const {pv} = await vec({_j(s.id)}, {_r(s.x)}, {_r(s.y)}, {_j(net)}, {_j(po)});")
+                members_v.append(pv)
+            members = list(members_v)
+            if s.label:
+                lc, ln = self.label(v, s.label, prewrapped=False)
+                code += lc
+                members += ln
+            if len(members) > 1:
+                code.append(f"group([{', '.join(members)}], {_j(s.id + ' (group)')});")
+            return "\n".join(code)
         if s.kind == "diamond":
             w, h = s.w, s.h
             net = {"vertices": [{"x": w / 2, "y": 0}, {"x": w, "y": h / 2}, {"x": w / 2, "y": h}, {"x": 0, "y": h / 2}],

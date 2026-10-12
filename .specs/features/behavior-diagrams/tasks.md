@@ -147,11 +147,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-04
 
 **Done when**:
-- [ ] Every kind emits `vec(...)` networks; generated script runs on the mock Plugin API
-- [ ] Build gate passes
+- [x] Every kind emits `vec(...)` networks; generated script runs on the mock Plugin API
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
+**Status**: ✅ Complete
+
 
 ### T7: Flowchart builder and edge helpers
 
