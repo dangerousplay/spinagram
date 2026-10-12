@@ -276,3 +276,46 @@ def test_self_loop_routed_beside_its_node():  # LAY-09
     for p, q in zip(pts, pts[1:]):
         for n in "ab":
             assert not _seg_hits_box(p, q, res.boxes[n])
+
+
+# T5: per-group engines in apply_layout ----------------------------------------------------------
+from spinagram.autolayout import apply_layout  # noqa: E402
+
+
+def _region_diagram():
+    d = Diagram("r", "Regions", layout={"engine": "flex", "direction": "right"})
+    x = d.box("Client")
+    with d.group("Flow", id="flow", engine="layered", direction="down"):
+        a, b, c = d.box("A"), d.box("B"), d.box("C")
+    a >> b >> c
+    d.edge(x, b, "calls")
+    d.edge(x.bottom, c.top)  # anchored by the author
+    return d
+
+
+def test_region_laid_out_by_its_own_engine():  # BHV-24 / LAY-17 (layout side)
+    out = apply_layout(_region_diagram(), _theme())
+    n = {k.id: k for k in out.nodes}
+    assert n["a"].y + n["a"].h < n["b"].y and n["b"].y + n["b"].h < n["c"].y  # ranked down
+    zone = next(z for z in out.zones if z.label == "Flow")
+    for k in "abc":
+        assert _inside((n[k].x, n[k].y, n[k].w, n[k].h), (zone.x, zone.y, zone.w, zone.h))
+    assert n["client"].x + n["client"].w <= zone.x  # flex parent places the region as one box
+
+
+def test_crossing_edge_rerouted_and_anchored_edge_kept():  # LAY-14, LAY-17
+    out = apply_layout(_region_diagram(), _theme())
+    crossing = out.edges[2]
+    assert crossing.src.startswith("client.") and crossing.dst.startswith("b.")
+    anchored = out.edges[3]
+    assert anchored.src == "client.bottom" and anchored.dst == "c.top" and not anchored.via
+
+
+def test_self_loop_bound_as_via():  # LAY-09 (binding)
+    d = Diagram("s", "Loop", layout={"engine": "layered", "direction": "down"})
+    a, b = d.box("A"), d.box("B")
+    a >> b
+    d.edge(b, b, "retry")
+    out = apply_layout(d, _theme())
+    e = out.edges[1]
+    assert e.src.startswith("b.right") and e.dst.startswith("b.right") and e.via and len(e.via) == 2

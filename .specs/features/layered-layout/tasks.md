@@ -123,11 +123,13 @@ T1 → T2 → T3 → T4 → T5 → T6
 **Requirement**: LAY-14, LAY-17
 
 **Done when**:
-- [ ] A layered group inside a flex diagram lays out by rank; anchored edges untouched; crossing edge ends on both boxes
-- [ ] Gate passes
+- [x] A layered group inside a flex diagram lays out by rank; anchored edges untouched; crossing edge ends on both boxes
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T6: Label placement avoids boxes
 

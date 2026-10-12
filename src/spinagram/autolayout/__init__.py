@@ -16,6 +16,7 @@ from ..model import Diagram, Group, Node, Zone
 from ..theme import Theme
 from .engines import EngineUnavailable, get_engine
 from .graph import Box, LEdge, LGraph, LGroup, LNode, LResult
+from .route import route
 from ..text import measure
 from .sizing import auto_size
 
@@ -142,6 +143,84 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
     return LGraph(root, edges, lay.get("direction", "right"), spacing, dict(lay.get("options") or {}), loops), nodes
 
 
+# typed regions ----------------------------------------------------------------------------------
+def _outer_regions(group: LGroup) -> list[LGroup]:
+    """Groups that carry their own ``engine`` hint, not nested in another such group."""
+    out: list[LGroup] = []
+    for c in group.children:
+        if isinstance(c, LGroup):
+            out += [c] if c.hints.get("engine") else _outer_regions(c)
+    return out
+
+
+def _run_graph(graph: LGraph, name: str) -> LResult:
+    """Run ``name`` on ``graph``; regions (groups with their own engine) are laid out first, recursively,
+    and enter the parent layout as fixed blocks. Edges crossing a region border are routed on the final
+    geometry around every node."""
+    regions = _outer_regions(graph.root)
+    if not regions:
+        return get_engine(name).run(graph)
+    owner: dict[str, str] = {}
+    for r in regions:
+        for item in r.walk():
+            if item is not r:
+                owner[item.id] = r.id
+    subs: dict[str, tuple[LResult, float, float]] = {}
+    sizes: dict[str, tuple[float, float]] = {}
+    for r in regions:
+        inside = {i.id for i in r.walk()}
+        hints = {k: r.hints[k] for k in ("columns", "align", "lanes") if k in r.hints}
+        sub = LGraph(LGroup("__root__", list(r.children), hints=hints),
+                     [e for e in graph.edges if e.src in inside and e.dst in inside],
+                     r.hints.get("direction", graph.direction), graph.spacing, {},
+                     [e for e in graph.loops if e.src in inside])
+        sres = _run_graph(sub, r.hints["engine"])
+        xs = [b[0] for b in sres.boxes.values()] + [b[0] + b[2] for b in sres.boxes.values()]
+        ys = [b[1] for b in sres.boxes.values()] + [b[1] + b[3] for b in sres.boxes.values()]
+        x0, y0 = (min(xs), min(ys)) if xs else (0.0, 0.0)
+        t, rt, b, lf = r.pad
+        sizes[r.id] = ((max(xs) - x0 if xs else 0.0) + lf + rt, (max(ys) - y0 if ys else 0.0) + t + b)
+        subs[r.id] = (sres, x0, y0)
+
+    def replace(g: LGroup) -> LGroup:
+        kids = []
+        for c in g.children:
+            if isinstance(c, LGroup) and c.id in subs:
+                kids.append(LNode(c.id, *sizes[c.id], "region"))
+            elif isinstance(c, LGroup):
+                kids.append(replace(c))
+            else:
+                kids.append(c)
+        return LGroup(g.id, kids, g.pad, g.hints, g.label)
+
+    crossing: list[LEdge] = []
+    parent_edges: list[LEdge] = []
+    for e in graph.edges:
+        a, b = owner.get(e.src, e.src), owner.get(e.dst, e.dst)
+        if a == b and (e.src in owner):
+            continue  # inside one region: handled by the region's own layout
+        parent_edges.append(LEdge(e.id, a, b))
+        if a != e.src or b != e.dst:
+            crossing.append(e)
+    parent = LGraph(replace(graph.root), parent_edges, graph.direction, graph.spacing, graph.options,
+                    [e for e in graph.loops if e.src not in owner])
+    pres = get_engine(name).run(parent)
+    boxes = dict(pres.boxes)
+    routes = {k: v for k, v in pres.routes.items() if k not in {e.id for e in crossing}}
+    for r in regions:
+        sres, x0, y0 = subs[r.id]
+        gx, gy, _, _ = boxes[r.id]
+        dx, dy = gx + r.pad[3] - x0, gy + r.pad[0] - y0
+        for k, (x, y, w, h) in sres.boxes.items():
+            boxes[k] = (round(x + dx, 1), round(y + dy, 1), w, h)
+        for k, pts in sres.routes.items():
+            routes[k] = [(round(x + dx, 1), round(y + dy, 1)) for x, y in pts]
+    leaves = [boxes[i.id] for i in graph.root.walk() if isinstance(i, LNode) and i.id in boxes]
+    for e in crossing:
+        routes[e.id] = route(boxes[e.src], boxes[e.dst], leaves)
+    return LResult(boxes=boxes, routes=routes)
+
+
 # placement --------------------------------------------------------------------------------------
 def _area(d: Diagram, theme: Theme) -> Box:
     lay = d.layout or {}
@@ -205,7 +284,7 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
     if not graph.root.children:
         return d
     name = engine or os.environ.get("SPINAGRAM_LAYOUT") or d.layout.get("engine") or "flex"
-    res = get_engine(name).run(graph)
+    res = _run_graph(graph, name)
     dx, dy, over_x, over_y = _offset(res, _area(d, theme), d.layout.get("align", "top-center"))
     if over_x > 1 or over_y > 1:
         d.meta["layout_overflow"] = (round(max(0, over_x)), round(max(0, over_y)))
@@ -221,7 +300,7 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
             x, y, w, h = boxes[g.id]
             zones.append(Zone(x=x, y=y, w=w, h=h, label=g.label, color=g.style or "soft", icon=g.icon))
     d.zones = zones + d.zones
-    for le in graph.edges:
+    for le in graph.edges + graph.loops:
         e = d.edges[int(le.id[1:])]
         if e.via or e.curve or _node_id(e.src)[1] or _node_id(e.dst)[1]:
             continue  # the author routed or anchored it
