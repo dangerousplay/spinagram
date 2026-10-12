@@ -80,3 +80,65 @@ def test_network_pack_resolves_every_name_form_and_alias(cache):  # ICON-08..12
     assert got["network:lb"] == icons.resolve("network:loadbalancer", packs=packs)
     assert got["network:l3-switch"] == icons.resolve("network:switch-multilayer", packs=packs)
     assert got["network:ap"] == icons.resolve("network:wifi", packs=packs)
+
+
+# T2 · self-hosted -------------------------------------------------------------------------------------
+SELFHOSTED_FILES = ["svg/proxmox.svg", "svg/proxmox-light.svg", "svg/portainer.svg", "svg/portainer-dark.svg",
+                    "svg/vmware-esxi.svg", "svg/vmware-nsx.svg", "svg/pi-hole.svg", "svg/proxmox-backup-server.svg",
+                    "svg/opnsense.svg", "svg/nightowl-light.svg", "png/proxmox.png", "meta/x.json"]
+
+
+def test_selfhosted_pack_is_registered():  # ICON-01
+    p = icons.registry()["selfhosted"]
+    assert (p.source["type"], p.source["repo"], p.source["include"]) == (
+        "github", "homarr-labs/dashboard-icons", ["svg/*"])
+    assert len(p.source["ref"]) == 40
+    assert "Apache-2.0" in p.license
+
+
+@pytest.mark.parametrize("path, name, tone", [
+    ("svg/proxmox.svg", "proxmox", "light"),                 # ICON-02
+    ("svg/proxmox-light.svg", "proxmox", "dark"),            # ICON-03
+    ("svg/portainer-dark.svg", "portainer-dark", "light"),   # ICON-04
+    ("svg/plex-alt-light.svg", "plex-alt", "dark"),
+])
+def test_selfhosted_names_and_tones(path, name, tone):
+    got = icons.registry()["selfhosted"].classify(path)
+    assert got is not None and (got[0], got[1]) == (name, tone)
+
+
+def test_selfhosted_skips_other_formats():
+    assert icons.registry()["selfhosted"].classify("png/proxmox.png") is None
+
+
+def test_selfhosted_aliases_and_tones_resolve(cache):  # ICON-02..05, edge case
+    pack = _offline("selfhosted", cache / "dashboard-icons", SELFHOSTED_FILES)
+    packs = {"selfhosted": pack}
+    light, dark = icons.resolve("selfhosted:proxmox", packs=packs), icons.resolve("selfhosted:proxmox", "dark",
+                                                                                     packs=packs)
+    assert light.read_text() != dark.read_text()
+    assert dark.read_text() == (cache / "dashboard-icons" / "svg/proxmox-light.svg").read_text()
+    assert icons.resolve("selfhosted:portainer-dark", packs=packs).read_text() == (
+        cache / "dashboard-icons" / "svg/portainer-dark.svg").read_text()
+    for alias, target in (("pve", "proxmox"), ("esxi", "vmware-esxi"), ("pihole", "pi-hole"),
+                          ("pbs", "proxmox-backup-server"), ("nsx", "vmware-nsx")):
+        assert icons.resolve(f"selfhosted:{alias}", packs=packs) == icons.resolve(f"selfhosted:{target}",
+                                                                                   packs=packs), alias
+    only = icons.resolve("selfhosted:nightowl", packs=packs)  # only a -light file exists
+    assert only is not None and only.read_text() == (cache / "dashboard-icons" / "svg/nightowl-light.svg").read_text()
+
+
+def test_dark_fill_draws_the_dark_variant(cache, monkeypatch):  # ICON-06
+    from spinagram import Diagram
+    from spinagram.layout import build_scene
+    from spinagram.theme import Theme
+
+    pack = _offline("selfhosted", cache / "dashboard-icons", SELFHOSTED_FILES)
+    real = icons.registry
+    monkeypatch.setattr(icons, "registry", lambda cwd=None: {**real(cwd), "selfhosted": pack})
+    d = Diagram("H1", "Tones")
+    d.box("PVE", icon="selfhosted:proxmox", style="dark", x=100, y=300, w=300, h=120)
+    d.box("PVE 2", icon="selfhosted:proxmox", x=500, y=300, w=300, h=120)
+    shapes = build_scene(d, Theme.load("default")).shapes()
+    assert shapes["pve"].icon.path.read_text() == (cache / "dashboard-icons" / "svg/proxmox-light.svg").read_text()
+    assert shapes["pve-2"].icon.path.read_text() == (cache / "dashboard-icons" / "svg/proxmox.svg").read_text()

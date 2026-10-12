@@ -1,0 +1,28 @@
+# Self-hosted and private-cloud logos (homarr-labs/dashboard-icons, Apache-2.0): hypervisors (Proxmox, VMware
+# ESXi, XCP-ng, Nutanix), firewalls and routers (OPNsense, pfSense, MikroTik, UniFi), storage (TrueNAS,
+# Unraid, Synology), and the apps that run on them. `<name>-light.svg` is light artwork, used on dark fills.
+selfhosted:
+  title: Self-hosted Icons (Dashboard Icons)
+  license: Apache-2.0 (homarr-labs/dashboard-icons); logos are trademarks of their owners
+  homepage: https://github.com/homarr-labs/dashboard-icons
+  source: {type: github, repo: homarr-labs/dashboard-icons, ref: 104a791794ef68b31bfecac676ddace8c223fd27,
+           include: ["svg/*"]}
+  rules:   # first match wins
+    - {match: '^svg/(?P<stem>[^/]+)-light\.svg$', name: '{stem}', tone: dark}
+    - {match: '^svg/(?P<stem>[^/]+)\.svg$', name: '{stem}'}
+  alias:   # names people type in homelab and private-cloud diagrams
+    pve: proxmox
+    proxmox-ve: proxmox
+    pbs: proxmox-backup-server
+    esxi: vmware-esxi
+    vsphere: vmware
+    vcenter: vmware
+    nsx: vmware-nsx
+    pihole: pi-hole
+    hass: home-assistant
+    npm: nginx-proxy-manager
+    omv: openmediavault
+    xcpng: xcp-ng
+    wg: wireguard
+    adguard: adguard-home
+    k8s: kubernetes

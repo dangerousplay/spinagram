@@ -112,12 +112,12 @@ firewalls). Authors fall back to generic glyphs or hand-managed files. Two built
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| ICON-01 | P1: Self-hosted - registry entry | Tasks | Pending |
-| ICON-02 | P1: Self-hosted - plain name | Tasks | Pending |
-| ICON-03 | P1: Self-hosted - light file is dark tone | Tasks | Pending |
-| ICON-04 | P1: Self-hosted - dark file keeps its name | Tasks | Pending |
-| ICON-05 | P1: Self-hosted - aliases | Tasks | Pending |
-| ICON-06 | P1: Self-hosted - dark fill uses dark tone | Tasks | Pending |
+| ICON-01 | P1: Self-hosted - registry entry | Tasks | Implementing |
+| ICON-02 | P1: Self-hosted - plain name | Tasks | Implementing |
+| ICON-03 | P1: Self-hosted - light file is dark tone | Tasks | Implementing |
+| ICON-04 | P1: Self-hosted - dark file keeps its name | Tasks | Implementing |
+| ICON-05 | P1: Self-hosted - aliases | Tasks | Implementing |
+| ICON-06 | P1: Self-hosted - dark fill uses dark tone | Tasks | Implementing |
 | ICON-07 | P1: Network - registry entry | Tasks | Implementing |
 | ICON-08 | P1: Network - square blue default | Tasks | Implementing |
 | ICON-09 | P1: Network - square colours | Tasks | Implementing |

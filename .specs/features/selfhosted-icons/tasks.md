@@ -89,8 +89,8 @@ T4 → T5 → T6
 
 **Done when**:
 
-- [ ] fixture tree: `proxmox` light and dark tones, `portainer-dark` own name, aliases; a dark-fill node draws the dark variant
-- [ ] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
+- [x] fixture tree: `proxmox` light and dark tones, `portainer-dark` own name, aliases; a dark-fill node draws the dark variant
+- [x] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
 
 **Tests**: unit
 **Gate**: quick
