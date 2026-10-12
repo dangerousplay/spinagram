@@ -160,6 +160,8 @@ export const api = {
   },
   themes: () => json<ThemeEntry[]>("api/themes"),
   theme: (ref: string) => json<ThemeSheet>(`api/themes/${enc(ref)}`),
+  /** The theme's sample diagram as an image URL. */
+  themeThumbnail: (ref: string, rev: number) => `api/themes/${enc(ref)}/thumbnail.svg?rev=${rev}`,
   preview: (ref: string, kind: string, style: string, rev: number) =>
     `api/themes/${enc(ref)}/preview/${enc(kind)}/${enc(style)}.svg?rev=${rev}`,
   font: (ref: string, role: string, key: string, rev: number) =>
