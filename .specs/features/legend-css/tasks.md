@@ -66,8 +66,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] computed values for every property; invalid placement / columns warn with the allowed values
-- [ ] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
+- [x] computed values for every property; invalid placement / columns warn with the allowed values
+- [x] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
 
 **Tests**: unit
 **Gate**: quick

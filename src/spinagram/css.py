@@ -364,6 +364,13 @@ def _length(v: str, theme=None) -> float:
     return x
 
 
+def _count(v: str, theme=None) -> int:
+    x = _num(v)
+    if x < 1 or x != int(x):
+        raise ValueError("expected a positive integer")
+    return int(x)
+
+
 PROPS = {
     "fill": lambda v, t: _colour(v, t)[0],
     "stroke": lambda v, t: _colour(v, t)[0],
@@ -380,6 +387,15 @@ PROPS = {
     "font-family": lambda v, t: v.strip().strip("'\""),
     "marker-start": _keyword(MARKERS),
     "marker-end": _keyword(MARKERS),
+    # legend (annotation band): where it sits and how its entries are laid out
+    "placement": _keyword({"right", "left", "top", "bottom"}),
+    "width": _length,
+    "columns": _count,
+    "gap": _length,
+    "padding": _length,
+    "swatch-width": _length,
+    "swatch-height": _length,
+    "display": _keyword({"block", "none"}),
 }
 COLOUR_PROPS = {"fill", "stroke", "color", "box-shadow"}
 
