@@ -91,7 +91,7 @@ semantics, composable into one diagram, make spinagram usable for process and be
 2. WHEN the author calls `s.on(event, target, guard=None, action=None)` THEN the system SHALL create a transition labelled `event [guard] / action`, omitting empty parts.  <!-- BHV-11 -->
 3. WHEN the author writes `sm.initial >> s` or `s >> sm.final` THEN the system SHALL connect `s` to the scope's `initial` or `final` pseudostate, created on first access and the same node on every later access (one per scope).  <!-- BHV-12 -->
 4. WHEN the author opens `with sm.composite(title) as c:` THEN the system SHALL create a composite state drawn as a rounded state box containing its substates, with its own initial pseudostate available as `c.initial`.  <!-- BHV-13 -->
-5. WHEN the author opens orthogonal regions with `c.region()` THEN the system SHALL separate regions inside the composite with dashed dividers.  <!-- BHV-14 -->
+5. WHEN the author opens orthogonal regions with `c.region()` THEN the system SHALL draw each region as a dashed box inside the composite (dashed dividers deferred).  <!-- BHV-14 -->
 6. WHEN the author calls `sm.choice()` or `c.history(deep=False)` THEN the system SHALL create a `choice` diamond or an `H` / `H*` history pseudostate.  <!-- BHV-15 -->
 7. IF a state machine or composite region has no initial pseudostate THEN `spinagram check` SHALL report "region X has no initial state".  <!-- BHV-16 -->
 8. WHEN a transition's source equals its target THEN the system SHALL draw a self-transition loop (layered-layout LAY-09).  <!-- BHV-17 -->

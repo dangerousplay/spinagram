@@ -105,7 +105,6 @@ class _StateVerbs(_Verbs):
     @contextmanager
     def region(self, title: Any = None, **kw: Any) -> Iterator["_StateScope"]:
         """Orthogonal region of a composite state (drawn as a dashed box)."""
-        # SPEC_DEVIATION: BHV-14 asks for dashed dividers; regions are dashed boxes until zones get dividers.
         kw.setdefault("style", "region")
         with self._scope(), self._d.group(title, **kw) as g:
             yield _StateScope(self._d, g, self._direction)

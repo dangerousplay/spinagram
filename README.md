@@ -120,6 +120,17 @@ Need pixel-exact slides instead? Give nodes coordinates
 ([manual layout](https://dangerousplay.github.io/spinagram/docs/manual-layout/)), or freeze an automatic layout with
 `spinagram layout spec.py -o frozen.yaml` and tune it by hand.
 
+## Flowcharts, state machines, activities and CSS
+
+`Flowchart`, `StateMachine` and `Activity` builders add the symbols and verbs of behavior diagrams
+(decisions, forks and joins, swimlanes, composite states) laid out by a built-in layered engine, and
+`with d.state_machine(...)` puts one inside any diagram. A CSS subset styles everything:
+`d.stylesheet("brand.css")`, `class_="critical"`, `edge.async { stroke-dasharray: 6 4 }`.
+See [behavior diagrams](https://dangerousplay.github.io/spinagram/docs/behavior/) and
+[CSS styling](https://dangerousplay.github.io/spinagram/docs/styling/).
+
+![Order fulfilment activity with swimlanes](https://dangerousplay.github.io/spinagram/assets/demo/b03.svg)
+
 ## Outputs
 
 | Format | What you get |

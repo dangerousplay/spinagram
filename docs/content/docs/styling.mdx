@@ -1,0 +1,51 @@
+---
+title: CSS styling
+description: Style diagrams with a CSS subset — selectors, cascade, custom properties.
+---
+
+Stylesheets restyle any diagram without touching its code. They work for architecture diagrams and
+behavior diagrams alike, and render the same in SVG, PowerPoint and Figma.
+
+<include meta='title="examples/styling/brand.css"'>../../../examples/styling/brand.css</include>
+
+<include meta='title="examples/styling/styled.py"'>../../../examples/styling/styled.py</include>
+
+![Payments styled with CSS](/assets/demo/c01.svg)
+
+## Attaching styles
+
+| Where | Python | YAML |
+|---|---|---|
+| Theme | `theme.css` next to `theme.yaml` (base themes first) | same |
+| Folder | — | `stylesheets: [team.css]` in `_defaults.yaml` |
+| Diagram | `Diagram(css="...")`, `d.stylesheet("brand.css")` | `css:`, `stylesheets:` |
+| Element | `class_="critical"`, `css="stroke-width: 6"` | `class:`, `css:` |
+
+Later sources win at equal specificity; inline `css=` beats every normal stylesheet rule and
+`!important` beats inline. An existing `style="dark"` keeps working and also matches `.dark`.
+
+## Selectors
+
+| Selector | Matches |
+|---|---|
+| `node`, `edge`, `group`, `region`, `lane`, `diagram` | elements by type |
+| `state`, `decision`, `action`, `data`, … | nodes of that kind |
+| `.critical`, `#api`, `*` | class, id, anything |
+| `[icon]`, `[kind=decision]`, `edge[from=api]`, `edge[to=db]`, `[label="yes"]` | attributes |
+| `group.vpc node`, `region > state` | descendant, child |
+| `:first-child`, `:last-child`, `:not(.x)`, `:root` | pseudo-classes |
+| `node::title`, `node::body`, `edge::label`, `group::label` | text parts |
+
+## Properties
+
+| Applies to | Properties |
+|---|---|
+| Nodes, groups | `fill`, `stroke`, `stroke-width`, `stroke-dasharray`, `border-radius`, `opacity`, `box-shadow` |
+| Text (`::title`, `::body`, `::label`) | `color`, `font-size`, `font-weight`, `font-style` (inherited from groups) |
+| Edges | `stroke`, `stroke-width`, `stroke-dasharray`, `marker-start`, `marker-end` (`none`, `arrow`, `open-arrow`, `diamond`, `open-diamond`, `circle`, `bar`) |
+
+Colours are hex, `rgb()`/`rgba()`, CSS names, theme tokens (`fill: primary-soft`) or
+`var(--name)`, which falls back to the theme token `name`. Where a format cannot draw a value
+(PowerPoint has no open diamond), the nearest equivalent is used and a warning names it.
+`spinagram check` reports stylesheet errors with file and line, unknown properties with a
+suggestion, and fonts the theme does not embed.

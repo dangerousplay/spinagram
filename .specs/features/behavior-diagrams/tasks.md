@@ -32,7 +32,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/behavior-diagrams/design.md`
-**Status**: In Progress
+**Status**: Done
 
 **MVP scope**: BHV-01..26, BHV-31..35. Deferred: BHV-27 (YAML regions), BHV-28..30 (P2/P3).
 **Depends on feature**: `layered-layout` (all tasks).
