@@ -263,8 +263,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] build gate passes and `src/spinagram/ui/static` is rebuilt
-- [ ] browser walkthrough: navbar sections, Docs opens the site, recents update newest first
+- [x] build gate passes and `src/spinagram/ui/static` is rebuilt
+- [x] browser walkthrough: navbar sections, Docs opens the site, recents update newest first
 
 **Tests**: none
 **Gate**: build

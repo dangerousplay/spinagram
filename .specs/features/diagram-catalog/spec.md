@@ -181,11 +181,11 @@ grouped by category, so that I find a diagram in seconds.
 | META-17 | P1: UI - empty result | Tasks | Implementing |
 | META-18 | P1: UI - card opens diagram | Tasks | Implementing |
 | META-19 | P1: UI - file errors listed | Tasks | Implementing |
-| META-20 | P1: Nav - navbar sections | Tasks | Pending |
-| META-21 | P1: Nav - docs link | Tasks | Pending |
-| META-22 | P1: Nav - themes and packs pages | Tasks | Pending |
+| META-20 | P1: Nav - navbar sections | Tasks | Implementing |
+| META-21 | P1: Nav - docs link | Tasks | Implementing |
+| META-22 | P1: Nav - themes and packs pages | Tasks | Implementing |
 | META-23 | P1: Nav - record recents | Tasks | Implementing |
-| META-24 | P1: Nav - recents sidebar | Tasks | Pending |
+| META-24 | P1: Nav - recents sidebar | Tasks | Implementing |
 | META-25 | P1: Nav - stale recents omitted | Tasks | Implementing |
 | META-26 | P1: Nav - storage unavailable | Tasks | Implementing |
 | META-27 | P1: Nav - default route | Tasks | Implementing |
