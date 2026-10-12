@@ -99,9 +99,9 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] YAML metadata matches META-01 result; invalid types fail with the id and key
-- [ ] folder category fills an unset category; folder tags union with spec tags (YAML and Python)
-- [ ] Gate check passes: `uv run pytest tests/test_metadata.py -q`
+- [x] YAML metadata matches META-01 result; invalid types fail with the id and key
+- [x] folder category fills an unset category; folder tags union with spec tags (YAML and Python)
+- [x] Gate check passes: `uv run pytest tests/test_metadata.py -q`
 
 **Tests**: unit
 **Gate**: quick

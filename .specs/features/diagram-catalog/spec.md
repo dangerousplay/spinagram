@@ -163,11 +163,11 @@ grouped by category, so that I find a diagram in seconds.
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
 | META-01 | P1: Metadata - Python fields | Tasks | Implementing |
-| META-02 | P1: Metadata - YAML keys | Tasks | Pending |
+| META-02 | P1: Metadata - YAML keys | Tasks | Implementing |
 | META-03 | P1: Metadata - type validation | Tasks | Implementing |
 | META-04 | P1: Metadata - single-string tags | Tasks | Implementing |
-| META-05 | P1: Metadata - folder category | Tasks | Pending |
-| META-06 | P1: Metadata - folder tags merge | Tasks | Pending |
+| META-05 | P1: Metadata - folder category | Tasks | Implementing |
+| META-06 | P1: Metadata - folder tags merge | Tasks | Implementing |
 | META-07 | P1: Metadata - normalisation | Tasks | Implementing |
 | META-08 | P1: Inference - provider tags from icons | Tasks | Pending |
 | META-09 | P1: Inference - aws-* styles | Tasks | Pending |
