@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `inline (pack YAML only; see spec assumptions)`
-**Status**: Done
+**Status**: In Progress
 
 ---
 
@@ -44,7 +44,7 @@ T1 → T2 → T3
 ### Phase 2: Showcase and docs
 
 ```
-T4 → T5 → T6
+T4 → T5 → T6 → T7 → T8
 ```
 
 ---
@@ -189,6 +189,52 @@ T4 → T5 → T6
 
 ---
 
+### T7: Real upstream fixture names (verifier gap, iteration 1)
+
+**What**: The gray-square cases use upstream's suffix-less names and `network:router-gray` is resolved from one.
+**Where**: `tests/test_icon_packs.py`
+**Depends on**: T6
+**Reuses**: fixture helpers
+**Requirement**: ICON-09
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [x] making the colour suffix required fails the tests
+- [x] Gate check passes: `uv run pytest tests/test_icon_packs.py -q`
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
+### T8: Shadowed alias and licence wording (verifier minor findings)
+
+**What**: Drop the `npm` alias (upstream has a real `npm.svg`) in favour of `nginx-pm`; docs name the network licence "Unlicense (public domain)".
+**Where**: `src/spinagram/icon_packs/selfhosted.yaml`
+**Depends on**: T7
+**Reuses**: none (docs in `docs/content/docs/icons.mdx` too)
+**Requirement**: ICON-05, ICON-19
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] `selfhosted:nginx-pm` resolves to nginx-proxy-manager in the real cache; docs updated
+- [ ] Gate check passes: `uv run pytest -q`
+
+**Tests**: none
+**Gate**: build
+
+---
+
 ## Diagram-Definition Cross-Check
 
 | Task | Depends On (task body) | Diagram Shows | Status |
@@ -199,6 +245,8 @@ T4 → T5 → T6
 | T4 | None | start of phase | ✅ |
 | T5 | T4 | T4 → T5 | ✅ |
 | T6 | T5 | T5 → T6 | ✅ |
+| T7 | T6 | T6 → T7 | ✅ |
+| T8 | T7 | T7 → T8 | ✅ |
 
 ## Test Co-location Validation
 
@@ -210,3 +258,5 @@ T4 → T5 → T6
 | T4 | Config/showcase/docs | none | none | ✅ |
 | T5 | Config/showcase/docs | none | none | ✅ |
 | T6 | Config/showcase/docs | none | none | ✅ |
+| T7 | Model/annotate/qa | unit | unit | ✅ |
+| T8 | Config/showcase/docs | none | none | ✅ |

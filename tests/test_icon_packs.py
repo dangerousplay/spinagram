@@ -35,7 +35,7 @@ NETWORK_FILES = ["svg/square/blue/sq_router_blue.svg", "svg/square/green/sq_rout
                  "svg/circle/blue/c_router_blue.svg", "svg/circle/red/c_router_red.svg", "svg/naked/router.svg",
                  "svg/square/blue/sq_firewall_blue.svg", "svg/square/blue/sq_loadbalancer_blue.svg",
                  "svg/square/blue/sq_switch_multilayer_blue.svg", "svg/square/blue/sq_wifi_blue.svg",
-                 "svg/square/blue/sq_server_blue.svg", "README.md"]
+                 "svg/square/blue/sq_server_blue.svg", "svg/square/gray/sq_router.svg", "README.md"]
 
 
 def test_network_pack_is_registered():  # ICON-07
@@ -48,7 +48,7 @@ def test_network_pack_is_registered():  # ICON-07
 @pytest.mark.parametrize("path, name", [
     ("svg/square/blue/sq_router_blue.svg", "router"),                  # ICON-08
     ("svg/square/green/sq_router_green.svg", "router-green"),          # ICON-09
-    ("svg/square/gray/sq_switch_multilayer_gray.svg", "switch-multilayer-gray"),
+    ("svg/square/gray/sq_switch_multilayer.svg", "switch-multilayer-gray"),  # upstream gray files lack the suffix
     ("svg/circle/blue/c_router_blue.svg", "router-circle"),            # ICON-10
     ("svg/circle/red/c_router_red.svg", "router-circle-red"),
     ("svg/naked/router.svg", "router-plain"),                          # ICON-11
@@ -80,6 +80,8 @@ def test_network_pack_resolves_every_name_form_and_alias(cache):  # ICON-08..12
     assert got["network:lb"] == icons.resolve("network:loadbalancer", packs=packs)
     assert got["network:l3-switch"] == icons.resolve("network:switch-multilayer", packs=packs)
     assert got["network:ap"] == icons.resolve("network:wifi", packs=packs)
+    gray = icons.resolve("network:router-gray", packs=packs)  # from svg/square/gray/sq_router.svg (no suffix)
+    assert gray is not None and gray.read_text() == (cache / "affinity" / "svg/square/gray/sq_router.svg").read_text()
 
 
 # T2 · self-hosted -------------------------------------------------------------------------------------
