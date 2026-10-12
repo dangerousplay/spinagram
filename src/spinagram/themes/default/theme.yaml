@@ -20,6 +20,9 @@ colors:
   alert-bg: "#FFF7ED"
   alert-soft: "#FFEDD5"
   alert-text: "#C2410C"
+  success: "#059669"
+  success-bg: "#ECFDF5"
+  success-text: "#047857"
   text: "#1F2937"
   text-muted: "#4B5563"
   gray: "#6B7280"
@@ -96,6 +99,9 @@ defaults:
   zone: {radius: 26, opacity: 0.6, label_size: 16}
   table: {row_height: 100, header_height: 52, font_size: 16, header_size: 19, icon_size: 36, radius: 14}
   legend: {size: 18, swatch: 20}
+  # annotation band (legend and steps panels), step badges and callout bubbles (px)
+  annotations: {band: 360, gap: 32, padding: 22, radius: 18, title_size: 20, text_size: 16, row_gap: 12,
+                swatch_w: 46, swatch_h: 28, badge: 30, badge_size: 15, callout_width: 320, callout_gap: 36}
   # automatic layout: gap between siblings in a group, group padding, engine spacing (px)
   layout: {gap: 40, padding: 24, node_gap: 48, rank_gap: 80}
 

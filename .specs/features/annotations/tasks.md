@@ -132,8 +132,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] theme loads; `t.color('success')` resolves; existing golden tests unchanged
-- [ ] Gate check passes: `build gate`
+- [x] theme loads; `t.color('success')` resolves; existing golden tests unchanged
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build
