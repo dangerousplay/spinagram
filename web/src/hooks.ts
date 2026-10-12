@@ -2,19 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { UiEvent } from "./api";
 
 export type Route =
+  | { kind: "diagrams" }
+  | { kind: "themes" }
+  | { kind: "packs" }
   | { kind: "diagram"; key: string }
   | { kind: "theme"; ref: string }
-  | { kind: "pack"; name: string }
-  | { kind: "none" };
+  | { kind: "pack"; name: string };
 
-function parse(hash: string): Route {
+/** A hash as a route; an empty or unknown hash is the Diagrams page. */
+export function parse(hash: string): Route {
   const [, kind, ...rest] = hash.replace(/^#/, "").split("/");
   const value = decodeURIComponent(rest.join("/"));
-  if (!value) return { kind: "none" };
-  if (kind === "d") return { kind: "diagram", key: value };
-  if (kind === "t") return { kind: "theme", ref: value };
-  if (kind === "p") return { kind: "pack", name: value };
-  return { kind: "none" };
+  if (kind === "t") return value ? { kind: "theme", ref: value } : { kind: "themes" };
+  if (kind === "p") return value ? { kind: "pack", name: value } : { kind: "packs" };
+  if (kind === "d" && value) return { kind: "diagram", key: value };
+  return { kind: "diagrams" };
 }
 
 export function href(route: Route): string {
@@ -25,12 +27,16 @@ export function href(route: Route): string {
       return `#/t/${encodeURIComponent(route.ref)}`;
     case "pack":
       return `#/p/${encodeURIComponent(route.name)}`;
+    case "themes":
+      return "#/t";
+    case "packs":
+      return "#/p";
     default:
       return "#/";
   }
 }
 
-/** Hash routing: `#/d/<key>`, `#/t/<ref>`, `#/p/<name>`. */
+/** Hash routing: `#/` diagrams, `#/d/<key>`, `#/t` and `#/t/<ref>`, `#/p` and `#/p/<name>`. */
 export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
   const [route, setRoute] = useState(() => parse(location.hash));
   useEffect(() => {

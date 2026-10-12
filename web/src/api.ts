@@ -1,7 +1,15 @@
 // Types and fetchers for the `spinagram serve` API (src/spinagram/ui/server.py).
 
 export type Engine = { name: string; hint: string | null };
-export type DiagramRef = { key: string; id: string; title: string; auto: boolean };
+export type DiagramRef = {
+  key: string;
+  id: string;
+  title: string;
+  auto: boolean;
+  subtitle: string | null;
+  category: string; // effective: declared, else the dominant provider ("" when none)
+  tags: string[]; // effective: declared plus provider tags, sorted
+};
 export type SpecFile = { path: string; error: string | null; diagrams: DiagramRef[] };
 export type Workspace = {
   paths: string[];
@@ -144,12 +152,16 @@ export const api = {
     }
     return { svg: await r.text(), info };
   },
+  /** The rendered diagram as an image URL (spec layout); ``rev`` busts the cache after a live reload. */
+  thumbnail: (key: string, rev: number) => `api/diagrams/${key.split("/").map(enc).join("/")}.svg?rev=${rev}`,
   styles: (key: string, layout: string | null, signal?: AbortSignal) => {
     const q = layout ? `?layout=${enc(layout)}` : "";
     return json<StyleReport>(`api/diagrams/${key.split("/").map(enc).join("/")}.styles${q}`, { signal });
   },
   themes: () => json<ThemeEntry[]>("api/themes"),
   theme: (ref: string) => json<ThemeSheet>(`api/themes/${enc(ref)}`),
+  /** The theme's sample diagram as an image URL. */
+  themeThumbnail: (ref: string, rev: number) => `api/themes/${enc(ref)}/thumbnail.svg?rev=${rev}`,
   preview: (ref: string, kind: string, style: string, rev: number) =>
     `api/themes/${enc(ref)}/preview/${enc(kind)}/${enc(style)}.svg?rev=${rev}`,
   font: (ref: string, role: string, key: string, rev: number) =>

@@ -1,14 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, type Pack, type ThemeEntry, type UiEvent, type Workspace } from "./api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, type DiagramRef, type Pack, type ThemeEntry, type UiEvent, type Workspace } from "./api";
+import { pushRecent, recentStore, visibleRecents } from "./catalog";
+import DiagramsPage from "./DiagramsPage";
 import DiagramView from "./DiagramView";
 import { href, useEvents, useRoute, type Route } from "./hooks";
+import PacksPage from "./PacksPage";
 import PackView from "./PackView";
+import ThemesPage from "./ThemesPage";
 import ThemeView from "./ThemeView";
 
 export type Revs = { diagrams: Record<string, number>; theme: number; packs: number };
 
+const DOCS_URL = "https://dangerousplay.github.io/spinagram/docs/";
+const SECTION = { diagrams: "diagrams", diagram: "diagrams", themes: "themes", theme: "themes", packs: "packs", pack: "packs" } as const;
+
 export default function App() {
-  const [route, go] = useRoute();
+  const [route] = useRoute();
   const [ws, setWs] = useState<Workspace | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   const [themes, setThemes] = useState<ThemeEntry[]>([]);
@@ -16,6 +23,19 @@ export default function App() {
   const [revs, setRevs] = useState<Revs>({ diagrams: {}, theme: 0, packs: 0 });
   const [layout, setLayout] = useState<string | null>(null);
   const [layoutInit, setLayoutInit] = useState(false);
+  const store = useMemo(() => recentStore(), []);
+  const [recents, setRecents] = useState<string[]>(() => store.load());
+  const section = SECTION[route.kind];
+
+  // opening a diagram makes it the newest recent entry
+  useEffect(() => {
+    if (route.kind !== "diagram") return;
+    setRecents((keys) => {
+      const next = pushRecent(keys, route.key);
+      store.save(next);
+      return next;
+    });
+  }, [route, store]);
 
   const loadWs = useCallback(() => {
     api
@@ -69,26 +89,41 @@ export default function App() {
     }
   }, [ws, layoutInit]);
 
-  // land on the first diagram (or the first theme when there are no specs)
-  useEffect(() => {
-    if (!ws || route.kind !== "none") return;
-    const first = ws.files.flatMap((f) => f.diagrams)[0];
-    if (first) go({ kind: "diagram", key: first.key }, true);
-    else if (themes[0]) go({ kind: "theme", ref: themes[0].ref }, true);
-  }, [ws, themes, route.kind, go]);
-
   const current =
     route.kind === "diagram" ? ws?.files.flatMap((f) => f.diagrams).find((d) => d.key === route.key) : undefined;
 
+  const allDiagrams = useMemo(() => ws?.files.flatMap((f) => f.diagrams) ?? [], [ws]);
+  const recentKeys = useMemo(
+    () => (ws ? visibleRecents(recents, new Set(allDiagrams.map((d) => d.key))) : []),
+    [ws, recents, allDiagrams],
+  );
+  const recentDiagrams = recentKeys.map((k) => allDiagrams.find((d) => d.key === k)!);
+
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-4 border-b border-slate-200 px-4 dark:border-slate-800">
-        <span className="font-semibold tracking-tight">
+      <header className="flex h-12 shrink-0 items-center gap-6 border-b border-slate-200 px-4 dark:border-slate-800">
+        <a href={href({ kind: "diagrams" })} className="font-semibold tracking-tight">
           spina<span className="text-accent">gram</span>
-        </span>
-        <span className="truncate text-xs text-slate-500" title={ws?.paths.join("\n")}>
-          {ws ? `${ws.paths.map((p) => p.split("/").pop()).join(", ")} · theme ${ws.theme_name}` : ""}
-        </span>
+        </a>
+        <nav className="flex items-center gap-1" aria-label="Sections">
+          <TopLink to={{ kind: "diagrams" }} active={section === "diagrams"}>
+            Diagrams
+          </TopLink>
+          <TopLink to={{ kind: "themes" }} active={section === "themes"}>
+            Themes
+          </TopLink>
+          <TopLink to={{ kind: "packs" }} active={section === "packs"}>
+            Icon packs
+          </TopLink>
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md px-2.5 py-1 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900"
+          >
+            Docs <span aria-hidden>↗</span>
+          </a>
+        </nav>
         <div className="ml-auto flex items-center gap-3">
           {route.kind === "diagram" && ws && (
             <label className="flex items-center gap-2 text-xs text-slate-500">
@@ -120,7 +155,7 @@ export default function App() {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <Nav route={route} ws={ws} themes={themes} packs={packs.packs} />
+        <Recents route={route} diagrams={recentDiagrams} ws={ws} />
         <main className="min-w-0 flex-1">
           {wsError && !ws ? (
             <Empty title="Cannot reach spinagram serve" body={wsError} />
@@ -144,8 +179,12 @@ export default function App() {
               rev={revs.packs}
               onFetched={loadPacks}
             />
+          ) : route.kind === "themes" ? (
+            <ThemesPage themes={themes} rev={revs.theme} />
+          ) : route.kind === "packs" ? (
+            <PacksPage packs={packs.packs} rev={revs.packs} />
           ) : ws ? (
-            <Empty title="No diagrams" body={`No *.yaml, *.yml or *.py specs in ${ws.paths.join(", ")}.`} />
+            <DiagramsPage ws={ws} revs={revs.diagrams} />
           ) : null}
         </main>
       </div>
@@ -164,15 +203,15 @@ function Empty({ title, body }: { title: string; body: string }) {
   );
 }
 
-function NavLink({ to, active, children, title }: { to: Route; active: boolean; children: React.ReactNode; title?: string }) {
+function TopLink({ to, active, children }: { to: Route; active: boolean; children: React.ReactNode }) {
   return (
     <a
       href={href(to)}
-      title={title}
-      className={`flex items-center gap-2 rounded-md px-2 py-1 text-sm ${
+      aria-current={active ? "page" : undefined}
+      className={`rounded-md px-2.5 py-1 text-sm ${
         active
           ? "bg-accent-soft font-medium text-blue-900 dark:bg-blue-950 dark:text-blue-200"
-          : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900"
+          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900"
       }`}
     >
       {children}
@@ -180,73 +219,36 @@ function NavLink({ to, active, children, title }: { to: Route; active: boolean; 
   );
 }
 
-function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+function Recents({ route, diagrams, ws }: { route: Route; diagrams: DiagramRef[]; ws: Workspace | null }) {
   return (
-    <section className="mb-5">
-      <h2 className="mb-1 flex items-center justify-between px-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-        {title}
-        {count !== undefined && <span className="font-normal">{count}</span>}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function Nav({ route, ws, themes, packs }: { route: Route; ws: Workspace | null; themes: ThemeEntry[]; packs: Pack[] }) {
-  const nDiagrams = ws?.files.reduce((n, f) => n + f.diagrams.length, 0);
-  return (
-    <nav className="w-72 shrink-0 overflow-y-auto border-r border-slate-200 p-3 dark:border-slate-800">
-      <Section title="Diagrams" count={nDiagrams}>
-        {ws?.files.length === 0 && <p className="px-2 text-xs text-slate-500">No specs found.</p>}
-        {ws?.files.map((f) => (
-          <div key={f.path} className="mb-2">
-            <div
-              className={`flex items-center gap-1 px-2 font-mono text-[11px] ${f.error ? "text-red-600" : "text-slate-500"}`}
-              title={f.error ?? f.path}
-            >
-              {f.error && <span aria-label="error">●</span>}
-              <span className="truncate">{f.path}</span>
-            </div>
-            {f.diagrams.map((d) => (
-              <NavLink
-                key={d.key}
-                to={{ kind: "diagram", key: d.key }}
-                active={route.kind === "diagram" && route.key === d.key}
-                title={`${d.id} — ${d.title}${d.auto ? " (auto layout)" : ""}`}
-              >
-                <span className="shrink-0 font-mono text-[11px] text-slate-400">{d.id}</span>
-                <span className="truncate">{d.title}</span>
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </Section>
-      <Section title="Themes" count={themes.length}>
-        {themes.map((t) => (
-          <NavLink key={t.ref} to={{ kind: "theme", ref: t.ref }} active={route.kind === "theme" && route.ref === t.ref}>
-            <span className="truncate">{t.name}</span>
-            {t.active && (
-              <span className="ml-auto rounded bg-emerald-100 px-1.5 text-[10px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-800" aria-label="Recent diagrams">
+      <div className="flex-1 overflow-y-auto p-3">
+        <h2 className="mb-1 px-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Recent</h2>
+        {diagrams.length === 0 && <p className="px-2 text-xs text-slate-500">Diagrams you open appear here.</p>}
+        {diagrams.map((d) => {
+          const active = route.kind === "diagram" && route.key === d.key;
+          return (
+            <a
+              key={d.key}
+              href={href({ kind: "diagram", key: d.key })}
+              title={`${d.id} — ${d.title}`}
+              className={`flex items-center gap-2 rounded-md px-2 py-1 text-sm ${
                 active
-              </span>
-            )}
-            {t.error && <span className="text-red-600">●</span>}
-          </NavLink>
-        ))}
-      </Section>
-      <Section title="Icon packs" count={packs.length}>
-        {packs.map((p) => (
-          <NavLink key={p.name} to={{ kind: "pack", name: p.name }} active={route.kind === "pack" && route.name === p.name}>
-            <span
-              className={`size-1.5 shrink-0 rounded-full ${
-                p.fetching ? "animate-pulse bg-amber-500" : p.error ? "bg-red-500" : p.fetched ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+                  ? "bg-accent-soft font-medium text-blue-900 dark:bg-blue-950 dark:text-blue-200"
+                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900"
               }`}
-            />
-            <span className="truncate">{p.name}</span>
-            <span className="ml-auto text-[11px] text-slate-400">{p.fetched ? p.count : "—"}</span>
-          </NavLink>
-        ))}
-      </Section>
-    </nav>
+            >
+              <span className="shrink-0 font-mono text-[11px] text-slate-400">{d.id}</span>
+              <span className="truncate">{d.title}</span>
+            </a>
+          );
+        })}
+      </div>
+      {ws && (
+        <p className="truncate border-t border-slate-200 px-4 py-2 text-[11px] text-slate-500 dark:border-slate-800" title={ws.paths.join("\n")}>
+          {ws.paths.map((p) => p.split("/").pop()).join(", ")} · theme {ws.theme_name}
+        </p>
+      )}
+    </aside>
   );
 }

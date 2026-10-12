@@ -34,9 +34,16 @@
   live UI. The UI hit-tests with scene geometry from `api/diagrams/<key>.styles`, so the SVG stays untouched.
   `serve` maps saved `.css` files to diagrams through their cascade and watches external stylesheet folders.
   See `features/css-inspector/`.
+- 2026-10-12 · Diagram catalog: diagrams carry `category` + `tags` (`group` is taken by layout zones). Effective
+  metadata (declared + provider tags inferred from vendor icon packs; category = dominant provider) lives in
+  `spinagram.metadata` and feeds both the CLI filters and `serve`. UI search/grouping/recents are pure TS in
+  `web/src/catalog.ts`, tested with `bun test` (run by pytest when bun exists). See `features/diagram-catalog/`.
+- 2026-10-12 · Catalog previews: Themes and Icon packs pages reuse the Diagrams card layout (`CatalogShell`).
+  Theme cards render a built-in sample diagram per theme (`/api/themes/<ref>/thumbnail.svg`); pack cards show
+  12 icons sampled from the name-sorted list (`packSample`). See `features/catalog-previews/`.
 
 ## Deferred ideas
-- UI: QA panel, export buttons, sample diagram per theme, re-theme current spec, extends diff, icon copy-ref /
+- UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).
 - UI: fetch progress is status-only (fetching/done/failed); per-file progress needs a callback in `icons.fetch`.
 - PPTX: honour a theme `pptx: {svg: raster}` key (needs theme access in backends).

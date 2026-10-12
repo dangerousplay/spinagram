@@ -13,10 +13,15 @@ from .theme import Theme
 from .yaml_io import load
 
 
-def _collect(paths: list[str], only: list[str] | None):
+def _collect(paths: list[str], only: list[str] | None, tags: list[str] | None = None,
+             category: str | None = None):
+    from .metadata import matches
+
     diagrams = [d for p in paths for d in load(p)]
     if only:
         diagrams = [d for d in diagrams if d.id in set(only)]
+    if tags or category is not None:
+        diagrams = [d for d in diagrams if matches(d, tags or (), category)]
     if not diagrams:
         sys.exit("no diagrams found")
     return diagrams
@@ -39,6 +44,9 @@ def _main(argv: list[str] | None = None) -> int:
         p.add_argument("paths", nargs="+", help="spec files or directories (*.yaml, *.py)")
         p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
         p.add_argument("--only", nargs="*", help="diagram ids to include")
+        p.add_argument("--tag", action="append", metavar="TAG",
+                       help="only diagrams with this tag, declared or inferred (aws, gcp, kubernetes…); repeatable")
+        p.add_argument("--category", help="only diagrams in this category (declared, or the dominant provider)")
         p.add_argument("--layout", metavar="ENGINE",
                        help="layout engine for specs with `layout:` (flex, dot, elk, d2; env SPINAGRAM_LAYOUT)")
         if name == "layout":
@@ -132,7 +140,7 @@ def _main(argv: list[str] | None = None) -> int:
 
         print(build_deck(args.deck, args.theme, args.out))
         return 0
-    diagrams = _collect(args.paths, args.only)
+    diagrams = _collect(args.paths, args.only, args.tag, args.category)
     theme = Theme.load(args.theme)
     if args.cmd == "layout":
         import yaml

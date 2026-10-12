@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from .model import Diagram, Edge, Group, Legend, Table, Zone, parse_edge
+from .model import Diagram, Edge, Group, Legend, Table, Zone, normalize_tags, parse_edge
 
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
               "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
@@ -51,7 +51,9 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
                 source=data.get("source"), kicker=data.get("kicker"), base_dir=base_dir,
                 facts=data.get("facts"), locale=data.get("locale"),
                 meta=dict(data.get("meta") or {}), css=data.get("css"),
-                stylesheets=[str(x) for x in (data.get("stylesheets") or [])])
+                stylesheets=[str(x) for x in (data.get("stylesheets") or [])],
+                category=data.get("category"),
+                tags=data["tags"] if data.get("tags") is not None else [])
     if data.get("layout") is not None:
         lay = data["layout"]
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
@@ -105,6 +107,11 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
     return d
 
 
+def _tag_list(tags: Any) -> list:
+    """A tags value as a list (one string is one tag); type errors surface in ``normalize_tags``."""
+    return [tags] if isinstance(tags, str) else list(tags) if isinstance(tags, (list, tuple)) else [tags]
+
+
 def _dir_defaults(folder: Path) -> dict[str, Any]:
     """``_defaults.yaml`` next to the specs supplies keys every diagram in the folder shares."""
     f = folder / "_defaults.yaml"
@@ -128,6 +135,8 @@ def load_yaml(path: Path) -> list[Diagram]:
         out = {**base, **doc}
         if base.get("stylesheets") and doc.get("stylesheets"):  # folder sheets come first, then the spec's
             out["stylesheets"] = list(base["stylesheets"]) + list(doc["stylesheets"])
+        if base.get("tags") is not None and doc.get("tags") is not None:  # folder tags join the spec's
+            out["tags"] = _tag_list(base["tags"]) + _tag_list(doc["tags"])
         return out
 
     return [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
@@ -159,6 +168,11 @@ def load_python(path: Path) -> list[Diagram]:
         for key in ("kicker", "source", "subtitle", "facts", "locale"):  # folder defaults fill what the script left unset
             if getattr(d, key) is None and base.get(key) is not None:
                 setattr(d, key, base[key])
+        if base.get("category") is not None and d.category is None:
+            d.category = base["category"]
+            d.__post_init__()  # validate the folder value like a declared one
+        if base.get("tags") is not None:
+            d.tags = normalize_tags(_tag_list(base["tags"]) + d.tags, d.id)
         if base.get("stylesheets"):  # folder stylesheets come before the script's own
             d.stylesheets = [str(x) for x in base["stylesheets"]] + [x for x in d.stylesheets
                                                                      if x not in base["stylesheets"]]
@@ -202,6 +216,10 @@ def dump(d: Diagram) -> dict[str, Any]:
     for k in ("subtitle", "source", "kicker", "facts", "locale"):
         if getattr(d, k) is not None:
             out[k] = getattr(d, k)
+    if d.category is not None:
+        out["category"] = d.category
+    if d.tags:
+        out["tags"] = list(d.tags)
     if d.meta:
         out["meta"] = {k: v for k, v in d.meta.items() if not k.startswith("layout_")} or None
         if out["meta"] is None:

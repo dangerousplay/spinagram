@@ -9,6 +9,7 @@ import pytest
 pytest.importorskip("starlette")
 from starlette.testclient import TestClient  # noqa: E402
 
+from spinagram.theme import Theme  # noqa: E402
 from spinagram.ui import themes  # noqa: E402
 from spinagram.ui.catalog import PackService  # noqa: E402
 from spinagram.ui.events import EventBus  # noqa: E402
@@ -46,10 +47,26 @@ def test_workspace_lists_and_renders(env):
     ws = Workspace([env / "specs"])
     s = ws.summary()
     assert [f["path"] for f in s["files"]] == ["auto.yaml", "one.yaml"]
-    assert s["files"][1]["diagrams"] == [{"key": "one.yaml#D1", "id": "D1", "title": "First", "auto": False}]
+    assert s["files"][1]["diagrams"] == [{"key": "one.yaml#D1", "id": "D1", "title": "First", "auto": False,
+                                          "subtitle": None, "category": "", "tags": []}]
     assert {e["name"] for e in s["engines"]} >= {"flex"}
     svg, info = ws.render("one.yaml#D1")
     assert svg.startswith("<svg") and "First" in svg and info["overflow"] is None
+
+
+def test_workspace_api_reports_effective_metadata(env):
+    """META-13: each diagram entry carries subtitle, effective category and effective tags."""
+    specs = env / "specs"
+    (specs / "meta.yaml").write_text("id: M1\ntitle: Hub\nsubtitle: Transit\ncategory: Networking\n"
+                                     "tags: [Team-A]\nnodes:\n  - {id: a, title: A, icon: 'aws:s3'}\n")
+    (specs / "inferred.yaml").write_text("id: M2\ntitle: GKE\nnodes:\n  - {id: a, title: A, icon: 'gcp:gke'}\n"
+                                         "  - {id: b, title: B, icon: 'k8s:pod'}\n  - {id: c, title: C, icon: 'gcp:gcs'}\n")
+    with client(Workspace([specs])) as c:
+        entries = {d["id"]: d for f in c.get("/api/workspace").json()["files"] for d in f["diagrams"]}
+    assert (entries["M1"]["subtitle"], entries["M1"]["category"], entries["M1"]["tags"]) == \
+        ("Transit", "Networking", ["aws", "team-a"])
+    assert (entries["M2"]["subtitle"], entries["M2"]["category"], entries["M2"]["tags"]) == \
+        (None, "Google Cloud", ["gcp", "kubernetes"])
 
 
 def test_workspace_reload_error_and_recovery(env):
@@ -112,6 +129,36 @@ def test_theme_sheet_and_previews():
         themes.style_preview("default", None, "node", "missing")
     with pytest.raises(KeyError):
         themes.theme_sheet("../../etc", None)
+
+
+def test_theme_sample_uses_only_defined_node_styles():
+    """PREV-04: the sample shows the theme's node styles among the six common ones, nothing else."""
+    class Stub:
+        def get(self, *path):
+            return {"default": {}, "dark": {}, "custom": {}} if path == ("styles", "node") else None
+
+    styles = sorted({n.style or "default" for n in themes.sample_diagram(Stub(), "stub").nodes})
+    assert styles == ["dark", "default"]
+    full = themes.sample_diagram(Theme.load("default"), "default")
+    assert sorted({n.style or "default" for n in full.nodes}) == ["alert", "dark", "default", "neutral", "soft",
+                                                                    "warning"]
+    assert full.title == "default"
+
+
+def test_theme_thumbnail_endpoint(env):
+    """PREV-01..03: an SVG of the sample in that theme; 404 unknown ref; 422 broken theme."""
+    theme = env / "theme"
+    theme.mkdir()
+    (theme / "theme.yaml").write_text("name: corp\nextends: default\ncolors: {primary: '#FF0000'}\n")
+    with client(Workspace([env / "specs"], theme=str(theme))) as c:
+        r = c.get("/api/themes/active/thumbnail.svg")
+        assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml")
+        assert r.text.startswith("<svg") and ">corp<" in r.text and "#FF0000" in r.text
+        assert c.get("/api/themes/default/thumbnail.svg").status_code == 200
+        assert c.get("/api/themes/nope/thumbnail.svg").status_code == 404
+        (theme / "theme.yaml").write_text("name: corp\nextends: no-such-base\n")
+        r = c.get("/api/themes/active/thumbnail.svg")
+        assert r.status_code == 422 and "no-such-base" in r.json()["error"]
 
 
 def test_theme_list_marks_active(env):

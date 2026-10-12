@@ -97,6 +97,15 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
             return _err(422, str(exc))
         return Response(svg, media_type="image/svg+xml", headers=NO_STORE)
 
+    async def theme_thumbnail(req: Request) -> Response:
+        try:
+            svg = await run_in_threadpool(themes.theme_thumbnail, req.path_params["ref"], ws.theme_ref)
+        except KeyError as exc:
+            return _err(404, f"unknown theme {exc}")
+        except Exception as exc:  # noqa: BLE001 — broken theme file: show why
+            return _err(422, str(exc))
+        return Response(svg, media_type="image/svg+xml", headers=NO_STORE)
+
     async def theme_font(req: Request) -> Response:
         p = req.path_params
         try:
@@ -149,6 +158,7 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         Route("/api/diagrams/{key:path}.styles", styles),
         Route("/api/themes", theme_list),
         Route("/api/themes/{ref}", theme_sheet),
+        Route("/api/themes/{ref}/thumbnail.svg", theme_thumbnail),
         Route("/api/themes/{ref}/preview/{kind}/{style}.svg", theme_preview),
         Route("/api/themes/{ref}/font/{role}/{key}", theme_font),
         Route("/api/packs", pack_list),

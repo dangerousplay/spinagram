@@ -31,6 +31,32 @@ d = Diagram(
 If no node has coordinates, the diagram is laid out automatically with the `flex` engine, flowing
 left to right. Pass `layout=` only to pick another engine or direction.
 
+## Catalog metadata
+
+A category and tags group and filter diagrams in [`spinagram serve`](./live-ui.mdx) and on the
+[CLI](./cli.mdx) (`--category`, `--tag`):
+
+```python
+d = Diagram("N01", "Hub-and-spoke networking", category="Networking", tags=["aws", "transit"])
+```
+
+Tags are trimmed, lower-cased, de-duplicated and sorted; a single string is one tag. A
+`_defaults.yaml` `category` fills diagrams that set none, and its `tags` join each diagram's tags.
+
+Icons add provider tags without any metadata, and a diagram with no category falls into the provider
+it uses most (ties go to the first tag A–Z):
+
+| Icons from | Tag | Category |
+|---|---|---|
+| `aws:` (and `aws-*` group styles) | `aws` | AWS |
+| `gcp:` | `gcp` | Google Cloud |
+| `k8s:` | `kubernetes` | Kubernetes |
+| `azure:` | `azure` | Azure |
+| `oci:` | `oci` | OCI |
+| `openstack:` | `openstack` | OpenStack |
+
+A declared category always wins; a diagram with neither is *Uncategorised*.
+
 ## Nodes
 
 ```python

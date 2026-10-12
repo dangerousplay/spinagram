@@ -25,6 +25,7 @@ spinagram render examples/quickstart.yaml -f svg,png,pptx -o out/
 | `edges` | Shorthand strings or `{from, to, label, color, dashed, via, arrow}` |
 | `zones`, `tables`, `legend` | Fixed-position extras, see [Manual layout](./manual-layout.mdx) |
 | `facts`, `locale` | [Facts](./facts.mdx) file and number format |
+| `category`, `tags` | Catalog metadata for `serve` and `--tag`/`--category`, see [Python guide](./python.mdx#catalog-metadata) |
 
 ## Edge shorthand
 
@@ -35,7 +36,8 @@ position from 0 to 1 along that side. `<-`, `<->` and `--` (no arrow) work too.
 ## Folder defaults
 
 A `_defaults.yaml` next to the specs supplies keys every diagram in that folder shares, such as
-`facts`, `locale` or `layout`. Files starting with `_` are not loaded as diagrams.
+`facts`, `locale` or `layout`. A folder `category` applies to diagrams without one, and folder `tags`
+are added to every diagram's tags. Files starting with `_` are not loaded as diagrams.
 
 ## From Python to YAML
 
