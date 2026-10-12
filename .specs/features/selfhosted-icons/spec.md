@@ -130,7 +130,7 @@ firewalls). Authors fall back to generic glyphs or hand-managed files. Two built
 | ICON-16 | P2: Showcase - homelab | Tasks | Implementing |
 | ICON-17 | P2: Showcase - campus network | Tasks | Implementing |
 | ICON-18 | P2: Showcase - check clean | Tasks | Implementing |
-| ICON-19 | P2: Docs | Tasks | Pending |
+| ICON-19 | P2: Docs | Tasks | Implementing |
 
 **Coverage:** 19 total, 19 mapped to tasks, 0 unmapped
 

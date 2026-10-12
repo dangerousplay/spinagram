@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `inline (pack YAML only; see spec assumptions)`
-**Status**: Approved
+**Status**: Done
 
 ---
 
@@ -181,8 +181,8 @@ T4 → T5 → T6
 
 **Done when**:
 
-- [ ] docs build
-- [ ] Gate check passes: `build gate`
+- [x] docs build
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build

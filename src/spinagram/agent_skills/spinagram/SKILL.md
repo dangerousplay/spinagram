@@ -126,7 +126,9 @@ save, shows load/render errors inline, the theme token sheet (colour token names
 
 ## Icon packs
 
-Use `icon: "<pack>:<name>"` for vendor icons: `aws`, `gcp`, `azure`, `k8s`, `oci`, `openstack`, `terrastruct` are built in
+Use `icon: "<pack>:<name>"` for vendor icons: `aws`, `gcp`, `azure`, `k8s`, `oci`, `openstack`, `terrastruct`,
+`selfhosted` (Proxmox, OPNsense, VMware ESXi, TrueNAS, UniFi… for homelabs and private clouds) and `network`
+(router, switch, firewall… as `network:router`, `-green`, `-circle`, `-plain`) are built in
 and download on first use (`spinagram icons fetch`). Find names with `spinagram icons search <words>`;
 short aliases exist for common services (`aws:s3`, `aws:alb`, `aws:kms`, `gcp:gke`, `azure:aks`, `k8s:pod`).
 For general software architecture (languages, databases, caches, queues) use `terrastruct`:
