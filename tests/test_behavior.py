@@ -260,3 +260,58 @@ def test_figma_symbol_script_runs_on_mock(tmp_path):  # BHV-04
     for f in files:
         r = subprocess.run([node, str(MOCK), str(f)], capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
+
+
+# T7: Flowchart ----------------------------------------------------------------------------------
+from spinagram.autolayout import apply_layout  # noqa: E402
+from spinagram.behavior import Activity, Flowchart, StateMachine  # noqa: E402,F401
+
+
+def test_flowchart_verbs_create_kinds():  # BHV-06
+    fc = Flowchart("F1", "Checkout")
+    nodes = [fc.start(), fc.process("Pay"), fc.decision("OK?"), fc.io("Read card"), fc.document("Receipt"),
+             fc.end()]
+    assert [n.kind for n in nodes] == ["terminator", "process", "decision", "io", "document", "terminator"]
+    assert nodes[0].title == "Start" and nodes[-1].title == "End"
+
+
+def test_decision_yes_no_labels_and_distinct_sides():  # BHV-07
+    fc = Flowchart("F1", "Checkout")
+    ok = fc.decision("OK?")
+    a, b = fc.process("Ship"), fc.process("Refund")
+    ok.yes(a)
+    ok.no(b)
+    ok.to(fc.end(), "Maybe")
+    assert [e.label for e in fc.edges] == ["Yes", "No", "Maybe"]
+    out = apply_layout(fc, _th())
+    starts = {e.src for e in out.edges}
+    assert len(starts) == 3  # three distinct ports on the decision
+
+
+def test_flowchart_defaults_to_layered_down():  # BHV-08
+    fc = Flowchart("F1", "Checkout")
+    assert fc.layout == {"engine": "layered", "direction": "down"}
+    assert Flowchart("F2", "x", direction="right").layout["direction"] == "right"
+
+
+def test_edges_out_of_finals_rejected():  # BHV-31
+    sm = StateMachine("S1", "x")
+    s = sm.state("Done")
+    with pytest.raises(ValueError, match="final node final cannot have outgoing edges"):
+        sm.final >> s
+
+
+def test_edges_into_initials_rejected():  # BHV-32
+    sm = StateMachine("S1", "x")
+    s = sm.state("Idle")
+    with pytest.raises(ValueError, match="initial node initial cannot have incoming edges"):
+        s >> sm.initial
+
+
+def test_on_composes_transition_labels():  # BHV-11 helper
+    sm = StateMachine("S1", "x")
+    a, b = sm.state("Idle"), sm.state("Busy")
+    a.on("click", b, guard="enabled", action="beep")
+    a.on("tick", b)
+    b.on("done", a, action="log")
+    assert [e.label for e in sm.edges] == ["click [enabled] / beep", "tick", "done / log"]

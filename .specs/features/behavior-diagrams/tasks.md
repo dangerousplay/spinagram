@@ -164,11 +164,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-06, BHV-07, BHV-08, BHV-31, BHV-32
 
 **Done when**:
-- [ ] Verbs create the right kinds; Yes/No labels; layered layout; ValueErrors for final/initial misuse
-- [ ] Gate passes
+- [x] Verbs create the right kinds; Yes/No labels; layered layout; ValueErrors for final/initial misuse
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T8: State machine builder
 

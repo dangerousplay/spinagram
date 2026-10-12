@@ -83,6 +83,22 @@ class Node:
             d.edge(self, t, label, **kw)
         return other
 
+    def yes(self, target: Any, **kw: Any) -> Any:
+        """Decision branch labelled ``Yes``."""
+        return self.to(target, "Yes", **kw)
+
+    def no(self, target: Any, **kw: Any) -> Any:
+        """Decision branch labelled ``No``."""
+        return self.to(target, "No", **kw)
+
+    def on(self, event: str | None, target: Any, guard: str | None = None, action: str | None = None,
+           **kw: Any) -> Any:
+        """Transition labelled ``event [guard] / action`` (empty parts omitted)."""
+        label = " ".join(p for p in (event or "", f"[{guard}]" if guard else "") if p)
+        if action:
+            label = f"{label} / {action}".strip()
+        return self.to(target, label or None, **kw)
+
     def __rshift__(self, other: Any) -> Any:
         return self.to(other)
 
@@ -296,8 +312,19 @@ class Diagram:
             e = Edge(src=_endpoint(src), dst=_endpoint(dst), **kw)
         if e.via:
             e.via = [(float(p[0]), float(p[1])) for p in e.via]
+        self._check_pseudo(e)
         self.edges.append(e)
         return e
+
+    def _check_pseudo(self, e: Edge) -> None:
+        """Finals have no outgoing edges and initials no incoming ones (UML)."""
+        kinds = {n.id: n.kind for n in self.nodes}
+        src = e.src.partition(".")[0] if isinstance(e.src, str) else None
+        dst = e.dst.partition(".")[0] if isinstance(e.dst, str) else None
+        if kinds.get(src) in ("final", "flow_final"):
+            raise ValueError(f"final node {src} cannot have outgoing edges")
+        if kinds.get(dst) == "initial":
+            raise ValueError(f"initial node {dst} cannot have incoming edges")
 
     def chain(self, *nodes: Any, **kw: Any) -> list[Edge]:
         """Connect consecutive nodes: ``d.chain(a, b, c)``."""
