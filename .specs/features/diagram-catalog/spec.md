@@ -188,7 +188,7 @@ grouped by category, so that I find a diagram in seconds.
 | META-24 | P1: Nav - recents sidebar | Tasks | Pending |
 | META-25 | P1: Nav - stale recents omitted | Tasks | Implementing |
 | META-26 | P1: Nav - storage unavailable | Tasks | Implementing |
-| META-27 | P1: Nav - default route | Tasks | Pending |
+| META-27 | P1: Nav - default route | Tasks | Implementing |
 | META-28 | P2: CLI - --tag | Tasks | Implementing |
 | META-29 | P2: CLI - --category | Tasks | Implementing |
 | META-30 | P2: CLI - combined filters | Tasks | Implementing |

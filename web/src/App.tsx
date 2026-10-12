@@ -8,7 +8,7 @@ import ThemeView from "./ThemeView";
 export type Revs = { diagrams: Record<string, number>; theme: number; packs: number };
 
 export default function App() {
-  const [route, go] = useRoute();
+  const [route] = useRoute();
   const [ws, setWs] = useState<Workspace | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   const [themes, setThemes] = useState<ThemeEntry[]>([]);
@@ -68,14 +68,6 @@ export default function App() {
       setLayoutInit(true);
     }
   }, [ws, layoutInit]);
-
-  // land on the first diagram (or the first theme when there are no specs)
-  useEffect(() => {
-    if (!ws || route.kind !== "none") return;
-    const first = ws.files.flatMap((f) => f.diagrams)[0];
-    if (first) go({ kind: "diagram", key: first.key }, true);
-    else if (themes[0]) go({ kind: "theme", ref: themes[0].ref }, true);
-  }, [ws, themes, route.kind, go]);
 
   const current =
     route.kind === "diagram" ? ws?.files.flatMap((f) => f.diagrams).find((d) => d.key === route.key) : undefined;

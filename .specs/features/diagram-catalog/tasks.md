@@ -217,8 +217,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] `parse`/`href` round-trip every route kind; `#/` and `""` parse to diagrams
-- [ ] Gate check passes: `cd web && bun test`
+- [x] `parse`/`href` round-trip every route kind; `#/` and `""` parse to diagrams
+- [x] Gate check passes: `cd web && bun test`
 
 **Tests**: unit
 **Gate**: web
