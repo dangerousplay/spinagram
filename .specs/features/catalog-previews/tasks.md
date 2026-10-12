@@ -154,8 +154,8 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 **Done when**:
 
-- [ ] typechecks
-- [ ] Gate check passes: `cd web && bun test && bun run typecheck`
+- [x] typechecks
+- [x] Gate check passes: `cd web && bun test && bun run typecheck`
 
 **Tests**: none
 **Gate**: build
