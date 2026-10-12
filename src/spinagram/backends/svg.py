@@ -96,7 +96,17 @@ class _Svg:
         dash = DASH if s.dashed else ""
         op = f' opacity="{s.opacity:g}"' if s.opacity < 1 else ""
         fill = s.fill or "none"
-        if s.kind == "diamond":
+        if s.parts:
+            for i, part in enumerate(s.parts):
+                if part.paint == "solid":
+                    paint = f'fill="{s.stroke or fill}"'
+                elif part.paint == "stroke":
+                    paint = f'fill="none" stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"'
+                else:
+                    paint = f'fill="{fill}"{stroke}'
+                el = f'<path d="{part.d}" {paint}{dash}{op}/>'
+                layer.append(self._with_tip(el, "path", self.tip(s.id)) if i == 0 else el)
+        elif s.kind == "diamond":
             cx, cy = s.x + s.w / 2, s.y + s.h / 2
             pts = f"{cx:.1f},{s.y:.1f} {s.x + s.w:.1f},{cy:.1f} {cx:.1f},{s.y + s.h:.1f} {s.x:.1f},{cy:.1f}"
             layer.append(self._with_tip(f'<polygon points="{pts}" fill="{fill}"{stroke}{dash}{op}/>', "polygon",

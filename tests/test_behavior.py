@@ -143,3 +143,29 @@ def test_round_symbols_anchor_on_their_outline():
     sc = scenes([_all_kinds_diagram()])[0]
     s = next(i for i in sc.items if isinstance(i, Shape) and i.id == "initial")
     assert s.anchor("left", 0.2) == (s.x, s.y + s.h / 2)
+
+
+# T4: SVG ----------------------------------------------------------------------------------------
+import re  # noqa: E402
+
+from spinagram.backends.svg import to_svg  # noqa: E402
+
+
+def _paths(svg: str) -> dict[str, str]:
+    """path d → the full element."""
+    return {m.group(1): m.group(0) for m in re.finditer(r'<path d="([^"]+)"[^>]*/?>', svg)}
+
+
+def test_svg_draws_every_part_with_its_paint():  # BHV-02
+    sc = scenes([_all_kinds_diagram()])[0]
+    svg = to_svg(sc)
+    paths = _paths(svg)
+    for s in (i for i in sc.items if isinstance(i, Shape) and i.parts):
+        for p in s.parts:
+            el = paths[p.d]
+            if p.paint == "solid":
+                assert f'fill="{s.stroke}"' in el
+            elif p.paint == "stroke":
+                assert 'fill="none"' in el and f'stroke="{s.stroke}"' in el
+            else:
+                assert f'fill="{s.fill}"' in el and f'stroke="{s.stroke}"' in el

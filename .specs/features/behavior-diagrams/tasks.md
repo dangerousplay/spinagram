@@ -113,11 +113,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-02
 
 **Done when**:
-- [ ] Each kind renders its path(s) with the specified paint
-- [ ] Gate passes
+- [x] Each kind renders its path(s) with the specified paint
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T5: PowerPoint symbols
 
