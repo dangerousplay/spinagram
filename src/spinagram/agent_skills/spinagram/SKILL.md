@@ -1,6 +1,6 @@
 ---
 name: spinagram
-description: Author professional diagrams as code with spinagram (YAML or Python) and deliver them as SVG, PNG, editable PowerPoint and editable Figma. Use when asked to create, update or export flowcharts, decision trees, process/approval flows, swimlanes, today-vs-target comparisons, org/structure charts, matrices or tables-as-diagrams, especially for slide decks, studies or Figma. Covers layout grid, text fitting, edge routing, themes, icons, QA, and the Figma MCP (use_figma + upload_assets) hand-off. Not for data charts (bar/line) or auto-laid-out graphs of hundreds of nodes.
+description: Author professional diagrams as code with spinagram (YAML or Python) and deliver them as SVG, PNG, editable PowerPoint and editable Figma. Use when asked to create, update or export flowcharts, decision trees, process/approval flows, swimlanes, today-vs-target comparisons, org/structure charts, matrices or tables-as-diagrams, especially for slide decks, studies or Figma. Covers layout grid, text fitting, edge routing, themes, icons, QA, and the Figma hand-off (through a Figma MCP server when the agent has one). For CSS styling use the spinagram-css skill. Not for data charts (bar/line) or auto-laid-out graphs of hundreds of nodes.
 ---
 
 # spinagram: diagrams as code with editable outputs
@@ -200,11 +200,12 @@ are not loaded as specs.
 
 - **PowerPoint:** one slide per diagram, with native shapes and the text inside each shape. Tables are native, and the diagram `source` goes into the speaker notes. Viewers need the theme fonts installed.
 - **Figma:**
-  - **Scripts:** `out/figma/<slug>-NN.js` (run in order) and `<slug>.assets.json`.
-    1. Load the `figma-use` skill.
+  - **Scripts:** `out/figma/<slug>-NN.js` (run in order) and `<slug>.assets.json`. They run through the
+    Figma MCP server's `use_figma` tool. Without that server, hand the scripts to the user.
+    1. If the agent has Figma's `figma-use` skill, load it.
     2. Run each script with `use_figma` (`fileKey` from the URL).
   - **Container:** the diagram becomes a frame (Design file), a slide (Slides file) or a section (FigJam board, `figma.com/board/...`) named `spinagram:<id>`. Re-running it rebuilds the content in place.
-  - **FigJam:** edges whose both ends sit on box sides become native connectors attached to the boxes (they follow when a box moves); free edges stay vectors. Load the `figma-use-figjam` skill too.
+  - **FigJam:** edges whose both ends sit on box sides become native connectors attached to the boxes (they follow when a box moves); free edges stay vectors. Load the `figma-use-figjam` skill too, when available.
   - **SVG icons** are rebuilt as editable vectors inside the script (`createNodeFromSvg`) — no upload. Only raster icons (PNG) need `upload_assets`.
   - **FigJam in one step:** `-f figjam` writes library-mode scripts, `figma/icons/` (every icon used),
     `icon-library.js` (finds the uploaded layers by file name) and a `README.md` with the order of calls.
@@ -216,6 +217,12 @@ are not loaded as specs.
     - POST each file listed in `assets.json` to its URL.
   - **Edges (Design/Slides):** drawn as vectors, because the connector node is FigJam-only.
 - **SVG** is self-contained (fonts and images embedded). **PNG** is rendered at 2x (3840×2160) for slides.
+
+## CSS styling
+
+Stylesheets restyle any diagram without touching its code: `d.stylesheet("brand.css")`, `class_="critical"`,
+`edge.async { stroke-dasharray: 6 4 }`. For anything beyond a rule or two, load the **spinagram-css**
+skill: selectors, properties, recipes, layout hints for dense architecture slides and the debugging loop.
 
 ## Themes
 

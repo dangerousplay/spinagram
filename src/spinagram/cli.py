@@ -1,4 +1,4 @@
-"""Command line: ``spinagram render``, ``check``, ``facts``, ``layout``, ``deck`` and ``serve``."""
+"""Command line: ``spinagram render``, ``check``, ``facts``, ``layout``, ``deck``, ``serve`` and ``skills``."""
 from __future__ import annotations
 
 import argparse
@@ -97,6 +97,21 @@ def _main(argv: list[str] | None = None) -> int:
     p.add_argument("deck", help="deck.yaml (title, authors, sections → slides → diagram ids)")
     p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
     p.add_argument("-o", "--out", help="output .html (default: next to deck.yaml)")
+    sk = sub.add_parser("skills", help="agent skills for coding assistants: list, show, path, install")
+    ssub = sk.add_subparsers(dest="scmd", required=True)
+    ssub.add_parser("list", help="bundled skills")
+    p = ssub.add_parser("show", help="print a skill's SKILL.md (paste it where your agent reads instructions)")
+    p.add_argument("name")
+    p = ssub.add_parser("path", help="folder of a skill, or of all skills")
+    p.add_argument("name", nargs="?")
+    p = ssub.add_parser("install", help="copy skills into the folder a coding agent reads")
+    p.add_argument("names", nargs="*", help="skills to install (default: all)")
+    p.add_argument("-a", "--agent", action="append", metavar="AGENT",
+                   help="target agent, repeatable: " + ", ".join(_skill_agents()) + " (default: agents)")
+    p.add_argument("--dest", help="install into this folder instead (any other tool)")
+    p.add_argument("--user", action="store_true", help="install for the user (home folder), not this project")
+    p.add_argument("--link", action="store_true", help="symlink instead of copying (follows spinagram upgrades)")
+    p.add_argument("--force", action="store_true", help="replace skills that are already installed")
     p = sub.add_parser("serve", help="live-reload UI: diagrams, theme token sheets, icon packs")
     p.add_argument("paths", nargs="*", default=["."], help="spec files or folders (default: .)")
     p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
@@ -108,6 +123,8 @@ def _main(argv: list[str] | None = None) -> int:
         return _serve(args)
     if args.cmd == "icons":
         return _icons(args)
+    if args.cmd == "skills":
+        return _skills(args)
     if args.cmd == "vectorize":
         return _vectorize(args)
     if args.cmd == "deck":
@@ -197,6 +214,39 @@ def _vectorize(args) -> int:
         print(f"{str(f)[-48:]:48} {sc.mean if sc else '-':>6} {sc.strong if sc else '-':>8}  {state}")
         ok += res.accepted
     print(f"{ok}/{len(files)} accepted (gate: mean ≤ {vectorize.MAX_MEAN}, strong ≤ {vectorize.MAX_STRONG:.0%})")
+    return 0
+
+
+def _skill_agents() -> list[str]:
+    from .skills import AGENTS
+
+    return list(AGENTS)
+
+
+def _skills(args) -> int:
+    from . import skills
+
+    if args.scmd == "list":
+        for s in skills.available().values():
+            print(f"{s.name:16} {s.summary}")
+        return 0
+    if args.scmd == "show":
+        print(skills.get(args.name).path.joinpath("SKILL.md").read_text(encoding="utf-8"), end="")
+        return 0
+    if args.scmd == "path":
+        print(skills.get(args.name).path if args.name else skills.ROOT)
+        return 0
+    if args.dest and (args.agent or args.user):
+        raise ValueError("--dest replaces --agent and --user; pass one or the other")
+    dests = [Path(args.dest)] if args.dest else \
+        list(dict.fromkeys(skills.target(a, args.user) for a in (args.agent or ["agents"])))
+    try:
+        for dest in dests:
+            for out in skills.install(args.names, dest, link=args.link, force=args.force):
+                print(f"{'linked' if args.link else 'installed'} {out}")
+    except FileExistsError as exc:
+        print(f"spinagram: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
