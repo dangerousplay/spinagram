@@ -9,6 +9,8 @@ import copy
 from functools import lru_cache
 from pathlib import Path
 
+from . import shapes
+from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
 from .scene import (Binding, Cell, Connector, Icon, Image, Label, Line, Scene, Shape, TableGrid, Text,
@@ -73,6 +75,8 @@ class _Builder:
                              anchor={"center": "middle", "right": "end"}.get(n.align, "start"))
         if n.kind == "diamond":
             return self.diamond(n)
+        if n.kind in shapes.KINDS:
+            return self.symbol(n)
         return self.box(n)
 
     @staticmethod
@@ -116,6 +120,36 @@ class _Builder:
         s = Shape(id=n.id, kind="rect", x=x, y=y, w=w, h=h, fill=st["fill"], stroke=st["stroke"], stroke_width=sw,
                   radius=n.radius if n.radius is not None else nd.get("radius", 22), dashed=n.dashed,
                   label=label, icon=icon)
+        self.shapes[n.id] = s
+        return s
+
+    def symbol(self, n: Node) -> Shape:
+        """Flow/activity/state symbol: geometry from ``shapes``, centred text inside its text box."""
+        nd = self.t.defaults("node")
+        default = self.t.defaults("diamond").get("style", "soft") if n.kind in shapes.DIAMOND_KINDS else None
+        st = self.t.node_style(n.style or default)
+        x, y, w, h = n.x, n.y, n.w, n.h
+        blocks = []
+        tx, ty, tw, th = shapes.text_box(n.kind, x, y, w, h)
+        pad = TEXT_PAD if n.kind not in shapes.ROUND_KINDS else 0
+        avail = max(1.0, tw - 2 * pad)
+        titles = _as_list(n.title)
+        if titles:
+            ts = n.title_size or nd.get("title_size", 24)
+            if n.kind in shapes.ROUND_KINDS:  # "H", "H*", connector letters scale with the circle
+                ts = n.title_size or max(10, h * 0.42)
+            f = self.t.font("heading", 700, ts)
+            blocks.append(self.block(titles, f, st["title"], ts * nd.get("title_leading", 1.15), avail))
+        body = n.lines if n.lines is not None else ([n.text] if n.text else [])
+        if body:
+            bs = n.body_size or nd.get("body_size", 18)
+            f = self.t.font("body", 400, bs)
+            blocks.append(self.block([str(b) for b in body], f, st["body"], bs * nd.get("body_leading", 1.32), avail))
+        label = Label(blocks, (tx + pad, ty, avail, th), align="center",
+                      gap=nd.get("title_body_gap", 10)) if blocks else None
+        s = Shape(id=n.id, kind=n.kind, x=x, y=y, w=w, h=h, fill=st["fill"], stroke=st["stroke"],
+                  stroke_width=nd.get("stroke_width", 3), dashed=n.dashed, label=label,
+                  parts=shapes.parts(n.kind, x, y, w, h))
         self.shapes[n.id] = s
         return s
 

@@ -96,11 +96,13 @@ T7 → T8 → T9 → T10 → T11
 **Requirement**: BHV-02
 
 **Done when**:
-- [ ] Scene shapes carry parts and label boxes; `check` sees no overflow for default-sized symbols
-- [ ] Gate passes
+- [x] Scene shapes carry parts and label boxes; `check` sees no overflow for default-sized symbols
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T4: SVG symbols
 

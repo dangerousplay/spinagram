@@ -100,3 +100,46 @@ def test_titled_symbols_fit_their_text_box(kind):  # BHV-02 text inside shape
     total = len(lines_t) * tf.size * nd.get("title_leading", 1.15) + len(lines_b) * bf.size * nd.get(
         "body_leading", 1.32) + nd.get("title_body_gap", 10)
     assert total <= tht - 2 * 12 + 1
+
+
+# T3: scene --------------------------------------------------------------------------------------
+from spinagram import Diagram  # noqa: E402
+from spinagram.api import scenes  # noqa: E402
+from spinagram.qa import check  # noqa: E402
+from spinagram.scene import Shape  # noqa: E402
+
+TITLED = {"terminator", "process", "decision", "io", "document", "predefined", "data", "state", "action",
+          "object", "signal_send", "signal_receive"}
+
+
+def _all_kinds_diagram():
+    d = Diagram("k", "Kinds", layout={"engine": "layered", "direction": "right"})
+    for k in KINDS:
+        title = k.replace("_", " ").title() if k in TITLED else ("H" if k == "history" else
+                                                              "H*" if k == "deep_history" else None)
+        d.add(k, title, id=k)
+    return d
+
+
+def test_scene_symbols_carry_parts_and_text_inside():  # BHV-02
+    sc = scenes([_all_kinds_diagram()])[0]
+    shapes_by_id = {s.id: s for s in sc.items if isinstance(s, Shape)}
+    for k in KINDS:
+        s = shapes_by_id[k]
+        assert s.kind == k
+        assert [p.d for p in s.parts] == [p.d for p in shapes.parts(k, s.x, s.y, s.w, s.h)]
+        if s.label:
+            tx, ty, tw, th = shapes.text_box(k, s.x, s.y, s.w, s.h)
+            lx, ly, lw, lh = s.label.box
+            assert lx >= tx - 0.5 and ly >= ty - 0.5 and lx + lw <= tx + tw + 0.5 and ly + lh <= ty + th + 0.5
+
+
+def test_default_sized_symbols_have_no_overflow():  # BHV-02 / BHV-05
+    sc = scenes([_all_kinds_diagram()])[0]
+    assert [i for i in check(sc) if i.kind.startswith("overflow-")] == []
+
+
+def test_round_symbols_anchor_on_their_outline():
+    sc = scenes([_all_kinds_diagram()])[0]
+    s = next(i for i in sc.items if isinstance(i, Shape) and i.id == "initial")
+    assert s.anchor("left", 0.2) == (s.x, s.y + s.h / 2)

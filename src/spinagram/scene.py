@@ -64,6 +64,10 @@ class Icon:
                 ".jpeg": "image/jpeg"}.get(self.path.suffix.lower(), "image/png")
 
 
+_MIDPOINT_KINDS = frozenset({"decision", "merge", "choice", "connector", "initial", "final", "flow_final",
+                             "history", "deep_history"})  # outline touches the box only at side midpoints
+
+
 @dataclass
 class Shape:
     id: str
@@ -81,10 +85,11 @@ class Shape:
     label: Label | None = None
     icon: Icon | None = None
     role: str = "node"         # node | zone | pill | swatch | chrome
+    parts: list | None = None  # symbol geometry (``shapes.Part``) for flow/activity/state kinds
 
     def anchor(self, side: str, frac: float = 0.5) -> Point:
         x, y, w, h = self.x, self.y, self.w, self.h
-        if self.kind == "diamond":
+        if self.kind == "diamond" or self.kind in _MIDPOINT_KINDS:
             pts = {"top": (x + w / 2, y), "bottom": (x + w / 2, y + h), "left": (x, y + h / 2),
                    "right": (x + w, y + h / 2)}
             return pts.get(side, (x + w / 2, y + h / 2))
