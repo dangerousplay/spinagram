@@ -13,18 +13,22 @@ group.services      { fill: #FFFFFF; stroke: #DADCE0; border-radius: 14px; }
 group.services::label { color: var(--g-grey); }
 
 node        { border-radius: 10px; }
-.client     { fill: #F8FAFC; stroke-dasharray: 6 4; box-shadow: none; }
-.net        { stroke: var(--g-blue); }
-.lb         { stroke-width: 3; box-shadow: 0 0 20px rgba(66, 133, 244, 0.45); }
+.external   { fill: #F8FAFC; stroke: #9AA0A6; stroke-dasharray: 6 4; box-shadow: none; }
+.networking { stroke: var(--g-blue); }
+.global-entry { stroke-width: 3; box-shadow: 0 0 20px rgba(66, 133, 244, 0.45); }
 .security   { stroke: var(--g-red); fill: #FCE8E6; }
 .compute    { stroke: var(--g-blue); stroke-width: 2.5; }
-.data       { stroke: var(--g-green); }
-.db         { fill: #E6F4EA; stroke-width: 2.5; }
+.data-store { stroke: var(--g-green); }
+.primary-database { fill: #E6F4EA; stroke-width: 2.5; }
 .analytics  { stroke: var(--g-yellow); fill: #FEF7E0; }
 
 edge         { stroke: #80868B; }
-edge.policy  { stroke: var(--g-red); stroke-dasharray: 6 4; }
-edge.policy::label { color: #C5221F; }
-edge.db-edge { stroke: var(--g-green); }
-edge.async   { stroke: #E37400; stroke-dasharray: 6 4; }
-edge.soft    { stroke-dasharray: 2 4; }
+edge.security-policy { stroke: var(--g-red); stroke-dasharray: 6 4; }
+edge.security-policy::label { color: #C5221F; }
+edge.database-traffic { stroke: var(--g-green); }
+edge.event-stream { stroke: #E37400; stroke-dasharray: 6 4; }
+edge.session-cache { stroke-dasharray: 2 4; }
+
+/* Annotations in Google blue */
+step        { fill: var(--g-blue); stroke: #FFFFFF; }
+legend::title { color: #3C4043; }

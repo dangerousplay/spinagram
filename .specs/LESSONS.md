@@ -68,6 +68,42 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: M17 tests/test_ui.py:161 (PREV-03) (routes)
 - last seen: 2026-10-12T17:38:46Z
 
+### L-010 - Assert that styled values reach the rendered scene shapes, not only the computed style map
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `css` · harmful: 0
+- features: annotations
+- evidence: validation.md M35/M36 src/spinagram/annotate.py:207,228 (css)
+- last seen: 2026-10-12T18:18:23Z
+
+### L-011 - Derive expected geometry independently instead of reusing the function under test
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: annotations
+- evidence: validation.md M07 tests/test_annotations.py:330 (tests)
+- last seen: 2026-10-12T18:18:23Z
+
+### L-012 - Assert the exact numeric value in diagnostic messages, not just the message prefix
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `qa` · harmful: 0
+- features: annotations
+- evidence: validation.md M37 tests/test_annotations.py:726 (qa)
+- last seen: 2026-10-12T18:18:23Z
+
+### L-013 - Cover first-match rules with a fixture that has at least two candidates
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: annotations
+- evidence: validation.md M38 src/spinagram/model.py:492 (tests)
+- last seen: 2026-10-12T18:18:23Z
+
+### L-014 - Give every clause of a multi-clause acceptance criterion its own assertion
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: annotations
+- evidence: validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests)
+- last seen: 2026-10-12T18:18:23Z
+
+### L-015 - When a spec says first-use order over mixed element types, state the order across types
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: annotations
+- evidence: validation.md ANN-01 src/spinagram/annotate.py:84 (spec)
+- last seen: 2026-10-12T18:18:23Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

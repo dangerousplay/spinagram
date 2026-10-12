@@ -41,6 +41,11 @@
 - 2026-10-12 · Catalog previews: Themes and Icon packs pages reuse the Diagrams card layout (`CatalogShell`).
   Theme cards render a built-in sample diagram per theme (`/api/themes/<ref>/thumbnail.svg`); pack cards show
   12 icons sampled from the name-sorted list (`packSample`). See `features/catalog-previews/`.
+- 2026-10-12 · Annotations: legends, numbered steps, callouts and note variants are model data turned into plain
+  scene primitives by `spinagram.annotate`, so every backend renders them natively with no backend code. Legend and
+  steps live in a reserved right/bottom band subtracted from the layout area; callouts place greedily (sides top,
+  right, bottom, left × centre/start/end alignment). CSS reaches them as `legend`, `step`, `callout`, `note.<variant>`.
+  See `features/annotations/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
@@ -53,6 +58,7 @@
 - CSS: `font-family` switching between theme fonts, remaining CSS-08..11 properties (padding, text-align,
   icon-*), gradients, editing CSS from the inspector.
 - Layout: obstacle router port spreading (two edges into one side share a point); tracks may collapse (F4).
+- Annotations: callouts on groups/edges; animated step-through; free-corner panels; legend entries for group classes.
 - Import (parked 2026-10-12): D2/PlantUML spec in `features/diagram-import/`; Mermaid / draw.io / Structurizr frontends; remote icon URLs; PlantUML sprites → icon packs.
 
 ## Lessons

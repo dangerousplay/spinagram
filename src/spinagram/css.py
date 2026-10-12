@@ -519,7 +519,8 @@ def _classes(cls: str | None, style: str | None) -> list[str]:
 
 
 def tree(d) -> tuple[El, dict[str, El]]:
-    """Style tree of a diagram: diagram → groups (``group``/``region``/``lane``) → nodes; edges under the root."""
+    """Style tree of a diagram: diagram → groups (``group``/``region``/``lane``) → nodes; edges, the legend, steps
+    and callouts under the root. Notes carry their variant (``sticky`` by default) as a class."""
     root = El("diagram", id=d.id, key="diagram")
     keys: dict[str, El] = {"diagram": root}
     by_group = {g.id: g for g in d.groups}
@@ -540,7 +541,8 @@ def tree(d) -> tuple[El, dict[str, El]]:
             n = nodes[item_id]
             title = " ".join(n.title) if isinstance(n.title, list) else n.title
             attrs = {k: v for k, v in (("kind", n.kind), ("label", title), ("icon", n.icon), ("style", n.style)) if v}
-            el = El("node", [n.kind], n.id, _classes(n.cls, n.style), attrs, parent, n.css, key=f"node:{n.id}")
+            classes = _classes(n.cls, n.style) + ([n.extra.get("variant", "sticky")] if n.kind == "note" else [])
+            el = El("node", [n.kind], n.id, classes, attrs, parent, n.css, key=f"node:{n.id}")
             keys[el.key] = el
 
     for g in d.groups:
@@ -555,6 +557,15 @@ def tree(d) -> tuple[El, dict[str, El]]:
             attrs["label"] = e.label
         el = El("edge", [], None, _classes(e.cls, None), attrs, root, e.css, key=f"edge:{i}")
         keys[el.key] = el
+    a = d.annotations
+    if a.legend:
+        keys["legend"] = El("legend", [], None, [], {"title": a.legend.title}, root, None, key="legend")
+    for i, st in enumerate(a.steps):
+        keys[f"step:{i}"] = El("step", [], None, [], {"n": str(st.n)}, root, None, key=f"step:{i}")
+    for i, c in enumerate(a.callouts):
+        attrs = {k: v for k, v in (("on", c.target), ("kind", c.kind), ("title", c.title)) if v}
+        keys[f"callout:{i}"] = El("callout", [], None, _classes(c.cls, c.kind), attrs, root, c.css,
+                                  key=f"callout:{i}")
     return root, keys
 
 
@@ -583,10 +594,11 @@ def sheets_for(d, theme) -> list[tuple[str, str]]:
 
 
 def styles(d, theme) -> tuple[dict[str, dict[str, dict]], list[str]]:
-    """Computed styles keyed ``node:<id>``, ``edge:<index>``, ``group:<id>``, ``diagram``, and warnings.
+    """Computed styles keyed ``node:<id>``, ``edge:<index>``, ``group:<id>``, ``diagram``, ``legend``,
+    ``step:<index>``, ``callout:<index>``, and warnings.
     Empty when the diagram uses no stylesheet and no inline css."""
     sheets = sheets_for(d, theme)
-    inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups))
+    inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups, *d.annotations.callouts))
     if not sheets and not inline:
         return {}, []
     rules: list[Rule] = []
@@ -625,7 +637,7 @@ def inspect(d, theme) -> dict:
     :func:`compute`); ``unused``: selectors of the diagram's own sheets matching nothing; ``warnings``."""
     sheets = sheets_for(d, theme)
     n_theme = len(getattr(theme, "stylesheets", lambda: [])())
-    inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups))
+    inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups, *d.annotations.callouts))
     report: dict = {"diagram": d.id, "title": d.title, "styled": bool(sheets or inline), "sheets": [],
                     "elements": [], "unused": [], "warnings": []}
     if not report["styled"]:

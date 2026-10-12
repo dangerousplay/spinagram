@@ -7,11 +7,11 @@ from typing import Any
 
 import yaml
 
-from .model import Diagram, Edge, Group, Legend, Table, Zone, normalize_tags, parse_edge
+from .model import NOTE_VARIANTS, Diagram, Edge, Group, Legend, Table, Zone, normalize_tags, parse_edge
 
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
               "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
-_NODE_EXTRA = {"weight", "font"}  # kind: text options
+_NODE_EXTRA = {"weight", "font", "variant"}  # kind: text options; kind: note variant
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
                "class", "css"}
 
@@ -97,6 +97,7 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
         d.edge(src, dst, **e)
     for t in data.get("tables") or []:
         d.tables.append(Table(**t))
+    _annotations(d, data.get("annotations") or {})
     if data.get("legend"):
         lg = data["legend"]
         items = [(i["color"], i["label"]) if isinstance(i, dict) else tuple(i) for i in lg["items"]]
@@ -105,6 +106,67 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
 
     validate_groups(d)
     return d
+
+
+def _step_ref(d: Diagram, on: Any) -> Any:
+    """``"a -> b"`` is the first edge from a to b; anything else is a node id."""
+    if isinstance(on, str) and "->" in on:
+        a, _, b = on.partition("->")
+        return (a.strip().partition(".")[0], b.strip().partition(".")[0])
+    return on
+
+
+def _on(item: dict, what: str, d: Diagram) -> Any:
+    """The ``on:`` value; plain YAML 1.1 reads an unquoted ``on`` key as the boolean ``True``."""
+    for key in ("on", True):
+        if key in item:
+            return item.pop(key)
+    raise ValueError(f"{d.id}: {what} needs `on:` (a node id or \"a -> b\")")
+
+
+def _annotations(d: Diagram, data: dict[str, Any]) -> None:
+    """``annotations: {legend: {...}, steps: [...], callouts: [...]}`` through the Python builders (same checks)."""
+    for n in d.nodes:
+        variant = n.extra.get("variant")
+        if variant is not None:
+            if n.kind != "note" or variant not in NOTE_VARIANTS:
+                raise ValueError(f"{d.id}: node {n.id!r} variant {variant!r}; notes take one of "
+                                 f"{', '.join(NOTE_VARIANTS)}")
+            if variant == "sticky":
+                del n.extra["variant"]
+    lg = data.get("legend")
+    if lg is not None:
+        lg = dict(lg) if isinstance(lg, dict) else {}
+        d.add_legend(lg.get("items"), title=lg.get("title", "Legend"), position=lg.get("position", "right"))
+    for st in data.get("steps") or []:
+        st = dict(st)
+        d.step(st["text"], on=_step_ref(d, _on(st, "step", d)), n=st.get("n"))
+    for c in data.get("callouts") or []:
+        c = dict(c)
+        d.callout(_on(c, "callout", d), c.pop("text"), title=c.pop("title", None), kind=c.pop("kind", "info"),
+                  side=c.pop("side", "auto"), class_=c.pop("class", None), css=c.pop("css", None))
+        if c:
+            raise ValueError(f"{d.id}: callout has unknown keys {sorted(c)}")
+
+
+def _dump_annotations(d: Diagram) -> dict[str, Any]:
+    a, out = d.annotations, {}
+    if a.legend:
+        out["legend"] = {"title": a.legend.title, "position": a.legend.position}
+        if a.legend.items is not None:
+            out["legend"]["items"] = dict(a.legend.items)
+    if a.steps:
+        def ref(s):
+            if s.node is not None:
+                return s.node
+            e = d.edges[s.edge]
+            return f"{str(e.src).partition('.')[0]} -> {str(e.dst).partition('.')[0]}"
+        out["steps"] = [{"on": ref(s), "n": s.n, "text": s.text} for s in a.steps]
+    if a.callouts:
+        out["callouts"] = [{k: v for k, v in (("on", c.target), ("text", c.text), ("title", c.title),
+                                               ("kind", c.kind), ("side", c.side), ("class", c.cls),
+                                               ("css", c.css)) if v is not None} for c in a.callouts]
+    return out
 
 
 def _tag_list(tags: Any) -> list:
@@ -250,6 +312,8 @@ def dump(d: Diagram) -> dict[str, Any]:
         out["tables"] = [changed(t, type(t)) | {"x": t.x, "y": t.y} for t in d.tables]
     if d.legend:
         out["legend"] = {"x": d.legend.x, "y": d.legend.y, "items": [list(i) for i in d.legend.items]}
+    if d.annotations:
+        out["annotations"] = _dump_annotations(d)
     return {k: v for k, v in out.items() if v not in ([],)}
 
 

@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 10,
+  "next_id": 16,
   "lessons": [
     {
       "id": "L-001",
@@ -166,6 +166,114 @@
       ],
       "created": "2026-10-12T17:38:46Z",
       "last_seen": "2026-10-12T17:38:46Z"
+    },
+    {
+      "id": "L-010",
+      "key": "surviving_mutant::assert that styled values reach the rendered scene shapes not only the computed style map",
+      "text": "Assert that styled values reach the rendered scene shapes, not only the computed style map",
+      "signal": "surviving_mutant",
+      "scope": "css",
+      "status": "candidate",
+      "features": [
+        "annotations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M35/M36 src/spinagram/annotate.py:207,228 (css)"
+      ],
+      "created": "2026-10-12T18:18:23Z",
+      "last_seen": "2026-10-12T18:18:23Z"
+    },
+    {
+      "id": "L-011",
+      "key": "surviving_mutant::derive expected geometry independently instead of reusing the function under test",
+      "text": "Derive expected geometry independently instead of reusing the function under test",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "annotations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M07 tests/test_annotations.py:330 (tests)"
+      ],
+      "created": "2026-10-12T18:18:23Z",
+      "last_seen": "2026-10-12T18:18:23Z"
+    },
+    {
+      "id": "L-012",
+      "key": "surviving_mutant::assert the exact numeric value in diagnostic messages not just the message prefix",
+      "text": "Assert the exact numeric value in diagnostic messages, not just the message prefix",
+      "signal": "surviving_mutant",
+      "scope": "qa",
+      "status": "candidate",
+      "features": [
+        "annotations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M37 tests/test_annotations.py:726 (qa)"
+      ],
+      "created": "2026-10-12T18:18:23Z",
+      "last_seen": "2026-10-12T18:18:23Z"
+    },
+    {
+      "id": "L-013",
+      "key": "surviving_mutant::cover first match rules with a fixture that has at least two candidates",
+      "text": "Cover first-match rules with a fixture that has at least two candidates",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "annotations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M38 src/spinagram/model.py:492 (tests)"
+      ],
+      "created": "2026-10-12T18:18:23Z",
+      "last_seen": "2026-10-12T18:18:23Z"
+    },
+    {
+      "id": "L-014",
+      "key": "surviving_mutant::give every clause of a multi clause acceptance criterion its own assertion",
+      "text": "Give every clause of a multi-clause acceptance criterion its own assertion",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "annotations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests)"
+      ],
+      "created": "2026-10-12T18:18:23Z",
+      "last_seen": "2026-10-12T18:18:23Z"
+    },
+    {
+      "id": "L-015",
+      "key": "spec_precision_gap::when a spec says first use order over mixed element types state the order across types",
+      "text": "When a spec says first-use order over mixed element types, state the order across types",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "annotations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md ANN-01 src/spinagram/annotate.py:84 (spec)"
+      ],
+      "created": "2026-10-12T18:18:23Z",
+      "last_seen": "2026-10-12T18:18:23Z"
     }
   ]
 }

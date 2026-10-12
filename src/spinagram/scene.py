@@ -210,6 +210,7 @@ class Scene:
     layout_overflow: tuple[int, int] | None = None  # auto layout exceeding its area (px wide, px tall)
     model_issues: list[tuple[str, str]] = field(default_factory=list)  # (item, message) from model rules
     style_warnings: list[str] = field(default_factory=list)            # stylesheet diagnostics
+    annotation_issues: list[tuple[str, str, str]] = field(default_factory=list)  # (item, kind, detail)
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}
