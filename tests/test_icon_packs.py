@@ -162,3 +162,18 @@ def test_new_packs_add_tags_and_categories():  # ICON-13, ICON-14, ICON-15
     for n in ("router", "switch", "firewall"):
         net.box(n, icon=f"network:{n}")
     assert (effective_tags(net), effective_category(net)) == (["network"], "Network")
+
+
+# fix · a pack registered after the theme loaded -----------------------------------------------------------
+def test_theme_sees_a_pack_registered_after_it_loaded(cache, monkeypatch):
+    """A long-running `spinagram serve` keeps its theme: packs added later must still resolve."""
+    from spinagram.theme import Theme
+
+    theme = Theme.load("default")
+    assert "late" not in theme.icon_packs()  # the theme has cached its pack list
+    root = cache / "late-src"
+    root.mkdir()
+    (root / "gear.svg").write_text(SVG.format("#123456"))
+    icons.register("late", {"type": "dir", "path": str(root)})  # user registry, after the theme loaded
+    got = theme.icon("late:gear")
+    assert got is not None and got.read_text() == (root / "gear.svg").read_text()

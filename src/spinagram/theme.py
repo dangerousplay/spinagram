@@ -233,6 +233,8 @@ class Theme:
         if re.match(r"^[a-z0-9][a-z0-9_-]*:[^/\\]", ref):
             from .icons import resolve
 
+            if ref.split(":", 1)[0] not in self.icon_packs():
+                self._packs = None  # a pack registered after this theme loaded (long-running `serve`)
             found = resolve(ref, tone, packs=self.icon_packs())
             self._icon_cache[key] = found
             return found
