@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 8,
+  "next_id": 10,
   "lessons": [
     {
       "id": "L-001",
@@ -130,6 +130,42 @@
       ],
       "created": "2026-10-12T17:25:04Z",
       "last_seen": "2026-10-12T17:25:04Z"
+    },
+    {
+      "id": "L-008",
+      "key": "surviving_mutant::keep every data transformation an ac names sorting filtering sampling in the unit tested pure logic module not inline in a component",
+      "text": "Keep every data transformation an AC names (sorting, filtering, sampling) in the unit-tested pure-logic module, not inline in a component",
+      "signal": "surviving_mutant",
+      "scope": "web-ui",
+      "status": "candidate",
+      "features": [
+        "catalog-previews"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M16 web/src/PacksPage.tsx:45 (PREV-07) (web-ui)"
+      ],
+      "created": "2026-10-12T17:38:46Z",
+      "last_seen": "2026-10-12T17:38:46Z"
+    },
+    {
+      "id": "L-009",
+      "key": "surviving_mutant::when an ac requires an error response to carry the error message assert the message text not just that an error field is present",
+      "text": "When an AC requires an error response to carry the error message, assert the message text, not just that an error field is present",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "catalog-previews"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M17 tests/test_ui.py:161 (PREV-03) (routes)"
+      ],
+      "created": "2026-10-12T17:38:46Z",
+      "last_seen": "2026-10-12T17:38:46Z"
     }
   ]
 }

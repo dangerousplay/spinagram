@@ -56,6 +56,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: META-03 src/spinagram/yaml_io.py:55 (yaml-loaders)
 - last seen: 2026-10-12T17:25:04Z
 
+### L-008 - Keep every data transformation an AC names (sorting, filtering, sampling) in the unit-tested pure-logic module, not inline in a component
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `web-ui` · harmful: 0
+- features: catalog-previews
+- evidence: M16 web/src/PacksPage.tsx:45 (PREV-07) (web-ui)
+- last seen: 2026-10-12T17:38:46Z
+
+### L-009 - When an AC requires an error response to carry the error message, assert the message text, not just that an error field is present
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `routes` · harmful: 0
+- features: catalog-previews
+- evidence: M17 tests/test_ui.py:161 (PREV-03) (routes)
+- last seen: 2026-10-12T17:38:46Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

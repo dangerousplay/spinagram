@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: inline (reuses diagram-catalog patterns: `web/src/catalog.ts`, `DiagramsPage.tsx`, `ui/themes.py` previews)
-**Status**: In Progress
+**Status**: Done
 
 ---
 
