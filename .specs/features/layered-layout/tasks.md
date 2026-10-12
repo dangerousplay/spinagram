@@ -72,11 +72,13 @@ T1 → T2 → T3 → T4 → T5 → T6
 **Requirement**: LAY-01..07, LAY-10, LAY-11, LAY-13, LAY-21, LAY-22
 
 **Done when**:
-- [ ] Rank order, gaps, no overlaps, determinism, no-edge row, cycles, axis-aligned routes, components side by side, bound warning tested
-- [ ] Gate passes
+- [x] Rank order, gaps, no overlaps, determinism, no-edge row, cycles, axis-aligned routes, components side by side, bound warning tested
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T3: Orthogonal obstacle router
 

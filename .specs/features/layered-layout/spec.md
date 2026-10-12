@@ -70,7 +70,7 @@ engine so edge-driven diagrams lay out well out of the box.
 **Acceptance Criteria**:
 
 1. WHEN the graph has cycles THEN the system SHALL reverse a minimal-heuristic set of edges for ranking and draw them with their original direction.  <!-- LAY-07 -->
-2. WHEN an edge is a back-edge THEN the system SHALL route it around the nodes on the outer side of the ranks it spans, never through a node box.  <!-- LAY-08 -->
+2. WHEN a back-edge spans more than one rank THEN the system SHALL route it on the outer side of the ranks it spans; WHEN it connects adjacent ranks THEN the system SHALL route it inside the gap between them; in both cases no segment SHALL pass through a node box.  <!-- LAY-08 -->
 3. WHEN an edge's source equals its target THEN the system SHALL draw a loop leaving and re-entering the same side of the node, with its label beside the loop.  <!-- LAY-09 -->
 4. WHEN two or more edges connect the same pair of nodes THEN the system SHALL draw them as separate parallel routes with separate labels.  <!-- LAY-10 -->
 

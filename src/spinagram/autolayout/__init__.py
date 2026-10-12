@@ -102,7 +102,7 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
     def build(gid: str) -> LGroup:
         g = by_group[gid]
         p = float(g.padding if g.padding is not None else pad_default)
-        kids = [build(c) if c in by_group else LNode(c, nodes[c].w, nodes[c].h) for c in g.children]
+        kids = [build(c) if c in by_group else LNode(c, nodes[c].w, nodes[c].h, nodes[c].kind) for c in g.children]
         hints = {k: getattr(g, k) for k in ("direction", "columns", "gap", "align", "engine", "region")
                  if getattr(g, k) is not None}
         if g.lanes:
@@ -122,7 +122,8 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
                     nxt.append(k)
             cur = nxt
     order = lay.get("order") or _rank_order(tops, owner_top, d)
-    root = LGroup("__root__", [build(i) if i in by_group else LNode(i, nodes[i].w, nodes[i].h) for i in order],
+    root = LGroup("__root__", [build(i) if i in by_group else LNode(i, nodes[i].w, nodes[i].h, nodes[i].kind)
+                                 for i in order],
                   hints={k: lay[k] for k in ("columns", "align") if k in lay})
     edges, loops = [], []
     for i, e in enumerate(d.edges):

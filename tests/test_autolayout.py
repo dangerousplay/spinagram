@@ -13,7 +13,7 @@ from spinagram.theme import Theme
 from spinagram.yaml_io import from_dict, load
 
 EXAMPLE = Path(__file__).parent.parent / "examples" / "aws_layout.yaml"
-ENGINES = ["flex", "dot", "elk", "d2"]
+ENGINES = ["flex", "layered", "dot", "elk", "d2"]
 
 
 def _theme() -> Theme:

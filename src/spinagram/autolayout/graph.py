@@ -12,6 +12,7 @@ class LNode:
     id: str
     w: float
     h: float
+    kind: str = "box"  # node kind: engines may place ports by shape (diamonds, circles)
 
 
 @dataclass
