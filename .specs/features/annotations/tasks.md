@@ -179,10 +179,10 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] auto entries: classes and non-default styles once, first-use order, humanised labels
-- [ ] explicit items keep order and labels; unused keys flagged
-- [ ] right band 360 + 32; bottom band height from content
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] auto entries: classes and non-default styles once, first-use order, humanised labels
+- [x] explicit items keep order and labels; unused keys flagged
+- [x] right band 360 + 32; bottom band height from content
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

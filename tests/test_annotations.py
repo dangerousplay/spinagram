@@ -226,3 +226,67 @@ def test_callout_inline_css_alone_turns_styling_on():
     d.callout(users, "x", css="fill: #ABCDEF")
     comp, _ = css.styles(d, Theme.load("default"))
     assert comp["callout:0"][""]["fill"] == "#ABCDEF"
+
+
+# T5 · legend entries and band ----------------------------------------------------------------------
+def _classy():
+    d = Diagram("L1", "Legend")
+    a = d.box("A", class_="web edge-svc")
+    b = d.box("B", style="dark")
+    c = d.box("C", class_="web", style="default")
+    d.box("D", icon="aws:s3")
+    d.edge(a, b, class_="async")
+    d.edge(b, c, class_="async replication")
+    return d
+
+
+def test_auto_legend_lists_classes_and_styles_once_in_first_use_order():  # ANN-01
+    from spinagram.annotate import legend_entries
+
+    d = _classy()
+    d.add_legend()
+    got = [(e.key, e.label, e.kind, e.ref) for e in legend_entries(d)]
+    assert got == [(".web", "Web", "node", "node:a"), (".edge-svc", "Edge svc", "node", "node:a"),
+                   ("style:dark", "Dark", "style", "node:b"),
+                   ("edge.async", "Async", "edge", "edge:0"), ("edge.replication", "Replication", "edge", "edge:1")]
+
+
+def test_explicit_legend_keeps_order_labels_and_flags_unused():  # ANN-02, ANN-03, ANN-06
+    from spinagram.annotate import legend_entries
+
+    d = _classy()
+    d.add_legend({"edge.async": "Async event", "aws:s3": "Object storage", ".ghost": "Nothing",
+                  "node.web": "Web tier", "style:dark": "Engine", "gcp:gke": "Unused icon"})
+    got = [(e.key, e.label, e.kind, e.ref, e.used) for e in legend_entries(d)]
+    assert got == [("edge.async", "Async event", "edge", "edge:0", True),
+                   ("aws:s3", "Object storage", "icon", "node:d", True),
+                   (".ghost", "Nothing", "node", None, False),
+                   ("node.web", "Web tier", "node", "node:a", True),
+                   ("style:dark", "Engine", "style", "node:b", True),
+                   ("gcp:gke", "Unused icon", "icon", None, False)]
+
+
+def test_band_reserves_the_right_or_bottom_edge():  # ANN-10
+    from spinagram.annotate import band
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _classy()
+    assert band(d, t, 1760) is None
+    d.add_legend()
+    assert band(d, t, 1760) == ("right", 392)
+    d.add_legend(position="bottom")
+    side, small = band(d, t, 1760)
+    assert side == "bottom" and 0 < small < 400
+    for i in range(12):
+        d.box(f"N{i}", class_=f"extra-class-{i}")
+    assert band(d, t, 1760)[1] > small  # more entries, more rows
+
+
+def test_steps_alone_take_a_right_band():  # edge case: steps without legend
+    from spinagram.annotate import band
+    from spinagram.theme import Theme
+
+    d = _classy()
+    d.step("go", on="a")
+    assert band(d, Theme.load("default"), 1760) == ("right", 392)
