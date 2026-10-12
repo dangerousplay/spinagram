@@ -622,3 +622,21 @@ def test_figma_deco_sets_shadow_effects_and_dashes():  # CSS-12 (Figma JS behavi
     eff = out["effects"][0]
     assert eff["type"] == "DROP_SHADOW" and eff["offset"] == {"x": 2, "y": 4} and eff["radius"] == 8
     assert eff["color"] == {"r": 0, "g": 0, "b": 0, "a": 0.3}
+
+
+@pytest.mark.parametrize("bad", ["#GGGGGG", "#12", "#1234567890", "#FFFFFF)"])
+def test_malformed_hex_colours_raise(bad):  # CSS-16 (iteration-3 finding: hex was not validated)
+    root, *_ = _tree()
+    with pytest.raises(ValueError, match="cannot resolve colour"):
+        _compute(f"#api {{ fill: {bad} }}", root)
+
+
+def test_defined_var_with_function_fallback_resolves_cleanly():  # CSS-14 (kills the unbalanced-scan mutant)
+    root, vpc, api, db, edge = _tree()
+    out = _compute(":root { --x: white } #api { fill: var(--x, rgb(1, 2, 3)) }", root)
+    assert out[api][""]["fill"] == "#FFFFFF"
+
+
+def test_not_with_nested_selector_list():  # CSS-02 (bracket counting in :not)
+    root, vpc, api, db, edge = _tree()
+    assert _m("node:not(:not(.critical))", api) is True and _m("node:not(:not(.critical))", db) is False

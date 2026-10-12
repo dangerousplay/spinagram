@@ -320,6 +320,8 @@ def _colour(v: str, theme) -> tuple[str, float]:
         return "#{:02X}{:02X}{:02X}".format(*rgb), alpha
     if v.startswith("#"):
         h = v[1:]
+        if not re.fullmatch(r"[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8}", h):
+            raise KeyError(v)  # reported as "cannot resolve colour"
         if len(h) in (3, 4):
             h = "".join(c * 2 for c in h)
         alpha = int(h[6:8], 16) / 255 if len(h) == 8 else 1.0
