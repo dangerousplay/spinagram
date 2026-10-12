@@ -103,7 +103,10 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
         g = by_group[gid]
         p = float(g.padding if g.padding is not None else pad_default)
         kids = [build(c) if c in by_group else LNode(c, nodes[c].w, nodes[c].h) for c in g.children]
-        hints = {k: getattr(g, k) for k in ("direction", "columns", "gap", "align") if getattr(g, k) is not None}
+        hints = {k: getattr(g, k) for k in ("direction", "columns", "gap", "align", "engine", "region")
+                 if getattr(g, k) is not None}
+        if g.lanes:
+            hints["lanes"] = True
         return LGroup(g.id, kids, (p + _band(g, theme), p, p, p), hints, g.label)
 
     tops = [g.id for g in d.groups if g.id not in child_of] + [i for i in nodes if i not in child_of]
@@ -121,11 +124,11 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
     order = lay.get("order") or _rank_order(tops, owner_top, d)
     root = LGroup("__root__", [build(i) if i in by_group else LNode(i, nodes[i].w, nodes[i].h) for i in order],
                   hints={k: lay[k] for k in ("columns", "align") if k in lay})
-    edges = []
+    edges, loops = [], []
     for i, e in enumerate(d.edges):
         a, b = _node_id(e.src)[0], _node_id(e.dst)[0]
-        if a in nodes and b in nodes and a != b:
-            edges.append(LEdge(f"e{i}", a, b))
+        if a in nodes and b in nodes:
+            (edges if a != b else loops).append(LEdge(f"e{i}", a, b))
     # ranks leave room for the widest edge label pill (+ arrow heads on both sides)
     ed = theme.defaults("edge")
     labels = [measure(e.label, theme.font("body", 700, e.label_size or ed.get("label_size", 17))) + 24
@@ -135,7 +138,7 @@ def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
         rank_gap = max([rank_gap] + [w + 32 for w in labels])
     spacing = {"gap": float(lay.get("gap", ld.get("gap", 40))),
                "node_gap": float(lay.get("node_gap", ld.get("node_gap", 48))), "rank_gap": rank_gap}
-    return LGraph(root, edges, lay.get("direction", "right"), spacing, dict(lay.get("options") or {})), nodes
+    return LGraph(root, edges, lay.get("direction", "right"), spacing, dict(lay.get("options") or {}), loops), nodes
 
 
 # placement --------------------------------------------------------------------------------------

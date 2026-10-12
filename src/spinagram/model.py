@@ -152,6 +152,9 @@ class Group:
     gap: float | None = None
     padding: float | None = None
     align: str | None = None
+    engine: str | None = None      # lay this group's content out with its own engine (typed regions)
+    lanes: bool = False            # children groups are swimlanes (layered engine)
+    region: str | None = None      # flowchart | state_machine | activity (set by the builders)
 
 
 @dataclass

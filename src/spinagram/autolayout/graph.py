@@ -46,6 +46,7 @@ class LGraph:
     direction: str = "right"          # right | down
     spacing: dict[str, float] = field(default_factory=dict)   # gap, node_gap, rank_gap
     options: dict[str, Any] = field(default_factory=dict)     # engine passthrough
+    loops: list[LEdge] = field(default_factory=list)          # self-edges; engines may route them or not
 
     def node_ids(self) -> list[str]:
         return [c.id for c in self.root.walk() if isinstance(c, LNode)]

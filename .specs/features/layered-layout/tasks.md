@@ -55,11 +55,13 @@ T1 → T2 → T3 → T4 → T5 → T6
 **Requirement**: LAY-09, LAY-16
 
 **Done when**:
-- [ ] Self-edges appear in `graph.loops`, not in `graph.edges`; group hints include `lanes`/`engine`/`direction` when set
-- [ ] Gate passes
+- [x] Self-edges appear in `graph.loops`, not in `graph.edges`; group hints include `lanes`/`engine`/`direction` when set
+- [x] Gate passes
 
 **Tests**: unit
 **Gate**: quick
+**Status**: ✅ Complete
+
 
 ### T2: Layered engine for flat graphs
 
