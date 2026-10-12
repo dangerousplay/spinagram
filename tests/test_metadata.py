@@ -113,3 +113,79 @@ def test_folder_tags_union_with_spec_tags(tmp_path):
     (tmp_path / "c.yaml").write_text(YAML.format(meta="").replace("Y1", "Y2"))
     assert [d.tags for d in load(tmp_path)] == [["aws", "shared", "team-a"], ["gcp", "shared", "team-a"],
                                                 ["shared", "team-a"]]
+
+
+# META-08..12: effective tags and category ---------------------------------------------------------
+def test_provider_tags_from_node_group_and_zone_icons():
+    from spinagram.metadata import effective_tags
+
+    d = Diagram("I1", "t", tags=["team"])
+    d.box("A", icon="gcp:gke")
+    d.box("B", icon="k8s:pod")
+    with d.group("G", icon="azure:aks"):
+        d.box("C", icon="terrastruct:python")
+    d.zone("Z", x=0, y=0, w=10, h=10, icon="oci:vm")
+    d.box("D", icon="openstack:nova")
+    d.box("E", icon="aws:s3")
+    d.box("F", icon="icons/local.svg")
+    assert effective_tags(d) == ["aws", "azure", "gcp", "kubernetes", "oci", "openstack", "team"]
+
+
+def test_aws_group_and_zone_styles_count_as_aws():
+    from spinagram.metadata import effective_tags
+
+    d = Diagram("I2", "t")
+    with d.group("VPC", style="aws-vpc"):
+        d.box("A")
+    assert effective_tags(d) == ["aws"]
+    z = Diagram("I3", "t")
+    z.zone("AZ", x=0, y=0, w=10, h=10, color="aws-az")
+    assert effective_tags(z) == ["aws"]
+
+
+def test_dominant_provider_is_the_category():
+    from spinagram.metadata import effective_category
+
+    d = Diagram("I4", "t")
+    d.box("User", icon="k8s:user")
+    for name in ("gke", "cloud-sql", "pubsub"):
+        d.box(name, icon=f"gcp:{name}")
+    assert effective_category(d) == "Google Cloud"
+
+
+def test_category_tie_goes_to_the_alphabetically_first_tag():
+    from spinagram.metadata import effective_category
+
+    d = Diagram("I5", "t")
+    d.box("A", icon="k8s:pod")
+    d.box("B", icon="gcp:gke")
+    assert effective_category(d) == "Google Cloud"  # "gcp" < "kubernetes"
+
+
+def test_declared_category_wins_over_icons():
+    from spinagram.metadata import effective_category
+
+    d = Diagram("I6", "t", category="Networking")
+    d.box("A", icon="aws:s3")
+    assert effective_category(d) == "Networking"
+
+
+def test_no_category_and_no_provider_icons_is_empty():
+    from spinagram.metadata import effective_category, effective_tags
+
+    d = Diagram("I7", "t")
+    d.box("A", icon="terrastruct:python")
+    assert effective_category(d) == ""
+    assert effective_tags(d) == []
+
+
+def test_showcase_groups_by_provider_without_metadata():
+    from pathlib import Path
+
+    from spinagram.metadata import effective_category
+    from spinagram.yaml_io import load
+
+    showcase = Path(__file__).resolve().parents[1] / "examples" / "showcase"
+    got = {d.id: effective_category(d) for d in load(showcase)}
+    assert got == {"AWS01": "AWS", "AWS02": "AWS", "GCP01": "Google Cloud",
+                   "K8S01": "Kubernetes", "K8S02": "Kubernetes"}

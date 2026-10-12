@@ -123,10 +123,10 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] provider tags from node, group and zone icons and `aws-*` styles
-- [ ] dominant category with alphabetical tie-break; declared category wins; empty when none
-- [ ] the five showcase diagrams report AWS, AWS, Google Cloud, Kubernetes, Kubernetes
-- [ ] Gate check passes: `uv run pytest tests/test_metadata.py -q`
+- [x] provider tags from node, group and zone icons and `aws-*` styles
+- [x] dominant category with alphabetical tie-break; declared category wins; empty when none
+- [x] the five showcase diagrams report AWS, AWS, Google Cloud, Kubernetes, Kubernetes
+- [x] Gate check passes: `uv run pytest tests/test_metadata.py -q`
 
 **Tests**: unit
 **Gate**: quick

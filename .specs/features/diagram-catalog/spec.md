@@ -169,11 +169,11 @@ grouped by category, so that I find a diagram in seconds.
 | META-05 | P1: Metadata - folder category | Tasks | Implementing |
 | META-06 | P1: Metadata - folder tags merge | Tasks | Implementing |
 | META-07 | P1: Metadata - normalisation | Tasks | Implementing |
-| META-08 | P1: Inference - provider tags from icons | Tasks | Pending |
-| META-09 | P1: Inference - aws-* styles | Tasks | Pending |
-| META-10 | P1: Inference - dominant category | Tasks | Pending |
-| META-11 | P1: Inference - declared category wins | Tasks | Pending |
-| META-12 | P1: Inference - uncategorised | Tasks | Pending |
+| META-08 | P1: Inference - provider tags from icons | Tasks | Implementing |
+| META-09 | P1: Inference - aws-* styles | Tasks | Implementing |
+| META-10 | P1: Inference - dominant category | Tasks | Implementing |
+| META-11 | P1: Inference - declared category wins | Tasks | Implementing |
+| META-12 | P1: Inference - uncategorised | Tasks | Implementing |
 | META-13 | P1: UI - workspace API fields | Tasks | Pending |
 | META-14 | P1: UI - grouped cards | Tasks | Pending |
 | META-15 | P1: UI - text search | Tasks | Pending |
