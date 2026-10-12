@@ -1,0 +1,9 @@
+/* Notes: decision cards, a quote and sticky questions. */
+note.card::title  { color: #0F172A; font-size: 24px; }
+note.card::body   { color: #475569; font-size: 17px; }
+note.hero-quote::body  { font-size: 40px; color: #1E3A8A; }
+note.hero-quote::title { font-size: 20px; color: #2563EB; }
+note.question     { fill: #FEF9C3; stroke: #EAB308; border-radius: 6px; box-shadow: 0 8px 16px rgba(120, 53, 15, 0.15); }
+note.question::title { color: #854D0E; }
+note.question::body  { color: #713F12; font-size: 17px; }
+note.quote        { fill: #EFF6FF; stroke-width: 0; box-shadow: none; }

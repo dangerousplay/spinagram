@@ -437,8 +437,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] `check examples/showcase` 0 issues; skill examples identical
-- [ ] Gate check passes: `build gate`
+- [x] `check examples/showcase` 0 issues; skill examples identical
+- [x] Gate check passes: `build gate`
 
 **Tests**: none
 **Gate**: build
