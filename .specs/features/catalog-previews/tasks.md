@@ -108,8 +108,8 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7
 
 **Done when**:
 
-- [ ] tests cover term matching on name/ref and name/title, 12-of-N spread incl. N ≤ 12, section order
-- [ ] Gate check passes: `cd web && bun test`
+- [x] tests cover term matching on name/ref and name/title, 12-of-N spread incl. N ≤ 12, section order
+- [x] Gate check passes: `cd web && bun test`
 
 **Tests**: unit
 **Gate**: web

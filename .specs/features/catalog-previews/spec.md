@@ -83,11 +83,11 @@ visual card grid so a user sees what a theme looks like and what a pack contains
 | PREV-03 | P1: Theme cards - broken theme 422 | Tasks | Implementing |
 | PREV-04 | P1: Theme cards - defined styles only | Tasks | Implementing |
 | PREV-05 | P1: Theme cards - card grid and sections | Tasks | Pending |
-| PREV-06 | P1: Theme cards - search | Tasks | Pending |
-| PREV-07 | P1: Pack cards - sample icons | Tasks | Pending |
+| PREV-06 | P1: Theme cards - search | Tasks | Implementing |
+| PREV-07 | P1: Pack cards - sample icons | Tasks | Implementing |
 | PREV-08 | P1: Pack cards - not downloaded | Tasks | Pending |
 | PREV-09 | P1: Pack cards - card grid and sections | Tasks | Pending |
-| PREV-10 | P1: Pack cards - search | Tasks | Pending |
+| PREV-10 | P1: Pack cards - search | Tasks | Implementing |
 | PREV-11 | P1: Pack cards - card opens view | Tasks | Pending |
 | PREV-12 | Edge: no match | Tasks | Pending |
 

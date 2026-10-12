@@ -1,6 +1,6 @@
-// Diagram catalog: search, tag filter, category sections and recent diagrams. Pure functions (tested by
-// `bun test`, see catalog.test.ts); metadata comes from `/api/workspace` (spinagram.metadata).
-import type { DiagramRef } from "./api";
+// Catalog logic: search, tag filter, sections and recents for diagrams; search, sections and icon samples for
+// themes and packs. Pure functions tested by `bun test` (catalog.test.ts, previews.test.ts).
+import type { DiagramRef, Pack, ThemeEntry } from "./api";
 
 export const UNCATEGORISED = "Uncategorised";
 export const MAX_RECENTS = 10;
@@ -8,9 +8,7 @@ const RECENT_KEY = "spinagram:recent";
 
 /** Every whitespace-separated term is a substring of the id, title, subtitle, category or a tag. */
 export function matchesQuery(d: DiagramRef, query: string): boolean {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const fields = [d.id, d.title, d.subtitle ?? "", d.category, ...d.tags].map((f) => f.toLowerCase());
-  return terms.every((t) => fields.some((f) => f.includes(t)));
+  return matchesTerms([d.id, d.title, d.subtitle ?? "", d.category, ...d.tags], query);
 }
 
 /** Diagrams matching the query that carry every selected tag. */
@@ -83,4 +81,49 @@ export function recentStore(storage: Storage | null = browserStorage()) {
       }
     },
   };
+}
+
+// themes and icon packs ----------------------------------------------------------------------------
+
+/** Every whitespace-separated term of ``query`` is a substring of one of ``fields`` (case-insensitive). */
+export function matchesTerms(fields: string[], query: string): boolean {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const lower = fields.map((f) => f.toLowerCase());
+  return terms.every((t) => lower.some((f) => f.includes(t)));
+}
+
+export function filterThemes(themes: ThemeEntry[], query: string): ThemeEntry[] {
+  return themes.filter((t) => matchesTerms([t.name, t.ref], query));
+}
+
+export function filterPacks(packs: Pack[], query: string): Pack[] {
+  return packs.filter((p) => matchesTerms([p.name, p.title], query));
+}
+
+/** ``n`` items at evenly spaced positions (all of them when there are ``n`` or fewer). */
+export function sampleIcons<T>(icons: T[], n = 12): T[] {
+  if (icons.length <= n) return icons;
+  return Array.from({ length: n }, (_, i) => icons[Math.floor((i * icons.length) / n)]);
+}
+
+export type Section<T> = { label: string; items: T[] };
+
+function sections<T>(parts: [string, T[]][]): Section<T>[] {
+  return parts.filter(([, items]) => items.length > 0).map(([label, items]) => ({ label, items }));
+}
+
+/** Built-in themes, then the session's custom theme. */
+export function themeSections(themes: ThemeEntry[]): Section<ThemeEntry>[] {
+  return sections([
+    ["Built-in", themes.filter((t) => t.builtin)],
+    ["Custom", themes.filter((t) => !t.builtin)],
+  ]);
+}
+
+/** Downloaded packs, then the rest. */
+export function packSections(packs: Pack[]): Section<Pack>[] {
+  return sections([
+    ["Downloaded", packs.filter((p) => p.fetched)],
+    ["Not downloaded", packs.filter((p) => !p.fetched)],
+  ]);
 }
