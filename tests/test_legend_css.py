@@ -204,6 +204,27 @@ def test_columns_on_a_top_or_bottom_band(side):  # LCSS-08 on every band side
     assert sw[1].x - sw[0].x == pytest.approx(step) and sw[2].x - sw[1].x == pytest.approx(step)
 
 
+@pytest.mark.parametrize("side", ["top", "bottom"])
+def test_columns_on_a_top_or_bottom_band_reserve_their_rows(side):  # LCSS-08: reserved size matches drawn rows
+    from spinagram.annotate import band
+    from spinagram.autolayout import apply_layout
+    from spinagram.css import prepare
+
+    t = Theme.load("default")
+    d = _four()
+    d.css = f"legend {{ placement: {side}; columns: 3 }}"
+    ax, ay, aw, ah = _area(d)
+    # theme defaults: head 22 + 20 × 1.3 + 10 = 58, two rows 2 × 28 + 12 = 68, padding 22, gap 32
+    assert band(prepare(d, t), t, aw) == (side, 58 + 68 + 22 + 32)
+    card = _scene(d)["legend"]
+    assert card.h == 58 + 68 + 22
+    laid = apply_layout(d, t)
+    if side == "top":
+        assert min(n.y for n in laid.nodes) >= card.y + card.h
+    else:
+        assert card.y + card.h <= ay + ah and max(n.y + n.h for n in laid.nodes) <= card.y
+
+
 def test_explicit_columns_beat_the_automatic_two_columns():  # LCSS-08 "forces"
     d = Diagram("LC3", "Tall legend", layout={"engine": "flex", "direction": "right"})
     for k in range(30):

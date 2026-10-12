@@ -204,7 +204,7 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [x] each surviving mutant (M12, M13, M15, M20, M21, M30) has a test that fails on it
+- [x] each surviving mutant (M12, M13, M15, M20, M21, M30) has a test that fails on it; iteration 2: the reserved top/bottom band thickness with `columns` is asserted against an independent derivation
 - [x] Gate check passes: `uv run pytest tests/test_legend_css.py -q`
 
 **Tests**: unit
