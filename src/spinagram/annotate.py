@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 
 from .model import Diagram
+from .scene import Connector, Icon, Label, Shape, Text, TextBlock
 from .text import measure, wrap_paragraphs
 from .theme import Theme
 
@@ -166,3 +167,179 @@ def band(d: Diagram, theme: Theme, width: float) -> tuple[str, float] | None:
     if ann.steps:
         h = max(h, steps_height(d, steps_w, theme))
     return "bottom", h + a["gap"]
+
+
+# scene ----------------------------------------------------------------------------------------------
+Rect = tuple[float, float, float, float]
+
+PANEL_SHADOW = (0.0, 6.0, 18.0, "#0F172A", 0.10)
+
+
+class Annotator:
+    """Draws a diagram's annotations with a layout ``_Builder`` (its theme, computed CSS and node shapes)."""
+
+    def __init__(self, builder) -> None:
+        from .autolayout import _area
+
+        self.b, self.d, self.t = builder, builder.d, builder.t
+        self.a = settings(self.t)
+        self.area: Rect = _area(self.d, self.t, reserve=False)
+        self.rects: list[Rect] = []       # panels and callouts already placed (callouts avoid them)
+        self.issues: list[tuple[str, str, str]] = []  # (item, kind, detail) for ``spinagram check``
+        self.overflow = 0.0
+
+    # pieces ------------------------------------------------------------------------------------------
+    def _font(self, role: str, weight: int, size: float, italic: bool = False):
+        return self.t.font(role, weight, size, italic)
+
+    def _text(self, id: str, x: float, top: float, lines: list[str], font, color: str) -> Text:
+
+        blk = TextBlock(lines=lines, paragraphs=[" ".join(lines)], font=font, color=color, leading=font.size * 1.35)
+        width = max((measure(ln, font) for ln in lines), default=0)
+        return Text(id=id, x=x, y=top + blk.baseline_offset(), block=blk, width=width)
+
+    def card(self, id: str, x: float, y: float, w: float, h: float, key: str) -> list:
+
+        cs = self.b._css(key)
+        s = Shape(id=id, kind="rect", x=x, y=y, w=w, h=h, fill=self.t.color(self.t.get("canvas", "background")),
+                  stroke=self.t.color("border"), stroke_width=1.5, radius=self.a["radius"], shadow=PANEL_SHADOW,
+                  role="panel")
+        self.b._decorate(s, cs.get(""))
+        return [s]
+
+    def title(self, id: str, x: float, y: float, text: str, key: str) -> Text:
+        cs = self.b._css(key)
+        col, wt, it = self.b._text(cs, "title", self.t.color("text"), 700)
+        size = (cs.get("title") or {}).get("font-size") or self.a["title_size"]
+        return self._text(id, x, y, [text], self._font("heading", wt, size, it), col)
+
+    def badge(self, id: str, cx: float, cy: float, n: int, key: str) -> Shape:
+        """A numbered circle centred on (cx, cy), styled by ``step`` rules."""
+
+        cs = self.b._css(key)
+        size = self.a["badge"]
+        col, wt, it = self.b._text(cs, "label", "#FFFFFF", 700)
+        font = self._font("body", wt, (cs.get("label") or {}).get("font-size") or self.a["badge_size"], it)
+        blk = TextBlock([str(n)], [str(n)], font, col, font.size * 1.2)
+        x, y = cx - size / 2, cy - size / 2
+        s = Shape(id=id, kind="pill", x=x, y=y, w=size, h=size, fill=self.t.color("primary"),
+                  stroke=self.t.color(self.t.get("canvas", "background")), stroke_width=2, radius=size / 2,
+                  role="pill", label=Label([blk], (x, y, size, size), align="center"))
+        self.b._decorate(s, cs.get(""))
+        return s
+
+    # legend and steps -----------------------------------------------------------------------------
+    def _swatch(self, j: int, e: Entry, x: float, y: float, connectors: list) -> list:
+
+        a = self.a
+        w, h = a["swatch_w"], a["swatch_h"]
+        if e.kind == "edge":
+            ref = connectors[int(e.ref.split(":")[1])] if e.ref else None
+            ed = self.t.defaults("edge")
+            c = Connector(id=f"legend-{j}-sample", points=[(x + 2, y + h / 2), (x + w - 2, y + h / 2)],
+                          route="straight", color=ref.color if ref else self.t.edge_color(None),
+                          width=ref.width if ref else ed.get("width", 3.5), dashed=ref.dashed if ref else False,
+                          dash=ref.dash if ref else None, arrow_start=ref.arrow_start if ref else False,
+                          arrow_end=ref.arrow_end if ref else True,
+                          marker_start=ref.marker_start if ref else "none",
+                          marker_end=ref.marker_end if ref else "arrow", opacity=ref.opacity if ref else 1.0)
+            return [c]
+        if e.kind == "icon":
+            p = self.t.icon(e.value, "light", self.d.base_dir)
+            s = Shape(id=f"legend-{j}-swatch", kind="rect", x=x, y=y, w=w, h=h, fill=None, role="swatch",
+                      icon=Icon(p, x + (w - h) / 2, y, h) if p is not None else None)
+            return [s]
+        node = self.b.shapes.get(e.ref.split(":", 1)[1]) if e.ref else None
+        st = self.t.node_style(e.value if e.kind == "style" else None)
+        s = Shape(id=f"legend-{j}-swatch", kind="rect", x=x, y=y, w=w, h=h,
+                  fill=node.fill if node else st["fill"], stroke=node.stroke if node else st["stroke"],
+                  stroke_width=node.stroke_width if node else self.t.defaults("node").get("stroke_width", 3),
+                  radius=node.radius if node else 6, dashed=node.dashed if node else False,
+                  dash=node.dash if node else None, fill_opacity=node.fill_opacity if node else 1.0,
+                  role="swatch")
+        return [s]
+
+    def _legend(self, x: float, y: float, w: float, rows: list[list[Entry]], connectors: list,
+                flow: bool = False) -> list:
+        """The legend card; entries sit in equal columns, or one after another when ``flow`` (bottom band)."""
+        a = self.a
+        h = legend_height(rows, self.t)
+        out = self.card("legend", x, y, w, h, "legend") + [
+            self.title("legend-title", x + a["padding"], y + a["padding"], self.d.annotations.legend.title, "legend")]
+        cs = self.b._css("legend")
+        col, wt, it = self.b._text(cs, "body", self.t.color("text-muted"), 400)
+        font = self._font("body", wt, a["text_size"], it)
+        cols = max((len(r) for r in rows), default=1)
+        inner = w - 2 * a["padding"]
+        top = y + _head(a)
+        j = 0
+        for row in rows:
+            cx = x + a["padding"]
+            for e in row:
+                out += self._swatch(j, e, cx, top, connectors)
+                ty = top + (a["swatch_h"] - a["text_size"] * 1.35) / 2
+                out.append(self._text(f"legend-{j}-label", cx + a["swatch_w"] + 10, ty, [e.label], font, col))
+                cx += a["swatch_w"] + 10 + measure(e.label, font) + 28 if flow else inner / cols
+                j += 1
+            top += a["swatch_h"] + a["row_gap"]
+        self.rects.append((x, y, w, h))
+        return out
+
+    def _steps(self, x: float, y: float, w: float) -> list:
+        a = self.a
+        steps = sorted(enumerate(self.d.annotations.steps), key=lambda p: p[1].n)
+        h = steps_height(self.d, w, self.t)
+        out = self.card("steps", x, y, w, h, "diagram") + [
+            self.title("steps-title", x + a["padding"], y + a["padding"], "Steps", "diagram")]
+        font = self._font("body", 400, a["text_size"])
+        top = y + _head(a)
+        for k, (i, st) in enumerate(steps):
+            lines = step_lines(st.text, w, self.t)
+            rh = step_row_height(lines, self.t)
+            out.append(self.badge(f"steps-{k}-badge", x + a["padding"] + a["badge"] / 2, top + a["badge"] / 2,
+                                  st.n, f"step:{i}"))
+            th = len(lines) * a["text_size"] * 1.35
+            out.append(self._text(f"steps-{k}-text", x + a["padding"] + a["badge"] + 12,
+                                  top + max(0.0, (a["badge"] - th) / 2) if len(lines) == 1 else top, lines, font,
+                                  self.t.color("text")))
+            top += rh + a["row_gap"]
+        self.rects.append((x, y, w, h))
+        return out
+
+    def panels(self, connectors: list) -> list:
+        """The legend card and the steps panel inside the reserved band."""
+        ann = self.d.annotations
+        b = band(self.d, self.t, self.area[2])
+        if b is None:
+            return []
+        a = self.a
+        ax, ay, aw, ah = self.area
+        side, thickness = b
+        out: list = []
+        entries = legend_entries(self.d)
+        if side == "right":
+            x, w = ax + aw - a["band"], a["band"]
+            steps_h = steps_height(self.d, w, self.t) + a["gap"] if ann.steps else 0.0
+            rows = legend_rows(entries, w, self.t, columns=1)
+            if ann.legend and legend_height(rows, self.t) + steps_h > ah:
+                rows = legend_rows(entries, w, self.t, columns=2)
+            y = ay
+            if ann.legend:
+                out += self._legend(x, y, w, rows, connectors)
+                y += legend_height(rows, self.t) + a["gap"]
+            if ann.steps:
+                out += self._steps(x, y, w)
+                y += steps_h
+            used = y - a["gap"] - ay
+        else:
+            y = ay + ah - (thickness - a["gap"])
+            steps_w = a["band"] if ann.steps else 0
+            legend_w = aw - (steps_w + a["gap"] if steps_w and ann.legend else 0)
+            if ann.legend:
+                out += self._legend(ax, y, legend_w, legend_rows(entries, legend_w, self.t, columns=0), connectors,
+                                    flow=True)
+            if ann.steps:
+                out += self._steps(ax + aw - steps_w, y, steps_w)
+            used = thickness - a["gap"]
+        self.overflow = max(0.0, used - ah)  # px the panels exceed the area height
+        return out

@@ -339,3 +339,113 @@ def test_full_area_ignores_the_band():
     before = _area(d, t)
     d.add_legend()
     assert _area(d, t, reserve=False) == before
+
+
+# T7 · panels ---------------------------------------------------------------------------------------
+PANEL_CSS = """
+.hot { fill: #FEE2E2; stroke: #DC2626; stroke-width: 4; stroke-dasharray: 6 3; border-radius: 6 }
+edge.async { stroke: #F59E0B; stroke-width: 2; stroke-dasharray: 5 4; marker-start: circle; marker-end: open-arrow }
+"""
+
+
+def _parts(d, monkeypatch=None, icon=None):
+    """Laid-out builder, node shapes and edge connectors, and an annotator over them."""
+    from spinagram.annotate import Annotator
+    from spinagram.autolayout import apply_layout
+    from spinagram.layout import _Builder
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    if monkeypatch is not None and icon is not None:
+        real = Theme.icon
+        monkeypatch.setattr(Theme, "icon", lambda self, ref, *a, **k: icon if ref == "aws:s3" else real(self, ref, *a, **k))
+    laid = apply_layout(d, t)
+    b = _Builder(laid, t)
+    shapes = {n.id: b.node(n) for n in laid.nodes}
+    conns = [b.edge(i, e) for i, e in enumerate(laid.edges)]
+    return b, shapes, conns, Annotator(b), t
+
+
+def _panel_diagram():
+    d = Diagram("P1", "Panels", layout={"engine": "flex", "direction": "right"})
+    d.css = PANEL_CSS
+    a = d.box("A", class_="hot")
+    b = d.box("B")
+    c = d.box("C", icon="aws:s3")
+    d.edge(a, b, class_="async")
+    d.edge(b, c)
+    return d
+
+
+def _by_id(items):
+    return {getattr(i, "id", None): i for i in items}
+
+
+def test_legend_node_swatch_copies_the_computed_node_style(monkeypatch, tmp_path):  # ANN-04
+    d = _panel_diagram()
+    d.add_legend({".hot": "Hot path"})
+    b, shapes, conns, ann, t = _parts(d)
+    sw = _by_id(ann.panels(conns))["legend-0-swatch"]
+    node = shapes["a"]
+    assert (sw.fill, sw.stroke, sw.stroke_width, sw.dash, sw.dashed, sw.radius) == (
+        "#FEE2E2", "#DC2626", 4, node.dash, True, 6)
+    assert node.dash == [6.0, 3.0]
+
+
+def test_legend_edge_sample_copies_the_computed_edge_style():  # ANN-05
+    d = _panel_diagram()
+    d.add_legend({"edge.async": "Async"})
+    b, shapes, conns, ann, t = _parts(d)
+    sample = _by_id(ann.panels(conns))["legend-0-sample"]
+    e = conns[0]
+    assert (sample.color, sample.width, sample.dash, sample.marker_start, sample.marker_end) == (
+        "#F59E0B", 2, [5.0, 4.0], "circle", "open-arrow")
+    assert (sample.arrow_start, sample.arrow_end) == (e.arrow_start, e.arrow_end) == (True, True)
+    (x1, y1), (x2, y2) = sample.points
+    assert y1 == y2 and x2 > x1
+
+
+def test_legend_icon_entry_shows_the_icon(monkeypatch, tmp_path):  # ANN-06
+    icon = tmp_path / "s3.svg"
+    icon.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>')
+    d = _panel_diagram()
+    d.add_legend({"aws:s3": "Object storage"})
+    b, shapes, conns, ann, t = _parts(d, monkeypatch, icon)
+    sw = _by_id(ann.panels(conns))["legend-0-swatch"]
+    assert sw.icon is not None and sw.icon.path == icon and sw.fill is None
+
+
+def test_legend_is_a_titled_card_in_the_right_band():  # ANN-07
+    from spinagram.autolayout import _area
+
+    d = _panel_diagram()
+    d.add_legend({".hot": "Hot path", "edge.async": "Async"})
+    b, shapes, conns, ann, t = _parts(d)
+    items = _by_id(ann.panels(conns))
+    card, title = items["legend"], items["legend-title"]
+    ax, ay, aw, ah = _area(d, t, reserve=False)
+    assert (card.x, card.y, card.w) == (ax + aw - 360, ay, 360)
+    assert title.block.lines == ["Legend"] and card.x < title.x < card.x + card.w
+    assert items["legend-1-label"].block.lines == ["Async"]
+
+
+def test_steps_panel_lists_steps_in_ascending_order():  # ANN-17
+    d = _panel_diagram()
+    d.step("Second thing", on=("b", "c"), n=2)
+    d.step("First thing", on=("a", "b"), n=1)
+    d.step("Last thing", on="c", n=7)
+    b, shapes, conns, ann, t = _parts(d)
+    items = _by_id(ann.panels(conns))
+    assert items["steps-title"].block.lines == ["Steps"]
+    rows = sorted((items[f"steps-{k}-text"].y, items[f"steps-{k}-badge"].label.blocks[0].lines[0],
+                   " ".join(items[f"steps-{k}-text"].block.lines)) for k in range(3))
+    assert [(n, text) for _, n, text in rows] == [("1", "First thing"), ("2", "Second thing"), ("7", "Last thing")]
+
+
+def test_steps_panel_sits_below_the_legend():
+    d = _panel_diagram()
+    d.add_legend()
+    d.step("go", on="a")
+    b, shapes, conns, ann, t = _parts(d)
+    items = _by_id(ann.panels(conns))
+    assert items["steps"].y >= items["legend"].y + items["legend"].h and items["steps"].x == items["legend"].x

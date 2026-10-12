@@ -227,9 +227,9 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] node swatch copies fill/stroke/width/dash/radius of the first matching node; edge sample copies colour/width/dash/markers
-- [ ] steps listed ascending with badges identical to the diagram's
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] node swatch copies fill/stroke/width/dash/radius of the first matching node; edge sample copies colour/width/dash/markers
+- [x] steps listed ascending with badges identical to the diagram's
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick
