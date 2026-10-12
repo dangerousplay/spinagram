@@ -157,6 +157,7 @@ def test_unknown_property_and_negative_values_warn():  # CSS-22, CSS-30
     assert any("stroke-width" in w and "negative" in w for w in warnings)
     assert any("font-size" in w and "negative" in w for w in warnings)
     assert "stroke-width" not in out[api][""] and out[api][""]["fill"] == "#ABCDEF"
+    assert "font-size" not in out[api][""]
 
 
 # T4: classes and stylesheets from Python ---------------------------------------------------------
@@ -487,7 +488,7 @@ def _placed_diagram():
     return d
 
 
-# SVG of the two diagrams above rendered at 7ee7f55, before any CSS code existed (scene, markers, dashes).
+# SVG of the two diagrams above rendered at 46d7696, before any CSS code existed (scene, markers, dashes).
 UNSTYLED_GOLDEN = "5184abedc45144744c87ae80d9b9f4309e9d09591a496987b6f3f2cf8f8c07b7"
 
 
@@ -558,6 +559,10 @@ def test_var_fallback_may_contain_a_function():  # CSS-14
     root, vpc, api, db, edge = _tree()
     out = _compute("#api { fill: var(--missing, rgb(1, 2, 3)) }", root)
     assert out[api][""]["fill"] == "#010203"
+    out = _compute(":root { --x: #FFFFFF; --b: #0000FF } #api { fill: var(--x, rgb(1, 2, 3)) } "
+                   "#db { fill: var(--a, var(--b)) }", root)
+    assert out[api][""]["fill"] == "#FFFFFF"   # defined: the fallback (with its parentheses) is skipped whole
+    assert out[db][""]["fill"] == "#0000FF"    # nested var() fallback
 
 
 def test_one_warning_per_backend_property_and_value(tmp_path):  # CSS-13 ("one warning")
