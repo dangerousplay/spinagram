@@ -204,8 +204,8 @@ T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] right: area width shrinks by band; bottom: height shrinks; no annotations: area unchanged
-- [ ] Gate check passes: `uv run pytest tests/test_annotations.py -q`
+- [x] right: area width shrinks by band; bottom: height shrinks; no annotations: area unchanged
+- [x] Gate check passes: `uv run pytest tests/test_annotations.py -q`
 
 **Tests**: unit
 **Gate**: quick

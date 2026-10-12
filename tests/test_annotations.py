@@ -290,3 +290,52 @@ def test_steps_alone_take_a_right_band():  # edge case: steps without legend
     d = _classy()
     d.step("go", on="a")
     assert band(d, Theme.load("default"), 1760) == ("right", 392)
+
+
+# T6 · layout area -----------------------------------------------------------------------------------
+def _wide():
+    d = Diagram("W1", "Wide", layout={"engine": "flex", "direction": "right"})
+    prev = None
+    for i in range(4):
+        n = d.box(f"Node {i}", class_="tier")
+        if prev:
+            prev >> n
+        prev = n
+    return d
+
+
+def test_right_band_shrinks_the_layout_area():  # ANN-08
+    from spinagram.autolayout import _area, apply_layout
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _wide()
+    x, y, w, h = _area(d, t)
+    d.add_legend()
+    assert _area(d, t) == (x, y, w - 392, h)
+    laid = apply_layout(d, t)
+    assert max(n.x + n.w for n in laid.nodes) <= x + w - 392 + 0.5
+
+
+def test_bottom_band_shrinks_the_layout_height():  # ANN-09
+    from spinagram.annotate import band
+    from spinagram.autolayout import _area
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _wide()
+    x, y, w, h = _area(d, t)
+    d.add_legend(position="bottom")
+    thickness = band(d, t, w)[1]
+    assert _area(d, t) == (x, y, w, h - thickness)
+
+
+def test_full_area_ignores_the_band():
+    from spinagram.autolayout import _area
+    from spinagram.theme import Theme
+
+    t = Theme.load("default")
+    d = _wide()
+    before = _area(d, t)
+    d.add_legend()
+    assert _area(d, t, reserve=False) == before

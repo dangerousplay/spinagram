@@ -187,8 +187,8 @@ Annotations should be first-class, styled by the same CSS, placed by the layout,
 | ANN-05 | P1: Legend - edge sample style | Tasks | Pending |
 | ANN-06 | P1: Legend - icon entries | Tasks | Pending |
 | ANN-07 | P1: Legend - titled card in band | Tasks | Pending |
-| ANN-08 | P1: Band - right band area | Tasks | Pending |
-| ANN-09 | P1: Band - bottom band area | Tasks | Pending |
+| ANN-08 | P1: Band - right band area | Tasks | Implementing |
+| ANN-09 | P1: Band - bottom band area | Tasks | Implementing |
 | ANN-10 | P1: Band - sizes | Tasks | Implementing |
 | ANN-11 | P1: Band - overflow check | Tasks | Pending |
 | ANN-12 | P1: Band - manual layout overlap check | Tasks | Pending |

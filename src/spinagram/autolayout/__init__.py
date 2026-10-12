@@ -233,22 +233,33 @@ def _run_graph(graph: LGraph, name: str) -> LResult:
 
 
 # placement --------------------------------------------------------------------------------------
-def _area(d: Diagram, theme: Theme) -> Box:
+def _area(d: Diagram, theme: Theme, reserve: bool = True) -> Box:
+    """Where laid-out content goes: ``layout.area`` or the canvas minus margins and chrome, minus the
+    annotation band (legend, steps) unless ``reserve`` is false."""
     lay = d.layout or {}
     if lay.get("area"):
         x, y, w, h = (float(v) for v in lay["area"])
-        return x, y, w, h
-    W, H = theme.canvas
-    m = (theme.get("canvas") or {}).get("margin", 80)
-    ch = theme.get("chrome") or {}
-    top = m
-    for key in ("title", "subtitle"):
-        if ch.get(key) and (key == "title" or d.subtitle):
-            top = max(top, ch[key]["y"] + 48)
-    bottom = H - m
-    if (ch.get("footer") or {}).get("rule_y_from_bottom"):
-        bottom = H - ch["footer"]["rule_y_from_bottom"] - 24
-    return m, top, W - 2 * m, bottom - top
+    else:
+        W, H = theme.canvas
+        m = (theme.get("canvas") or {}).get("margin", 80)
+        ch = theme.get("chrome") or {}
+        top = m
+        for key in ("title", "subtitle"):
+            if ch.get(key) and (key == "title" or d.subtitle):
+                top = max(top, ch[key]["y"] + 48)
+        bottom = H - m
+        if (ch.get("footer") or {}).get("rule_y_from_bottom"):
+            bottom = H - ch["footer"]["rule_y_from_bottom"] - 24
+        x, y, w, h = m, top, W - 2 * m, bottom - top
+    if reserve:
+        from ..annotate import band
+
+        b = band(d, theme, w)
+        if b and b[0] == "right":
+            w -= b[1]
+        elif b:
+            h -= b[1]
+    return x, y, w, h
 
 
 def _offset(res: LResult, area: Box, align: str) -> tuple[float, float, float, float]:
