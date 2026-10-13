@@ -1,0 +1,38 @@
+# AI and LLM logos (lobehub/lobe-icons, MIT): model providers (OpenAI, Anthropic, Google, Mistral, DeepSeek…),
+# models and assistants (Claude, Gemini, Copilot), agents and IDEs (Claude Code, Cursor, Codex), serving and
+# platforms (Ollama, vLLM, Bedrock, Azure AI, Vertex AI, Hugging Face) and frameworks (LangChain, LangGraph,
+# LlamaIndex, MCP). `ai:<name>` is the colour mark when one exists, else the monochrome one (`ai:<name>-mono`);
+# `-text` is the wordmark and `-brand` the brand mark. Monochrome artwork is drawn white on dark fills.
+ai:
+  title: AI Icons (Lobe Icons)
+  license: MIT (lobehub/lobe-icons); logos are trademarks of their owners
+  homepage: https://github.com/lobehub/lobe-icons
+  source: {type: github, repo: lobehub/lobe-icons, ref: 05a9b8c41e4735a4a2b6d2f1e43574bd8ec6c8cb,
+           include: ["packages/static-svg/icons/*"]}
+  current_color: {light: "#000000", dark: "#ffffff"}
+  rules:   # first match wins; the colour file outranks the monochrome one for the bare name
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+?)-brand-color\.svg$', name: '{stem}-brand'}
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+?)-text-color\.svg$', name: '{stem}-text'}
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+?)-color\.svg$', name: '{stem}'}
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+?)-brand\.svg$', name: '{stem}-brand-mono', aliases: ['{stem}-brand']}
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+?)-text-cn\.svg$', name: '{stem}-text-cn'}
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+?)-text\.svg$', name: '{stem}-text'}
+    - {match: '^packages/static-svg/icons/(?P<stem>[^/]+)\.svg$', name: '{stem}-mono', aliases: ['{stem}']}
+  alias:   # spellings people type for names upstream writes as one word
+    claude-code: claudecode
+    gemini-cli: geminicli
+    github-copilot: githubcopilot
+    vertex-ai: vertexai
+    azure-ai: azureai
+    azure-openai: azureai
+    aws-bedrock: bedrock
+    amazon-bedrock: bedrock
+    hf: huggingface
+    hugging-face: huggingface
+    lm-studio: lmstudio
+    open-webui: openwebui
+    llama-index: llamaindex
+    meta-ai: metaai
+    model-context-protocol: mcp
+    google-cloud: googlecloud
+    chatgpt: openai

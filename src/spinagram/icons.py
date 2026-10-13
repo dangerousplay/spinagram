@@ -13,6 +13,9 @@ and points at a source:
 its ``name`` template is filled with the named groups and normalised to kebab-case
 (``AmazonEC2`` → ``amazon-ec2``). A rule may set ``tone: dark`` (variant used on dark fills) and
 ``aliases`` (extra templates). ``strip`` regexes add short aliases (``^amazon-`` → ``ec2``).
+``current_color`` (``{light: "#000", dark: "#fff"}``) paints SVGs drawn in ``currentColor`` — an ``<image>``
+has no inherited colour, so they would render black on every fill — and gives each one without a dark
+variant a copy in the ``dark`` colour.
 
 Files are copied to ``$SPINAGRAM_CACHE`` (default ``~/.cache/spinagram/icons``) as
 ``<pack>/<version>/<pack>__<name>[__dark].<ext>`` with an ``index.json``; specs then use
@@ -88,6 +91,7 @@ class Pack:
     origin: str = "builtin"
     alias: dict[str, str] = field(default_factory=dict)  # curated short names: {s3: amazon-simple-storage-service}
     vectorize: bool = True  # PNG icons → SVG when faithful (see spinagram.vectorize)
+    current_color: dict[str, str] = field(default_factory=dict)  # tone → colour for `currentColor` SVGs
 
     @classmethod
     def parse(cls, name: str, d: dict, origin: str) -> "Pack":
@@ -95,7 +99,8 @@ class Pack:
             Rule(re.compile(r"(?:.*/)?(?P<stem>[^/]+)\.(?:svg|png)$"))]
         return cls(name, d.get("title", name), dict(d.get("source") or {}), rules, list(d.get("strip") or []),
                    d.get("license", ""), d.get("homepage", ""), origin,
-                   {kebab(k): kebab(v) for k, v in (d.get("alias") or {}).items()}, bool(d.get("vectorize", True)))
+                   {kebab(k): kebab(v) for k, v in (d.get("alias") or {}).items()}, bool(d.get("vectorize", True)),
+                   dict(d.get("current_color") or {}))
 
     @property
     def version(self) -> str:
@@ -331,10 +336,12 @@ def _fetch(pack: Pack, d: Path) -> Path:
         entry.setdefault("source", path)
         for a in extra:
             aliases.setdefault(a, name)
+    _paint_current_color(pack, tmp, icons)
     for a in list(aliases):
         if a in icons:
             del aliases[a]
     for a, target in pack.alias.items():  # curated aliases win over derived ones
+        target = target if target in icons else aliases.get(target, target)  # may name a derived alias
         if target in icons and a not in icons:
             aliases[a] = target
     index = {"pack": pack.name, "title": pack.title, "version": pack.version, "license": pack.license,
@@ -344,6 +351,26 @@ def _fetch(pack: Pack, d: Path) -> Path:
     shutil.rmtree(d, ignore_errors=True)
     tmp.rename(d)
     return d
+
+
+def _paint_current_color(pack: Pack, d: Path, icons: dict[str, dict[str, str]]) -> None:
+    """Fix the colour of ``currentColor`` SVGs per tone, adding the dark variant they lack."""
+    colors = pack.current_color
+    if not colors:
+        return
+    for name, entry in icons.items():
+        light = entry.get("light")
+        if not light or not light.endswith(".svg"):
+            continue
+        text = (d / light).read_text(encoding="utf-8")
+        if "currentColor" not in text:
+            continue
+        if colors.get("light"):
+            (d / light).write_text(text.replace("currentColor", colors["light"]), encoding="utf-8")
+        if colors.get("dark") and "dark" not in entry:
+            dark = f"{pack.name}__{name}__dark.svg"
+            (d / dark).write_text(text.replace("currentColor", colors["dark"]), encoding="utf-8")
+            entry["dark"] = dark
 
 
 def _vectorize_index(pack: Pack, d: Path, idx: dict) -> bool:

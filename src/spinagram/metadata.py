@@ -21,6 +21,8 @@ PROVIDERS: dict[str, tuple[str, str]] = {
     "openstack": ("openstack", "OpenStack"),
     "selfhosted": ("self-hosted", "Self-hosted"),
     "network": ("network", "Network"),
+    "ai": ("ai", "AI"),
+    "cncf": ("cncf", "CNCF"),
 }
 NAMES = dict(PROVIDERS.values())
 

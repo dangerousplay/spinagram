@@ -1,0 +1,6 @@
+/* Delivery platform with an AI gateway: dark tiles show each pack's dark-fill artwork. */
+.dark         { fill: #0F172A; stroke: #0F172A; }
+.dark::title  { color: #FFFFFF; }
+.dark::body   { color: #CBD5E1; }
+group.ai         { fill: #F5F3FF; stroke: #C4B5FD; }
+group.ai::label  { color: #5B21B6; }
