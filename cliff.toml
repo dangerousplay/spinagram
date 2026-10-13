@@ -37,6 +37,8 @@ split_commits = false
 protect_breaking_commits = true
 filter_commits = false
 tag_pattern = "v[0-9].*"
+# Pre-releases (a, b, rc, dev) roll into the next final release instead of getting their own section.
+ignore_tags = "v[0-9.]+(a|b|rc|\\.dev)[0-9]+"
 sort_commits = "oldest"
 commit_parsers = [
   { message = "^docs\\(specs\\)", skip = true },          # internal planning notes
