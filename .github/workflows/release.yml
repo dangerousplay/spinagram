@@ -45,8 +45,10 @@ jobs:
           name: dist
           path: dist/
       - run: uv publish --trusted-publishing always
-      - name: Release notes (git-cliff)
-        run: uvx git-cliff@2.14.2 --latest --strip header -o RELEASE_NOTES.md
+      # The newest section of the committed changelog. `git-cliff --latest` would split at the
+      # last pre-release tag even though cliff.toml ignores it, leaving a final release almost empty.
+      - name: Release notes (CHANGELOG.md)
+        run: awk '/^## \[/ { n++ } n == 1' CHANGELOG.md > RELEASE_NOTES.md
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
