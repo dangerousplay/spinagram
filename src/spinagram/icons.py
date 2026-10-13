@@ -236,12 +236,15 @@ def _iter_source(pack: Pack) -> Iterator[tuple[str, bytes]]:
     elif kind == "listing":
         yield from _iter_listing(s, include)
     elif kind == "github":
+        from urllib.parse import quote
+
         repo, ref = s["repo"], s.get("ref", "main")
         tree = json.loads(_get(f"https://api.github.com/repos/{repo}/git/trees/{ref}?recursive=1"))
+        # one request per file: skip what no rule names before downloading it
         paths = [e["path"] for e in tree.get("tree", []) if e.get("type") == "blob"
-                 and e["path"].lower().endswith(EXTS) and _included(e["path"], include)]
+                 and e["path"].lower().endswith(EXTS) and _included(e["path"], include) and pack.classify(e["path"])]
         with ThreadPoolExecutor(8) as ex:
-            blobs = ex.map(lambda p: _get(f"https://raw.githubusercontent.com/{repo}/{ref}/{p}"), paths)
+            blobs = ex.map(lambda p: _get(f"https://raw.githubusercontent.com/{repo}/{ref}/{quote(p)}"), paths)
             yield from zip(paths, blobs)
     else:
         raise ValueError(f"icon pack {pack.name!r}: unknown source type {kind!r} (zip, npm, github, listing, dir)")
