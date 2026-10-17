@@ -22,7 +22,8 @@ def skipped(name: str) -> bool:
     return name.startswith(".") or name in SKIP_DIRS
 
 
-def _dir(path: str | Path) -> Path:
+def resolve_dir(path: str | Path) -> Path:
+    """``path`` as an absolute directory; ``NotADirectoryError("not a directory: <path>")`` otherwise."""
     p = Path(path).expanduser()
     try:
         p = p.resolve()
@@ -43,7 +44,7 @@ def spec_count(folder: Path) -> int:
 
 def list_dir(path: str | Path) -> dict:
     """One level of the Open-folder dialog: the folder, its parent and its visible subfolders with spec counts."""
-    p = _dir(path)
+    p = resolve_dir(path)
     dirs = []
     for c in sorted(p.iterdir(), key=lambda c: c.name.lower()):
         try:

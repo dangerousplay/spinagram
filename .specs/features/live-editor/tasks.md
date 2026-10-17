@@ -97,9 +97,9 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: DIR-03, DIR-05, DIR-06, DIR-07, DIR-08, DIR-09
 
 **Done when**:
-- [ ] Nested specs load with keys like `sub/file.py#ID`; skipped dirs ignored; cap sets `truncated` in `summary()`
-- [ ] `open` on a non-directory raises and leaves the workspace unchanged
-- [ ] Tests pass
+- [x] Nested specs load with keys like `sub/file.py#ID`; skipped dirs ignored; cap sets `truncated` in `summary()`
+- [x] `open` on a non-directory raises and leaves the workspace unchanged
+- [x] Tests pass
 
 **Tests**: unit
 **Gate**: quick

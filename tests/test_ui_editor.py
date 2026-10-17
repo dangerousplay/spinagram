@@ -69,3 +69,67 @@ def test_read_source_normalises_newlines_and_reports_version_and_language(tmp_pa
     assert files.read_source(tmp_path / "d.yaml").language == "yaml"
     (tmp_path / "x.yml").write_text(SPEC)
     assert files.read_source(tmp_path / "x.yml").language == "yaml"
+
+
+# T2 · recursive workspace, contains, open --------------------------------------------------------------
+from spinagram.ui.workspace import Workspace  # noqa: E402
+
+
+def _tree(root: Path) -> None:
+    (root / "top.yaml").write_text(SPEC.replace("id: A", "id: TOP"))
+    (root / "aws").mkdir()
+    (root / "aws" / "eks.yaml").write_text(SPEC.replace("id: A", "id: EKS"))
+    (root / "aws" / "deep").mkdir()
+    (root / "aws" / "deep" / "x.yaml").write_text(SPEC.replace("id: A", "id: DEEP"))
+    for skip in ["node_modules", ".hidden", "out"]:
+        (root / skip).mkdir()
+        (root / skip / "s.yaml").write_text(SPEC.replace("id: A", "id: SKIP"))
+
+
+def test_directory_root_is_scanned_recursively_with_subfolder_keys(tmp_path):  # DIR-06, DIR-07, DIR-09
+    _tree(tmp_path)
+    ws = Workspace([tmp_path])
+    assert sorted(ws.all_keys()) == ["aws/deep/x.yaml#DEEP", "aws/eks.yaml#EKS", "top.yaml#TOP"]
+    assert ws.summary()["truncated"] is False
+
+
+def test_scan_stops_at_the_cap_and_reports_truncation(tmp_path, monkeypatch):  # DIR-08
+    _tree(tmp_path)
+    monkeypatch.setattr(files, "MAX_SPECS", 2)
+    ws = Workspace([tmp_path])
+    # scan order: names sorted, a folder's files before its subfolders → top.yaml, aws/eks.yaml, aws/deep/x.yaml
+    assert sorted(ws.all_keys()) == ["aws/eks.yaml#EKS", "top.yaml#TOP"]
+    assert ws.summary()["truncated"] is True
+
+
+def test_contains_follows_roots_and_skip_list(tmp_path):  # DIR-04
+    _tree(tmp_path)
+    ws = Workspace([tmp_path])
+    assert ws.contains(tmp_path / "aws" / "deep" / "x.yaml")
+    assert not ws.contains(tmp_path / "node_modules" / "s.yaml")
+    assert not ws.contains(tmp_path / ".hidden" / "s.yaml")
+    assert not ws.contains(tmp_path.parent / "elsewhere.yaml")
+    single = Workspace([tmp_path / "top.yaml"])
+    assert single.contains(tmp_path / "top.yaml") and not single.contains(tmp_path / "aws" / "eks.yaml")
+
+
+def test_open_swaps_the_root(tmp_path):  # DIR-03
+    (tmp_path / "one").mkdir()
+    (tmp_path / "one" / "a.yaml").write_text(SPEC.replace("id: A", "id: ONE"))
+    (tmp_path / "two").mkdir()
+    (tmp_path / "two" / "sub").mkdir()
+    (tmp_path / "two" / "sub" / "b.yaml").write_text(SPEC.replace("id: A", "id: TWO"))
+    ws = Workspace([tmp_path / "one"])
+    ws.open(tmp_path / "two")
+    assert ws.all_keys() == ["sub/b.yaml#TWO"]
+    assert ws.summary()["paths"] == [str((tmp_path / "two").resolve())]
+    svg, _ = ws.render("sub/b.yaml#TWO")
+    assert "Node" in svg
+
+
+def test_open_a_non_directory_keeps_the_workspace(tmp_path):  # DIR-05
+    (tmp_path / "a.yaml").write_text(SPEC)
+    ws = Workspace([tmp_path])
+    with pytest.raises(NotADirectoryError, match=f"not a directory: {tmp_path / 'nope'}"):
+        ws.open(tmp_path / "nope")
+    assert ws.all_keys() == ["a.yaml#A"] and ws.summary()["paths"] == [str(tmp_path.resolve())]

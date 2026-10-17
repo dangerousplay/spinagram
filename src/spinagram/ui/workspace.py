@@ -15,8 +15,8 @@ from ..layout import build_scene
 from ..model import Diagram
 from ..theme import Theme, _load_raw
 from ..yaml_io import load
-
-SPEC_EXTS = {".yaml", ".yml", ".py"}
+from . import files as fsx
+from .files import SPEC_EXTS  # noqa: F401  (re-exported: older imports)
 
 
 def _missing_packs(messages: list[str]) -> list[str]:
@@ -91,6 +91,7 @@ class Workspace:
         self.theme_error: str | None = None
         self.theme_gen = 0
         self.files: dict[str, SpecFile] = {}
+        self.truncated = False  # the last scan hit files.MAX_SPECS
         self._cache: dict[tuple, str] = {}
         self._geom: dict[tuple, dict] = {}
         self._lock = threading.RLock()
@@ -108,11 +109,48 @@ class Workspace:
         return {p if p.is_dir() else p.parent for p in self.paths}
 
     def scan(self) -> list[Path]:
+        """Spec files under the roots: a file root itself, every spec under a directory root (recursively,
+        names sorted, a folder's files before its subfolders, skipped folders left out), at most
+        ``files.MAX_SPECS`` in all (``truncated`` tells)."""
+        import os
+
         found: list[Path] = []
+        cap = fsx.MAX_SPECS
+        self.truncated = False
         for p in self.paths:
-            items = sorted(p.iterdir()) if p.is_dir() else [p]
-            found += [f for f in items if f.is_file() and f.suffix in SPEC_EXTS and not f.name.startswith("_")]
+            if not p.is_dir():
+                found += [p] if fsx.is_spec(p) else []
+                continue
+            for folder, dirs, names in os.walk(p):
+                dirs[:] = sorted(d for d in dirs if not fsx.skipped(d))
+                for n in sorted(names):
+                    f = Path(folder) / n
+                    if fsx.is_spec(f):
+                        if len(found) >= cap:
+                            self.truncated = True
+                            return found
+                        found.append(f)
         return found
+
+    def contains(self, path: Path) -> bool:
+        """A file root, or a path under a directory root that is not inside a skipped folder."""
+        path = Path(path).resolve()
+        for p in self.paths:
+            if p.is_dir() and path.is_relative_to(p):
+                return not any(fsx.skipped(part) for part in path.relative_to(p).parts[:-1])
+            if path == p:
+                return True
+        return False
+
+    def open(self, path: str | Path) -> None:
+        """Make ``path`` the only root and load its specs; a path that is not a directory changes nothing."""
+        root = fsx.resolve_dir(path)  # raises NotADirectoryError("not a directory: ...")
+        with self._lock:
+            self.paths = [root]
+            self.files = {}
+            self._cache.clear()
+            self._geom.clear()
+            self.rescan()
 
     def rel(self, f: Path) -> str:
         base = self._base(f)
@@ -335,6 +373,7 @@ class Workspace:
         import os
 
         theme_name = (self.theme.data.get("name") if self.theme else None) or Path(str(self.theme_ref or "default")).name
-        return {"paths": [str(p) for p in self.paths], "theme": str(self.theme_ref or "default"), "theme_name": theme_name,
+        return {"paths": [str(p) for p in self.paths], "truncated": self.truncated,
+                "theme": str(self.theme_ref or "default"), "theme_name": theme_name,
                 "theme_error": self.theme_error, "layout": self.layout, "engines": engines, "files": files,
                 "offline": os.environ.get("SPINAGRAM_OFFLINE") == "1"}

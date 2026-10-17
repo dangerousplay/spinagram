@@ -39,7 +39,7 @@ tree like `examples/`) means restarting the server.
 | Edit or view | Edit and save; Ctrl/Cmd+S and a Save button write the file | User choice | y |
 | How to open a folder | Folder browser dialog listing subdirectories from the server, plus a path box to paste a path | User choice | y |
 | Subfolders | Scanned recursively, skipping hidden folders and `node_modules`, `__pycache__`, `.venv`, `venv`, `out`, `dist`, `build`, `site-packages` | User choice; skip list avoids huge or generated trees | y |
-| Scan bound | At most 2,000 spec files per opened folder; beyond that the first 2,000 by path are loaded and the workspace reports `truncated: true` | Keeps a mistaken open of `~` from hanging the server | n |
+| Scan bound | At most 2,000 spec files per opened folder; beyond that the first 2,000 in scan order (names sorted, a folder's files before its subfolders) are loaded and the workspace reports `truncated: true` | Keeps a mistaken open of `~` from hanging the server | n |
 | Which files the editor shows | The spec file of the diagram, then each stylesheet file of its cascade (diagram `stylesheets` and folder `_defaults.yaml` stylesheets), in cascade order; CSS text given inline is not a file and is not shown | Matches "show the python and css code"; theme stylesheets and helpers are out of scope | n |
 | Editor component | CodeMirror 6 with Python, CSS and YAML modes, loaded lazily so the catalog pages do not pay for it | Small, modular, MIT; Monaco is several MB | n |
 | Conflict detection | Every read returns a `version` (SHA-256 of the bytes); a save sends it back and is refused with 409 when the file changed since | Simple, no clocks; works across editors | n |
@@ -120,7 +120,7 @@ I can browse and edit any project without restarting `serve`.
 5. IF the typed path does not exist or is not a directory THEN the system SHALL keep the current workspace and show "not a directory: <path>"  <!-- unwanted-behavior -->
 6. The system SHALL show the diagrams of a subfolder under that subfolder's relative path (for example `kubernetes/eks_platform.py`)  <!-- ubiquitous -->
 7. The system SHALL skip hidden directories and `node_modules`, `__pycache__`, `.venv`, `venv`, `out`, `dist`, `build`, `site-packages` while scanning  <!-- ubiquitous -->
-8. IF a folder holds more than 2,000 spec files THEN the system SHALL load the first 2,000 by path and report the workspace as truncated in the UI  <!-- unwanted-behavior -->
+8. IF a folder holds more than 2,000 spec files THEN the system SHALL load the first 2,000 in scan order (names sorted, a folder's files before its subfolders) and report the workspace as truncated in the UI  <!-- unwanted-behavior -->
 9. WHEN `serve` is started with a directory THEN the system SHALL scan it recursively under the same rules  <!-- event-driven -->
 10. The system SHALL state in the dialog that opening a folder runs its Python specs  <!-- ubiquitous -->
 
