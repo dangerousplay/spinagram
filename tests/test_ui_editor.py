@@ -431,3 +431,30 @@ def test_a_broken_spec_keeps_its_stylesheets_listed_and_writable(tmp_path):  # E
     own = next(f for f in listed if f["path"] == "own.css")
     ws.write("own.css", "node { fill: #123456 }\n", own["version"])
     assert (root / "own.css").read_text() == "node { fill: #123456 }\n"
+
+
+# T20 · save limits ------------------------------------------------------------------------------------
+def test_save_route_refuses_unencodable_text_with_422(tmp_path):  # SRC-05
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    before = (root / "own.css").read_bytes()
+    body = ('{"path": "own.css", "text": "a\\ud800b", "version": "%s"}' % _sha(before)).encode()
+    with _client(ws) as c:
+        r = c.put("/api/files", headers={**H, "content-type": "application/json"}, content=body)
+        assert r.status_code == 422 and r.json()["error"] == "the text is not valid UTF-8"
+    assert (root / "own.css").read_bytes() == before
+
+
+def test_save_route_size_boundary_is_one_mebibyte(tmp_path):  # SRC-05
+    import json
+
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    head = {"path": "own.css", "version": _sha((root / "own.css").read_bytes()), "text": ""}
+    overhead = len(json.dumps(head).encode())
+    exact = json.dumps({**head, "text": "a" * (1024 * 1024 - overhead)}).encode()
+    assert len(exact) == 1024 * 1024
+    with _client(ws) as c:
+        assert c.put("/api/files", headers={**H, "content-type": "application/json"}, content=exact).status_code == 200
+        version = _sha((root / "own.css").read_bytes())
+        over = json.dumps({**head, "version": version, "text": "a" * (1024 * 1024 - overhead + 1)}).encode()
+        assert len(over) == 1024 * 1024 + 1
+        assert c.put("/api/files", headers={**H, "content-type": "application/json"}, content=over).status_code == 413

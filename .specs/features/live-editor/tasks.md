@@ -413,8 +413,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Requirement**: SRC-05
 
 **Done when**:
-- [ ] `"\ud800"` text → 422 and the file is unchanged; a 1,048,576-byte body → 200; one byte more → 413
-- [ ] Quick gate passes
+- [x] `"\ud800"` text → 422 and the file is unchanged; a 1,048,576-byte body → 200; one byte more → 413
+- [x] Quick gate passes
 
 **Tests**: integration
 **Gate**: quick

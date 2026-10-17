@@ -110,6 +110,10 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         if not isinstance(data, dict) or not all(isinstance(data.get(k), str) for k in ("path", "text", "version")):
             return _err(422, "expected {path, text, version}")
         try:
+            data["text"].encode("utf-8")  # JSON escapes can carry lone surrogates, which no file can hold
+        except UnicodeEncodeError:
+            return _err(422, "the text is not valid UTF-8")
+        try:
             version = await run_in_threadpool(ws.write, data["path"], data["text"], data["version"])
         except PermissionError as exc:
             return _err(403, str(exc))
