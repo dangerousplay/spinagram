@@ -111,6 +111,28 @@ class Pack:
     def dir(self) -> Path:
         return cache_root() / self.name / re.sub(r"[^\w.-]+", "_", self.version)
 
+    @property
+    def recipe(self) -> str:
+        """Hash of what decides the cached files and names (source and rules, not curated aliases, which
+        apply at lookup): a cache built from another recipe of the same version is rebuilt."""
+        import hashlib
+
+        spec = {"source": self.source, "strip": self.strip, "current_color": self.current_color,
+                "vectorize": self.vectorize,
+                "rules": [[r.match.pattern, r.name, r.tone, r.aliases] for r in self.rules]}
+        return hashlib.sha256(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+    def cached(self) -> bool:
+        """An index exists for this version and was built with the current recipe."""
+        f = self.dir / "index.json"
+        if not f.exists():
+            return False
+        try:
+            built = json.loads(f.read_text(encoding="utf-8")).get("recipe")
+        except ValueError:
+            return False
+        return built in (None, self.recipe)  # caches from before recipes were recorded are kept as they are
+
     # naming -------------------------------------------------------------------------------------
     def classify(self, path: str) -> tuple[str, str, list[str], int] | None:
         """Source path → (name, tone, aliases, rule index), or None when no rule matches."""
@@ -308,7 +330,7 @@ def fetch(pack: Pack, *, force: bool = False) -> Path:
     with _FETCH_LOCKS_GUARD:
         lock = _FETCH_LOCKS.setdefault(str(d), threading.Lock())
     with lock:
-        if (d / "index.json").exists() and not force:
+        if pack.cached() and not force:
             return d
         return _fetch(pack, d)
 
@@ -344,7 +366,8 @@ def _fetch(pack: Pack, d: Path) -> Path:
         target = target if target in icons else aliases.get(target, target)  # may name a derived alias
         if target in icons and a not in icons:
             aliases[a] = target
-    index = {"pack": pack.name, "title": pack.title, "version": pack.version, "license": pack.license,
+    index = {"pack": pack.name, "title": pack.title, "version": pack.version, "recipe": pack.recipe,
+             "license": pack.license,
              "homepage": pack.homepage, "icons": dict(sorted(icons.items())), "aliases": dict(sorted(aliases.items()))}
     _vectorize_index(pack, tmp, index)
     (tmp / "index.json").write_text(json.dumps(index, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -409,10 +432,18 @@ def _vectorize_index(pack: Pack, d: Path, idx: dict) -> bool:
 
 def index(pack: Pack, *, auto_fetch: bool = True) -> dict | None:
     f = pack.dir / "index.json"
+    may_fetch = auto_fetch and AUTO_FETCH and os.environ.get("SPINAGRAM_OFFLINE") != "1"
     if not f.exists():
-        if not auto_fetch or not AUTO_FETCH or os.environ.get("SPINAGRAM_OFFLINE") == "1":
+        if not may_fetch:
             return None
         fetch(pack)
+    elif may_fetch and not pack.cached():  # built by another spinagram version with other rules: rebuild
+        try:
+            fetch(pack)
+        except Exception as exc:  # noqa: BLE001 — offline or unreachable: the older index still works
+            import warnings
+
+            warnings.warn(f"icon pack {pack.name!r}: could not rebuild an outdated cache ({exc})", stacklevel=2)
     idx = json.loads(f.read_text(encoding="utf-8"))
     if _vectorize_index(pack, pack.dir, idx):
         f.write_text(json.dumps(idx, indent=1, ensure_ascii=False), encoding="utf-8")
