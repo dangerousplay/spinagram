@@ -79,9 +79,9 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: DIR-02, DIR-07, SRC-01, SRC-08
 
 **Done when**:
-- [ ] `list_dir` lists subdirectories (hidden and skipped omitted) with spec counts; raises `NotADirectoryError` with "not a directory: <path>"
-- [ ] `read_source` returns text with LF newlines, the original newline style, version and language
-- [ ] Tests in `tests/test_ui_editor.py` pass
+- [x] `list_dir` lists subdirectories (hidden and skipped omitted) with spec counts; raises `NotADirectoryError` with "not a directory: <path>"
+- [x] `read_source` returns text with LF newlines, the original newline style, version and language
+- [x] Tests in `tests/test_ui_editor.py` pass
 
 **Tests**: unit
 **Gate**: quick
