@@ -1,0 +1,80 @@
+---
+title: Stylish diagrams with CSS
+description: One diagram, four looks. Only the stylesheet changes.
+---
+
+The four slides on this page are **the same Python code**. Each one attaches a different stylesheet. The
+diagram says what each element *is* (`class_="service"`, `class_="store"`, `class_="async"`); the stylesheet
+decides what that looks like. Rebrand a whole deck by swapping one file.
+
+## The diagram
+
+Classes name a role, never a colour. The legend is generated from those names, so it restyles itself too.
+
+<include meta='title="examples/looks/_platform.py"'>../../../../examples/looks/_platform.py</include>
+
+<include meta='title="examples/looks/looks.py"'>../../../../examples/looks/looks.py</include>
+
+## Midnight
+
+A dark canvas group, glass cards with deep shadows, and a neon outline per role. The hero service glows
+with a `box-shadow` that has no offset.
+
+![Midnight: dark canvas with neon outlines and a glowing Orders service](/assets/examples/l01.svg)
+
+<include meta='title="examples/looks/midnight.css"'>../../../../examples/looks/midnight.css</include>
+
+## Blueprint
+
+Square corners, white ink, dashed construction lines for data, and open arrowheads.
+
+![Blueprint: white lines on drafting blue](/assets/examples/l02.svg)
+
+<include meta='title="examples/looks/blueprint.css"'>../../../../examples/looks/blueprint.css</include>
+
+## Pastel
+
+No outlines: tinted fills per role, round corners and soft shadows. Good for product docs and onboarding.
+
+![Pastel: soft tinted cards with gentle shadows](/assets/examples/l03.svg)
+
+<include meta='title="examples/looks/pastel.css"'>../../../../examples/looks/pastel.css</include>
+
+## Editorial
+
+Black and white for print, with one red accent for the revenue-critical path.
+
+![Editorial: black and white with a red critical service and red async events](/assets/examples/l04.svg)
+
+<include meta='title="examples/looks/editorial.css"'>../../../../examples/looks/editorial.css</include>
+
+## Techniques worth stealing
+
+| Effect | CSS |
+|---|---|
+| Dark canvas | Wrap the diagram in a group and style it: `group.canvas { fill: #070B16; fill-opacity: 1 }` |
+| Glow | A shadow with no offset: `box-shadow: 0 0 32px rgba(244, 114, 182, 0.55)` |
+| Lifted card | A soft offset shadow: `box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10)` |
+| Layout-only group | Hide it: `group.bare { fill-opacity: 0; stroke-width: 0 }` |
+| Async events | `edge.async { stroke-dasharray: 6 5; marker-end: open-arrow }` |
+| One palette | Custom properties: `:root { --brand: #6D28D9 }`, then `stroke: var(--brand)` |
+| Style by context | `group.cluster node::title { color: #F8FAFC }` |
+
+Edge label pills always use the canvas colour (white by default), so give labels a dark `color` even on a
+dark canvas, as Blueprint does.
+
+## Work on a look live
+
+```bash
+spinagram serve examples/looks/
+```
+
+Edit a `.css` file and every diagram that uses it re-renders. Press **Inspect** (or `i`) and click an element
+to see which rule set each value, or ask on the command line:
+
+```bash
+spinagram check examples/looks/ --styles --select ".hero"
+```
+
+Every property and how SVG, PowerPoint and Figma draw it: [CSS styling](/docs/customize/styling) ·
+[CSS by backend](/docs/customize/css-reference).

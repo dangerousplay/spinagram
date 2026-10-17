@@ -1,0 +1,14 @@
+# Technology logos (gilbarbara/logos, CC0): about 2,000 marks for DevOps and delivery (GitLab, JFrog, Jenkins,
+# SonarQube, Terraform, Vault, Consul), vendors (Oracle, IBM, Red Hat, VMware), observability (Dynatrace,
+# Grafana, Graylog), databases, languages and SaaS. `logos:<name>` is the square icon when the set has one,
+# else the full logo; `<name>-logo` is always the full logo (often with the wordmark).
+logos:
+  title: Technology Logos (gilbarbara/logos)
+  license: CC0-1.0 (gilbarbara/logos); logos are trademarks of their owners
+  homepage: https://github.com/gilbarbara/logos
+  source: {type: github, repo: gilbarbara/logos, ref: 4a5b550414be64d5c007574cd395d910d50e8950,
+           include: ["logos/*"]}
+  rules:   # first match wins
+    - {match: '^logos/(?P<stem>[^/]+?)-icon\.svg$', name: '{stem}'}
+    - {match: '^logos/(?P<stem>[^/]+?)-icon-(?P<variant>[a-z0-9]+)\.svg$', name: '{stem}-{variant}'}
+    - {match: '^logos/(?P<stem>[^/]+)\.svg$', name: '{stem}-logo', aliases: ['{stem}']}

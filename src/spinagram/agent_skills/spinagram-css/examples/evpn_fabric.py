@@ -3,9 +3,8 @@ with VNI subnets (VNI 10010 = 10.10.0.0/24, VNI 10020 = 10.20.0.0/24), hosts mul
 ESI-LAG, and border leaves peering eBGP with two ISPs. Spine-leaf links are anchored, so they are drawn straight."""
 from spinagram import Diagram
 
-N = {"w": 196, "h": 84}
 
-d = Diagram("NET02", "EVPN-VXLAN data center fabric",
+d = Diagram("NET02", "EVPN-VXLAN data center fabric", node_size=(196, 84),
             subtitle="eBGP underlay · EVPN overlay · all-active ESI multihoming · eBGP to two ISPs",
             layout={"engine": "flex", "direction": "down", "rank_gap": 96,
                     "area": [56, 176, 1808, 830]})
@@ -15,7 +14,7 @@ d.stylesheet("fabric.css")
 with d.group("Spines · AS 65000 · EVPN route servers", id="spines", class_="as spine-as", direction="right",
              gap=260, align="center"):
     spines = [d.box(f"spine-{i}", text=f"lo 10.0.0.{i}/32", icon="network:switch-multilayer-green",
-                    class_="spine", id=f"spine-{i}", **N) for i in (1, 2)]
+                    class_="spine", id=f"spine-{i}") for i in (1, 2)]
 with d.group(id="pods", class_="bare", direction="right", gap=24, align="start", padding=0):
     pairs, below = {}, {}
     for key, label, cls, icon, n0 in (("border", "Border leaves · AS 65100", "as border-as", "network:switch-multilayer",
@@ -27,16 +26,16 @@ with d.group(id="pods", class_="bare", direction="right", gap=24, align="start",
                 pairs[key] = [d.box(f"leaf-{key}{i}" if key != "border" else f"border-{i}",
                                     text=f"VTEP 10.0.1.{n0 + i}", icon=icon,
                                     class_="border-leaf" if key == "border" else "leaf",
-                                    id=f"leaf-{key}{i}" if key != "border" else f"border-{i}", **N) for i in (1, 2)]
+                                    id=f"leaf-{key}{i}" if key != "border" else f"border-{i}") for i in (1, 2)]
             if key == "border":
                 with d.group("Internet transit", id="wan", class_="wan", direction="right", gap=16):
                     below[key] = [d.box(f"ISP {x}", text=f"AS {asn}", icon="network:router-cloud-red", class_="isp",
-                                        id=f"isp-{x}", **N) for x, asn in (("A", 64512), ("B", 64513))]
+                                        id=f"isp-{x}") for x, asn in (("A", 64512), ("B", 64513))]
             else:
                 vni, net, role = ("10010", "10.10.0.10", "web") if key == "a" else ("10020", "10.20.0.10", "db")
                 with d.group(f"VNI {vni} · {role}", id=f"vni-{role}", class_="vni", direction="right", gap=16):
                     below[key] = [d.box(f"{role}-01", text=f"{net}, ESI-LAG", icon="network:server-circle",
-                                        class_="host", **N)]
+                                        class_="host")]
 web, db, isps = below["a"][0], below["b"][0], below["border"]
 
 # eBGP underlay: every leaf peers with both spines (straight lines, the usual spine-leaf drawing)
@@ -64,5 +63,3 @@ d.callout("spine-2", "Spines carry the EVPN address family but hold no VNIs: the
 d.add_legend({".spine": "Spine (EVPN route server)", ".border-leaf": "Border leaf", ".leaf": "Leaf (VTEP)",
               ".host": "Multihomed host", ".isp": "ISP router", "edge.underlay-ebgp": "eBGP underlay",
               "edge.esi-multihoming": "ESI multihoming", "edge.wan-ebgp": "eBGP to transit"})
-
-diagram = d

@@ -15,5 +15,3 @@ audit = d.add("data", "Audit log", id="audit")
 client >> gateway >> payments
 payments.to(ledger, "write")
 payments.to(audit, "event", class_="async")
-
-diagram = d

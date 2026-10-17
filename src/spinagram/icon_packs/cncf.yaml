@@ -1,0 +1,29 @@
+# CNCF project logos (cncf/artwork): graduated, incubating and sandbox projects (Harbor, Argo, Prometheus,
+# Envoy, Istio, Helm, Flux, OpenTelemetry, Falco…) and the CNCF's own marks. `cncf:<project>` is the colour
+# icon; `-horizontal` and `-stacked` are the logos with the name; `-black` is the one-colour icon. The white
+# artwork of each form is used automatically on dark fills.
+cncf:
+  title: CNCF Project Logos
+  license: Linux Foundation trademark usage guidelines (cncf/artwork); logos are trademarks of their projects
+  homepage: https://github.com/cncf/artwork
+  source: {type: github, repo: cncf/artwork, ref: fedb3dbbf74327337fb750eae0a4ec7c8b7398c0,
+           include: ["projects/*", "other/*"]}
+  rules:   # first match wins: SVG before PNG, and the `-wtext` copies (name written as text) are skipped
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/color/[^/]*?(?<!-wtext)\.svg$', name: '{p}'}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/white/[^/]*?(?<!-wtext)\.svg$', name: '{p}', tone: dark}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/black/[^/]*?(?<!-wtext)\.svg$', name: '{p}-black'}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/(?P<form>horizontal|stacked)/color/[^/]*?(?<!-wtext)\.svg$', name: '{p}-{form}',
+       aliases: ['{p}']}   # the project's name when it has no icon form
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/(?P<form>horizontal|stacked)/white/[^/]*?(?<!-wtext)\.svg$', name: '{p}-{form}', tone: dark}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/(?P<form>horizontal|stacked)/black/[^/]*?(?<!-wtext)\.svg$', name: '{p}-{form}-black'}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/[^/]*-light\.svg$', name: '{p}', tone: dark}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/[^/]*\.svg$', name: '{p}'}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/color/[^/]*?(?<!-wtext)\.png$', name: '{p}'}
+    - {match: '(?i)^(?:projects|other)/(?P<p>[^/]+)/icon/white/[^/]*?(?<!-wtext)\.png$', name: '{p}', tone: dark}
+    - {match: '(?i)^projects/(?P<p>[^/]+)/icon/(?:.*/)?[^/]*color[^/]*?(?<!-wtext)\.svg$', name: '{p}'}   # icon/svg/icon-color.svg
+  alias:   # names people type for projects whose folder is spelled differently
+    k8s: kubernetes
+    otel: opentelemetry
+    argocd: argo
+    argo-cd: argo
+    fluxcd: flux

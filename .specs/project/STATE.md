@@ -53,6 +53,14 @@
 - 2026-10-12 · Legend from CSS: `legend { placement; width; columns; gap; padding; swatch-width; swatch-height;
   display }` and `legend::body { font-size }` drive the annotation band (right, left, top, bottom); an explicit
   `add_legend(position=...)` beats the stylesheet like inline style. See `features/legend-css/`.
+- 2026-10-13 · Brand packs: `ai` (lobehub/lobe-icons, MIT), `cncf` (cncf/artwork) and `logos` (gilbarbara/logos,
+  CC0), pinned GitHub sources. `current_color` paints `currentColor` SVGs per tone (an `<image>` draws them black)
+  and adds the white dark-fill copy. `ai:`/`cncf:` infer catalog tags; `logos:` does not. See `features/brand-icons/`.
+
+- 2026-10-17 · Live editor: `serve` shows and saves a diagram's spec and cascade stylesheet files (CodeMirror 6 in a
+  lazy chunk) and can open another folder (recursive scan, skip list, 2,000-spec cap). Every source/write/folder
+  endpoint requires `X-Spinagram: 1` (no CORS, so other origins cannot send it); writes go only to files listed by
+  loaded diagrams, are version-checked (SHA-256) and atomic. See `features/live-editor/`.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
@@ -71,6 +79,9 @@
 - Import (parked 2026-10-12): D2/PlantUML spec in `features/diagram-import/`; Mermaid / draw.io / Structurizr frontends; remote icon URLs; PlantUML sprites → icon packs.
 
 ## Lessons
+- GitHub raw URLs must quote the path: one file name with a space fails the whole pack fetch.
+- A CSS stylesheet that repaints a node does not change its icon tone: keep `style: dark` (CSS matches the style
+  as a class) instead of a lookalike class, or the dark-tone artwork lands on a white fill.
 - dot cluster margin is uniform: reserve the label band with a blank top label sized by fontsize.
 - d2 blank labels reserve no space: use label "M" near top-center sized to the band.
 - elkjs bundled worker under bun needs a stub `document`.

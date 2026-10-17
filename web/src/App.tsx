@@ -4,6 +4,7 @@ import { pushRecent, recentStore, visibleRecents } from "./catalog";
 import DiagramsPage from "./DiagramsPage";
 import DiagramView from "./DiagramView";
 import { href, useEvents, useRoute, type Route } from "./hooks";
+import OpenFolder from "./OpenFolder";
 import PacksPage from "./PacksPage";
 import PackView from "./PackView";
 import ThemesPage from "./ThemesPage";
@@ -15,7 +16,8 @@ const DOCS_URL = "https://dangerousplay.github.io/spinagram/docs/";
 const SECTION = { diagrams: "diagrams", diagram: "diagrams", themes: "themes", theme: "themes", packs: "packs", pack: "packs" } as const;
 
 export default function App() {
-  const [route] = useRoute();
+  const [route, go] = useRoute();
+  const [opening, setOpening] = useState(false);
   const [ws, setWs] = useState<Workspace | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   const [themes, setThemes] = useState<ThemeEntry[]>([]);
@@ -125,6 +127,17 @@ export default function App() {
           </a>
         </nav>
         <div className="ml-auto flex items-center gap-3">
+          {ws && (
+            <button
+              onClick={() => setOpening(true)}
+              title={`Open another folder of diagrams (now: ${ws.paths.join(", ")})`}
+              className="flex max-w-64 items-center gap-1.5 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+            >
+              <span aria-hidden>📂</span>
+              <span className="truncate font-mono">{ws.paths.map((p) => p.split("/").filter(Boolean).pop() ?? p).join(", ")}</span>
+              <span className="shrink-0 text-slate-400">Open folder…</span>
+            </button>
+          )}
           {route.kind === "diagram" && ws && (
             <label className="flex items-center gap-2 text-xs text-slate-500">
               Layout
@@ -154,6 +167,16 @@ export default function App() {
           </span>
         </div>
       </header>
+      {opening && (
+        <OpenFolder
+          onClose={() => setOpening(false)}
+          onOpened={(next) => {
+            setOpening(false);
+            setWs(next);
+            go({ kind: "diagrams" });
+          }}
+        />
+      )}
       <div className="flex min-h-0 flex-1">
         <Recents route={route} diagrams={recentDiagrams} ws={ws} />
         <main className="min-w-0 flex-1">

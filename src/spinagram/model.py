@@ -166,6 +166,12 @@ class Zone:
     gid: str | None = None    # the group this zone was laid out from (styles target it)
 
 
+# kinds a ``node_size`` default applies to: content boxes, not markers (start/end dots, fork bars, decisions,
+# terminators), free text or pills, which keep the size of their symbol or their text
+SIZED_KINDS = frozenset({"box", "note", "process", "io", "document", "predefined", "data", "state", "action",
+                         "object", "signal_send", "signal_receive"})
+
+
 @dataclass
 class Group:
     """A container laid out automatically (``layout:``); rendered as a zone around its children.
@@ -319,8 +325,10 @@ class Diagram:
     annotations: Annotations = field(default_factory=lambda: Annotations())
     category: str | None = None   # catalog grouping (``group`` is taken by layout zones)
     tags: list[str] = field(default_factory=list)  # catalog tags, normalised: trimmed, lower-case, unique, sorted
+    node_size: tuple[float, float] | None = None  # (w, h) for every node created without a size
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
+    _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.category is not None and not isinstance(self.category, str):
@@ -329,9 +337,8 @@ class Diagram:
 
     @property
     def auto(self) -> bool:
-        """Laid out automatically: ``layout`` is set, or no node has a position or a size."""
-        return self.layout is not None or (bool(self.nodes) and
-                                           not any(n.x or n.y or n.w or n.h for n in self.nodes))
+        """Laid out automatically: ``layout`` is set, or no node has a position (a size alone is a hint)."""
+        return self.layout is not None or (bool(self.nodes) and not any(n.x or n.y for n in self.nodes))
 
     # lookup -------------------------------------------------------------------
     def node(self, node_id: str) -> Node:
@@ -342,7 +349,7 @@ class Diagram:
 
     def _auto_id(self, title: Any) -> str:
         base = re.sub(r"[^a-z0-9]+", "-", str(title or "n").lower()).strip("-")[:24] or "n"
-        ids = {n.id for n in self.nodes}
+        ids = {n.id for n in self.nodes} | {g.id for g in self.groups}  # a box and a group never share an id
         cand, i = base, 2
         while cand in ids:
             cand, i = f"{base}-{i}", i + 1
@@ -350,7 +357,15 @@ class Diagram:
 
     # builders -----------------------------------------------------------------
     def add(self, kind: str, title: Any = None, *, id: str | None = None, x: float = 0, y: float = 0,
-            w: float = 0, h: float = 0, **kw: Any) -> Node:
+            w: float = 0, h: float = 0, size: tuple[float, float] | None = None, **kw: Any) -> Node:
+        """A node of ``kind``. ``size=(w, h)`` sets both; without a size the innermost ``node_size`` of the
+        open groups (or the diagram's) applies, and failing that the node is sized from its text."""
+        if size is not None:
+            w, h = size
+        elif not (w or h) and kind in SIZED_KINDS:
+            default = next((s for s in reversed(self._sizes) if s), None) or self.node_size
+            if default:
+                w, h = default
         if "class_" in kw:
             kw["cls"] = kw.pop("class_")
         known = {f for f in Node.__dataclass_fields__}  # noqa: SIM118
@@ -358,6 +373,8 @@ class Diagram:
         n = Node(id=id or self._auto_id(title), kind=kind, x=x, y=y, w=w, h=h, title=title, extra=extra, **kw)
         if any(o.id == n.id for o in self.nodes):
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")
+        if any(g.id == n.id for g in self.groups):
+            raise ValueError(f"{self.id}: node id {n.id!r} is already a group id")
         self.nodes.append(n)
         n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
@@ -448,17 +465,22 @@ class Diagram:
                             str(len(self.groups) + 1))
         if any(g.id == gid for g in self.groups):
             raise ValueError(f"{self.id}: duplicate group id {gid!r}")
+        if any(n.id == gid for n in self.nodes):
+            raise ValueError(f"{self.id}: group id {gid!r} is already a node id")
         if "class_" in hints:
             hints["cls"] = hints.pop("class_")
+        node_size = hints.pop("node_size", None)  # builder default for the nodes created inside
         g = Group(id=gid, label=label, style=style, **hints)
         self.groups.append(g)
         if self._open:
             self._open[-1].children.append(g.id)
         self._open.append(g)
+        self._sizes.append(tuple(node_size) if node_size else None)
         try:
             yield g
         finally:
             self._open.pop()
+            self._sizes.pop()
 
     # annotations ---------------------------------------------------------------------------------
     def add_legend(self, items: dict[str, str] | None = None, *, title: str = "Legend",

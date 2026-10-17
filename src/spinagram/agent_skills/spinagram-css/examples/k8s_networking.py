@@ -2,11 +2,10 @@
 agents that program the data path and the policy that guards it."""
 from spinagram import Diagram
 
-N = {"w": 226, "h": 84}
 WIDE = {"w": 252, "h": 84}
 POD = {"w": 186, "h": 64}
 
-d = Diagram("K8S02", "Kubernetes service networking",
+d = Diagram("K8S02", "Kubernetes service networking", node_size=(226, 84),
             subtitle="Ingress → Service → EndpointSlice → pods on any node, guarded by NetworkPolicy",
             layout={"engine": "flex", "direction": "right", "gap": 44, "route": "ortho",
                     "area": [56, 176, 1808, 830]})
@@ -27,9 +26,9 @@ with d.group("Cluster · pod CIDR 10.244.0.0/16", id="cluster", class_="cluster"
             with d.group(f"{name} · {cidr}", id=name, class_="worker", direction="right", gap=24):
                 with d.group(id=f"{name}-agents", class_="bare", direction="down", gap=14):
                     kubelet = d.box("kubelet", text="CRI, probes", icon="k8s:kubelet-labeled",
-                                    class_="node-agent", id=f"{name}-kubelet", **N)
+                                    class_="node-agent", id=f"{name}-kubelet")
                     proxy = d.box("kube-proxy", text="IPVS rules", icon="k8s:k-proxy-labeled",
-                                  class_="node-agent", id=f"{name}-proxy", **N)
+                                  class_="node-agent", id=f"{name}-proxy")
                 with d.group("pods", id=f"{name}-pods", class_="pods", direction="down", gap=12):
                     ps = [d.box(p, text="denied" if p.startswith("web") else "10.244." + cidr.split(".")[2] + f".{i + 10}", icon="k8s:pod",
                                 class_="pod" + (" denied" if p.startswith("web") else ""), id=p, **POD)
@@ -46,5 +45,3 @@ for proxy, ps in nodes:
 d.callout("web-9f-k", "Only the ingress controller may call the API; web pods are dropped.", title="Denied by policy",
           kind="risk")
 d.add_legend()
-
-diagram = d

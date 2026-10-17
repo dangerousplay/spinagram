@@ -1,0 +1,67 @@
+---
+title: Kubernetes on Amazon EKS
+description: A cloud-native platform with Cilium, Gateway API, Karpenter, Argo CD, cert-manager and ExternalDNS.
+---
+
+Three slides that explain one platform at three zoom levels: what runs where, how a request is routed,
+and how a change ships. Together they show most of what spinagram does: nested AWS and Kubernetes zones,
+icons from four packs (AWS, Kubernetes, CNCF and SVG Logos), a flowchart inside an architecture, a swimlane activity and one shared dark stylesheet.
+
+| Project | Role on the slides | Icon |
+|---|---|---|
+| Amazon EKS, NLB, Route 53, Aurora, ECR | Managed AWS services | `aws:nlb`, `aws:route53`, `aws:amazon-aurora`, … |
+| Cilium | eBPF networking, kube-proxy replacement, Gateway API implementation, network policy | `cncf:cilium` |
+| Gateway API | `GatewayClass`, `Gateway` (Envoy) and `HTTPRoute` resources | `cncf:envoy`, `k8s:crd` |
+| Karpenter | Adds right-sized nodes when pods are pending | `aws:amazon-ec2-auto-scaling` |
+| Argo CD | GitOps: syncs the cluster to Git | `cncf:argo` |
+| cert-manager, ExternalDNS | TLS certificates and DNS records | `cncf:cert-manager`, `k8s:crd` |
+| Hubble, Prometheus, Grafana | Flow visibility and metrics | `cncf:cilium`, `cncf:prometheus` |
+
+## The platform
+
+The cluster is a dark canvas inside the AWS region. Its three lanes (networking, the app namespace and
+platform add-ons) are groups with a direction, and the managed services sit in their own column so the
+arrows to them stay short. Dashed purple arrows are control loops (sync, certificates, DNS records), not traffic.
+
+![Kubernetes platform on Amazon EKS with Cilium, Gateway API, Karpenter and Argo CD](/assets/examples/eks01.svg)
+
+<include meta='title="examples/kubernetes/eks_platform.py"'>../../../../examples/kubernetes/eks_platform.py</include>
+
+## How Gateway API routes a request
+
+An architecture and a flowchart on one slide: the `HTTPRoute`'s rules are drawn as a decision flow
+(`/api/*`, then a canary header), and each outcome points at the Service it selects. The flowchart is a region
+inside the cluster group: `with d.flowchart("HTTPRoute rules", direction="right") as fc:`.
+
+![Gateway API routing with Cilium: Gateway resources, HTTPRoute rules as a flowchart and backend Services](/assets/examples/eks02.svg)
+
+<include meta='title="examples/kubernetes/eks_gateway.py"'>../../../../examples/kubernetes/eks_gateway.py</include>
+
+## How a change ships
+
+GitOps as an activity with swimlanes: GitHub Actions builds, signs and pushes; Argo CD detects the new tag and
+syncs; Karpenter and the rolling update run in parallel; Prometheus gates the result and Argo CD rolls back on
+errors.
+
+![Shipping a change with GitOps, in GitHub Actions, Argo CD, EKS cluster and Prometheus lanes](/assets/examples/eks03.svg)
+
+<include meta='title="examples/kubernetes/eks_gitops.py"'>../../../../examples/kubernetes/eks_gitops.py</include>
+
+## The shared stylesheet
+
+One file styles both architecture slides: Cilium yellow, Gateway API teal, add-ons violet, AWS orange.
+
+<include meta='title="examples/kubernetes/eks.css"'>../../../../examples/kubernetes/eks.css</include>
+
+## Make it yours
+
+- **Swap projects, keep the layout.** Istio instead of Cilium is `icon="cncf:istio"`; Flux instead of Argo CD
+  is `icon="cncf:flux"`; KEDA, Kyverno, Falco, Velero and OpenTelemetry are in `cncf` too.
+- **No logo for a project?** Use the Kubernetes object it creates (`k8s:crd`, `k8s:ing`, `k8s:netpol`) or a
+  local SVG: `icon="logos/karpenter.svg"`.
+- **Ids must be unique across groups and boxes.** A group with `id="shop"` and a box titled "Shop" collide,
+  so give namespace groups ids like `ns-shop`.
+
+```bash
+spinagram serve examples/kubernetes/
+```

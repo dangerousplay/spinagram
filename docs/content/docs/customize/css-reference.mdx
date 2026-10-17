@@ -1,0 +1,168 @@
+---
+title: CSS by backend
+description: What each output format does with every CSS property, with rendered examples, the style inspector and live reload.
+---
+
+One stylesheet styles every output. SVG and PNG draw every value exactly (PNG is rendered from
+the SVG). PowerPoint and Figma draw them as native, editable properties; where a format has no
+equivalent, spinagram draws the nearest one and `check` or the render prints one warning naming
+the backend, the property and the value.
+
+## Support matrix
+
+✅ exact · ≈ nearest equivalent (see note) · — ignored
+
+### Nodes, groups, regions and lanes
+
+| Property | SVG / PNG | PowerPoint | Figma / FigJam | Notes |
+|---|:-:|:-:|:-:|---|
+| `fill` | ✅ | ✅ | ✅ | Solid colours. |
+| `fill-opacity` | ✅ | ✅ | ✅ | Alpha on the fill only; the outline stays opaque. |
+| `stroke` | ✅ | ✅ | ✅ | |
+| `stroke-width` | ✅ | ✅ | ✅ | |
+| `stroke-dasharray` | ✅ | ✅ | ✅ | PowerPoint stores the pattern relative to the line width (`a:custDash`), so it scales with `stroke-width` exactly as in SVG. |
+| `border-radius` | ✅ | ✅ | ✅ | Boxes and groups. Behavior symbols (states, decisions, …) keep their own geometry. |
+| `opacity` | ✅ | ≈ | ≈ | SVG fades the whole element. PowerPoint blends the fill with the slide background; Figma sets the fill paint opacity. Text and outline stay opaque in both. |
+| `box-shadow` | ✅ | ✅ | ✅ | One shadow: `offset-x offset-y blur colour`. Spread and `inset` are ignored. PowerPoint gets an outer shadow (`a:outerShdw`), Figma a drop-shadow effect. |
+
+### Text: `::title`, `::body`, `::label`
+
+| Property | SVG / PNG | PowerPoint | Figma / FigJam | Notes |
+|---|:-:|:-:|:-:|---|
+| `color` | ✅ | ✅ | ✅ | Inherited from groups. |
+| `font-size` | ✅ | ✅ | ✅ | Feeds automatic sizing, so boxes grow to fit. |
+| `font-weight` | ✅ | ≈ | ≈ | PowerPoint has bold or regular only; Figma uses the style the theme maps to that weight (`fonts.*.figma`). |
+| `font-style` | ✅ | ✅ | ✅ | `italic` or `normal`. |
+| `font-family` | — | — | — | Checked, not applied yet: text keeps the theme font, and a family the theme does not embed is warned about once. |
+
+### Edges
+
+| Property | SVG / PNG | PowerPoint | Figma / FigJam | Notes |
+|---|:-:|:-:|:-:|---|
+| `stroke`, `stroke-width` | ✅ | ✅ | ✅ | |
+| `stroke-dasharray` | ✅ | ✅ | ✅ | |
+| `opacity` | ✅ | ✅ | ✅ | PowerPoint puts an alpha on the line colour. |
+| `marker-start`, `marker-end`: `arrow`, `open-arrow`, `diamond`, `circle`, `none` | ✅ | ✅ | ✅ | PowerPoint arrowheads `triangle`, `arrow`, `diamond`, `oval`; Figma stroke caps. |
+| `marker-*: open-diamond` | ✅ | ≈ | ≈ | Drawn as a filled diamond, with a warning. |
+| `marker-*: bar` | ✅ | ≈ | ≈ | No bar arrowhead in either: the end is drawn without a marker, with a warning. |
+
+### Values
+
+| Form | Example |
+|---|---|
+| Hex, `rgb()`, `rgba()`, CSS names | `#DC2626`, `rgba(0, 0, 0, .25)`, `teal` |
+| Theme tokens | `fill: primary-soft` |
+| Custom properties | `:root { --brand: #0F766E }` then `var(--brand)`; `var(--warning)` falls back to the theme token `warning`; `var(--x, #fff)` takes a fallback |
+| Lengths | `4`, `4px` (pixels on the 1920 × 1080 canvas) |
+
+An unresolvable colour stops the render with file, line and selector. An unknown property, an
+empty or invalid value and a negative width are skipped with a warning.
+
+## Examples
+
+Every example is one diagram of
+[`examples/styling/gallery/gallery.py`](https://github.com/dangerousplay/spinagram/tree/main/examples/styling/gallery)
+plus its stylesheet. Render them all with `spinagram render examples/styling/gallery -f svg,pptx,figma`.
+
+### Fills, strokes and corners
+
+Theme tokens and plain colours side by side.
+
+<include lang="css" meta='title="examples/styling/gallery/01-boxes.css"'>../../../../examples/styling/gallery/01-boxes.css</include>
+
+![Fills, strokes and corners](/assets/css/g01.svg)
+
+### Dashes and transparency
+
+`opacity` fades the whole node; `fill-opacity` only its fill.
+
+<include lang="css" meta='title="examples/styling/gallery/02-dashes.css"'>../../../../examples/styling/gallery/02-dashes.css</include>
+
+![Dashes and transparency](/assets/css/g02.svg)
+
+### Shadows
+
+A blurred lift, a glow without offset and a hard offset without blur.
+
+<include lang="css" meta='title="examples/styling/gallery/03-shadows.css"'>../../../../examples/styling/gallery/03-shadows.css</include>
+
+![Shadows](/assets/css/g03.svg)
+
+### Edges and markers
+
+Each end takes its own marker. `bar` and `open-diamond` fall back in PowerPoint and Figma.
+
+<include lang="css" meta='title="examples/styling/gallery/04-edges.css"'>../../../../examples/styling/gallery/04-edges.css</include>
+
+![Edges and markers](/assets/css/g04.svg)
+
+### Text
+
+Pseudo-elements target titles, bodies and labels; `font-size` resizes the box.
+
+<include lang="css" meta='title="examples/styling/gallery/05-text.css"'>../../../../examples/styling/gallery/05-text.css</include>
+
+![Text](/assets/css/g05.svg)
+
+### Custom properties and tokens
+
+`var(--alert)` is not declared, so it falls back to the theme token `alert`.
+
+<include lang="css" meta='title="examples/styling/gallery/06-tokens.css"'>../../../../examples/styling/gallery/06-tokens.css</include>
+
+![Custom properties and tokens](/assets/css/g06.svg)
+
+### Selectors and inheritance
+
+The group sets `color` once; both titles inside inherit it. The data node matches `[kind=data]`.
+
+<include lang="css" meta='title="examples/styling/gallery/07-selectors.css"'>../../../../examples/styling/gallery/07-selectors.css</include>
+
+![Selectors and inheritance](/assets/css/g07.svg)
+
+### Behavior kinds
+
+Node kinds (`state`, `choice`, `initial`, `final`) are type selectors.
+
+<include lang="css" meta='title="examples/styling/gallery/08-behavior.css"'>../../../../examples/styling/gallery/08-behavior.css</include>
+
+![Behavior kinds](/assets/css/g08.svg)
+
+## Inspect computed styles
+
+`spinagram check --styles` explains every element: its computed values, then the rules that set
+them from the winning one down, overridden declarations struck through, `var()` resolutions,
+inherited values and the text pseudo-elements. Narrow it with a selector:
+
+```bash
+spinagram check --styles examples/styling/styled.py --select "#payments"
+```
+
+{/* inspect-output:start (generated by docs/scripts/css_gallery.py) */}
+<pre className="not-prose" style={{"background": "#0B1120", "color": "#E2E8F0", "border": "1px solid #1E293B", "borderRadius": 12, "padding": "16px 18px", "overflowX": "auto", "fontSize": 12.5, "lineHeight": 1.55, "fontFamily": "ui-monospace, SFMono-Regular, Menlo, monospace", "margin": "16px 0"}}><span style={{"fontWeight": 600}}>{"C01 · Payments, styled with CSS"}</span>{"  "}<span style={{"opacity": 0.6}}>{"cascade: examples/styling/brand.css"}</span>{"\n\n  "}<span style={{"fontWeight": 600}}>{"node#payments.critical"}</span><span style={{"opacity": 0.6}}>{" [box]"}</span>{"  "}<span style={{"opacity": 0.6}}>{"'Payments'"}</span>{"\n    "}<span style={{"opacity": 0.6}}>{"computed"}</span>{"  "}<span style={{"color": "#F0ABFC"}}>{"border-radius"}</span>{" 10  "}<span style={{"color": "#F0ABFC"}}>{"fill"}</span>{" "}<span style={{"background": "#FEE2E2", "borderRadius": 2}}>{"  "}</span>{" #FEE2E2  "}<span style={{"color": "#F0ABFC"}}>{"stroke"}</span>{" "}<span style={{"background": "#DC2626", "borderRadius": 2}}>{"  "}</span>{" #DC2626  "}<span style={{"color": "#F0ABFC"}}>{"stroke-width"}</span>{" 4  "}<span style={{"color": "#F0ABFC"}}>{"box-shadow"}</span>{" 0 6 12 "}<span style={{"background": "#000000", "borderRadius": 2}}>{"  "}</span>{" #000000 / 0.25\n    "}<span style={{"color": "#67E8F9"}}>{"node.critical"}</span>{"  "}<span style={{"opacity": 0.6}}>{"examples/styling/brand.css:6 (0,1,1)"}</span>{"\n        "}<span style={{"color": "#F0ABFC"}}>{"fill"}</span>{": "}<span style={{"background": "#FEE2E2", "borderRadius": 2}}>{"  "}</span>{" #FEE2E2\n        "}<span style={{"color": "#F0ABFC"}}>{"stroke"}</span>{": var(--danger) → "}<span style={{"background": "#DC2626", "borderRadius": 2}}>{"  "}</span>{" #DC2626\n        "}<span style={{"color": "#F0ABFC"}}>{"stroke-width"}</span>{": 4\n        "}<span style={{"color": "#F0ABFC"}}>{"box-shadow"}</span>{": 0 6px 12px rgba(0, 0, 0, 0.25)\n    "}<span style={{"color": "#67E8F9"}}>{"node"}</span>{"  "}<span style={{"opacity": 0.6}}>{"examples/styling/brand.css:4 (0,0,1)"}</span>{"\n        "}<span style={{"color": "#F0ABFC"}}>{"border-radius"}</span>{": 10px\n    "}<span style={{"fontWeight": 600}}>{"::title"}</span>{"  "}<span style={{"color": "#F0ABFC"}}>{"color"}</span>{" "}<span style={{"background": "#7F1D1D", "borderRadius": 2}}>{"  "}</span>{" #7F1D1D\n      "}<span style={{"color": "#67E8F9"}}>{"node.critical::title"}</span>{"  "}<span style={{"opacity": 0.6}}>{"examples/styling/brand.css:7 (0,1,2)"}</span>{"\n          "}<span style={{"color": "#F0ABFC"}}>{"color"}</span>{": "}<span style={{"background": "#7F1D1D", "borderRadius": 2}}>{"  "}</span>{" #7F1D1D\n      "}<span style={{"color": "#67E8F9"}}>{"node::title"}</span>{"  "}<span style={{"opacity": 0.6}}>{"examples/styling/brand.css:5 (0,0,2)"}</span>{"\n          "}<span style={{"textDecoration": "line-through", "opacity": 0.6}}>{"color: var(--accent) → #7C3AED"}</span>{"\n\n1 diagram(s), 0 issue(s)"}</pre>
+{/* inspect-output:end */}
+
+| Option | Effect |
+|---|---|
+| `--styles` | Print the style report before the usual checks |
+| `--select SELECTOR` | Only elements matching the selector (`".critical, edge.async"`) |
+| `--json` | The same report as JSON, the format the live inspector reads |
+| `--color auto\|always\|never` | Colour and swatches; `auto` colours a terminal unless `NO_COLOR` is set. Without colour, overridden declarations end in `(overridden)` |
+
+Plain `spinagram check` also lists selectors of your own stylesheets that match nothing as
+`info: unused selector` lines. They are hints, not issues: the exit code ignores them. Theme
+stylesheets are not checked this way, since a theme styles kinds a diagram may not use.
+
+## Live inspector and live reload
+
+In [`spinagram serve`](/docs/tools/live-ui), press **Inspect** (or `i`). Hovering outlines the element
+under the pointer; a click opens its classes, attributes, computed style and source rules, the
+same report as `check --styles`. With nothing selected, the panel lists the element tree, the
+cascade order and unused selectors. `Esc` clears the selection; dragging still pans.
+
+![The live inspector on the styled payments diagram](/assets/css/inspector.webp)
+
+Saving a stylesheet re-renders exactly the diagrams whose cascade includes it, and the inspector
+refreshes with the selection kept. That covers `.css` files next to the specs, stylesheets
+referenced from elsewhere (their folders are watched too), inline `css:` in a folder's
+`_defaults.yaml` and the theme's `theme.css`, which re-renders everything.

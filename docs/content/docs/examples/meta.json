@@ -1,0 +1,16 @@
+{
+  "title": "Examples",
+  "icon": "Images",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "css-looks",
+    "mixed-diagrams",
+    "icons",
+    "kubernetes",
+    "architecture",
+    "behavior",
+    "networks",
+    "slides"
+  ]
+}

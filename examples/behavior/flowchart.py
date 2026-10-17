@@ -19,5 +19,3 @@ valid.no(error)
 paid.yes(receipt) >> fc.end()
 paid.no(error)
 error.to(card, "retry")
-
-diagram = fc

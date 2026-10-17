@@ -207,7 +207,8 @@ def load_yaml(path: Path) -> list[Diagram]:
 
 
 def load_python(path: Path) -> list[Diagram]:
-    """A Python spec defines ``diagram``, ``diagrams`` or ``build() -> Diagram | list``."""
+    """Diagrams of a Python spec: ``build() -> Diagram | list``, else ``diagrams`` or ``diagram``, else every
+    ``Diagram`` the module keeps in a variable, in the order they were assigned."""
     import sys
 
     # helpers next to the spec (``_helpers.py``, ``dk.py``) are importable, like a script run from its folder
@@ -223,8 +224,12 @@ def load_python(path: Path) -> list[Diagram]:
         got = ns["build"]()
     else:
         got = ns.get("diagrams", ns.get("diagram"))
-    if got is None:
-        raise ValueError(f"{path}: define `diagram`, `diagrams` or `build()`")
+    if got is None:  # no convention variable: any Diagram the script created and kept
+        seen: set[int] = set()
+        got = [v for k, v in ns.items() if not k.startswith("_") and isinstance(v, Diagram)
+               and not (id(v) in seen or seen.add(id(v)))]
+    if not got:
+        raise ValueError(f"{path}: no diagram found — create one with Diagram(...), or define `diagrams` or `build()`")
     items = got if isinstance(got, (list, tuple)) else [got]
     base = _dir_defaults(path.parent)
     for d in items:

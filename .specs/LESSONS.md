@@ -146,6 +146,36 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md iter2 M12 src/spinagram/annotate.py:187 (LCSS-08) (tests)
 - last seen: 2026-10-12T20:09:01Z
 
+### L-023 - When files are addressed by a derived path, test with two roots holding the same relative path: the path must stay unique or a save hits the wrong file.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `ui/workspace` · harmful: 0
+- features: live-editor
+- evidence: SRC-04 workspace.py display() (ui/workspace)
+- last seen: 2026-10-17T17:49:20Z
+
+### L-024 - Watcher tests must warm the watcher and wait for quiet before acting, or a trailing event from setup masks the behaviour under test.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests/watcher` · harmful: 0
+- features: live-editor
+- evidence: M12 server.py retarget.set() (tests/watcher)
+- last seen: 2026-10-17T17:49:20Z
+
+### L-025 - When a cache is reset on a state switch, test the scenario where the new state cannot overwrite the cached entry (e.g. a broken spec), not only the happy reload.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `ui/workspace` · harmful: 0
+- features: live-editor
+- evidence: N11 workspace.py open() (ui/workspace)
+- last seen: 2026-10-17T17:49:20Z
+
+### L-026 - Keep state transitions that react to async results (saves, refetches) in pure editor.ts functions with unit tests, not inside React components.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `web` · harmful: 0
+- features: live-editor
+- evidence: edge case: two quick saves, CodePanel.tsx (web)
+- last seen: 2026-10-17T17:49:20Z
+
+### L-027 - Timing ACs need the spec's stated workload (e.g. 50 nodes) in the test, measured to the observable outcome, not to an intermediate event.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: live-editor
+- evidence: EDIT-05 (tests)
+- last seen: 2026-10-17T17:49:20Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

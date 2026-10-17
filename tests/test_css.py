@@ -488,8 +488,9 @@ def _placed_diagram():
     return d
 
 
-# SVG of the two diagrams above rendered at 46d7696, before any CSS code existed (scene, markers, dashes).
-UNSTYLED_GOLDEN = "5184abedc45144744c87ae80d9b9f4309e9d09591a496987b6f3f2cf8f8c07b7"
+# SVG of the two diagrams above with no stylesheet: first taken at 46d7696 before any CSS code existed;
+# re-taken when edge labels learned to stay clear of arrowheads (only label positions moved).
+UNSTYLED_GOLDEN = "0c480e238b67b38884224231612a212e3875ef3c6114d69b7fc3cf613dcfba48"
 
 
 def test_unstyled_svg_matches_pre_css_golden():  # CSS-27

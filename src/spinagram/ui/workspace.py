@@ -1,6 +1,7 @@
 """The specs a ``serve`` session watches: loading, rendering to SVG, caching and invalidation."""
 from __future__ import annotations
 
+import contextlib
 import re
 import sys
 import threading
@@ -15,8 +16,8 @@ from ..layout import build_scene
 from ..model import Diagram
 from ..theme import Theme, _load_raw
 from ..yaml_io import load
-
-SPEC_EXTS = {".yaml", ".yml", ".py"}
+from . import files as fsx
+from .files import SPEC_EXTS  # noqa: F401  (re-exported: older imports)
 
 
 def _missing_packs(messages: list[str]) -> list[str]:
@@ -51,6 +52,14 @@ def geometry(laid: Diagram, scene) -> dict:
                 g["label"] = [it.label.x, it.label.y, it.label.w, it.label.h]
             out[f"edge:{it.id[1:]}"] = g
     return {"geometry": out, "size": [scene.width, scene.height]}
+
+
+class VersionConflict(Exception):
+    """A save sent a version the file no longer has; ``current`` is the version on disk."""
+
+    def __init__(self, current: str):
+        super().__init__("the file changed since it was read")
+        self.current = current
 
 
 class RenderError(Exception):
@@ -91,6 +100,8 @@ class Workspace:
         self.theme_error: str | None = None
         self.theme_gen = 0
         self.files: dict[str, SpecFile] = {}
+        self.truncated = False  # the last scan hit files.MAX_SPECS
+        self._sheets: dict[str, list[Path]] = {}  # diagram key → its stylesheet files, kept while its spec is broken
         self._cache: dict[tuple, str] = {}
         self._geom: dict[tuple, dict] = {}
         self._lock = threading.RLock()
@@ -108,11 +119,49 @@ class Workspace:
         return {p if p.is_dir() else p.parent for p in self.paths}
 
     def scan(self) -> list[Path]:
+        """Spec files under the roots: a file root itself, every spec under a directory root (recursively,
+        names sorted, a folder's files before its subfolders, skipped folders left out), at most
+        ``files.MAX_SPECS`` in all (``truncated`` tells)."""
+        import os
+
         found: list[Path] = []
+        cap = fsx.MAX_SPECS
+        self.truncated = False
         for p in self.paths:
-            items = sorted(p.iterdir()) if p.is_dir() else [p]
-            found += [f for f in items if f.is_file() and f.suffix in SPEC_EXTS and not f.name.startswith("_")]
+            if not p.is_dir():
+                found += [p] if fsx.is_spec(p) else []
+                continue
+            for folder, dirs, names in os.walk(p):
+                dirs[:] = sorted(d for d in dirs if not fsx.skipped(d))
+                for n in sorted(names):
+                    f = Path(folder) / n
+                    if fsx.is_spec(f):
+                        if len(found) >= cap:
+                            self.truncated = True
+                            return found
+                        found.append(f)
         return found
+
+    def contains(self, path: Path) -> bool:
+        """A file root, or a path under a directory root that is not inside a skipped folder."""
+        path = Path(path).resolve()
+        for p in self.paths:
+            if p.is_dir() and path.is_relative_to(p):
+                return not any(fsx.skipped(part) for part in path.relative_to(p).parts[:-1])
+            if path == p:
+                return True
+        return False
+
+    def open(self, path: str | Path) -> None:
+        """Make ``path`` the only root and load its specs; a path that is not a directory changes nothing."""
+        root = fsx.resolve_dir(path)  # raises NotADirectoryError("not a directory: ...")
+        with self._lock:
+            self.paths = [root]
+            self.files = {}
+            self._sheets = {}
+            self._cache.clear()
+            self._geom.clear()
+            self.rescan()
 
     def rel(self, f: Path) -> str:
         base = self._base(f)
@@ -129,6 +178,7 @@ class Workspace:
             for rel, f in now.items():
                 if rel not in self.files:
                     self.files[rel] = self._load(f, rel)
+                    self._remember(rel)
             return changed
 
     def _load(self, f: Path, rel: str) -> SpecFile:
@@ -204,6 +254,7 @@ class Workspace:
                 old = self.files[rel]
                 keys += [self.key(rel, d) for d in old.diagrams]
                 self.files[rel] = new = self._load(old.path, rel)
+                self._remember(rel)
                 keys += [self.key(rel, d) for d in new.diagrams]
             self._drop(keys)
             return sorted(set(keys))
@@ -212,6 +263,17 @@ class Workspace:
         self._cache = {k: v for k, v in self._cache.items() if k[0] not in keys}
         self._geom = {k: v for k, v in self._geom.items() if k[0] not in keys}
 
+    @staticmethod
+    def sheet_path(d: Diagram, sheet: str) -> Path | None:
+        """The file a ``stylesheets`` entry names (relative to the spec), or None for CSS text."""
+        if "{" in sheet:
+            return None
+        p = Path(sheet).expanduser()
+        if not p.is_absolute():
+            base = Path(d.base_dir) if d.base_dir is not None else Path.cwd()
+            p = base / p if (base / p).exists() or not p.exists() else p
+        return p.resolve()
+
     def stylesheet_users(self) -> dict[Path, set[str]]:
         """Stylesheet files referenced by loaded diagrams (existing or not) → the diagram keys using them."""
         out: dict[Path, set[str]] = {}
@@ -219,13 +281,109 @@ class Workspace:
             for rel, sf in self.files.items():
                 for d in sf.diagrams:
                     for sheet in d.stylesheets:
-                        if "{" in sheet:
-                            continue  # CSS text, not a file
-                        p = Path(sheet).expanduser()
-                        if not p.is_absolute():
-                            base = Path(d.base_dir) if d.base_dir is not None else Path.cwd()
-                            p = base / p if (base / p).exists() or not p.exists() else p
-                        out.setdefault(p.resolve(), set()).add(self.key(rel, d))
+                        p = self.sheet_path(d, sheet)
+                        if p is not None:
+                            out.setdefault(p, set()).add(self.key(rel, d))
+        return out
+
+    # sources (live editor) ------------------------------------------------------------------------
+    def display(self, path: Path) -> str:
+        """How the editor names a file, unique across roots (saves are addressed by it): relative to the root
+        when one root is open, absolute when several are or the file is outside them."""
+        if len(self.paths) > 1:
+            return str(path)
+        for p in self.paths:
+            if p.is_dir() and path.is_relative_to(p):
+                return path.relative_to(p).as_posix()
+            if path == p:
+                return path.name
+        return str(path)
+
+    def _sheets_of(self, d: Diagram) -> list[Path]:
+        out: list[Path] = []
+        for sheet in d.stylesheets:
+            p = self.sheet_path(d, sheet)
+            if p is not None and p not in out:
+                out.append(p)
+        return out
+
+    def _remember(self, rel: str) -> None:
+        """Note the stylesheet files of a spec that loaded, so its tabs survive a later broken save."""
+        sf = self.files.get(rel)
+        if sf is not None and not sf.error:
+            for k in [k for k in self._sheets if k.startswith(f"{rel}#")]:
+                del self._sheets[k]
+            for d in sf.diagrams:
+                self._sheets[self.key(rel, d)] = self._sheets_of(d)
+
+    def source_paths(self, key: str) -> list[Path]:
+        """The spec file of a diagram, then the existing stylesheet files of its cascade, in order, once each.
+        A spec that fails to load lists the stylesheets it had when it last loaded. Raises ``KeyError`` for an
+        unknown diagram."""
+        with self._lock:
+            sf, d = self.find(key)
+            if d is None and not sf.error:
+                raise KeyError(key)
+            sheets = self._sheets_of(d) if d is not None else self._sheets.get(key, [])
+            out = [sf.path.resolve()]
+            for p in sheets:
+                if p.is_file() and p not in out:
+                    out.append(p)
+            return out
+
+    def editable(self) -> dict[str, Path]:
+        """Display path → file, for every file a loaded diagram's source lists (the only files ``write`` touches)."""
+        out: dict[str, Path] = {}
+        with self._lock:
+            keys = [self.key(rel, d) for rel, sf in self.files.items() for d in sf.diagrams]
+            for rel, sf in self.files.items():
+                if sf.error:  # a broken spec: its last known diagrams keep their stylesheets editable
+                    keys += [k for k in self._sheets if k.startswith(f"{rel}#")] or [f"{rel}#"]
+            for key in keys:
+                for p in self.source_paths(key):
+                    out[self.display(p)] = p
+        return out
+
+    def write(self, path: str, text: str, version: str) -> str:
+        """Save editor text to a listed file if it still has ``version``; returns the new version.
+
+        Keeps the file's newline style and permissions and replaces it atomically (temp file in the same
+        folder, then rename). Raises ``PermissionError`` for a file no diagram lists and ``VersionConflict``
+        when the file changed since it was read."""
+        import os
+        import stat
+        import tempfile
+
+        with self._lock:
+            target = self.editable().get(path)
+            if target is None:
+                raise PermissionError(f"not an editable file: {path}")
+            raw = target.read_bytes()
+            current = fsx.version_of(raw)
+            if current != version:
+                raise VersionConflict(current)
+            newline = "\r\n" if b"\r\n" in raw else "\n"
+            data = text.replace("\r\n", "\n").replace("\n", newline).encode("utf-8")
+            fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(data)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.chmod(tmp, stat.S_IMODE(target.stat().st_mode))
+                os.replace(tmp, target)
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+                raise
+            return fsx.version_of(data)
+
+    def source(self, key: str) -> list[dict]:
+        """``source_paths`` read for the editor: display path, language, text (LF newlines) and version."""
+        out = []
+        for p in self.source_paths(key):
+            src = fsx.read_source(p)
+            out.append({"path": self.display(p), "language": src.language, "text": src.text, "version": src.version})
         return out
 
     def stylesheets_changed(self, changed: list[Path]) -> list[str]:
@@ -335,6 +493,7 @@ class Workspace:
         import os
 
         theme_name = (self.theme.data.get("name") if self.theme else None) or Path(str(self.theme_ref or "default")).name
-        return {"paths": [str(p) for p in self.paths], "theme": str(self.theme_ref or "default"), "theme_name": theme_name,
+        return {"paths": [str(p) for p in self.paths], "truncated": self.truncated,
+                "theme": str(self.theme_ref or "default"), "theme_name": theme_name,
                 "theme_error": self.theme_error, "layout": self.layout, "engines": engines, "files": files,
                 "offline": os.environ.get("SPINAGRAM_OFFLINE") == "1"}

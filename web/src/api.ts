@@ -1,4 +1,5 @@
 // Types and fetchers for the `spinagram serve` API (src/spinagram/ui/server.py).
+import type { SourceFile } from "./editor";
 
 export type Engine = { name: string; hint: string | null };
 export type DiagramRef = {
@@ -13,6 +14,7 @@ export type DiagramRef = {
 export type SpecFile = { path: string; error: string | null; diagrams: DiagramRef[] };
 export type Workspace = {
   paths: string[];
+  truncated: boolean; // the open folder holds more specs than the server loads
   theme: string;
   theme_name: string;
   theme_error: string | null;
@@ -21,6 +23,11 @@ export type Workspace = {
   files: SpecFile[];
   offline: boolean;
 };
+
+// Live editor (`api/diagrams/<key>.source`, `PUT api/files`, `api/fs`, `POST api/workspace/open`)
+export type { SourceFile };
+export type DirEntry = { name: string; path: string; specs: number };
+export type DirListing = { path: string; parent: string | null; specs: number; dirs: DirEntry[] };
 
 export type DiagramInfo = { overflow: [number, number] | null; warnings: string[]; missing_packs: string[] };
 
@@ -117,6 +124,7 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly file?: string,
+    readonly version?: string, // a refused save (409): the version now on disk
   ) {
     super(message);
   }
@@ -124,13 +132,13 @@ export class ApiError extends Error {
 
 async function check(r: Response): Promise<Response> {
   if (r.ok) return r;
-  let body: { error?: string; file?: string } = {};
+  let body: { error?: string; file?: string; version?: string } = {};
   try {
     body = await r.json();
   } catch {
     /* not JSON */
   }
-  throw new ApiError(body.error ?? `${r.status} ${r.statusText}`, r.status, body.file);
+  throw new ApiError(body.error ?? `${r.status} ${r.statusText}`, r.status, body.file, body.version);
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -138,6 +146,9 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 const enc = encodeURIComponent;
+/** Sent on source, save and folder calls; the server refuses them without it (a cross-site page cannot add it). */
+const GUARD = { "X-Spinagram": "1" };
+const diagramPath = (key: string) => `api/diagrams/${key.split("/").map(enc).join("/")}`;
 
 export const api = {
   workspace: () => json<Workspace>("api/workspace"),
@@ -170,4 +181,23 @@ export const api = {
   packIcons: (name: string) => json<PackIcon[]>(`api/packs/${enc(name)}/icons`),
   icon: (pack: string, icon: string) => `api/packs/${enc(pack)}/icons/${enc(icon)}`,
   fetchPack: (name: string) => json<{ status: string }>(`api/packs/${enc(name)}/fetch`, { method: "POST" }),
+  /** The diagram's spec file, then the stylesheet files of its cascade. */
+  source: (key: string, signal?: AbortSignal) =>
+    json<{ files: SourceFile[] }>(`${diagramPath(key)}.source`, { headers: GUARD, signal }),
+  /** Write a listed file if it still has ``version``; a 409 ``ApiError`` carries the version on disk. */
+  save: (path: string, text: string, version: string) =>
+    json<{ version: string }>("api/files", {
+      method: "PUT",
+      headers: { ...GUARD, "Content-Type": "application/json" },
+      body: JSON.stringify({ path, text, version }),
+    }),
+  /** One folder of the Open-folder dialog; no path lists the current root. */
+  listDir: (path?: string) => json<DirListing>(`api/fs${path ? `?path=${enc(path)}` : ""}`, { headers: GUARD }),
+  /** Make ``path`` the workspace root; resolves with the new workspace. */
+  open: (path: string) =>
+    json<Workspace>("api/workspace/open", {
+      method: "POST",
+      headers: { ...GUARD, "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }),
 };

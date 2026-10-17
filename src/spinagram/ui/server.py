@@ -20,14 +20,17 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Respon
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from . import files as fsx
 from . import themes
 from .catalog import FetchConflict, Offline, PackService
 from .events import EventBus
-from .workspace import RenderError, Workspace
+from .workspace import RenderError, VersionConflict, Workspace
 
 STATIC = Path(__file__).parent / "static"
 HOSTS = ["127.0.0.1", "localhost"]
 NO_STORE = {"Cache-Control": "no-store"}
+GUARD = "X-Spinagram"  # required on source, write and folder routes: other origins cannot send it (no CORS)
+MAX_SAVE = 1024 * 1024  # bytes of request body a save may carry
 
 PLACEHOLDER = """<!doctype html><meta charset="utf-8"><title>spinagram</title>
 <body style="font-family:system-ui;padding:40px">The web bundle is not built.
@@ -37,6 +40,11 @@ The API is up at <a href="/api/workspace">/api/workspace</a>.</body>"""
 
 def _err(status: int, message: str, **extra) -> JSONResponse:
     return JSONResponse({"error": message, **extra}, status_code=status, headers=NO_STORE)
+
+
+def _guard(req: Request) -> Response | None:
+    """403 unless the request carries ``X-Spinagram: 1`` (sent by the UI; a cross-site page cannot send it)."""
+    return None if req.headers.get(GUARD) == "1" else _err(403, f"missing {GUARD} header")
 
 
 def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | None = None,
@@ -50,6 +58,7 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
             bus.publish({"type": "diagram", "keys": ws.all_keys()})
 
     packs = packs or PackService(on_pack)
+    retarget = asyncio.Event()  # set when the workspace root changes: the watcher restarts on the new folders
 
     async def workspace(_: Request) -> Response:
         return JSONResponse(await run_in_threadpool(ws.summary), headers=NO_STORE)
@@ -74,6 +83,75 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         except RenderError as exc:
             return _err(422, str(exc), file=exc.file)
         return JSONResponse(report, headers=NO_STORE)
+
+    async def source(req: Request) -> Response:
+        if (denied := _guard(req)) is not None:
+            return denied
+        key = req.path_params["key"]
+        try:
+            return JSONResponse({"files": await run_in_threadpool(ws.source, key)}, headers=NO_STORE)
+        except KeyError:
+            return _err(404, f"unknown diagram {key}")
+        except FileNotFoundError as exc:
+            return _err(404, f"file removed: {exc.filename}")
+
+    async def save(req: Request) -> Response:
+        if (denied := _guard(req)) is not None:
+            return denied
+        body = await req.body()
+        if len(body) > MAX_SAVE:
+            return _err(413, f"file too large: the limit is {MAX_SAVE} bytes")
+        try:
+            data = json.loads(body.decode("utf-8"))
+        except UnicodeDecodeError:
+            return _err(422, "the text is not valid UTF-8")
+        except ValueError:
+            return _err(422, "the body is not JSON")
+        if not isinstance(data, dict) or not all(isinstance(data.get(k), str) for k in ("path", "text", "version")):
+            return _err(422, "expected {path, text, version}")
+        try:
+            data["text"].encode("utf-8")  # JSON escapes can carry lone surrogates, which no file can hold
+        except UnicodeEncodeError:
+            return _err(422, "the text is not valid UTF-8")
+        try:
+            version = await run_in_threadpool(ws.write, data["path"], data["text"], data["version"])
+        except PermissionError as exc:
+            return _err(403, str(exc))
+        except VersionConflict as exc:
+            return _err(409, str(exc), version=exc.current)
+        except FileNotFoundError:
+            return _err(404, f"file removed: {data['path']}")
+        return JSONResponse({"version": version}, headers=NO_STORE)
+
+    async def list_dir(req: Request) -> Response:
+        if (denied := _guard(req)) is not None:
+            return denied
+        path = req.query_params.get("path") or str(next((p for p in ws.paths if p.is_dir()), ws.paths[0].parent))
+        try:
+            return JSONResponse(await run_in_threadpool(fsx.list_dir, path), headers=NO_STORE)
+        except NotADirectoryError as exc:
+            return _err(404, str(exc))
+        except PermissionError as exc:
+            return _err(403, f"cannot read {exc.filename or path}")
+
+    async def open_folder(req: Request) -> Response:
+        if (denied := _guard(req)) is not None:
+            return denied
+        try:
+            data = await req.json()
+        except ValueError:
+            return _err(422, "the body is not JSON")
+        if not isinstance(data, dict) or not isinstance(data.get("path"), str):
+            return _err(422, "expected {path}")
+        try:
+            await run_in_threadpool(ws.open, data["path"])
+        except NotADirectoryError as exc:
+            return _err(404, str(exc))
+        except PermissionError as exc:
+            return _err(403, f"cannot read {exc.filename or data['path']}")
+        retarget.set()
+        bus.publish({"type": "workspace"})
+        return JSONResponse(await run_in_threadpool(ws.summary), headers=NO_STORE)
 
     async def theme_list(_: Request) -> Response:
         return JSONResponse(await run_in_threadpool(themes.list_themes, ws.theme_ref), headers=NO_STORE)
@@ -154,8 +232,12 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
 
     routes = [
         Route("/api/workspace", workspace),
+        Route("/api/workspace/open", open_folder, methods=["POST"]),
+        Route("/api/fs", list_dir),
         Route("/api/diagrams/{key:path}.svg", diagram),
         Route("/api/diagrams/{key:path}.styles", styles),
+        Route("/api/diagrams/{key:path}.source", source),
+        Route("/api/files", save, methods=["PUT"]),
         Route("/api/themes", theme_list),
         Route("/api/themes/{ref}", theme_sheet),
         Route("/api/themes/{ref}/thumbnail.svg", theme_thumbnail),
@@ -176,7 +258,7 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
     async def lifespan(_app):
         bus.bind(asyncio.get_running_loop())
         stop = asyncio.Event()
-        task = asyncio.create_task(watch_loop(ws, bus, stop)) if watch else None
+        task = asyncio.create_task(watch_loop(ws, bus, stop, retarget)) if watch else None
         try:
             yield
         finally:
@@ -196,13 +278,12 @@ def classify(ws: Workspace, roots: list[Path], paths: set[Path]) -> tuple[bool, 
     """(theme changed, spec-side files changed, stylesheets changed) for a batch of changed paths.
     A theme's ``theme.css`` counts as a theme change."""
     theme_hit, spec, sheets = False, [], []
-    spec_dirs = ws.spec_dirs()
     for p in paths:
         if any(p.is_relative_to(r) for r in roots):
             theme_hit = True
         elif p.suffix == ".css":
             sheets.append(p)
-        elif p.parent in spec_dirs and (p.suffix in {".yaml", ".yml", ".py"}):
+        elif p.suffix in fsx.SPEC_EXTS and ws.contains(p):  # any depth under an open root
             spec.append(p)
     return theme_hit, spec, sheets
 
@@ -227,20 +308,38 @@ def apply_changes(ws: Workspace, roots: list[Path], paths: set[Path]) -> list[di
     return out
 
 
-async def watch_loop(ws: Workspace, bus: EventBus, stop: asyncio.Event) -> None:
+async def watch_loop(ws: Workspace, bus: EventBus, stop: asyncio.Event,
+                     retarget: asyncio.Event | None = None) -> None:
     from watchfiles import awatch
 
+    retarget = retarget or asyncio.Event()
     while not stop.is_set():
         roots = await run_in_threadpool(ws.theme_roots)
         dirs = await run_in_threadpool(ws.watch_dirs, roots)
         targets = sorted(str(d) for d in dirs)
-        async for changes in awatch(*targets, stop_event=stop, debounce=150, step=50):
-            paths = {Path(p).resolve() for _, p in changes}
-            for event in await run_in_threadpool(apply_changes, ws, roots, paths):
-                bus.publish(event)
-            new_roots = await run_in_threadpool(ws.theme_roots)
-            if new_roots != roots or await run_in_threadpool(ws.watch_dirs, new_roots) != dirs:
-                break  # `extends` or the referenced stylesheet folders changed: watch the new set
+        done = asyncio.Event()  # ends this round: server stop or a new workspace root
+
+        async def relay() -> None:
+            waits = [asyncio.ensure_future(stop.wait()), asyncio.ensure_future(retarget.wait())]
+            try:
+                await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for w in waits:
+                    w.cancel()
+            done.set()
+
+        relay_task = asyncio.create_task(relay())
+        try:
+            async for changes in awatch(*targets, stop_event=done, debounce=150, step=50):
+                paths = {Path(p).resolve() for _, p in changes}
+                for event in await run_in_threadpool(apply_changes, ws, roots, paths):
+                    bus.publish(event)
+                new_roots = await run_in_threadpool(ws.theme_roots)
+                if new_roots != roots or await run_in_threadpool(ws.watch_dirs, new_roots) != dirs:
+                    break  # `extends` or the referenced stylesheet folders changed: watch the new set
+        finally:
+            relay_task.cancel()
+        retarget.clear()
 
 
 # entry point --------------------------------------------------------------------------------------

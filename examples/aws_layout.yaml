@@ -2,19 +2,21 @@
 # everything. Try other engines: spinagram render examples/aws_layout.yaml --layout dot|elk|d2
 id: L01
 title: Vault and Consul on AWS
-layout: {engine: flex, direction: right, padding: 16, gap: 32}
+layout: {engine: flex, direction: right, padding: 16, gap: 32, route: ortho}
 groups:
   - id: region
     label: us-east-1
     style: aws-region
+    direction: right
     children:
       - id: vpc
         label: VPC shared-services
         style: aws-vpc
-        children:
-          - {id: az-a, label: us-east-1a, style: aws-az, children: [vault-1, consul-1]}
-          - {id: az-b, label: us-east-1b, style: aws-az, children: [vault-2, consul-2]}
-          - {id: az-c, label: us-east-1c, style: aws-az, children: [vault-3, consul-3]}
+        direction: down
+        children:   # zones stacked, so the load balancer fans out to them without crossing
+          - {id: az-a, label: us-east-1a, style: aws-az, direction: right, children: [vault-1, consul-1]}
+          - {id: az-b, label: us-east-1b, style: aws-az, direction: right, children: [vault-2, consul-2]}
+          - {id: az-c, label: us-east-1c, style: aws-az, direction: right, children: [vault-3, consul-3]}
       - s3
 nodes:
   - {id: users, title: Applications, text: "Kubernetes, VMs", icon: "aws:elastic-kubernetes-service"}

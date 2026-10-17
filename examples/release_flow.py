@@ -20,5 +20,3 @@ d.table(["Signal", "Source", "Effect"],
         [["Chaos test failed", "Stress cluster", "Window or approval"],
          ["Open resilience debt", "Issue tracker", "Adds to the score"]],
         x=80, y=760, widths=[400, 400, 600], row_height=70)
-
-diagram = d

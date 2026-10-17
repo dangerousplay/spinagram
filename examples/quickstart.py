@@ -18,7 +18,5 @@ users.to(lb, "HTTPS") >> api
 api.to(db, "SQL")
 api >> [cache, s3]
 
-diagram = d  # lets `spinagram render` and `spinagram serve` pick it up
-
 if __name__ == "__main__":
     d.save("out/", formats=["svg", "png", "pptx"])

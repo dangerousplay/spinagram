@@ -177,3 +177,49 @@ def test_theme_sees_a_pack_registered_after_it_loaded(cache, monkeypatch):
     icons.register("late", {"type": "dir", "path": str(root)})  # user registry, after the theme loaded
     got = theme.icon("late:gear")
     assert got is not None and got.read_text() == (root / "gear.svg").read_text()
+
+
+# T3 · Devicon (CNCF and SVG Logos are covered in test_brand_icon_packs.py) ---------------------------------
+@pytest.mark.parametrize("path, name", [
+    ("icons/rust/rust-original.svg", "rust"),
+    ("icons/rust/rust-plain.svg", "rust-plain"),
+    ("icons/rust/rust-line.svg", "rust-line"),
+    ("icons/rust/rust-original-wordmark.svg", "rust-wordmark"),
+])
+def test_devicon_names(path, name):
+    got = icons.registry()["devicon"].classify(path)
+    assert got is not None and (got[0], got[1]) == (name, "light")
+
+
+def test_devicon_skips_other_files():
+    assert icons.registry()["devicon"].classify("icons/rust/rust-original.eps") is None
+    assert icons.registry()["devicon"].classify("devicon.json") is None
+
+
+def test_devicon_aliases_and_fallbacks(cache):
+    dev = _offline("devicon", cache / "devicon", ["icons/apachekafka/apachekafka-original.svg",
+                                                  "icons/bash/bash-plain.svg"])
+    packs = {"devicon": dev}
+    assert icons.resolve("devicon:kafka", packs=packs) == icons.resolve("devicon:apachekafka", packs=packs)
+    assert icons.resolve("devicon:bash", packs=packs) == icons.resolve("devicon:bash-plain", packs=packs)
+
+
+def test_curated_alias_applies_without_a_new_download(cache):
+    pack = _offline("devicon", cache / "devicon2", ["icons/rust/rust-original.svg"])
+    edited = dataclasses.replace(pack, alias={**pack.alias, "ferris": "rust"})
+    packs = {"devicon": edited}
+    assert icons.resolve("devicon:ferris", packs=packs) == icons.resolve("devicon:rust", packs=packs)
+
+
+def test_cache_built_with_other_rules_is_rebuilt(cache):
+    pack = _offline("devicon", cache / "devicon3", ["icons/rust/rust-original.svg", "icons/rust/rust-plain.svg"])
+    assert pack.cached() and icons.resolve("devicon:rust-plain", packs={"devicon": pack}) is not None
+    # a newer spinagram renames the plain style; same pinned source, so the same cache folder
+    renamed = dataclasses.replace(pack, rules=[icons.Rule.parse({"match": r"^icons/(?P<d>[^/]+)/(?P=d)-original\.svg$",
+                                                                 "name": "{d}"}),
+                                               icons.Rule.parse({"match": r"^icons/(?P<d>[^/]+)/(?P=d)-plain\.svg$",
+                                                                 "name": "{d}-flat"})])
+    assert renamed.dir == pack.dir and not renamed.cached()
+    icons._INDEX_CACHE.clear()
+    assert icons.resolve("devicon:rust-flat", packs={"devicon": renamed}) is not None
+    assert renamed.cached()

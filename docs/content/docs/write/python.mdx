@@ -1,0 +1,210 @@
+---
+title: Python guide
+description: Build diagrams with a few lines of Python.
+---
+
+Python is the main way to write spinagram diagrams. A `Diagram` is a builder: create boxes, connect
+them, group them, then save. Because it is ordinary Python, you can use loops, functions and imports
+to build large diagrams from small parts.
+
+```python
+from spinagram import Diagram
+
+d = Diagram("D01", "Checkout", subtitle="How an order is placed")
+web, api, db = d.box("Web"), d.box("API"), d.box("Orders DB")
+web >> api >> db
+d.save()                     # out/D01-checkout.svg
+```
+
+## Diagrams
+
+```python
+d = Diagram(
+    "D01",                   # id: file names, slide order, `--only D01`
+    "Checkout",              # title
+    subtitle="How an order is placed",
+    source="Source: platform team",   # footer line
+    layout={"engine": "elk", "direction": "down"},   # optional: see Automatic layout
+)
+```
+
+If no node has coordinates, the diagram is laid out automatically with the `flex` engine, flowing
+left to right. Pass `layout=` only to pick another engine or direction.
+
+## Catalog metadata
+
+A category and tags group and filter diagrams in [`spinagram serve`](/docs/tools/live-ui) and on the
+[CLI](/docs/tools/cli) (`--category`, `--tag`):
+
+```python
+d = Diagram("N01", "Hub-and-spoke networking", category="Networking", tags=["aws", "transit"])
+```
+
+Tags are trimmed, lower-cased, de-duplicated and sorted; a single string is one tag. A
+`_defaults.yaml` `category` fills diagrams that set none, and its `tags` join each diagram's tags.
+
+Icons add provider tags without any metadata, and a diagram with no category falls into the provider
+it uses most (ties go to the first tag A–Z):
+
+| Icons from | Tag | Category |
+|---|---|---|
+| `aws:` (and `aws-*` group styles) | `aws` | AWS |
+| `gcp:` | `gcp` | Google Cloud |
+| `k8s:` | `kubernetes` | Kubernetes |
+| `azure:` | `azure` | Azure |
+| `oci:` | `oci` | OCI |
+| `openstack:` | `openstack` | OpenStack |
+| `selfhosted:` | `self-hosted` | Self-hosted |
+| `network:` | `network` | Network |
+| `ai:` | `ai` | AI |
+| `cncf:` | `cncf` | CNCF |
+
+A declared category always wins; a diagram with neither is *Uncategorised*.
+
+## Nodes
+
+```python
+api = d.box("API", text="FastAPI on ECS", icon="terrastruct:python")
+d.box("Payments", style="dark")              # default | dark | soft | warning | alert | neutral
+d.note("Retries are idempotent")             # a sticky note
+d.diamond("Fraud?")                          # a decision
+d.box(["Two-line", "title"])                 # a list is one line per entry
+```
+
+| Argument | Meaning |
+|---|---|
+| `title` | First positional argument; also generates the node id (`"Orders DB"` → `orders-db`) |
+| `text` | Body text under the title |
+| `icon` | `pack:name` from an [icon pack](/docs/customize/icons), or a path to an SVG or PNG |
+| `style` | A node style from the [theme](/docs/customize/themes) |
+| `id` | Explicit id, for YAML-style edges like `d.edge("api -> db")` |
+| `size` | `(w, h)` in one argument |
+| `x`, `y`, `w`, `h` | Fixed position and size; see [Manual layout](/docs/write/manual-layout) |
+
+## Arrows
+
+Operators connect nodes and return the right-hand side, so they chain:
+
+```python
+users >> lb >> api           # users -> lb -> api
+api << worker                # worker -> api
+api - sidecar                # a plain line, no arrow head
+lb >> [web1, web2] >> db     # fan out, then fan in
+```
+
+Use `.to()` when the arrow needs a label or a style. It also returns its target:
+
+```python
+users.to(lb, "HTTPS") >> api
+api.to(queue, "publish", dashed=True, color="warning")
+```
+
+`d.edge()` is the long form, and the only one that takes side anchors or waypoints:
+
+```python
+d.edge(api, db, "SQL")
+d.edge(api.right, db.left)               # leave and enter on these sides
+d.edge(api.bottom, cache.top, label="miss")
+d.edge(api.at("right", 0.25), db)        # a quarter of the way along the right side
+d.edge("api -> db: SQL")                 # YAML shorthand, by node id
+d.chain(a, b, c, d2)                     # a -> b -> c -> d2
+```
+
+| Edge option | Meaning |
+|---|---|
+| `label` | Text on the arrow |
+| `color` | Edge style (`default`, `dark`, `alert`, `warning`, `gray`, `light`), a theme token or hex |
+| `dashed` | Dashed line |
+| `arrow` | `end` (default), `start`, `both` or `none` |
+| `via` | Waypoints, `[(x, y), ...]` |
+
+## Groups
+
+Everything created inside `with d.group(...)` belongs to that group. Groups nest, and each one is
+drawn as a zone with its label and, for AWS styles, its corner icon:
+
+```python
+with d.group("us-east-1", style="aws-region"):
+    with d.group("VPC", style="aws-vpc", direction="right"):
+        for zone in "abc":
+            with d.group(f"us-east-1{zone}", style="aws-az"):
+                d.box(f"Vault {zone}", icon="aws:backup-backup-vault")
+```
+
+| Option | Meaning |
+|---|---|
+| `style` | `soft`, `warning`, `alert`, `neutral`, `aws-cloud`, `aws-account`, `aws-region`, `aws-vpc`, `aws-az`, `aws-subnet`; `soft` when left out |
+| `direction` | `right` (a row) or `down` (a column) |
+| `columns` | Lay children out as a grid |
+| `gap`, `padding`, `align` | Spacing and cross-axis alignment |
+| `icon` | Corner icon, overriding the style's |
+
+A group with only groups inside is a row by default; any other group is a column.
+
+## Build diagrams with code
+
+Diagrams are code, so repetition is a loop and a shared shape is a function:
+
+```python
+from spinagram import Diagram
+
+def service(d, name, lang):
+    return d.box(name, text=lang, icon=f"terrastruct:{lang}")
+
+d = Diagram("S01", "Services")
+gateway = d.box("Gateway", icon="aws:api-gateway")
+services = [service(d, n, l) for n, l in [("Users", "java"), ("Orders", "python"), ("Search", "rust")]]
+gateway >> services
+```
+
+## Less boilerplate
+
+**Same size for many boxes.** Give the diagram or a group a `node_size`; every box created inside without its
+own size takes it, nested groups inherit it, and an explicit `w`/`h` or `size` still wins. Markers (start and
+end dots, fork bars, decisions) keep their own size.
+
+```python
+d = Diagram("K01", "Cluster", node_size=(230, 84))
+with d.group("Pods", node_size=(150, 60)):
+    pods = [d.box(f"web-{i}", icon="k8s:pod") for i in "abc"]
+d.box("Ingress", icon="k8s:ing")                 # 230 × 84
+d.box("Database", size=(260, 96))                # its own size
+```
+
+**Nothing to register.** `spinagram render` and `spinagram serve` load every `Diagram` a file creates and keeps
+in a variable, in order, so a file can hold one diagram or several with no extra line. Names starting with `_`
+are skipped. To choose or order them yourself, define `diagrams = [d2, d1]` or a `build()` function that
+returns them. Helpers in the same folder (`_shapes.py`) can be imported from the spec.
+
+## Render
+
+```python
+d.save()                                          # out/<id>-<slug>.svg
+d.save("build/", formats=["svg", "png", "pptx"], theme="themes/acme")
+svg = d.svg()                                     # the SVG as a string
+d                                                 # in Jupyter: shown inline
+```
+
+To render many files at once, use the [CLI](/docs/tools/cli): `spinagram render specs/ -f svg,pptx -o out/`
+loads every `*.py` in the folder. `spinagram serve specs/` previews
+them and re-renders on save.
+
+The lower-level API works on lists of diagrams:
+
+```python
+import spinagram
+
+diagrams = spinagram.load("specs/")               # Python and YAML specs
+spinagram.render(diagrams, "out/", formats=["svg", "pptx"], gallery=True)
+```
+
+## Tables and legends
+
+Tables and legends are placed at fixed positions, usually on manually laid out slides:
+
+```python
+d.table(["Signal", "Source", "Effect"],
+        [["Chaos test failed", "Stress cluster", "Window or approval"]],
+        x=80, y=760, widths=[400, 400, 600])
+d.set_legend([("default", "automatic"), ("warning", "review")], x=100, y=960)
+```

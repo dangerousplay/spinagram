@@ -217,7 +217,131 @@ def test_routed_edge_label_sits_on_longest_segment():
     boxes = {"a": (0, 0, 100, 50), "b": (400, 300, 100, 50)}
     # a.right (100,25) → (150,25) → (150,325) → b.left (400,325): the vertical leg (300 px) is the longest
     e = Edge(src="a.right", dst="b.left", label="x", via=[(150, 25), (150, 325)])
-    assert _label_point(boxes, e) == (150, 167)
+    assert _label_point(boxes, e) == (150, 179.5)  # centred on the vertical leg, clear of both ends
     # make the last horizontal leg the longest
     boxes["b"] = (900, 300, 100, 50)
     assert _label_point(boxes, e) == (525, 317)
+
+
+# regressions found while building the docs showcase ------------------------------------------------
+def test_node_and_group_ids_never_collide():
+    import pytest
+    from spinagram import Diagram
+
+    d = Diagram("X", "Ids")
+    with d.group("namespace: shop", id="shop"):
+        shop = d.box("Shop")  # the auto id steps around the group id
+    assert shop.id == "shop-2"
+    with pytest.raises(ValueError, match="already a group id"):
+        d.box("Other", id="shop")
+    with pytest.raises(ValueError, match="already a node id"):
+        with d.group("G", id="shop-2"):
+            pass
+
+
+def test_yaml_node_and_group_with_one_id_is_a_clear_error():
+    import pytest
+    from spinagram.yaml_io import from_dict
+
+    with pytest.raises(ValueError, match="already a group id"):  # not a RecursionError in the CSS tree
+        from_dict({"id": "Y", "title": "Y", "layout": "flex",
+                   "groups": [{"id": "shop", "label": "Shop", "children": ["api"]}],
+                   "nodes": [{"id": "shop", "title": "Shop"}, {"id": "api", "title": "API"}]})
+
+
+def test_route_prefers_a_side_no_other_edge_uses():
+    from spinagram.autolayout.route import route
+
+    src, dst = (0, 0, 100, 60), (300, 0, 100, 60)
+    assert route(src, dst, [src, dst])[-1] == (300, 30)  # face to face: straight into the left side
+    busy = route(src, dst, [src, dst], busy={dst: {"left"}})
+    assert busy[-1] in ((350, 0), (350, 60))  # another edge already ends on the left: top or bottom wins
+
+
+def test_route_keeps_clear_of_boxes_it_passes():
+    from spinagram.autolayout.route import route
+
+    # the straight line from src to dst would graze the bottom of ``mid`` by 4 px
+    src, mid, dst = (0, 100, 100, 60), (200, 66, 100, 60), (400, 100, 100, 60)
+    pts = route(src, dst, [src, mid, dst], sides=("right", "left"))
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+        if y1 == y2 and min(x1, x2) < 300 and max(x1, x2) > 200:  # a horizontal leg under ``mid``
+            assert y1 >= 66 + 60 + 14 or y1 <= 66 - 14
+
+
+def test_short_edge_label_leaves_the_arrowhead_visible():
+    from spinagram import Diagram
+
+    th = _theme()
+    d = Diagram("S", "Short", layout={"engine": "flex", "direction": "right", "gap": 60, "route": "ortho"})
+    a, b = d.box("NLB"), d.box("Route 53")
+    b.to(a, "alias")
+    out = apply_layout(d, th)
+    e = out.edges[0]
+    n = {k.id: (k.x, k.y, k.w, k.h) for k in out.nodes}
+    tip = (n["nlb"][0] + n["nlb"][2], n["nlb"][1] + n["nlb"][3] / 2)  # NLB's right side, where the head is
+    size = th.defaults("edge").get("label_size", 17)
+    from spinagram.text import measure
+    pw, ph = measure("alias", th.font("body", 700, size)) + 24, size + 14
+    lx, ly = e.label_at
+    pill = (lx - pw / 2, ly - size - 3, pw, ph)
+    assert not (pill[0] < tip[0] + 15 and tip[0] - 15 < pill[0] + pill[2]
+                and pill[1] < tip[1] + 15 and tip[1] - 15 < pill[1] + pill[3])
+
+
+def test_check_reports_a_label_over_an_arrowhead():
+    from spinagram.api import scenes
+    from spinagram.qa import check
+
+    d = Diagram("H", "Hidden head")
+    a = d.box("A", x=100, y=300, w=300, h=120)
+    b = d.box("B", x=480, y=300, w=300, h=120)  # 80 px gap: no room for the pill beside the head
+    d.edge(a.right, b.left, "a long label")
+    issues = [i for i in check(scenes([d], _theme())[0]) if i.kind == "label"]
+    assert issues and "hides its own arrowhead" in issues[0].detail
+
+
+def test_unconnected_items_follow_the_flow():
+    d = Diagram("U", "Unconnected", layout={"engine": "flex", "direction": "right"})
+    users, api = d.box("Users"), d.box("API")
+    users.to(api, "HTTPS")
+    d.note("Why", text="Explain the choice")  # created last, linked to nothing
+    out = apply_layout(d, _theme())
+    x = {n.id: n.x for n in out.nodes}
+    assert x["users"] < x["api"] < x["why"]  # never between Users and API, where the edge runs
+
+
+def test_flex_widens_only_gaps_that_carry_a_label():
+    d = Diagram("G", "Gaps", layout={"engine": "flex", "direction": "right"})
+    with d.group("Row", id="row", direction="right"):
+        a, b, c = d.box("A"), d.box("B"), d.box("C")
+    a.to(b, "a fairly long label")
+    b >> c
+    out = apply_layout(d, _theme())
+    n = {k.id: (k.x, k.w) for k in out.nodes}
+    ab = n["b"][0] - (n["a"][0] + n["a"][1])
+    bc = n["c"][0] - (n["b"][0] + n["b"][1])
+    assert ab > bc and ab >= 150  # room for the pill and the arrowhead; the unlabelled gap stays default
+
+
+def test_flex_keeps_an_explicit_gap():
+    d = Diagram("E", "Explicit", layout={"engine": "flex", "direction": "right"})
+    with d.group("Row", id="row", direction="right", gap=12):
+        a, b = d.box("A"), d.box("B")
+    a.to(b, "a fairly long label")
+    out = apply_layout(d, _theme())
+    n = {k.id: (k.x, k.w) for k in out.nodes}
+    assert round(n["b"][0] - (n["a"][0] + n["a"][1])) == 12
+
+
+def test_check_reports_an_edge_through_a_box():
+    from spinagram.api import scenes
+    from spinagram.qa import check
+
+    d = Diagram("T", "Through")
+    a = d.box("A", x=100, y=300, w=200, h=100)
+    d.box("Mid", x=500, y=300, w=200, h=100)
+    b = d.box("B", x=900, y=300, w=200, h=100)
+    d.edge(a.right, b.left)  # straight over Mid
+    issues = [i for i in check(scenes([d], _theme())[0]) if i.kind == "edge"]
+    assert issues and "mid" in issues[0].detail

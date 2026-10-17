@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import api, qa
+from . import __version__, api, qa
 from .autolayout.engines import EngineUnavailable
 from .backends import available
 from .theme import Theme
@@ -37,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="spinagram", description=__doc__)
+    ap.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("render", "check", "facts", "layout"):
         p = sub.add_parser(name, help="freeze automatic positions into an explicit YAML spec" if name == "layout"

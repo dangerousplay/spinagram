@@ -542,6 +542,8 @@ def tree(d) -> tuple[El, dict[str, El]]:
     by_group = {g.id: g for g in d.groups}
     nodes = {n.id: n for n in d.nodes}
     child_of = {c for g in d.groups for c in g.children}
+    for both in sorted(set(by_group) & set(nodes)):  # would make the element tree recurse forever
+        raise ValueError(f"{d.id}: {both!r} is the id of both a node and a group; rename one")
 
     def add(item_id: str, parent: El) -> None:
         if item_id in by_group:

@@ -1,84 +1,154 @@
 ---
-title: Getting started
-description: Install spinagram and render your first diagram.
+title: "Tutorial: your first diagram"
+description: From an empty file to a styled, annotated PowerPoint slide in seven steps.
 ---
+
+In this tutorial you draw the checkout system of an online shop. You start with four boxes and,
+one small change at a time, end with a slide you could present: icons, AWS zones, numbered steps,
+a legend and your own colours. Every step is a complete file in
+[`examples/tutorial/`](https://github.com/dangerousplay/spinagram/tree/main/examples/tutorial), and every
+picture below is what that file renders.
 
 <Steps>
 <Step>
 
-### Install
+### Install spinagram
 
-spinagram needs Python 3.11 or newer.
+You need Python 3.11 or newer.
 
 ```bash
 pip install "spinagram[all]"         # or: uv add "spinagram[all]"
-playwright install chromium          # only for PNG output
+playwright install chromium          # only needed for PNG output
 ```
 
-The base package renders SVG. Extras add the rest:
+`[all]` brings PowerPoint and PNG output and the live preview. If you only want SVG,
+`pip install spinagram` is enough.
 
-| Extra | Adds |
+</Step>
+<Step>
+
+### Say what talks to what
+
+Create `checkout.py`. A `Diagram` has an id and a title; `d.box()` adds a box and `>>` draws an arrow.
+
+<include meta='title="checkout.py"'>../../../examples/tutorial/step1_boxes.py</include>
+
+Open a live preview. It re-renders every time you save, so keep it open for the rest of the tutorial:
+
+```bash
+spinagram serve checkout.py
+```
+
+![Four boxes in a row joined by arrows](/assets/tutorial/t01.svg)
+
+You gave no sizes and no positions. spinagram sized each box from its title and laid them out left to right.
+
+<Callout title="No boilerplate">
+There is nothing to register: `spinagram serve` and `spinagram render` pick up every `Diagram` the file creates.
+</Callout>
+
+</Step>
+<Step>
+
+### Add detail, icons and labels
+
+Give boxes a second line with `text=`, an icon with `icon="pack:name"`, and label an arrow with `.to()`.
+A list after `>>` fans out to several boxes at once.
+
+<include meta='title="checkout.py"'>../../../examples/tutorial/step2_details.py</include>
+
+![The same flow with icons, body text, a labelled HTTPS arrow and a fan-out to three stores](/assets/tutorial/t02.svg)
+
+Icon packs (AWS, Google Cloud, Azure, Kubernetes and more) download the first time you use them.
+Find an icon with `spinagram icons search queue`. The `layered` layout engine puts the three stores in one
+column because they are the same distance from the shoppers.
+
+</Step>
+<Step>
+
+### Group what belongs together
+
+Wrap boxes in `with d.group(...)` blocks. Groups nest, and AWS styles draw the familiar Region and VPC frames.
+
+<include meta='title="checkout.py"'>../../../examples/tutorial/step3_groups.py</include>
+
+![The checkout inside an AWS region, a VPC and a data zone](/assets/tutorial/t03.svg)
+
+The diagram grew a level of structure and you still have not placed anything. Move a box to another
+group and the layout follows.
+
+</Step>
+<Step>
+
+### Explain it on the slide
+
+A diagram that only makes sense while you talk over it fails the moment it is shared. Add `step=` to
+arrows to number the flow, `d.callout()` to point at what matters, and `d.add_legend()` to decode icons and colours.
+
+<include meta='title="checkout.py"'>../../../examples/tutorial/step4_explain.py</include>
+
+![Numbered badges on the arrows, a Steps panel, a legend and a Peak load callout](/assets/tutorial/t04.svg)
+
+spinagram reserves a band on the right for the legend and the steps panel, so they never cover the
+diagram, and finds a free side for the callout.
+
+</Step>
+<Step>
+
+### Make it yours with CSS
+
+Tag elements with `class_=` and describe the look in a stylesheet. The diagram code stays about *what*,
+the stylesheet about *how it looks*, and one stylesheet can restyle a whole deck.
+
+<include meta='title="checkout.css"'>../../../examples/tutorial/checkout.css</include>
+
+<include meta='title="checkout.py"'>../../../examples/tutorial/step5_style.py</include>
+
+![The checkout in brand colours: a dashed external box, a red critical service and an orange async event](/assets/tutorial/t05.svg)
+
+The legend now lists your classes, named after what they mean. Not sure why a box looks the way it does?
+Press **Inspect** in the live preview and click it, or run `spinagram check --styles checkout.py`.
+
+</Step>
+<Step>
+
+### Check it and share it
+
+Before you share, let spinagram review the diagram for text that does not fit, overlaps and unused styles:
+
+```bash
+spinagram check checkout.py
+```
+
+Then render the formats your audience uses:
+
+```bash
+spinagram render checkout.py -f svg,png,pptx -o out/
+```
+
+| You get | Use it for |
 |---|---|
-| `pptx` | PowerPoint output |
-| `png` | PNG output (Playwright) |
-| `vector` | Traces PNG icons into SVG |
-| `ui` | `spinagram serve`, the live preview |
-| `all` | Everything above |
-
-</Step>
-<Step>
-
-### Write a diagram
-
-Save this as `web.py`:
-
-```python title="web.py"
-from spinagram import Diagram
-
-d = Diagram("W01", "My web app")
-
-users = d.box("Users", icon="aws:users")
-with d.group("AWS", style="aws-cloud", direction="right"):
-    api = d.box("API", text="FastAPI", icon="terrastruct:python")
-    db = d.box("Database", text="PostgreSQL", icon="terrastruct:postgres")
-
-users.to(api, "HTTPS") >> db
-
-d.save("out/", formats=["svg", "png", "pptx"])
-```
-
-</Step>
-<Step>
-
-### Render it
-
-```bash
-python web.py
-```
-
-`out/` now holds `W01-my-web-app.svg`, its PNG and `diagrams.pptx`. Icon packs are downloaded into
-`~/.cache/spinagram/icons` the first time a diagram uses them.
-
-</Step>
-<Step>
-
-### Preview while you edit
-
-```bash
-spinagram serve web.py
-```
-
-A browser tab opens and re-renders every time you save. For `spinagram serve` and
-`spinagram render` to find the diagram, keep `diagram = d` at the end of the file and guard the save
-with `if __name__ == "__main__":`, like [`examples/quickstart.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/quickstart.py).
-
-In Jupyter, a `Diagram` as the last expression of a cell shows inline.
+| `out/T05-checkout.svg` | Docs, wikis, READMEs. Fonts and icons are embedded |
+| `out/T05-checkout.png` | Chat, email, tickets |
+| `out/diagrams.pptx` | Slide decks. Real shapes and bound connectors, so colleagues can edit it in PowerPoint |
+| `-f figma` / `-f figjam` | Editable Figma frames or a FigJam board, see [Figma and FigJam](/docs/share/figma) |
 
 </Step>
 </Steps>
 
+## You just learned
+
+- `d.box()`, `>>`, `.to(target, "label")` and fan-out lists describe the system.
+- `with d.group()` adds structure; the layout does the placing.
+- `step=`, `d.callout()` and `d.add_legend()` make the diagram explain itself.
+- A stylesheet and `class_=` give it your brand.
+- `spinagram serve`, `check` and `render` are the loop: preview, review, ship.
+
 ## Where next
 
-- [Python guide](./python.mdx): everything you can do with a `Diagram`.
-- [Automatic layout](./auto-layout.mdx): groups, engines and hand-tuning.
-- [Icon packs](./icons.mdx) and [themes](./themes.mdx).
+<Cards>
+  <Card title="Examples" href="/docs/examples" description="Stylish CSS looks, several diagram types on one slide, icons, networks and more." />
+  <Card title="What's new in 0.1" href="/docs/whats-new" description="The features that change how you make diagrams." />
+  <Card title="Prefer YAML?" href="/docs/write/yaml" description="The same diagrams as data, for generated or non-Python workflows." />
+  <Card title="Python guide" href="/docs/write/python" description="Every option of boxes, arrows and groups." />
+</Cards>

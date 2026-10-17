@@ -1,6 +1,6 @@
 // Section routes (spec: .specs/features/diagram-catalog/spec.md, META-27). Run: `bun test`.
 import { describe, expect, test } from "bun:test";
-import { href, parse, type Route } from "./hooks";
+import { confirmLeave, href, mayLeave, parse, setLeaveGuard, type Route } from "./hooks";
 
 describe("META-27 default route", () => {
   test("no hash lands on the Diagrams page", () => {
@@ -26,5 +26,39 @@ describe("section routes", () => {
       { kind: "pack", name: "k8s" },
     ];
     for (const r of routes) expect(parse(href(r))).toEqual(r);
+  });
+});
+
+describe("EDIT-10 leave guard", () => {
+  test("without a guard leaving is allowed", () => {
+    setLeaveGuard(null);
+    expect(confirmLeave()).toBe(true);
+  });
+  test("a guard decides, and is asked each time", () => {
+    let asked = 0;
+    setLeaveGuard(() => (asked++, false));
+    expect(confirmLeave()).toBe(false);
+    setLeaveGuard(() => (asked++, true));
+    expect(confirmLeave()).toBe(true);
+    expect(asked).toBe(2);
+    setLeaveGuard(null);
+  });
+});
+
+describe("EDIT-10 navigation decision", () => {
+  test("staying on the same page never asks", () => {
+    let asked = 0;
+    setLeaveGuard(() => (asked++, false));
+    expect(mayLeave("#/d/a.py%23A", "#/d/a.py%23A")).toBe(true);
+    expect(asked).toBe(0);
+    setLeaveGuard(null);
+  });
+  test("going to another page asks the guard and obeys it", () => {
+    setLeaveGuard(() => false);
+    expect(mayLeave("#/d/a.py%23A", "#/")).toBe(false);
+    setLeaveGuard(() => true);
+    expect(mayLeave("#/d/a.py%23A", "#/")).toBe(true);
+    setLeaveGuard(null);
+    expect(mayLeave("#/d/a.py%23A", "#/")).toBe(true);
   });
 });

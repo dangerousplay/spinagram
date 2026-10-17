@@ -13,6 +13,9 @@ and points at a source:
 its ``name`` template is filled with the named groups and normalised to kebab-case
 (``AmazonEC2`` → ``amazon-ec2``). A rule may set ``tone: dark`` (variant used on dark fills) and
 ``aliases`` (extra templates). ``strip`` regexes add short aliases (``^amazon-`` → ``ec2``).
+``current_color`` (``{light: "#000", dark: "#fff"}``) paints SVGs drawn in ``currentColor`` — an ``<image>``
+has no inherited colour, so they would render black on every fill — and gives each one without a dark
+variant a copy in the ``dark`` colour.
 
 Files are copied to ``$SPINAGRAM_CACHE`` (default ``~/.cache/spinagram/icons``) as
 ``<pack>/<version>/<pack>__<name>[__dark].<ext>`` with an ``index.json``; specs then use
@@ -88,6 +91,7 @@ class Pack:
     origin: str = "builtin"
     alias: dict[str, str] = field(default_factory=dict)  # curated short names: {s3: amazon-simple-storage-service}
     vectorize: bool = True  # PNG icons → SVG when faithful (see spinagram.vectorize)
+    current_color: dict[str, str] = field(default_factory=dict)  # tone → colour for `currentColor` SVGs
 
     @classmethod
     def parse(cls, name: str, d: dict, origin: str) -> "Pack":
@@ -95,7 +99,8 @@ class Pack:
             Rule(re.compile(r"(?:.*/)?(?P<stem>[^/]+)\.(?:svg|png)$"))]
         return cls(name, d.get("title", name), dict(d.get("source") or {}), rules, list(d.get("strip") or []),
                    d.get("license", ""), d.get("homepage", ""), origin,
-                   {kebab(k): kebab(v) for k, v in (d.get("alias") or {}).items()}, bool(d.get("vectorize", True)))
+                   {kebab(k): kebab(v) for k, v in (d.get("alias") or {}).items()}, bool(d.get("vectorize", True)),
+                   dict(d.get("current_color") or {}))
 
     @property
     def version(self) -> str:
@@ -105,6 +110,28 @@ class Pack:
     @property
     def dir(self) -> Path:
         return cache_root() / self.name / re.sub(r"[^\w.-]+", "_", self.version)
+
+    @property
+    def recipe(self) -> str:
+        """Hash of what decides the cached files and names (source and rules, not curated aliases, which
+        apply at lookup): a cache built from another recipe of the same version is rebuilt."""
+        import hashlib
+
+        spec = {"source": self.source, "strip": self.strip, "current_color": self.current_color,
+                "vectorize": self.vectorize,
+                "rules": [[r.match.pattern, r.name, r.tone, r.aliases] for r in self.rules]}
+        return hashlib.sha256(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+    def cached(self) -> bool:
+        """An index exists for this version and was built with the current recipe."""
+        f = self.dir / "index.json"
+        if not f.exists():
+            return False
+        try:
+            built = json.loads(f.read_text(encoding="utf-8")).get("recipe")
+        except ValueError:
+            return False
+        return built in (None, self.recipe)  # caches from before recipes were recorded are kept as they are
 
     # naming -------------------------------------------------------------------------------------
     def classify(self, path: str) -> tuple[str, str, list[str], int] | None:
@@ -236,12 +263,15 @@ def _iter_source(pack: Pack) -> Iterator[tuple[str, bytes]]:
     elif kind == "listing":
         yield from _iter_listing(s, include)
     elif kind == "github":
+        from urllib.parse import quote
+
         repo, ref = s["repo"], s.get("ref", "main")
         tree = json.loads(_get(f"https://api.github.com/repos/{repo}/git/trees/{ref}?recursive=1"))
+        # one request per file: skip what no rule names before downloading it
         paths = [e["path"] for e in tree.get("tree", []) if e.get("type") == "blob"
-                 and e["path"].lower().endswith(EXTS) and _included(e["path"], include)]
+                 and e["path"].lower().endswith(EXTS) and _included(e["path"], include) and pack.classify(e["path"])]
         with ThreadPoolExecutor(8) as ex:
-            blobs = ex.map(lambda p: _get(f"https://raw.githubusercontent.com/{repo}/{ref}/{p}"), paths)
+            blobs = ex.map(lambda p: _get(f"https://raw.githubusercontent.com/{repo}/{ref}/{quote(p)}"), paths)
             yield from zip(paths, blobs)
     else:
         raise ValueError(f"icon pack {pack.name!r}: unknown source type {kind!r} (zip, npm, github, listing, dir)")
@@ -300,7 +330,7 @@ def fetch(pack: Pack, *, force: bool = False) -> Path:
     with _FETCH_LOCKS_GUARD:
         lock = _FETCH_LOCKS.setdefault(str(d), threading.Lock())
     with lock:
-        if (d / "index.json").exists() and not force:
+        if pack.cached() and not force:
             return d
         return _fetch(pack, d)
 
@@ -328,19 +358,42 @@ def _fetch(pack: Pack, d: Path) -> Path:
         entry.setdefault("source", path)
         for a in extra:
             aliases.setdefault(a, name)
+    _paint_current_color(pack, tmp, icons)
     for a in list(aliases):
         if a in icons:
             del aliases[a]
     for a, target in pack.alias.items():  # curated aliases win over derived ones
+        target = target if target in icons else aliases.get(target, target)  # may name a derived alias
         if target in icons and a not in icons:
             aliases[a] = target
-    index = {"pack": pack.name, "title": pack.title, "version": pack.version, "license": pack.license,
+    index = {"pack": pack.name, "title": pack.title, "version": pack.version, "recipe": pack.recipe,
+             "license": pack.license,
              "homepage": pack.homepage, "icons": dict(sorted(icons.items())), "aliases": dict(sorted(aliases.items()))}
     _vectorize_index(pack, tmp, index)
     (tmp / "index.json").write_text(json.dumps(index, indent=1, ensure_ascii=False), encoding="utf-8")
     shutil.rmtree(d, ignore_errors=True)
     tmp.rename(d)
     return d
+
+
+def _paint_current_color(pack: Pack, d: Path, icons: dict[str, dict[str, str]]) -> None:
+    """Fix the colour of ``currentColor`` SVGs per tone, adding the dark variant they lack."""
+    colors = pack.current_color
+    if not colors:
+        return
+    for name, entry in icons.items():
+        light = entry.get("light")
+        if not light or not light.endswith(".svg"):
+            continue
+        text = (d / light).read_text(encoding="utf-8")
+        if "currentColor" not in text:
+            continue
+        if colors.get("light"):
+            (d / light).write_text(text.replace("currentColor", colors["light"]), encoding="utf-8")
+        if colors.get("dark") and "dark" not in entry:
+            dark = f"{pack.name}__{name}__dark.svg"
+            (d / dark).write_text(text.replace("currentColor", colors["dark"]), encoding="utf-8")
+            entry["dark"] = dark
 
 
 def _vectorize_index(pack: Pack, d: Path, idx: dict) -> bool:
@@ -379,10 +432,18 @@ def _vectorize_index(pack: Pack, d: Path, idx: dict) -> bool:
 
 def index(pack: Pack, *, auto_fetch: bool = True) -> dict | None:
     f = pack.dir / "index.json"
+    may_fetch = auto_fetch and AUTO_FETCH and os.environ.get("SPINAGRAM_OFFLINE") != "1"
     if not f.exists():
-        if not auto_fetch or not AUTO_FETCH or os.environ.get("SPINAGRAM_OFFLINE") == "1":
+        if not may_fetch:
             return None
         fetch(pack)
+    elif may_fetch and not pack.cached():  # built by another spinagram version with other rules: rebuild
+        try:
+            fetch(pack)
+        except Exception as exc:  # noqa: BLE001 — offline or unreachable: the older index still works
+            import warnings
+
+            warnings.warn(f"icon pack {pack.name!r}: could not rebuild an outdated cache ({exc})", stacklevel=2)
     idx = json.loads(f.read_text(encoding="utf-8"))
     if _vectorize_index(pack, pack.dir, idx):
         f.write_text(json.dumps(idx, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -414,7 +475,9 @@ def resolve(ref: str, tone: str = "light", *, packs: dict[str, Pack] | None = No
     if not idx:
         return None
     n = kebab(name)
-    entry = idx["icons"].get(n) or idx["icons"].get(idx["aliases"].get(n, ""))
+    # the registry's curated aliases apply at once, without downloading the pack again
+    entry = idx["icons"].get(n) or idx["icons"].get(idx["aliases"].get(n, "")) \
+        or idx["icons"].get(pack.alias.get(n, ""))
     if not entry:
         return None
     fname = entry.get("dark" if tone == "dark" else "light") or entry.get("light") or entry.get("dark")

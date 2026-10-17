@@ -1,44 +1,67 @@
 ---
 title: Introduction
-description: Diagrams as code, delivered editable everywhere.
+description: Describe your system in a few lines. Get a finished, editable diagram.
 ---
 
-spinagram turns a few lines of Python into architecture diagrams you can keep editing: SVG, PNG,
-PowerPoint slides with native shapes, and Figma or FigJam nodes. Say what is connected to what;
-spinagram sizes, places and styles everything.
+spinagram turns a short description of your system into a finished diagram: laid out, styled,
+annotated and ready for a slide deck. You say **what is connected to what**. spinagram picks the
+sizes and positions, draws the icons and routes the arrows, then hands you SVG, PNG, PowerPoint
+slides with native shapes, and Figma or FigJam nodes you can keep editing.
 
 ![One source: Python or YAML, rendered by spinagram to SVG, PNG, PowerPoint and Figma](/assets/overview.svg)
 
-## A diagram in Python
+## What you can make
 
-<include meta='title="examples/quickstart.py"'>../../../examples/quickstart.py</include>
+Every picture on this page was rendered by spinagram from a file in
+[`examples/`](https://github.com/dangerousplay/spinagram/tree/main/examples). Click one to see how it is built.
 
-```bash
-python examples/quickstart.py
-```
+<Gallery>
+  <Shot src="/assets/gallery/aws01.svg" title="Cloud architecture" href="/docs/examples/architecture">
+    Regions, VPCs and zones nest themselves. Legends and numbered steps tell the story.
+  </Shot>
+  <Shot src="/assets/examples/l01.svg" title="Stylish with CSS" href="/docs/examples/css-looks">
+    One stylesheet turns the same diagram into a dark, neon, blueprint or print look.
+  </Shot>
+  <Shot src="/assets/examples/eks01.svg" title="Kubernetes on EKS" href="/docs/examples/kubernetes">
+    Cilium, Gateway API, Karpenter and Argo CD on a dark cluster canvas.
+  </Shot>
+  <Shot src="/assets/examples/m01.svg" title="Several diagram types, one slide" href="/docs/examples/mixed-diagrams">
+    Architecture, a flowchart and a state machine, connected by arrows.
+  </Shot>
+  <Shot src="/assets/examples/i01.svg" title="Icons in one argument" href="/docs/examples/icons">
+    `icon="aws:eks"`: thousands of icons across thirteen packs, or your own file.
+  </Shot>
+  <Shot src="/assets/demo/b01.svg" title="Flowcharts and decisions" href="/docs/examples/behavior#flowchart">
+    `decision.yes(...)`, `decision.no(...)`: the layout ranks the flow for you.
+  </Shot>
+  <Shot src="/assets/demo/b03.svg" title="Processes with swimlanes" href="/docs/examples/behavior#process-with-swimlanes">
+    Who does what, with parallel branches drawn as fork and join bars.
+  </Shot>
+  <Shot src="/assets/gallery/net02.svg" title="Network diagrams" href="/docs/examples/networks">
+    Data center fabrics, campus networks and homelabs with dedicated icon packs.
+  </Shot>
+</Gallery>
 
-![Web app on AWS, laid out automatically](/assets/quickstart.svg)
+## Why people use it
 
-No coordinates, no sizes: boxes grow to fit their text and icon, groups wrap their children and
-`a >> b` draws an arrow. Prefer a data file? The [same diagram in YAML](./yaml.mdx) renders identically.
+- **You never drag a box.** Boxes grow to fit their text and icon, groups wrap their children,
+  arrows avoid the boxes. Change one line and the whole picture re-flows.
+- **The output stays editable.** PowerPoint gets real shapes with connectors bound to them: move a
+  box and its arrows follow. Figma gets real frames. Nobody has to redraw a screenshot.
+- **Diagrams explain themselves.** Numbered steps, callouts and an automatic legend live on the
+  slide, so the diagram still makes sense when you are not in the room to present it.
+- **One look across the whole deck.** A theme or a CSS stylesheet sets colours, fonts and line
+  styles for every diagram at once.
+- **Reviewable like code.** Diagrams are text files: diff them, review them in pull requests, and
+  let `spinagram check` catch overflowing text before anyone sees it.
+- **Your AI agent can draw them.** spinagram ships skills that teach coding agents to write, style
+  and check diagrams for you.
 
-## Why spinagram
-
-- **Editable output, not screenshots.** PowerPoint gets native shapes with the text inside and
-  connectors bound to the boxes: move a box and the arrows follow. Figma gets real frames and nodes.
-- **Python that reads like the picture.** `users >> lb >> api`, `with d.group("VPC"):`, lists fan
-  out. It is plain Python, so loops, functions and imports build big diagrams from small parts.
-- **Automatic layout.** Four engines (`flex`, `dot`, `elk`, `d2`), nested groups such as an AWS
-  Region, a VPC and its zones, and a way to freeze the result for hand-tuning.
-- **Brand once, render anywhere.** A theme directory holds colours, fonts, styles, icons and chrome.
-- **Thousands of icons.** AWS, GCP, Azure, Kubernetes, OCI, OpenStack and Terrastruct packs download
-  on first use.
-- **Built for reviews.** `spinagram check` catches text overflow, `spinagram serve` previews live,
-  and numbers can come from a facts file with their provenance in every render.
+## Pick your path
 
 <Cards>
-  <Card title="Getting started" href="./getting-started" description="Install and render your first diagram." />
-  <Card title="Python guide" href="./python" description="Nodes, arrows, groups and rendering." />
-  <Card title="Automatic layout" href="./auto-layout" description="Groups, engines and hand-tuning." />
-  <Card title="Icon packs" href="./icons" description="AWS, GCP, Azure, Kubernetes and more." />
+  <Card title="Tutorial: your first diagram" href="/docs/getting-started" description="Seven short steps from an empty file to a styled, annotated PowerPoint slide." />
+  <Card title="What's new in 0.1" href="/docs/whats-new" description="Behavior diagrams, CSS styling, annotations, a diagram catalog and agent skills." />
+  <Card title="Examples" href="/docs/examples" description="A gallery of working diagrams to copy: CSS looks, mixed diagram types, icons and more." />
+  <Card title="Let an AI agent draw it" href="/docs/tools/ai-skills" description="Install the skills and ask for a diagram in plain words." />
 </Cards>

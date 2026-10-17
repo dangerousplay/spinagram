@@ -1,0 +1,66 @@
+---
+title: Development
+description: Work on spinagram itself.
+---
+
+```bash
+git clone https://github.com/dangerousplay/spinagram && cd spinagram
+uv sync --all-extras && uv run pytest
+uv run ruff check src tests examples
+node tests/js/figma_mock.mjs out/figma/<slug>-01.js     # dry-run a Figma script on a mock Plugin API
+```
+
+Feature specs live in `.specs/` (spec-driven: project, then spec, design and tasks per feature).
+
+## Live UI frontend
+
+Source is in `web/` (React + TypeScript + Vite + Tailwind CSS v4, built with bun):
+
+```bash
+cd web
+bun install && bun run dev      # proxies /api to `spinagram serve --port 8765`
+bun run build                   # rewrites src/spinagram/ui/static/
+```
+
+CI fails if the committed bundle is stale. Build with the bun version CI pins (`BUN_VERSION` in
+`.github/workflows/ci.yml`) and `bun install --frozen-lockfile`: an older bun ignores the lockfile, resolves
+other versions and produces a different bundle. Without upgrading bun: `bunx bun@1.4.2 install --frozen-lockfile`
+then `bunx bun@1.4.2 run build`.
+
+## Docs
+
+This site is a [Fumadocs](https://fumadocs.dev) app in `docs/` (Next.js, static export). The search
+index is built at export time, so search works on GitHub Pages without a server. Every push to `main`
+deploys it.
+
+```bash
+cd docs
+bun install && bun run dev      # http://localhost:3000
+bun run build                   # static site in docs/out/
+```
+
+Pages are MDX files in `docs/content/docs/`, one folder per sidebar section; each folder's `meta.json` sets its title, icon and page order. Code samples are
+pulled from `examples/` with `<include>`, so they always match the files that the tests run.
+
+The diagrams on these pages are rendered by spinagram itself, from the files in `examples/`. After changing an
+example or the renderer, refresh every image the docs show:
+
+```bash
+bash docs/scripts/render_assets.sh
+```
+
+## Releasing
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org): `feat`, `fix`, `docs`, `test`,
+`refactor`, `perf`, `build`, `ci`, `chore`. [git-cliff](https://git-cliff.org) turns them into
+`CHANGELOG.md` (configuration in `cliff.toml`).
+
+```bash
+uv version --bump minor
+uvx git-cliff --tag "v$(uv version --short)" -o CHANGELOG.md
+git commit -am "chore(release): v$(uv version --short)"
+git tag "v$(uv version --short)" && git push --follow-tags
+```
+
+The tag triggers CI, publishes to PyPI with trusted publishing and creates a GitHub release whose notes
+come from git-cliff (`uvx git-cliff --latest --strip header`).

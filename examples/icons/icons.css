@@ -1,0 +1,15 @@
+/* Light cards in tinted groups; the body line shows the exact icon reference. */
+node        { fill: #FFFFFF; stroke: #E2E8F0; stroke-width: 1.5; border-radius: 14px;
+              box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08); }
+node::title { color: #0F172A; font-size: 17px; }
+node::body  { color: #7C3AED; font-size: 13px; }
+
+group                     { fill-opacity: 1; stroke-width: 0; border-radius: 18px; }
+group.bare                { fill-opacity: 0; box-shadow: none; }
+group.cloud               { fill: #FFF7ED; }
+group.cloud-native        { fill: #EFF6FF; }
+group.languages-and-data  { fill: #EEF2FF; }
+group.products-and-ai     { fill: #FDF2F8; }
+group.self-hosted         { fill: #ECFDF5; }
+group.network-and-yours   { fill: #F1F5F9; }
+group::label              { color: #475569; }

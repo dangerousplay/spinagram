@@ -1,0 +1,54 @@
+---
+title: Slides that explain themselves
+description: Numbered steps, callouts, legends and designed notes, plus diagrams generated from data.
+---
+
+## An annotated architecture
+
+Numbered steps on the arrows, a **Steps** panel, a callout and a legend, all from four lines of code. This is
+step 4 of the [tutorial](/docs/getting-started).
+
+<include meta='title="examples/tutorial/step4_explain.py"'>../../../../examples/tutorial/step4_explain.py</include>
+
+![The checkout with numbered steps, a callout and a legend](/assets/tutorial/t04.svg)
+
+## Decision slides
+
+**Use it for:** architecture decision records, review summaries, open questions.
+
+Notes come in three variants: `card` (with an icon and an accent bar), `quote` and `sticky`. Give them
+coordinates for a designed, pixel-exact slide:
+
+```python
+d.note("Aurora PostgreSQL", text="Managed backups and point-in-time recovery.",
+       variant="card", icon="aws:amazon-aurora", x=80, y=200, w=540, h=210)
+d.note("Werner Vogels", text="Everything fails, all the time.", variant="quote", x=80, y=520, w=1150, h=300)
+d.note("Open question", text="Do we need a second region before the EU launch?", x=1300, y=520, w=540, h=140)
+```
+
+![Architecture decisions slide with cards, a quote and open questions](/assets/gallery/note01.svg)
+
+Full file: [`notes.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/notes.py) ·
+[Annotations](/docs/customize/annotations) · [Manual layout](/docs/write/manual-layout)
+
+## Diagrams from data
+
+**Use it for:** diagrams generated from an inventory, a CMDB or another tool.
+
+Everything works as YAML too, which any program can write. Edges have a one-line shorthand:
+
+```yaml
+id: Q01
+title: Web app
+nodes:
+  - {id: lb, title: Load balancer, icon: "aws:alb"}
+  - {id: api, title: API, text: FastAPI, icon: "terrastruct:python"}
+edges:
+  - "lb -> api: HTTPS"
+```
+
+```bash
+spinagram render specs/ -f svg,pptx -o out/
+```
+
+[YAML specs →](/docs/write/yaml)

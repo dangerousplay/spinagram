@@ -1,0 +1,2 @@
+{ "title": "Write diagrams", "icon": "PenLine", "defaultOpen": true,
+  "pages": ["python", "yaml", "behavior", "auto-layout", "manual-layout"] }

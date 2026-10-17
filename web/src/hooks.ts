@@ -36,15 +36,43 @@ export function href(route: Route): string {
   }
 }
 
+let leaveGuard: (() => boolean) | null = null;
+
+/** While set, every route change asks it first; ``false`` keeps the current page (unsaved code edits). */
+export function setLeaveGuard(guard: (() => boolean) | null): void {
+  leaveGuard = guard;
+}
+
+/** Ask the leave guard (if any) whether the current page may be left. */
+export function confirmLeave(): boolean {
+  return leaveGuard ? leaveGuard() : true;
+}
+
+/** Whether moving from page ``from`` to page ``to`` (hrefs) may happen: staying is always fine, leaving asks. */
+export function mayLeave(from: string, to: string): boolean {
+  return from === to || confirmLeave();
+}
+
 /** Hash routing: `#/` diagrams, `#/d/<key>`, `#/t` and `#/t/<ref>`, `#/p` and `#/p/<name>`. */
 export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
   const [route, setRoute] = useState(() => parse(location.hash));
+  const current = useRef(route);
+  current.current = route;
   useEffect(() => {
-    const on = () => setRoute(parse(location.hash));
+    const on = () => {
+      const next = parse(location.hash);
+      if (href(next) === href(current.current)) return;
+      if (!mayLeave(href(current.current), href(next))) {
+        history.replaceState(null, "", href(current.current)); // stay: the address bar shows this page again
+        return;
+      }
+      setRoute(next);
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
   const go = useCallback((r: Route, replace = false) => {
+    if (!mayLeave(href(current.current), href(r))) return;
     if (replace) history.replaceState(null, "", href(r));
     else location.hash = href(r);
     setRoute(r);

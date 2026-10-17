@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://dangerousplay.github.io/spinagram/docs/"><b>Documentation</b></a> ·
   <a href="https://dangerousplay.github.io/spinagram/docs/getting-started/">Getting started</a> ·
-  <a href="https://dangerousplay.github.io/spinagram/docs/python/">Python guide</a> ·
+  <a href="https://dangerousplay.github.io/spinagram/docs/write/python/">Python guide</a> ·
   <a href="examples/">Examples</a>
 </p>
 
@@ -33,8 +33,8 @@
 - **No coordinates needed.** spinagram sizes every box from its text and icon, nests groups such as an
   AWS Region, a VPC and its zones, and places everything with one of four layout engines.
 - **Brand once, render anywhere.** A theme directory holds colours, fonts, styles, icons and page chrome.
-- **Thousands of icons.** AWS, GCP, Azure, Kubernetes, OCI, OpenStack and Terrastruct packs download on
-  first use. Add your own from a folder, npm or GitHub.
+- **Thousands of icons.** AWS, GCP, Azure, Kubernetes, CNCF, OCI, OpenStack, Terrastruct, Devicon,
+  SVG Logos, self-hosted and network packs download on first use. Add your own from a folder, npm or GitHub.
 - **Built for reviews.** `spinagram check` catches text overflow, `spinagram serve` previews live, and
   numbers can come from a facts file with their provenance in every render.
 
@@ -117,7 +117,7 @@ spinagram render examples/quickstart.yaml -f svg,png,pptx -o out/
 </details>
 
 Need pixel-exact slides instead? Give nodes coordinates
-([manual layout](https://dangerousplay.github.io/spinagram/docs/manual-layout/)), or freeze an automatic layout with
+([manual layout](https://dangerousplay.github.io/spinagram/docs/write/manual-layout/)), or freeze an automatic layout with
 `spinagram layout spec.py -o frozen.yaml` and tune it by hand.
 
 ## Flowcharts, state machines, activities and CSS
@@ -128,9 +128,9 @@ Need pixel-exact slides instead? Give nodes coordinates
 `d.stylesheet("brand.css")`, `class_="critical"`, `edge.async { stroke-dasharray: 6 4 }`.
 `spinagram check --styles` explains which rule set each value, `spinagram serve` has a click-to-inspect
 styles panel and re-renders when a stylesheet is saved.
-See [behavior diagrams](https://dangerousplay.github.io/spinagram/docs/behavior/),
-[CSS styling](https://dangerousplay.github.io/spinagram/docs/styling/) and
-[CSS by backend](https://dangerousplay.github.io/spinagram/docs/css-reference/) (what SVG, PowerPoint
+See [behavior diagrams](https://dangerousplay.github.io/spinagram/docs/write/behavior/),
+[CSS styling](https://dangerousplay.github.io/spinagram/docs/customize/styling/) and
+[CSS by backend](https://dangerousplay.github.io/spinagram/docs/customize/css-reference/) (what SVG, PowerPoint
 and Figma do with each property). [`examples/showcase`](examples/showcase) has AWS, Kubernetes and Google Cloud
 reference architectures styled only with CSS.
 
@@ -150,14 +150,14 @@ reference architectures styled only with CSS.
 
 The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable) covers:
 
-- [Automatic layout](https://dangerousplay.github.io/spinagram/docs/auto-layout/): groups and the `flex`, `dot`, `elk` and `d2` engines
-- [Icon packs](https://dangerousplay.github.io/spinagram/docs/icons/) (AWS, Google Cloud, Azure, Kubernetes, self-hosted and network gear) and [themes](https://dangerousplay.github.io/spinagram/docs/themes/)
-- [Annotations](https://dangerousplay.github.io/spinagram/docs/annotations/): legends, numbered steps, callouts and designed notes
-- [Facts](https://dangerousplay.github.io/spinagram/docs/facts/): numbers with traceable sources
-- [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/figma/) hand-off
-- [CLI](https://dangerousplay.github.io/spinagram/docs/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/live-ui/)
-- [AI agent skills](https://dangerousplay.github.io/spinagram/docs/ai-skills/): `spinagram skills install --agent claude|codex|cursor|gemini|copilot|…` teaches your coding agent to write and style diagrams
-- [Extending](https://dangerousplay.github.io/spinagram/docs/extending/) with your own backends and layout engines
+- [Automatic layout](https://dangerousplay.github.io/spinagram/docs/write/auto-layout/): groups and the `flex`, `dot`, `elk` and `d2` engines
+- [Icon packs](https://dangerousplay.github.io/spinagram/docs/customize/icons/) (AWS, Google Cloud, Azure, Kubernetes, CNCF projects, AI, about 2,000 technology logos, languages, self-hosted and network gear) and [themes](https://dangerousplay.github.io/spinagram/docs/customize/themes/)
+- [Annotations](https://dangerousplay.github.io/spinagram/docs/customize/annotations/): legends, numbered steps, callouts and designed notes
+- [Facts](https://dangerousplay.github.io/spinagram/docs/customize/facts/): numbers with traceable sources
+- [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/share/figma/) hand-off
+- [CLI](https://dangerousplay.github.io/spinagram/docs/tools/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/tools/live-ui/)
+- [AI agent skills](https://dangerousplay.github.io/spinagram/docs/tools/ai-skills/): `spinagram skills install --agent claude|codex|cursor|gemini|copilot|…` teaches your coding agent to write and style diagrams
+- [Extending](https://dangerousplay.github.io/spinagram/docs/reference/extending/) with your own backends and layout engines
 
 ## Development
 
@@ -166,7 +166,7 @@ uv sync --all-extras && uv run pytest
 cd docs && bun install && bun run dev  # docs at http://localhost:3000
 ```
 
-See [Development](https://dangerousplay.github.io/spinagram/docs/development/) for the UI frontend, docs and releases.
+See [Development](https://dangerousplay.github.io/spinagram/docs/reference/development/) for the UI frontend, docs and releases.
 
 ## Changelog and license
 

@@ -1,0 +1,21 @@
+/* Editorial: black and white for print, one red accent for what matters. */
+:root { --ink: #111111; --grey: #6B6B6B; --accent: #D62828; }
+
+group.canvas        { fill-opacity: 1; opacity: 1; fill: #FFFFFF; stroke-width: 0; }
+group.canvas::label { color: var(--ink); font-weight: 700; }
+group.tier          { opacity: 1; fill-opacity: 1; fill: #F4F4F4; stroke-width: 0; border-radius: 4px; }
+group.tier::label   { color: var(--grey); }
+
+node                { fill: #FFFFFF; stroke: var(--ink); stroke-width: 1.5; border-radius: 4px; box-shadow: none; }
+node::title         { color: var(--ink); font-weight: 700; }
+node::body          { color: var(--grey); }
+node.hero           { stroke: var(--accent); stroke-width: 3; }
+node.hero::title    { color: var(--accent); }
+node.store, node.stream { fill: #F4F4F4; }
+
+edge                { stroke: var(--ink); stroke-width: 1.5; }
+edge::label         { color: var(--grey); font-style: italic; }
+edge.async          { stroke: var(--accent); stroke-dasharray: 5 4; }
+edge.async::label   { color: var(--accent); }
+
+legend              { fill: #FFFFFF; stroke: var(--ink); stroke-width: 1; border-radius: 4px; box-shadow: none; }

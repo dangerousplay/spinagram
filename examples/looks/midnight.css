@@ -1,0 +1,29 @@
+/* Midnight: a dark canvas, glass cards and neon accents per role. */
+:root { --night: #070B16; --panel: #0F172A; --rim: #1E293B; --text: #F1F5F9; --mute: #94A3B8;
+        --cyan: #22D3EE; --violet: #A78BFA; --pink: #F472B6; --lime: #A3E635; --amber: #FBBF24; }
+
+group.canvas        { fill-opacity: 1; opacity: 1; fill: var(--night); stroke: #1E3A8A; stroke-width: 2; border-radius: 28px;
+                      box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45); }
+group.canvas::label { color: var(--cyan); font-size: 16px; }
+group.tier          { opacity: 1; fill-opacity: 1; fill: #0B1222; stroke: var(--rim); stroke-dasharray: 6 6; border-radius: 18px; }
+group.tier::label   { color: var(--mute); }
+
+node                { fill: var(--panel); stroke: var(--rim); stroke-width: 2; border-radius: 16px;
+                      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55); }
+node::title         { color: var(--text); font-weight: 600; }
+node::body          { color: var(--mute); }
+node.client         { stroke: var(--violet); }
+node.edge           { stroke: var(--cyan); box-shadow: 0 0 26px rgba(34, 211, 238, 0.45); }
+node.service        { stroke: #38BDF8; }
+node.hero           { stroke: var(--pink); stroke-width: 3; box-shadow: 0 0 32px rgba(244, 114, 182, 0.55); }
+node.store          { stroke: var(--lime); }
+node.stream         { stroke: var(--amber); }
+
+edge                { stroke: #475569; stroke-width: 2; }
+edge::label         { color: var(--mute); }
+edge.async          { stroke: var(--amber); stroke-dasharray: 6 5; marker-end: open-arrow; }
+edge.async::label   { color: var(--amber); }
+
+legend              { fill: var(--panel); stroke: var(--rim); }
+legend::title       { color: var(--cyan); }
+legend::body        { color: var(--text); }
