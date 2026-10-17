@@ -48,6 +48,11 @@ export function confirmLeave(): boolean {
   return leaveGuard ? leaveGuard() : true;
 }
 
+/** Whether moving from page ``from`` to page ``to`` (hrefs) may happen: staying is always fine, leaving asks. */
+export function mayLeave(from: string, to: string): boolean {
+  return from === to || confirmLeave();
+}
+
 /** Hash routing: `#/` diagrams, `#/d/<key>`, `#/t` and `#/t/<ref>`, `#/p` and `#/p/<name>`. */
 export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
   const [route, setRoute] = useState(() => parse(location.hash));
@@ -57,7 +62,7 @@ export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
     const on = () => {
       const next = parse(location.hash);
       if (href(next) === href(current.current)) return;
-      if (!confirmLeave()) {
+      if (!mayLeave(href(current.current), href(next))) {
         history.replaceState(null, "", href(current.current)); // stay: the address bar shows this page again
         return;
       }
@@ -67,7 +72,7 @@ export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
     return () => window.removeEventListener("hashchange", on);
   }, []);
   const go = useCallback((r: Route, replace = false) => {
-    if (href(r) !== href(current.current) && !confirmLeave()) return;
+    if (!mayLeave(href(current.current), href(r))) return;
     if (replace) history.replaceState(null, "", href(r));
     else location.hash = href(r);
     setRoute(r);

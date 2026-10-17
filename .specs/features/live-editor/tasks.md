@@ -506,8 +506,8 @@ T24 → T25
 **Requirement**: EDIT-10
 
 **Done when**:
-- [ ] Mutant N9 (go skipping the guard) fails `bun test`
-- [ ] `bun test` and the build gate pass
+- [x] Mutant N9 (go skipping the guard) fails `bun test`
+- [x] `bun test` and the build gate pass
 
 **Tests**: unit
 **Gate**: quick-web
