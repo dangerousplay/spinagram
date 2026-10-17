@@ -1,6 +1,6 @@
 // Code panel tab model (spec: .specs/features/live-editor/spec.md, EDIT-03/07/08/09, JUMP-01/02). Run: `bun test`.
 import { describe, expect, test } from "bun:test";
-import { anyDirty, disk, edit, fromSource, jumpLine, keepMine, languageOf, merge, reload, saved, type SourceFile } from "./editor";
+import { anyDirty, disk, edit, fromSource, jumpLine, keepMine, merge, reload, saved, type SourceFile } from "./editor";
 
 const spec: SourceFile = { path: "a.py", language: "python", text: 'd.box("API")\n', version: "v1" };
 const css: SourceFile = { path: "a.css", language: "css", text: "node {}\n", version: "c1" };
@@ -25,6 +25,15 @@ describe("EDIT-04 saving", () => {
   test("a save clears the mark and adopts the new version as the disk state", () => {
     const t = saved(edit(fromSource([spec])[0], "new\n"), "v2");
     expect(t).toMatchObject({ dirty: false, version: "v2", disk: "new\n", text: "new\n", conflict: null });
+  });
+});
+
+describe("edge case: typing while a save is in flight", () => {
+  test("the server's version is kept and the newer typing stays modified against it", () => {
+    const sent = edit(fromSource([spec])[0], "first\n");
+    const typed = edit(sent, "first and more\n"); // typed after the save request left
+    const t = saved(typed, "v2", sent.text);
+    expect(t).toMatchObject({ text: "first and more\n", disk: "first\n", version: "v2", dirty: true, conflict: null });
   });
 });
 
@@ -74,16 +83,13 @@ describe("JUMP-01 / JUMP-02 jump to a node's line", () => {
     expect(jumpLine(text, "Karpenter")).toBe(3);
     expect(jumpLine(text, "API")).toBe(4);
   });
+  test("a title used twice jumps to its first line", () => {
+    expect(jumpLine('a = d.box("Web")\nb = d.box("API")\nc = d.box("Web")\n', "Web")).toBe(1);
+  });
   test("no literal match gives null (a bare word or a substring does not count)", () => {
     expect(jumpLine(text, "Diagram")).toBeNull(); // only ever a bare word here
     expect(jumpLine(text, "Karp")).toBeNull();
     expect(jumpLine(text, "nowhere")).toBeNull();
     expect(jumpLine(text, "")).toBeNull();
-  });
-});
-
-describe("EDIT-02 languages", () => {
-  test("by file suffix", () => {
-    expect(["a.py", "s.css", "d.yaml", "e.yml", "notes.txt"].map(languageOf)).toEqual(["python", "css", "yaml", "yaml", "text"]);
   });
 });

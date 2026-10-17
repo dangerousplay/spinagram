@@ -15,11 +15,6 @@ export type Tab = {
   removed: boolean; // the file is no longer part of the diagram's source
 };
 
-export function languageOf(path: string): Language {
-  const ext = path.slice(path.lastIndexOf(".")).toLowerCase();
-  return ext === ".py" ? "python" : ext === ".css" ? "css" : ext === ".yaml" || ext === ".yml" ? "yaml" : "text";
-}
-
 function fresh(f: SourceFile): Tab {
   return { path: f.path, language: f.language, text: f.text, disk: f.text, version: f.version, dirty: false, conflict: null, removed: false };
 }
@@ -33,9 +28,9 @@ export function edit(t: Tab, text: string): Tab {
   return { ...t, text, dirty: text !== t.disk };
 }
 
-/** The buffer was written; ``version`` is what the server returned. */
-export function saved(t: Tab, version: string): Tab {
-  return { ...t, disk: t.text, version, dirty: false, conflict: null };
+/** ``sent`` was written and the server returned ``version``; text typed since stays modified against it. */
+export function saved(t: Tab, version: string, sent: string = t.text): Tab {
+  return { ...t, disk: sent, version, dirty: t.text !== sent, conflict: null };
 }
 
 /** A newer read of the file: a clean tab follows it, a modified one keeps its text and records a conflict. */

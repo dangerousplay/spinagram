@@ -447,8 +447,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Requirement**: EDIT-04, JUMP-01
 
 **Done when**:
-- [ ] Typing during a save leaves the tab modified against the new version (next save accepted); repeated title jumps to its first line
-- [ ] `bun test` and the build gate pass
+- [x] Typing during a save leaves the tab modified against the new version (next save accepted); repeated title jumps to its first line
+- [x] `bun test` and the build gate pass
 
 **Tests**: unit
 **Gate**: quick-web

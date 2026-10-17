@@ -20,6 +20,7 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false); // one save at a time: a second one would carry a stale version
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<EditorHandle | null>(null);
   const shown = useRef<{ path: string; text: string } | null>(null); // what the editor currently holds
@@ -54,11 +55,12 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
     const tabsNow = tabsRef.current;
     const i = activeRef.current;
     const t = tabsNow?.[i];
-    if (!t || !t.dirty || t.removed) return;
+    if (!t || !t.dirty || t.removed || inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
     try {
       const { version } = await api.save(t.path, t.text, t.version);
-      setTabs((prev) => prev && prev.map((x, k) => (k === i && x.text === t.text ? saved(x, version) : x)));
+      setTabs((prev) => prev && prev.map((x, k) => (k === i ? saved(x, version, t.text) : x)));
       setNotice(null);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -66,6 +68,7 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
         setNotice(null);
       } else setNotice(e instanceof Error ? e.message : String(e));
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   }, []);
