@@ -8,7 +8,7 @@ import { basePath } from '@/lib/shared';
 function quickstart(): string {
   const src = readFileSync(path.join(process.cwd(), '..', 'examples', 'quickstart.py'), 'utf8');
   const start = src.indexOf('from spinagram');
-  const end = src.indexOf('\ndiagram = d');
+  const end = src.indexOf('\nif __name__');
   return src.slice(start, end).trim() + '\n\nd.save("out/", formats=["svg", "png", "pptx"])';
 }
 

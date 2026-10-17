@@ -187,8 +187,11 @@ with d.group("VPC", style="aws-vpc", direction="right"):
     api = d.box("API", text="FastAPI", icon="terrastruct:python")
     db, cache = d.box("Orders DB", icon="terrastruct:postgres"), d.box("Cache", icon="terrastruct:redis")
 users.to(api, "HTTPS") >> [db, cache]   # a >> b, a << b, a - b (no head); lists fan out/in
-diagram = d
 ```
+
+The CLI and `serve` load every `Diagram` the file keeps in a variable: no `diagram = d` line is needed.
+Give boxes one size with `Diagram(..., node_size=(230, 84))` or `with d.group(..., node_size=(150, 60))`
+(boxes inside inherit it; `size=(w, h)` or `w`/`h` override) instead of repeating `**N` dicts.
 
 Fixed coordinates:
 
@@ -199,7 +202,6 @@ a, b, c = d.row(["Build", "Stress & chaos", "Risk gate"], x=80, y=220, w=440, h=
                 styles=[None, None, "dark"])
 d.chain(a, b, c)
 d.edge(c.bottom, d.box("Deploy", x=700, y=560, w=500, h=150).top, label="green")
-diagram = d          # the CLI picks up `diagram`, `diagrams` or `build()`
 ```
 
 Annotate with `d.add_legend()`, `a.to(b, step="…")`, `d.callout(node, "…", kind=...)` and

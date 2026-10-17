@@ -78,6 +78,7 @@ d.box(["Two-line", "title"])                 # a list is one line per entry
 | `icon` | `pack:name` from an [icon pack](/docs/customize/icons), or a path to an SVG or PNG |
 | `style` | A node style from the [theme](/docs/customize/themes) |
 | `id` | Explicit id, for YAML-style edges like `d.edge("api -> db")` |
+| `size` | `(w, h)` in one argument |
 | `x`, `y`, `w`, `h` | Fixed position and size; see [Manual layout](/docs/write/manual-layout) |
 
 ## Arrows
@@ -156,7 +157,23 @@ services = [service(d, n, l) for n, l in [("Users", "java"), ("Orders", "python"
 gateway >> services
 ```
 
-A Python file can hold several diagrams: define `diagrams = [d1, d2]`, or a `build()` function that
+## Less boilerplate
+
+**Same size for many boxes.** Give the diagram or a group a `node_size`; every box created inside without its
+own size takes it, nested groups inherit it, and an explicit `w`/`h` or `size` still wins. Markers (start and
+end dots, fork bars, decisions) keep their own size.
+
+```python
+d = Diagram("K01", "Cluster", node_size=(230, 84))
+with d.group("Pods", node_size=(150, 60)):
+    pods = [d.box(f"web-{i}", icon="k8s:pod") for i in "abc"]
+d.box("Ingress", icon="k8s:ing")                 # 230 × 84
+d.box("Database", size=(260, 96))                # its own size
+```
+
+**Nothing to register.** `spinagram render` and `spinagram serve` load every `Diagram` a file creates and keeps
+in a variable, in order, so a file can hold one diagram or several with no extra line. Names starting with `_`
+are skipped. To choose or order them yourself, define `diagrams = [d2, d1]` or a `build()` function that
 returns them. Helpers in the same folder (`_shapes.py`) can be imported from the spec.
 
 ## Render
@@ -169,7 +186,7 @@ d                                                 # in Jupyter: shown inline
 ```
 
 To render many files at once, use the [CLI](/docs/tools/cli): `spinagram render specs/ -f svg,pptx -o out/`
-loads every `*.py` that defines `diagram`, `diagrams` or `build()`. `spinagram serve specs/` previews
+loads every `*.py` in the folder. `spinagram serve specs/` previews
 them and re-renders on save.
 
 The lower-level API works on lists of diagrams:

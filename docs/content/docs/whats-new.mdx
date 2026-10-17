@@ -123,6 +123,24 @@ spinagram skills install --agent claude      # or codex, copilot, cursor, gemini
 The agent writes the spec, runs `spinagram check`, fixes what it reports and renders the slide.
 [AI agent skills →](/docs/tools/ai-skills)
 
+## Less boilerplate in Python
+
+Python is the default way to write a diagram, and it now needs fewer lines:
+
+- **No registration line.** `spinagram render` and `serve` load every `Diagram` a file creates; `diagram = d`
+  is no longer needed.
+- **One size for many boxes.** `Diagram(..., node_size=(230, 84))` or `with d.group(..., node_size=(150, 60))`
+  sizes every box created inside; `size=(w, h)` sets one box. No more `**N` dictionaries.
+
+```python
+from spinagram import Diagram
+
+d = Diagram("K01", "Cluster", node_size=(230, 84))
+with d.group("Pods", node_size=(150, 60)):
+    pods = [d.box(f"web-{i}", icon="k8s:pod") for i in "abc"]
+d.box("Ingress", icon="k8s:ing") >> pods
+```
+
 ## Arrows that stay readable
 
 Automatic layout now looks after the details that used to need hand-tuning:
@@ -141,21 +159,23 @@ L01:e2: edge — edge passes through box vault-1 — use layout route: ortho, an
 EX2:e3: label — label hides its own arrowhead — widen the gap between the boxes or place the label with label_at
 ```
 
-## Three more icon packs: CNCF, products and languages
+## Four more icon packs: AI, CNCF, products and languages
 
-`cncf` brings the official icons of about 225 CNCF projects (Cilium, Argo, Envoy, OpenTelemetry, Falco,
-Kyverno, KEDA, Flux, cert-manager…), with white variants that switch on automatically on dark fills.
-`logos` adds about 1,800 product and brand logos (Terraform, GitHub Actions, Datadog, Snowflake, Anthropic),
-and `devicon` 560 languages and developer tools. That makes twelve packs, all one argument away.
+`ai` covers the AI stack (OpenAI, Claude, Gemini, Ollama, Bedrock, LangChain, MCP). `cncf` brings the official
+icons of about 240 CNCF projects (Cilium, Argo, Envoy, OpenTelemetry, Falco, Kyverno, KEDA, Flux, cert-manager…),
+with white variants that switch on automatically on dark fills. `logos` adds about 2,000 technology logos
+(Terraform, GitHub Actions, Datadog, GitLab, JFrog), and `devicon` 560 languages and developer tools. That makes
+thirteen packs, all one argument away.
 
 ```python
+d.box("Claude", icon="ai:claude")
 d.box("Cilium", icon="cncf:cilium")
 d.box("Terraform", icon="logos:terraform")
 d.box("Rust", icon="devicon:rust")
 ```
 
 <Gallery>
-  <Shot src="/assets/examples/i01.svg" title="Twelve packs, one argument" href="/docs/examples/icons">Cloud, CNCF, products, languages, self-hosted, network and your own file.</Shot>
+  <Shot src="/assets/examples/i01.svg" title="Thirteen packs, one argument" href="/docs/examples/icons">Cloud, CNCF, products, languages, self-hosted, network and your own file.</Shot>
   <Shot src="/assets/examples/eks01.svg" title="Kubernetes on EKS" href="/docs/examples/kubernetes">Real Cilium, Envoy, Argo and cert-manager logos on a dark cluster.</Shot>
 </Gallery>
 
