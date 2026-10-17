@@ -243,3 +243,77 @@ def test_write_is_atomic(tmp_path, monkeypatch):  # SRC-07
         ws.write("own.css", "half\n", _sha(before))
     assert (root / "own.css").read_bytes() == before
     assert sorted(p.name for p in root.iterdir()) == ["_defaults.yaml", "_helper.py", "a.py", "own.css", "team.css"]
+
+
+# T5 · source and file routes --------------------------------------------------------------------------
+from starlette.testclient import TestClient  # noqa: E402
+
+from spinagram.ui.server import create_app  # noqa: E402
+
+H = {"X-Spinagram": "1"}
+
+
+def _client(ws: Workspace) -> TestClient:
+    return TestClient(create_app(ws, watch=False), base_url="http://127.0.0.1")
+
+
+def test_source_route_lists_files(tmp_path):  # SRC-01
+    ws, root, shared = _ws_with_sheet(tmp_path)
+    with _client(ws) as c:
+        r = c.get("/api/diagrams/a.py%23A.source", headers=H)
+        assert r.status_code == 200
+        assert [f["path"] for f in r.json()["files"]] == ["a.py", "team.css", "own.css", str(shared.resolve())]
+        assert r.headers["cache-control"] == "no-store"
+        assert c.get("/api/diagrams/a.py%23NOPE.source", headers=H).status_code == 404
+
+
+def test_save_route_writes_and_returns_the_version(tmp_path):  # SRC-02
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    with _client(ws) as c:
+        v = c.get("/api/diagrams/a.py%23A.source", headers=H).json()["files"][2]["version"]
+        r = c.put("/api/files", headers=H, json={"path": "own.css", "text": "node { fill: red }\n", "version": v})
+        assert r.status_code == 200 and r.json() == {"version": _sha(b"node { fill: red }\n")}
+        assert (root / "own.css").read_text() == "node { fill: red }\n"
+
+
+def test_save_route_refuses_stale_versions_with_409(tmp_path):  # SRC-03
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    before = (root / "own.css").read_bytes()
+    with _client(ws) as c:
+        r = c.put("/api/files", headers=H, json={"path": "own.css", "text": "x\n", "version": "0" * 64})
+        assert r.status_code == 409 and r.json()["version"] == _sha(before)
+    assert (root / "own.css").read_bytes() == before
+
+
+def test_save_route_refuses_unlisted_paths_with_403(tmp_path):  # SRC-04
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    with _client(ws) as c:
+        r = c.put("/api/files", headers=H, json={"path": "_helper.py", "text": "x\n", "version": "0" * 64})
+        assert r.status_code == 403
+    assert (root / "_helper.py").read_text() == "X = 1\n"
+
+
+def test_save_route_limits_size_and_encoding(tmp_path):  # SRC-05
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    before = (root / "own.css").read_bytes()
+    with _client(ws) as c:
+        big = {"path": "own.css", "text": "a" * (1024 * 1024), "version": _sha(before)}
+        assert c.put("/api/files", headers=H, json=big).status_code == 413
+        bad = b'{"path": "own.css", "text": "\xff", "version": "' + _sha(before).encode() + b'"}'
+        assert c.put("/api/files", headers={**H, "content-type": "application/json"}, content=bad).status_code == 422
+        assert c.put("/api/files", headers=H, content=b"not json").status_code == 422
+        assert c.put("/api/files", headers=H, json={"path": "own.css"}).status_code == 422
+    assert (root / "own.css").read_bytes() == before
+
+
+def test_source_and_save_need_the_header(tmp_path):  # SRC-06
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    before = (root / "own.css").read_bytes()
+    with _client(ws) as c:
+        assert c.get("/api/diagrams/a.py%23A.source").status_code == 403
+        r = c.put("/api/files", json={"path": "own.css", "text": "x\n", "version": _sha(before)})
+        assert r.status_code == 403 and r.json()["error"] == "missing X-Spinagram header"
+        assert c.put("/api/files", headers={"X-Spinagram": "0"},
+                     json={"path": "own.css", "text": "x\n", "version": _sha(before)}).status_code == 403
+        assert "access-control-allow-origin" not in {k.lower() for k in r.headers}
+    assert (root / "own.css").read_bytes() == before

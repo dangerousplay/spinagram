@@ -23,11 +23,13 @@ from starlette.staticfiles import StaticFiles
 from . import themes
 from .catalog import FetchConflict, Offline, PackService
 from .events import EventBus
-from .workspace import RenderError, Workspace
+from .workspace import RenderError, VersionConflict, Workspace
 
 STATIC = Path(__file__).parent / "static"
 HOSTS = ["127.0.0.1", "localhost"]
 NO_STORE = {"Cache-Control": "no-store"}
+GUARD = "X-Spinagram"  # required on source, write and folder routes: other origins cannot send it (no CORS)
+MAX_SAVE = 1024 * 1024  # bytes of request body a save may carry
 
 PLACEHOLDER = """<!doctype html><meta charset="utf-8"><title>spinagram</title>
 <body style="font-family:system-ui;padding:40px">The web bundle is not built.
@@ -37,6 +39,11 @@ The API is up at <a href="/api/workspace">/api/workspace</a>.</body>"""
 
 def _err(status: int, message: str, **extra) -> JSONResponse:
     return JSONResponse({"error": message, **extra}, status_code=status, headers=NO_STORE)
+
+
+def _guard(req: Request) -> Response | None:
+    """403 unless the request carries ``X-Spinagram: 1`` (sent by the UI; a cross-site page cannot send it)."""
+    return None if req.headers.get(GUARD) == "1" else _err(403, f"missing {GUARD} header")
 
 
 def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | None = None,
@@ -74,6 +81,41 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         except RenderError as exc:
             return _err(422, str(exc), file=exc.file)
         return JSONResponse(report, headers=NO_STORE)
+
+    async def source(req: Request) -> Response:
+        if (denied := _guard(req)) is not None:
+            return denied
+        key = req.path_params["key"]
+        try:
+            return JSONResponse({"files": await run_in_threadpool(ws.source, key)}, headers=NO_STORE)
+        except KeyError:
+            return _err(404, f"unknown diagram {key}")
+        except FileNotFoundError as exc:
+            return _err(404, f"file removed: {exc.filename}")
+
+    async def save(req: Request) -> Response:
+        if (denied := _guard(req)) is not None:
+            return denied
+        body = await req.body()
+        if len(body) > MAX_SAVE:
+            return _err(413, f"file too large: the limit is {MAX_SAVE} bytes")
+        try:
+            data = json.loads(body.decode("utf-8"))
+        except UnicodeDecodeError:
+            return _err(422, "the text is not valid UTF-8")
+        except ValueError:
+            return _err(422, "the body is not JSON")
+        if not isinstance(data, dict) or not all(isinstance(data.get(k), str) for k in ("path", "text", "version")):
+            return _err(422, "expected {path, text, version}")
+        try:
+            version = await run_in_threadpool(ws.write, data["path"], data["text"], data["version"])
+        except PermissionError as exc:
+            return _err(403, str(exc))
+        except VersionConflict as exc:
+            return _err(409, str(exc), version=exc.current)
+        except FileNotFoundError:
+            return _err(404, f"file removed: {data['path']}")
+        return JSONResponse({"version": version}, headers=NO_STORE)
 
     async def theme_list(_: Request) -> Response:
         return JSONResponse(await run_in_threadpool(themes.list_themes, ws.theme_ref), headers=NO_STORE)
@@ -156,6 +198,8 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         Route("/api/workspace", workspace),
         Route("/api/diagrams/{key:path}.svg", diagram),
         Route("/api/diagrams/{key:path}.styles", styles),
+        Route("/api/diagrams/{key:path}.source", source),
+        Route("/api/files", save, methods=["PUT"]),
         Route("/api/themes", theme_list),
         Route("/api/themes/{ref}", theme_sheet),
         Route("/api/themes/{ref}/thumbnail.svg", theme_thumbnail),

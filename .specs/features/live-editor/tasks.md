@@ -151,8 +151,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: SRC-01, SRC-02, SRC-03, SRC-04, SRC-05, SRC-06
 
 **Done when**:
-- [ ] 200/403/404/409/413/422 paths each covered by a `TestClient` test
-- [ ] Tests pass
+- [x] 200/403/404/409/413/422 paths each covered by a `TestClient` test
+- [x] Tests pass
 
 **Tests**: integration
 **Gate**: quick
