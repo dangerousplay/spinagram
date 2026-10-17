@@ -221,8 +221,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-02, EDIT-04
 
 **Done when**:
-- [ ] Only module importing `@codemirror/*`; build emits it as a separate chunk
-- [ ] Build gate passes
+- [x] Only module importing `@codemirror/*`; build emits it as a separate chunk
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
