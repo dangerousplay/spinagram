@@ -204,8 +204,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: SRC-06, DIR-03
 
 **Done when**:
-- [ ] Types match the server payloads; `ApiError` carries the 409 version
-- [ ] `bun test` and typecheck pass
+- [x] Types match the server payloads; `ApiError` carries the 409 version
+- [x] `bun test` and typecheck pass
 
 **Tests**: none
 **Gate**: build
