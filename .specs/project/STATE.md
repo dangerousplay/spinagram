@@ -57,6 +57,11 @@
   CC0), pinned GitHub sources. `current_color` paints `currentColor` SVGs per tone (an `<image>` draws them black)
   and adds the white dark-fill copy. `ai:`/`cncf:` infer catalog tags; `logos:` does not. See `features/brand-icons/`.
 
+- 2026-10-17 · Live editor: `serve` shows and saves a diagram's spec and cascade stylesheet files (CodeMirror 6 in a
+  lazy chunk) and can open another folder (recursive scan, skip list, 2,000-spec cap). Every source/write/folder
+  endpoint requires `X-Spinagram: 1` (no CORS, so other origins cannot send it); writes go only to files listed by
+  loaded diagrams, are version-checked (SHA-256) and atomic. See `features/live-editor/`.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).
