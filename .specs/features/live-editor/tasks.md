@@ -469,3 +469,45 @@ T18 → T19 → T20 → T21 → T22 → T23
 
 **Tests**: unit
 **Gate**: quick-web
+
+---
+
+## Fix iteration 2 (from the Verifier re-check)
+
+### Phase 7: Surviving mutants on the fix code
+
+```
+T24 → T25
+```
+
+### T24: Pin the remembered-stylesheet lifecycle and the 50-node render time
+
+**What**: Tests that `open()` forgets the old folder's stylesheets (no write back into it), that remembered sheets follow a good reload, that a renamed diagram drops its stale key, and EDIT-05 timing on a 50-node spec.
+**Where**: `tests/test_ui_editor.py`
+**Depends on**: None (previous phase complete)
+**Reuses**: `_ws_with_sheet`, `_touch_until`, `_quiet`
+**Requirement**: SRC-04, EDIT-06, EDIT-05
+
+**Done when**:
+- [x] Mutants N3, N10, N11 fail the suite
+- [x] Quick gate passes
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
+### T25: Testable navigation decision
+
+**What**: `mayLeave(from, to)` in `hooks.ts` (same page → true, else the leave guard) used by `go()` and the hash listener, with unit tests.
+**Where**: `web/src/hooks.ts`
+**Depends on**: T24
+**Reuses**: `confirmLeave`
+**Requirement**: EDIT-10
+
+**Done when**:
+- [ ] Mutant N9 (go skipping the guard) fails `bun test`
+- [ ] `bun test` and the build gate pass
+
+**Tests**: unit
+**Gate**: quick-web

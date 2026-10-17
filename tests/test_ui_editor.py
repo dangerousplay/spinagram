@@ -510,3 +510,68 @@ def test_save_route_size_boundary_is_one_mebibyte(tmp_path):  # SRC-05
         over = json.dumps({**head, "version": version, "text": "a" * (1024 * 1024 - overhead + 1)}).encode()
         assert len(over) == 1024 * 1024 + 1
         assert c.put("/api/files", headers={**H, "content-type": "application/json"}, content=over).status_code == 413
+
+
+# T24 · remembered stylesheets: lifecycle -------------------------------------------------------------
+def _break(ws: Workspace, f: Path) -> None:
+    f.write_text("from spinagram import Diagram\nd = Diagram('A', 'A')\nraise ValueError('typo')\n")
+    apply_changes(ws, ws.theme_roots(), {f.resolve()})
+    assert ws.files[f.name].error
+
+
+def test_opening_a_folder_forgets_the_old_folders_stylesheets(tmp_path):  # SRC-04
+    ws, one, _ = _ws_with_sheet(tmp_path)
+    two = tmp_path / "two"
+    two.mkdir()
+    (two / "a.py").write_text("from spinagram import Diagram\nd = Diagram('A', 'A')\nraise ValueError('typo')\n")
+    ws.open(two)  # same file name as the old folder's spec, broken from the start
+    assert ws.files["a.py"].error
+    assert [f["path"] for f in ws.source("a.py#A")] == ["a.py"]
+    assert set(ws.editable()) == {"a.py"}
+    with pytest.raises(PermissionError):
+        ws.write(str((one / "own.css").resolve()), "x\n", _sha((one / "own.css").read_bytes()))
+    with pytest.raises(PermissionError):
+        ws.write("own.css", "x\n", _sha((one / "own.css").read_bytes()))
+    assert (one / "own.css").read_text() == "node { stroke: #111111 }\n"
+
+
+def test_remembered_stylesheets_follow_the_last_good_load(tmp_path):  # EDIT-06
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    (root / "other.css").write_text("edge {}\n")
+    (root / "a.py").write_text("from spinagram import Diagram\nd = Diagram('A', 'A')\nd.stylesheet('other.css')\nd.box('N')\n")
+    apply_changes(ws, ws.theme_roots(), {(root / "a.py").resolve()})
+    _break(ws, root / "a.py")
+    assert [f["path"] for f in ws.source("a.py#A")] == ["a.py", "team.css", "other.css"]
+
+
+def test_a_renamed_diagram_drops_its_old_key(tmp_path):  # EDIT-06
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    (root / "a.py").write_text("from spinagram import Diagram\nd = Diagram('B', 'B')\nd.stylesheet('own.css')\nd.box('N')\n")
+    apply_changes(ws, ws.theme_roots(), {(root / "a.py").resolve()})
+    _break(ws, root / "a.py")
+    assert [f["path"] for f in ws.source("a.py#A")] == ["a.py"]
+    assert [f["path"] for f in ws.source("a.py#B")] == ["a.py", "team.css", "own.css"]
+
+
+def test_a_fifty_node_spec_rerenders_within_one_second(tmp_path):  # EDIT-05
+    nodes = "".join(f"  - {{id: n{i}, title: Node {i}}}\n" for i in range(50))
+    edges = "".join(f"  - n{i} -> n{i + 1}\n" for i in range(49))
+    body = f"id: A\ntitle: Big\nlayout: flex\nnodes:\n{nodes}edges:\n{edges}"
+    (tmp_path / "a.yaml").write_text(body)
+    bus = Recorder()
+    ws = Workspace([tmp_path])
+    with TestClient(create_app(ws, bus=bus, watch=True), base_url="http://127.0.0.1") as c:
+        assert c.get("/api/diagrams/a.yaml%23A.svg").status_code == 200
+        (tmp_path / "a.yaml").write_text(body.replace("Node 0", "Warm"))
+        deadline = time.time() + 10
+        while "Warm" not in c.get("/api/diagrams/a.yaml%23A.svg").text and time.time() < deadline:
+            time.sleep(0.05)
+        _quiet(bus)
+        src = c.get("/api/diagrams/a.yaml%23A.source", headers=H).json()["files"][0]
+        t0 = time.time()
+        r = c.put("/api/files", headers=H, json={"path": "a.yaml", "text": src["text"].replace("Warm", "Saved"),
+                                                 "version": src["version"]})
+        assert r.status_code == 200
+        while "Saved" not in c.get("/api/diagrams/a.yaml%23A.svg").text and time.time() - t0 < 3:
+            time.sleep(0.02)
+        assert time.time() - t0 <= 1.0
