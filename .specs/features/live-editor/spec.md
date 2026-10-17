@@ -1,6 +1,6 @@
 # Feature: Live editor in `spinagram serve`
 
-**Status:** Specified (2026-10-17) · **Size:** Large · **Owner:** spinagram
+**Status:** Done (2026-10-17) · **Size:** Large · **Owner:** spinagram
 
 ## Problem Statement
 
@@ -175,38 +175,38 @@ the line to edit in a large spec.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| EDIT-01 | P1: code panel tabs (spec + cascade stylesheets) | Tasks | Pending |
-| EDIT-02 | P1: syntax highlighting per language | Tasks | Pending |
-| EDIT-03 | P1: modified mark | Tasks | Pending |
-| EDIT-04 | P1: save via Ctrl/Cmd+S or button | Tasks | Pending |
-| EDIT-05 | P1: re-render ≤ 1 s after save | Tasks | Pending |
-| EDIT-06 | P1: load error keeps text, shows error | Tasks | Pending |
-| EDIT-07 | P1: clean tab follows disk | Tasks | Pending |
-| EDIT-08 | P1: dirty tab + disk change → conflict notice | Tasks | Pending |
-| EDIT-09 | P1: refused save → conflict notice | Tasks | Pending |
-| EDIT-10 | P1: confirm before leaving with changes | Tasks | Pending |
-| SRC-01 | P1: source endpoint | Tasks | Pending |
-| SRC-02 | P1: write endpoint returns new version | Tasks | Pending |
-| SRC-03 | P1: stale version → 409 | Tasks | Pending |
-| SRC-04 | P1: unlisted path → 403 | Tasks | Pending |
-| SRC-05 | P1: > 1 MiB → 413, non-UTF-8 → 422 | Tasks | Pending |
-| SRC-06 | P1: missing `X-Spinagram` header → 403 | Tasks | Pending |
-| SRC-07 | P1: atomic write | Tasks | Pending |
-| SRC-08 | P1: newline style kept | Tasks | Pending |
-| DIR-01 | P1: open-folder dialog | Tasks | Pending |
-| DIR-02 | P1: navigate directories with spec counts | Tasks | Pending |
-| DIR-03 | P1: open makes it the root, loads specs | Tasks | Pending |
-| DIR-04 | P1: recursive watch | Tasks | Pending |
-| DIR-05 | P1: bad path keeps workspace, shows error | Tasks | Pending |
-| DIR-06 | P1: subfolder-relative keys | Tasks | Pending |
-| DIR-07 | P1: skip list | Tasks | Pending |
-| DIR-08 | P1: 2,000-file bound, truncated flag | Tasks | Pending |
-| DIR-09 | P1: CLI directory scanned recursively | Tasks | Pending |
-| DIR-10 | P1: trust notice in the dialog | Tasks | Pending |
-| JUMP-01 | P2: click node → spec line | Tasks | Pending |
-| JUMP-02 | P2: no match → editor unchanged | Tasks | Pending |
+| EDIT-01 | P1: code panel tabs (spec + cascade stylesheets) | Execute | Verified |
+| EDIT-02 | P1: syntax highlighting per language | Execute | Verified |
+| EDIT-03 | P1: modified mark | Execute | Verified |
+| EDIT-04 | P1: save via Ctrl/Cmd+S or button | Execute | Verified |
+| EDIT-05 | P1: re-render ≤ 1 s after save | Execute | Verified |
+| EDIT-06 | P1: load error keeps text, shows error | Execute | Verified |
+| EDIT-07 | P1: clean tab follows disk | Execute | Verified |
+| EDIT-08 | P1: dirty tab + disk change → conflict notice | Execute | Verified |
+| EDIT-09 | P1: refused save → conflict notice | Execute | Verified |
+| EDIT-10 | P1: confirm before leaving with changes | Execute | Verified |
+| SRC-01 | P1: source endpoint | Execute | Verified |
+| SRC-02 | P1: write endpoint returns new version | Execute | Verified |
+| SRC-03 | P1: stale version → 409 | Execute | Verified |
+| SRC-04 | P1: unlisted path → 403 | Execute | Verified |
+| SRC-05 | P1: > 1 MiB → 413, non-UTF-8 → 422 | Execute | Verified |
+| SRC-06 | P1: missing `X-Spinagram` header → 403 | Execute | Verified |
+| SRC-07 | P1: atomic write | Execute | Verified |
+| SRC-08 | P1: newline style kept | Execute | Verified |
+| DIR-01 | P1: open-folder dialog | Execute | Verified |
+| DIR-02 | P1: navigate directories with spec counts | Execute | Verified |
+| DIR-03 | P1: open makes it the root, loads specs | Execute | Verified |
+| DIR-04 | P1: recursive watch | Execute | Verified |
+| DIR-05 | P1: bad path keeps workspace, shows error | Execute | Verified |
+| DIR-06 | P1: subfolder-relative keys | Execute | Verified |
+| DIR-07 | P1: skip list | Execute | Verified |
+| DIR-08 | P1: 2,000-file bound, truncated flag | Execute | Verified |
+| DIR-09 | P1: CLI directory scanned recursively | Execute | Verified |
+| DIR-10 | P1: trust notice in the dialog | Execute | Verified |
+| JUMP-01 | P2: click node → spec line | Execute | Verified |
+| JUMP-02 | P2: no match → editor unchanged | Execute | Verified |
 
-**Coverage:** 30 total, 0 mapped to tasks, 30 unmapped ⚠️ (mapped at Tasks)
+**Coverage:** 30 total, 30 mapped to tasks, 30 verified (see validation.md)
 
 ---
 

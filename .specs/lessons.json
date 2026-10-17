@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 23,
+  "next_id": 28,
   "lessons": [
     {
       "id": "L-001",
@@ -400,6 +400,96 @@
       ],
       "created": "2026-10-12T20:09:01Z",
       "last_seen": "2026-10-12T20:09:01Z"
+    },
+    {
+      "id": "L-023",
+      "key": "ac_gap::when files are addressed by a derived path test with two roots holding the same relative path the path must stay unique or a save hits the wrong file",
+      "text": "When files are addressed by a derived path, test with two roots holding the same relative path: the path must stay unique or a save hits the wrong file.",
+      "signal": "ac_gap",
+      "scope": "ui/workspace",
+      "status": "candidate",
+      "features": [
+        "live-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SRC-04 workspace.py display() (ui/workspace)"
+      ],
+      "created": "2026-10-17T17:49:20Z",
+      "last_seen": "2026-10-17T17:49:20Z"
+    },
+    {
+      "id": "L-024",
+      "key": "surviving_mutant::watcher tests must warm the watcher and wait for quiet before acting or a trailing event from setup masks the behaviour under test",
+      "text": "Watcher tests must warm the watcher and wait for quiet before acting, or a trailing event from setup masks the behaviour under test.",
+      "signal": "surviving_mutant",
+      "scope": "tests/watcher",
+      "status": "candidate",
+      "features": [
+        "live-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M12 server.py retarget.set() (tests/watcher)"
+      ],
+      "created": "2026-10-17T17:49:20Z",
+      "last_seen": "2026-10-17T17:49:20Z"
+    },
+    {
+      "id": "L-025",
+      "key": "surviving_mutant::when a cache is reset on a state switch test the scenario where the new state cannot overwrite the cached entry e g a broken spec not only the happy reload",
+      "text": "When a cache is reset on a state switch, test the scenario where the new state cannot overwrite the cached entry (e.g. a broken spec), not only the happy reload.",
+      "signal": "surviving_mutant",
+      "scope": "ui/workspace",
+      "status": "candidate",
+      "features": [
+        "live-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N11 workspace.py open() (ui/workspace)"
+      ],
+      "created": "2026-10-17T17:49:20Z",
+      "last_seen": "2026-10-17T17:49:20Z"
+    },
+    {
+      "id": "L-026",
+      "key": "ac_gap::keep state transitions that react to async results saves refetches in pure editor ts functions with unit tests not inside react components",
+      "text": "Keep state transitions that react to async results (saves, refetches) in pure editor.ts functions with unit tests, not inside React components.",
+      "signal": "ac_gap",
+      "scope": "web",
+      "status": "candidate",
+      "features": [
+        "live-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "edge case: two quick saves, CodePanel.tsx (web)"
+      ],
+      "created": "2026-10-17T17:49:20Z",
+      "last_seen": "2026-10-17T17:49:20Z"
+    },
+    {
+      "id": "L-027",
+      "key": "spec_precision_gap::timing acs need the spec s stated workload e g 50 nodes in the test measured to the observable outcome not to an intermediate event",
+      "text": "Timing ACs need the spec's stated workload (e.g. 50 nodes) in the test, measured to the observable outcome, not to an intermediate event.",
+      "signal": "spec_precision_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "live-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "EDIT-05 (tests)"
+      ],
+      "created": "2026-10-17T17:49:20Z",
+      "last_seen": "2026-10-17T17:49:20Z"
     }
   ]
 }
