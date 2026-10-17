@@ -9,6 +9,12 @@ All notable changes to spinagram are listed here. The format follows
 
 ### Features
 
+- **ui:** Start the code panel collapsed and make it collapsible ([f2f43d7](https://github.com/dangerousplay/spinagram/commit/f2f43d7b849c1a13dbb8f3955c1b5090e77675e1))
+
+## [0.1.1] - 2026-10-17
+
+### Features
+
 - **cli:** Report the installed version with --version ([626e539](https://github.com/dangerousplay/spinagram/commit/626e53993af12bb32d46844be8abf8ef8e0aba0e))
 - **icons:** Add AI, CNCF and technology logo packs ([98750fe](https://github.com/dangerousplay/spinagram/commit/98750fe2708f4a3dbc565ba074c6fca39d613215))
 - **icons:** Add the Devicon pack; apply registry aliases without a refetch ([150529d](https://github.com/dangerousplay/spinagram/commit/150529dde22a5a40fa97d0104f244c62f64e2862))
@@ -28,7 +34,6 @@ All notable changes to spinagram are listed here. The format follows
 - **ui:** Add the open-folder dialog ([fa7da32](https://github.com/dangerousplay/spinagram/commit/fa7da326e283006c660ac0825c720c0e1f1ab1b9))
 - **ui:** Open folders from the header ([196e5c4](https://github.com/dangerousplay/spinagram/commit/196e5c4cb929d5cfe48b1284b3b9e5e6d6026bb6))
 - **ui:** Show spec paths and folder notices in the catalog ([b6d98a5](https://github.com/dangerousplay/spinagram/commit/b6d98a52d133ab6ca12cf2258418cd7810d274f3))
-- **ui:** Start the code panel collapsed and make it collapsible ([f2f43d7](https://github.com/dangerousplay/spinagram/commit/f2f43d7b849c1a13dbb8f3955c1b5090e77675e1))
 
 ### Bug fixes
 
