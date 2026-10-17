@@ -9,5 +9,3 @@ orders = d.box("Orders API")
 db = d.box("Orders DB")
 
 shoppers >> store >> orders >> db
-
-diagram = d

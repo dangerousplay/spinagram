@@ -49,5 +49,3 @@ for az, (web, app, db) in tiers.items():
         app.to(db, "SQL")
 d.edge(tiers["a"][2], tiers["b"][2], "replication", class_="replication")
 d.add_legend()
-
-diagram = d

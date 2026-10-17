@@ -22,7 +22,5 @@ orders.to(queue, "order.placed", class_="async")
 d.add_legend({".external": "Outside our account", ".critical": "Revenue critical",
               "edge.async": "Async event"}, position="bottom")
 
-diagram = d
-
 if __name__ == "__main__":
     d.save("out/", formats=["svg", "png", "pptx"])

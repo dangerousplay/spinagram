@@ -37,5 +37,3 @@ with d.state_machine("Payment", id="payment", class_="states") as sm:
 
 api.to(score, "runs", class_="link")
 ok.to(pending, "creates", class_="link")
-
-diagram = d

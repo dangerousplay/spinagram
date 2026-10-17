@@ -29,5 +29,3 @@ with d.activity("Incident response", id="response", class_="flow", direction="ri
             act.end()
 
 pager.to(ack, "pages", class_="link")
-
-diagram = d

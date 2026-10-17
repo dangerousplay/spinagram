@@ -16,5 +16,3 @@ with d.group("AWS eu-west-1", style="aws-region", direction="right"):
 shoppers.to(store, "HTTPS") >> orders
 orders.to(db, "SQL")
 orders >> [cache, queue]
-
-diagram = d

@@ -2,9 +2,7 @@
 nodes, Argo CD for GitOps, cert-manager and ExternalDNS for TLS and DNS, Hubble and Prometheus for visibility."""
 from spinagram import Diagram
 
-N = {"w": 230, "h": 84}
-
-d = Diagram("EKS01", "Kubernetes platform on Amazon EKS",
+d = Diagram("EKS01", "Kubernetes platform on Amazon EKS", node_size=(230, 84),
             subtitle="Cilium · Gateway API · Karpenter · Argo CD · cert-manager · ExternalDNS",
             layout={"engine": "flex", "direction": "right", "gap": 28, "route": "ortho",
                     "area": [56, 176, 1808, 840]})
@@ -18,25 +16,25 @@ with d.group(id="outside", class_="bare", direction="down", gap=220):
 with d.group("AWS · eu-west-1", id="region", style="aws-region", direction="right", gap=24, padding=16):
     with d.group("EKS cluster · shop-prod", id="cluster", class_="cluster", direction="down", gap=12, padding=14):
         with d.group("Networking", id="net", class_="lane", direction="right", gap=10):
-            gw = d.box("Gateway", text="Gateway API on Envoy", icon="cncf:envoy", class_="gateway", **N)
+            gw = d.box("Gateway", text="Gateway API on Envoy", icon="cncf:envoy", class_="gateway")
             certs = d.box("cert-manager", text="Let's Encrypt TLS", icon="cncf:cert-manager",
-                          class_="addon", **N)
-            cilium = d.box("Cilium", text="eBPF, no kube-proxy", icon="cncf:cilium", class_="cilium", **N)
-            xdns = d.box("ExternalDNS", text="writes records", icon="k8s:crd", class_="addon", **N)
+                          class_="addon")
+            cilium = d.box("Cilium", text="eBPF, no kube-proxy", icon="cncf:cilium", class_="cilium")
+            xdns = d.box("ExternalDNS", text="writes records", icon="k8s:crd", class_="addon")
         with d.group("namespace: shop", id="ns-shop", class_="lane ns", direction="right", gap=10):
-            route = d.box("HTTPRoute", text="/api and /web", icon="k8s:crd", class_="gateway", **N)
-            svc = d.box("Service", text="ClusterIP", icon="k8s:svc", class_="workload", **N)
-            pods = d.box("Shop", text="6 pods", icon="k8s:pod", class_="workload", **N)
+            route = d.box("HTTPRoute", text="/api and /web", icon="k8s:crd", class_="gateway")
+            svc = d.box("Service", text="ClusterIP", icon="k8s:svc", class_="workload")
+            pods = d.box("Shop", text="6 pods", icon="k8s:pod", class_="workload")
         with d.group("Platform", id="platform", class_="lane", direction="right", gap=10):
-            argo = d.box("Argo CD", text="GitOps sync", icon="cncf:argo", class_="addon", **N)
+            argo = d.box("Argo CD", text="GitOps sync", icon="cncf:argo", class_="addon")
             karp = d.box("Karpenter", text="right-sized nodes", icon="aws:amazon-ec2-auto-scaling",
-                         class_="addon", **N)
-            hubble = d.box("Hubble", text="flows, service map", icon="cncf:cilium", class_="cilium", **N)
-            prom = d.box("Prometheus", text="and Grafana", icon="cncf:prometheus", class_="addon", **N)
+                         class_="addon")
+            hubble = d.box("Hubble", text="flows, service map", icon="cncf:cilium", class_="cilium")
+            prom = d.box("Prometheus", text="and Grafana", icon="cncf:prometheus", class_="addon")
     with d.group("Managed services", id="aws", class_="services", direction="down", gap=40):
-        dns = d.box("Route 53", text="public zone", icon="aws:route53", class_="aws-svc", **N)
-        db = d.box("Aurora", text="PostgreSQL", icon="aws:amazon-aurora", class_="aws-svc", **N)
-        ecr = d.box("ECR", text="signed images", icon="aws:elastic-container-registry", class_="aws-svc", **N)
+        dns = d.box("Route 53", text="public zone", icon="aws:route53", class_="aws-svc")
+        db = d.box("Aurora", text="PostgreSQL", icon="aws:amazon-aurora", class_="aws-svc")
+        ecr = d.box("ECR", text="signed images", icon="aws:elastic-container-registry", class_="aws-svc")
 
 users.to(gw, "HTTPS via NLB")
 gw.to(route, "routes")
@@ -49,5 +47,3 @@ git.to(argo, "sync", class_="control")
 d.add_legend({".gateway": "Gateway API", ".cilium": "Cilium", ".addon": "Platform add-on",
               ".workload": "Workload", ".aws-svc": "AWS service", "edge.control": "Control or sync"},
              position="bottom")
-
-diagram = d

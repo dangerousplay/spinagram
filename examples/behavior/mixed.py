@@ -20,5 +20,3 @@ with d.state_machine("Order lifecycle", direction="down") as sm:
     shipped >> sm.final
 
 api.to(created, "creates")
-
-diagram = d

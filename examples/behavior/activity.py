@@ -23,5 +23,3 @@ with act.sequence():
 with act.lane("Shop"):
     slip = act.object("Packing slip")
 pack >> slip
-
-diagram = act

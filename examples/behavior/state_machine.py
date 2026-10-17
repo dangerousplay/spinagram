@@ -27,5 +27,3 @@ bill >> done
 done.to(sm.final, "[delivered]")
 done.to(cancelled, "[lost]")
 cancelled >> sm.final
-
-diagram = sm

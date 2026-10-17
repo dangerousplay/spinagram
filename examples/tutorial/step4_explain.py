@@ -21,5 +21,3 @@ orders.to(queue, step="Fulfilment is notified")
 
 d.callout(shoppers, "40k checkouts an hour on sale days", title="Peak load", kind="warning", side="bottom")
 d.add_legend({"aws:users": "People", "terrastruct:python": "Service", "aws:sqs": "Async messaging"})
-
-diagram = d

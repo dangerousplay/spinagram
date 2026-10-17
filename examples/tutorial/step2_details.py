@@ -14,5 +14,3 @@ queue = d.box("Events", text="SQS queue", icon="aws:sqs")
 shoppers.to(store, "HTTPS") >> orders
 orders.to(db, "SQL")
 orders >> [cache, queue]
-
-diagram = d

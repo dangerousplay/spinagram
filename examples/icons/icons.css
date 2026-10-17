@@ -9,7 +9,7 @@ group.bare                { fill-opacity: 0; box-shadow: none; }
 group.cloud               { fill: #FFF7ED; }
 group.cloud-native        { fill: #EFF6FF; }
 group.languages-and-data  { fill: #EEF2FF; }
-group.products            { fill: #FDF2F8; }
+group.products-and-ai     { fill: #FDF2F8; }
 group.self-hosted         { fill: #ECFDF5; }
 group.network-and-yours   { fill: #F1F5F9; }
 group::label              { color: #475569; }

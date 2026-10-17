@@ -19,5 +19,3 @@ d.note("Open question", text="Do we need a second region before the EU launch?",
        class_="question")
 d.note("Next review", text="Revisit the cache strategy after Q3 load tests.", x=1300, y=680, w=540, h=140,
        class_="question")
-
-diagram = d

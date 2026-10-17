@@ -47,5 +47,3 @@ tgw.to(nfw, "inspect", class_="inspection", step="TGW sends traffic to inspectio
 nfw.to(nat, step="Allowed flows leave via NAT")
 nat.to(igw, step="The internet gateway egresses")
 d.add_legend()
-
-diagram = d
