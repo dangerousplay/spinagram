@@ -186,9 +186,9 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-03, EDIT-07, EDIT-08, EDIT-09, JUMP-01, JUMP-02
 
 **Done when**:
-- [ ] Clean tab follows disk; dirty tab + disk change → conflict; reload and keep-mine resolve it
-- [ ] `jumpLine` finds the first line with the title as a string literal, `null` otherwise
-- [ ] `bun test` passes
+- [x] Clean tab follows disk; dirty tab + disk change → conflict; reload and keep-mine resolve it
+- [x] `jumpLine` finds the first line with the title as a string literal, `null` otherwise
+- [x] `bun test` passes
 
 **Tests**: unit
 **Gate**: quick-web
