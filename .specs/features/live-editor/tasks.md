@@ -306,7 +306,7 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: DIR-01, DIR-03
 
 **Done when**:
-- [ ] Build gate passes
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
