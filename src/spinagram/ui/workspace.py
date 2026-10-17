@@ -1,6 +1,7 @@
 """The specs a ``serve`` session watches: loading, rendering to SVG, caching and invalidation."""
 from __future__ import annotations
 
+import contextlib
 import re
 import sys
 import threading
@@ -51,6 +52,14 @@ def geometry(laid: Diagram, scene) -> dict:
                 g["label"] = [it.label.x, it.label.y, it.label.w, it.label.h]
             out[f"edge:{it.id[1:]}"] = g
     return {"geometry": out, "size": [scene.width, scene.height]}
+
+
+class VersionConflict(Exception):
+    """A save sent a version the file no longer has; ``current`` is the version on disk."""
+
+    def __init__(self, current: str):
+        super().__init__("the file changed since it was read")
+        self.current = current
 
 
 class RenderError(Exception):
@@ -296,6 +305,51 @@ class Workspace:
                 if p is not None and p.is_file() and p not in out:
                     out.append(p)
             return out
+
+    def editable(self) -> dict[str, Path]:
+        """Display path → file, for every file a loaded diagram's source lists (the only files ``write`` touches)."""
+        out: dict[str, Path] = {}
+        with self._lock:
+            keys = [self.key(rel, d) for rel, sf in self.files.items() for d in sf.diagrams]
+            keys += [f"{rel}#" for rel, sf in self.files.items() if sf.error]
+            for key in keys:
+                for p in self.source_paths(key):
+                    out[self.display(p)] = p
+        return out
+
+    def write(self, path: str, text: str, version: str) -> str:
+        """Save editor text to a listed file if it still has ``version``; returns the new version.
+
+        Keeps the file's newline style and permissions and replaces it atomically (temp file in the same
+        folder, then rename). Raises ``PermissionError`` for a file no diagram lists and ``VersionConflict``
+        when the file changed since it was read."""
+        import os
+        import stat
+        import tempfile
+
+        with self._lock:
+            target = self.editable().get(path)
+            if target is None:
+                raise PermissionError(f"not an editable file: {path}")
+            raw = target.read_bytes()
+            current = fsx.version_of(raw)
+            if current != version:
+                raise VersionConflict(current)
+            newline = "\r\n" if b"\r\n" in raw else "\n"
+            data = text.replace("\r\n", "\n").replace("\n", newline).encode("utf-8")
+            fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(data)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.chmod(tmp, stat.S_IMODE(target.stat().st_mode))
+                os.replace(tmp, target)
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+                raise
+            return fsx.version_of(data)
 
     def source(self, key: str) -> list[dict]:
         """``source_paths`` read for the editor: display path, language, text (LF newlines) and version."""

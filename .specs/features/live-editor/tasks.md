@@ -133,9 +133,9 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: SRC-02, SRC-03, SRC-04, SRC-07, SRC-08
 
 **Done when**:
-- [ ] Unlisted path → `PermissionError`; stale version → `VersionConflict` carrying the current version; file untouched in both
-- [ ] CRLF file stays CRLF; a failing replace leaves the original intact
-- [ ] Tests pass
+- [x] Unlisted path → `PermissionError`; stale version → `VersionConflict` carrying the current version; file untouched in both
+- [x] CRLF file stays CRLF; a failing replace leaves the original intact
+- [x] Tests pass
 
 **Tests**: unit
 **Gate**: quick

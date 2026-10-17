@@ -179,3 +179,67 @@ def test_source_of_an_unknown_diagram_is_a_key_error(tmp_path):
         ws.source("a.yaml#NOPE")
     with pytest.raises(KeyError):
         ws.source("missing.yaml#A")
+
+
+# T4 · safe write ------------------------------------------------------------------------------------
+from spinagram.ui.workspace import VersionConflict  # noqa: E402
+
+
+def _ws_with_sheet(tmp_path):
+    root = tmp_path / "specs"
+    root.mkdir()
+    shared = tmp_path / "shared.css"
+    _styled(root, shared)
+    (root / "_helper.py").write_text("X = 1\n")
+    return Workspace([root]), root, shared
+
+
+def test_write_saves_text_and_returns_the_new_version(tmp_path):  # SRC-02
+    ws, root, shared = _ws_with_sheet(tmp_path)
+    old = ws.source("a.py#A")[2]  # own.css
+    new = ws.write("own.css", "node { stroke: #ABCDEF }\n", old["version"])
+    assert (root / "own.css").read_bytes() == b"node { stroke: #ABCDEF }\n"
+    assert new == _sha(b"node { stroke: #ABCDEF }\n")
+    ws.write(str(shared.resolve()), "edge { stroke: red }\n", _sha(shared.read_bytes()))  # outside the root, listed
+    assert shared.read_text() == "edge { stroke: red }\n"
+
+
+def test_write_with_a_stale_version_is_refused(tmp_path):  # SRC-03
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    before = (root / "own.css").read_bytes()
+    with pytest.raises(VersionConflict) as err:
+        ws.write("own.css", "changed\n", "0" * 64)
+    assert err.value.current == _sha(before)
+    assert (root / "own.css").read_bytes() == before
+
+
+def test_write_to_an_unlisted_path_is_refused(tmp_path):  # SRC-04
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    for path in ["_helper.py", "../outside.py", str(tmp_path / "elsewhere.css"), "gone.css"]:
+        with pytest.raises(PermissionError, match="not an editable file"):
+            ws.write(path, "x\n", "0" * 64)
+    assert (root / "_helper.py").read_text() == "X = 1\n"
+    assert not (tmp_path / "outside.py").exists() and not (tmp_path / "elsewhere.css").exists()
+
+
+def test_write_keeps_crlf_newlines(tmp_path):  # SRC-08
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    (root / "own.css").write_bytes(b"a {}\r\nb {}\r\n")
+    ws.write("own.css", "a { fill: red }\nb {}\n", _sha(b"a {}\r\nb {}\r\n"))
+    assert (root / "own.css").read_bytes() == b"a { fill: red }\r\nb {}\r\n"
+
+
+def test_write_is_atomic(tmp_path, monkeypatch):  # SRC-07
+    import os
+
+    ws, root, _ = _ws_with_sheet(tmp_path)
+    before = (root / "own.css").read_bytes()
+
+    def boom(*_a, **_k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(os, "replace", boom)
+    with pytest.raises(OSError, match="disk full"):
+        ws.write("own.css", "half\n", _sha(before))
+    assert (root / "own.css").read_bytes() == before
+    assert sorted(p.name for p in root.iterdir()) == ["_defaults.yaml", "_helper.py", "a.py", "own.css", "team.css"]
