@@ -289,8 +289,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: DIR-01, DIR-02, DIR-03, DIR-05, DIR-10
 
 **Done when**:
-- [ ] Navigating and opening work against the API; bad path shows "not a directory: <path>"
-- [ ] Build gate passes
+- [x] Navigating and opening work against the API; bad path shows "not a directory: <path>"
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
