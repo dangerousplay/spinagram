@@ -115,9 +115,9 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: SRC-01, EDIT-01
 
 **Done when**:
-- [ ] Order is spec, folder `_defaults` sheets, diagram sheets; CSS text and missing files excluded
-- [ ] Spec with a load error still lists its spec file
-- [ ] Tests pass
+- [x] Order is spec, folder `_defaults` sheets, diagram sheets; CSS text and missing files excluded
+- [x] Spec with a load error still lists its spec file
+- [x] Tests pass
 
 **Tests**: unit
 **Gate**: quick

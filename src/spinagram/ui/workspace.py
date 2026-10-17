@@ -250,6 +250,17 @@ class Workspace:
         self._cache = {k: v for k, v in self._cache.items() if k[0] not in keys}
         self._geom = {k: v for k, v in self._geom.items() if k[0] not in keys}
 
+    @staticmethod
+    def sheet_path(d: Diagram, sheet: str) -> Path | None:
+        """The file a ``stylesheets`` entry names (relative to the spec), or None for CSS text."""
+        if "{" in sheet:
+            return None
+        p = Path(sheet).expanduser()
+        if not p.is_absolute():
+            base = Path(d.base_dir) if d.base_dir is not None else Path.cwd()
+            p = base / p if (base / p).exists() or not p.exists() else p
+        return p.resolve()
+
     def stylesheet_users(self) -> dict[Path, set[str]]:
         """Stylesheet files referenced by loaded diagrams (existing or not) → the diagram keys using them."""
         out: dict[Path, set[str]] = {}
@@ -257,13 +268,41 @@ class Workspace:
             for rel, sf in self.files.items():
                 for d in sf.diagrams:
                     for sheet in d.stylesheets:
-                        if "{" in sheet:
-                            continue  # CSS text, not a file
-                        p = Path(sheet).expanduser()
-                        if not p.is_absolute():
-                            base = Path(d.base_dir) if d.base_dir is not None else Path.cwd()
-                            p = base / p if (base / p).exists() or not p.exists() else p
-                        out.setdefault(p.resolve(), set()).add(self.key(rel, d))
+                        p = self.sheet_path(d, sheet)
+                        if p is not None:
+                            out.setdefault(p, set()).add(self.key(rel, d))
+        return out
+
+    # sources (live editor) ------------------------------------------------------------------------
+    def display(self, path: Path) -> str:
+        """How the editor names a file: relative to its root when under one, absolute otherwise."""
+        for p in self.paths:
+            if p.is_dir() and path.is_relative_to(p):
+                return path.relative_to(p).as_posix()
+            if path == p:
+                return path.name
+        return str(path)
+
+    def source_paths(self, key: str) -> list[Path]:
+        """The spec file of a diagram, then the existing stylesheet files of its cascade, in order, once each.
+        A spec that failed to load lists only itself. Raises ``KeyError`` for an unknown diagram."""
+        with self._lock:
+            sf, d = self.find(key)
+            if d is None and not sf.error:
+                raise KeyError(key)
+            out = [sf.path.resolve()]
+            for sheet in (d.stylesheets if d is not None else []):
+                p = self.sheet_path(d, sheet)
+                if p is not None and p.is_file() and p not in out:
+                    out.append(p)
+            return out
+
+    def source(self, key: str) -> list[dict]:
+        """``source_paths`` read for the editor: display path, language, text (LF newlines) and version."""
+        out = []
+        for p in self.source_paths(key):
+            src = fsx.read_source(p)
+            out.append({"path": self.display(p), "language": src.language, "text": src.text, "version": src.version})
         return out
 
     def stylesheets_changed(self, changed: list[Path]) -> list[str]:

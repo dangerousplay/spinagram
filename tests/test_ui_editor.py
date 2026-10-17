@@ -133,3 +133,49 @@ def test_open_a_non_directory_keeps_the_workspace(tmp_path):  # DIR-05
     with pytest.raises(NotADirectoryError, match=f"not a directory: {tmp_path / 'nope'}"):
         ws.open(tmp_path / "nope")
     assert ws.all_keys() == ["a.yaml#A"] and ws.summary()["paths"] == [str(tmp_path.resolve())]
+
+
+# T3 · source listing --------------------------------------------------------------------------------
+def _styled(root: Path, shared: Path) -> None:
+    (root / "_defaults.yaml").write_text("stylesheets: [team.css]\n")
+    (root / "team.css").write_text("node { fill: #EEEEEE }\n")
+    (root / "own.css").write_text("node { stroke: #111111 }\n")
+    shared.write_text("edge { stroke: #222222 }\n")
+    (root / "a.py").write_text(
+        "from spinagram import Diagram\n"
+        "d = Diagram('A', 'A')\n"
+        "d.stylesheet('own.css')\n"
+        f"d.stylesheet({str(shared)!r})\n"
+        "d.stylesheet('node { opacity: 0.9 }')\n"   # CSS text, not a file
+        "d.stylesheet('gone.css')\n"                # missing file
+        "d.stylesheet('own.css')\n"                 # listed once
+        "d.box('Node')\n")
+
+
+def test_source_lists_spec_then_cascade_stylesheet_files(tmp_path):  # SRC-01, EDIT-01
+    root = tmp_path / "specs"
+    root.mkdir()
+    shared = tmp_path / "shared.css"
+    _styled(root, shared)
+    ws = Workspace([root])
+    got = ws.source("a.py#A")
+    assert [f["path"] for f in got] == ["a.py", "team.css", "own.css", str(shared.resolve())]
+    assert [f["language"] for f in got] == ["python", "css", "css", "css"]
+    assert got[0]["text"] == (root / "a.py").read_text()
+    assert got[1]["version"] == _sha((root / "team.css").read_bytes())
+
+
+def test_source_of_a_spec_that_fails_to_load_still_lists_the_file(tmp_path):  # EDIT-06
+    (tmp_path / "bad.py").write_text("from spinagram import Diagram\nd = Diagram('B', 'B')\nraise ValueError('boom')\n")
+    ws = Workspace([tmp_path])
+    got = ws.source("bad.py#B")
+    assert [f["path"] for f in got] == ["bad.py"] and "boom" in got[0]["text"]
+
+
+def test_source_of_an_unknown_diagram_is_a_key_error(tmp_path):
+    (tmp_path / "a.yaml").write_text(SPEC)
+    ws = Workspace([tmp_path])
+    with pytest.raises(KeyError):
+        ws.source("a.yaml#NOPE")
+    with pytest.raises(KeyError):
+        ws.source("missing.yaml#A")
