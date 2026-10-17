@@ -396,8 +396,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Requirement**: EDIT-06
 
 **Done when**:
-- [ ] After a good load then a broken save, `source` lists the spec and its stylesheet, and the stylesheet can be saved
-- [ ] Quick gate passes
+- [x] After a good load then a broken save, `source` lists the spec and its stylesheet, and the stylesheet can be saved
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick

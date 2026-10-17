@@ -417,3 +417,17 @@ def test_saving_with_several_roots_writes_the_named_file_only(tmp_path):  # SRC-
     ws.write(spec["path"], SPEC.replace("title: Node", "title: Saved"), spec["version"])
     assert "Saved" in (tmp_path / "one" / "a.yaml").read_text()
     assert (tmp_path / "two" / "a.yaml").read_text() == SPEC
+
+
+# T19 · a broken spec keeps its stylesheet tabs ----------------------------------------------------------
+def test_a_broken_spec_keeps_its_stylesheets_listed_and_writable(tmp_path):  # EDIT-06
+    ws, root, shared = _ws_with_sheet(tmp_path)
+    good = [f["path"] for f in ws.source("a.py#A")]
+    (root / "a.py").write_text("from spinagram import Diagram\nd = Diagram('A', 'A')\nraise ValueError('typo')\n")
+    apply_changes(ws, ws.theme_roots(), {(root / "a.py").resolve()})
+    assert ws.files["a.py"].error
+    listed = ws.source("a.py#A")
+    assert [f["path"] for f in listed] == good
+    own = next(f for f in listed if f["path"] == "own.css")
+    ws.write("own.css", "node { fill: #123456 }\n", own["version"])
+    assert (root / "own.css").read_text() == "node { fill: #123456 }\n"

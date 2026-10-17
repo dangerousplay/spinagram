@@ -101,6 +101,7 @@ class Workspace:
         self.theme_gen = 0
         self.files: dict[str, SpecFile] = {}
         self.truncated = False  # the last scan hit files.MAX_SPECS
+        self._sheets: dict[str, list[Path]] = {}  # diagram key → its stylesheet files, kept while its spec is broken
         self._cache: dict[tuple, str] = {}
         self._geom: dict[tuple, dict] = {}
         self._lock = threading.RLock()
@@ -157,6 +158,7 @@ class Workspace:
         with self._lock:
             self.paths = [root]
             self.files = {}
+            self._sheets = {}
             self._cache.clear()
             self._geom.clear()
             self.rescan()
@@ -176,6 +178,7 @@ class Workspace:
             for rel, f in now.items():
                 if rel not in self.files:
                     self.files[rel] = self._load(f, rel)
+                    self._remember(rel)
             return changed
 
     def _load(self, f: Path, rel: str) -> SpecFile:
@@ -251,6 +254,7 @@ class Workspace:
                 old = self.files[rel]
                 keys += [self.key(rel, d) for d in old.diagrams]
                 self.files[rel] = new = self._load(old.path, rel)
+                self._remember(rel)
                 keys += [self.key(rel, d) for d in new.diagrams]
             self._drop(keys)
             return sorted(set(keys))
@@ -295,17 +299,35 @@ class Workspace:
                 return path.name
         return str(path)
 
+    def _sheets_of(self, d: Diagram) -> list[Path]:
+        out: list[Path] = []
+        for sheet in d.stylesheets:
+            p = self.sheet_path(d, sheet)
+            if p is not None and p not in out:
+                out.append(p)
+        return out
+
+    def _remember(self, rel: str) -> None:
+        """Note the stylesheet files of a spec that loaded, so its tabs survive a later broken save."""
+        sf = self.files.get(rel)
+        if sf is not None and not sf.error:
+            for k in [k for k in self._sheets if k.startswith(f"{rel}#")]:
+                del self._sheets[k]
+            for d in sf.diagrams:
+                self._sheets[self.key(rel, d)] = self._sheets_of(d)
+
     def source_paths(self, key: str) -> list[Path]:
         """The spec file of a diagram, then the existing stylesheet files of its cascade, in order, once each.
-        A spec that failed to load lists only itself. Raises ``KeyError`` for an unknown diagram."""
+        A spec that fails to load lists the stylesheets it had when it last loaded. Raises ``KeyError`` for an
+        unknown diagram."""
         with self._lock:
             sf, d = self.find(key)
             if d is None and not sf.error:
                 raise KeyError(key)
+            sheets = self._sheets_of(d) if d is not None else self._sheets.get(key, [])
             out = [sf.path.resolve()]
-            for sheet in (d.stylesheets if d is not None else []):
-                p = self.sheet_path(d, sheet)
-                if p is not None and p.is_file() and p not in out:
+            for p in sheets:
+                if p.is_file() and p not in out:
                     out.append(p)
             return out
 
@@ -314,7 +336,9 @@ class Workspace:
         out: dict[str, Path] = {}
         with self._lock:
             keys = [self.key(rel, d) for rel, sf in self.files.items() for d in sf.diagrams]
-            keys += [f"{rel}#" for rel, sf in self.files.items() if sf.error]
+            for rel, sf in self.files.items():
+                if sf.error:  # a broken spec: its last known diagrams keep their stylesheets editable
+                    keys += [k for k in self._sheets if k.startswith(f"{rel}#")] or [f"{rel}#"]
             for key in keys:
                 for p in self.source_paths(key):
                     out[self.display(p)] = p
