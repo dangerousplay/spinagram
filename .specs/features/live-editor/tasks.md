@@ -338,8 +338,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-01, DIR-01
 
 **Done when**:
-- [ ] Rebuilding twice gives no diff; wheel test still finds `static/index.html`
-- [ ] Build gate passes
+- [x] Rebuilding twice gives no diff; wheel test still finds `static/index.html`
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

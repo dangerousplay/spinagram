@@ -7,6 +7,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "./",
-  build: { outDir: "../src/spinagram/ui/static", emptyOutDir: true },
+  // the code editor (CodeMirror) is a lazy ~500 kB chunk loaded only when the code panel opens
+  build: { outDir: "../src/spinagram/ui/static", emptyOutDir: true, chunkSizeWarningLimit: 600 },
   server: { proxy: { "/api": { target: "http://127.0.0.1:8765", changeOrigin: false } } },
 });
