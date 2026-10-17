@@ -8,13 +8,14 @@ type Props = {
   diagramKey: string;
   rev: number; // bumps on every live reload of the diagram: the source is read again
   jump: { title: string; nonce: number } | null; // show the spec line that creates the node with this title
-  onClose: () => void;
+  onCollapse: () => void;
+  onDirty: (dirty: boolean) => void; // the rail shows unsaved edits while the panel is collapsed
 };
 
 const base = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
 /** The diagram's spec and stylesheet files, editable; Save (or Cmd/Ctrl+S) writes the active tab. */
-export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
+export default function CodePanel({ diagramKey, rev, jump, onCollapse, onDirty }: Props) {
   const [tabs, setTabs] = useState<Tab[] | null>(null);
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
 
   // unsaved edits: confirm before leaving the diagram or the page
   const dirty = tabs ? anyDirty(tabs) : false;
+  useEffect(() => onDirty(dirty), [dirty, onDirty]);
   useEffect(() => {
     if (!dirty) return;
     const unload = (e: BeforeUnloadEvent) => {
@@ -173,8 +175,13 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
           >
             {saving ? "Saving…" : "Save"}
           </button>
-          <button onClick={onClose} title="Close the code panel (e)" className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-            ×
+          <button
+            onClick={onCollapse}
+            title="Collapse the code panel (e)"
+            aria-label="Collapse the code panel"
+            className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            »
           </button>
         </div>
       </div>

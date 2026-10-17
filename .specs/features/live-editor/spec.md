@@ -75,6 +75,10 @@ to edit and save them there, so that I change the picture without leaving the br
 9. IF a save is refused because the file changed since it was read THEN the system SHALL leave the file untouched and show the conflict notice  <!-- unwanted-behavior -->
 10. WHILE a tab is modified the system SHALL ask for confirmation before the user switches to another diagram or reloads the page  <!-- state-driven -->
 
+11. WHEN a diagram is opened THEN the system SHALL show the code panel collapsed to a narrow rail on the right, whatever was chosen on an earlier visit  <!-- event-driven -->
+12. WHEN the user clicks the rail (or presses `e`) THEN the system SHALL expand the panel, and its collapse control SHALL fold it back to the rail  <!-- event-driven -->
+13. WHILE the panel is collapsed with unsaved edits the system SHALL keep them and mark the rail as modified  <!-- state-driven -->
+
 **Independent Test**: `spinagram serve examples/tutorial/`, open step 5, change `"Shoppers"` to `"Buyers"` in
 the Python tab, press Cmd+S: the file on disk changes and the diagram shows "Buyers"; change a colour in the
 `checkout.css` tab, save: the colour changes.
@@ -185,6 +189,9 @@ the line to edit in a large spec.
 | EDIT-08 | P1: dirty tab + disk change → conflict notice | Execute | Verified |
 | EDIT-09 | P1: refused save → conflict notice | Execute | Verified |
 | EDIT-10 | P1: confirm before leaving with changes | Execute | Verified |
+| EDIT-11 | P1: panel starts collapsed | Execute | Verified |
+| EDIT-12 | P1: rail expands, control collapses | Execute | Verified |
+| EDIT-13 | P1: collapsed panel keeps edits, rail marked | Execute | Verified |
 | SRC-01 | P1: source endpoint | Execute | Verified |
 | SRC-02 | P1: write endpoint returns new version | Execute | Verified |
 | SRC-03 | P1: stale version → 409 | Execute | Verified |
@@ -206,7 +213,7 @@ the line to edit in a large spec.
 | JUMP-01 | P2: click node → spec line | Execute | Verified |
 | JUMP-02 | P2: no match → editor unchanged | Execute | Verified |
 
-**Coverage:** 30 total, 30 mapped to tasks, 30 verified (see validation.md)
+**Coverage:** 33 total, 33 mapped to tasks, 33 verified (EDIT-11..13 in the browser, see T26)
 
 ---
 
