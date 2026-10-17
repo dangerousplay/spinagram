@@ -511,3 +511,20 @@ T24 → T25
 
 **Tests**: unit
 **Gate**: quick-web
+
+---
+
+## T26: Code panel collapsed by default, collapsible
+
+**What**: The panel starts collapsed to a rail on every visit; the rail (or `e`) expands it, `»` folds it back; it stays mounted while collapsed so edits survive, and the rail shows an unsaved dot.
+**Where**: `web/src/DiagramView.tsx`
+**Depends on**: None (previous phase complete)
+**Reuses**: `CodePanel` (`onCollapse`, `onDirty`)
+**Requirement**: EDIT-11, EDIT-12, EDIT-13
+
+**Done when**:
+- [x] Verified in the browser on `kubernetes/eks_platform.py`: collapsed on load despite a stored "open" preference; expand, edit, collapse keeps the edit and marks the rail
+- [x] Build gate passes
+
+**Tests**: none
+**Gate**: build

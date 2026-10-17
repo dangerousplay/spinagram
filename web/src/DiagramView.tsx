@@ -5,7 +5,6 @@ import CodePanel from "./CodePanel";
 import { hitTest, InspectorPanel, Overlay } from "./Inspector";
 
 const INSPECT_KEY = "spinagram.inspect";
-const CODE_KEY = "spinagram.code";
 
 function stored(key: string): boolean {
   try {
@@ -46,7 +45,9 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const { ref, view, fit, actual, zoomBy } = usePanZoom(size);
   const fitted = useRef(false);
   const [inspect, setInspect] = useState(() => stored(INSPECT_KEY));
-  const [code, setCode] = useState(() => stored(CODE_KEY));
+  const [code, setCode] = useState(false); // the code panel starts collapsed: the diagram gets the room
+  const [codeMounted, setCodeMounted] = useState(false); // once opened it stays mounted, so collapsing keeps edits
+  const [codeDirty, setCodeDirty] = useState(false);
   const [jump, setJump] = useState<{ title: string; nonce: number } | null>(null);
   const [report, setReport] = useState<StyleReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -62,10 +63,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     setHover(null);
   }, []);
   const toggleCode = useCallback(() => {
-    setCode((on) => {
-      store(CODE_KEY, !on);
-      return !on;
-    });
+    setCodeMounted(true);
+    setCode((on) => !on);
   }, []);
 
   // the styles report follows the diagram: refetched on every live reload, selection kept by key; the code
@@ -243,7 +242,23 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         </button>
       </div>
     </div>
-    {code && <CodePanel diagramKey={diagramKey} rev={rev} jump={jump} onClose={toggleCode} />}
+    {codeMounted && (
+      <div className={code ? "flex" : "hidden"}>
+        <CodePanel diagramKey={diagramKey} rev={rev} jump={jump} onCollapse={toggleCode} onDirty={setCodeDirty} />
+      </div>
+    )}
+    {!code && (
+      <button
+        onClick={toggleCode}
+        title="Show the code (e)"
+        aria-label="Show the code"
+        className="flex w-8 shrink-0 flex-col items-center gap-2 border-l border-slate-200 bg-white py-3 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+      >
+        <span aria-hidden>«</span>
+        <span className="[writing-mode:vertical-rl]">Code</span>
+        {codeDirty && <span className="size-1.5 rounded-full bg-amber-500" aria-label="unsaved changes" />}
+      </button>
+    )}
     {inspect && (
       <InspectorPanel
         report={report}
