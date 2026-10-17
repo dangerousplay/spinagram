@@ -1,0 +1,62 @@
+---
+title: Behavior diagrams
+description: Flowcharts, state machines and activity diagrams, alone or inside any diagram.
+---
+
+Three builders add the symbols and verbs of behavior diagrams. Each is a `Diagram` (use it on its
+own) and defaults to the built-in `layered` engine, which ranks nodes along the flow, routes edges
+orthogonally and draws loops round the side.
+
+## Flowchart
+
+<include meta='title="examples/behavior/flowchart.py"'>../../../../examples/behavior/flowchart.py</include>
+
+![Checkout flowchart](/assets/demo/b01.svg)
+
+| Verb | Symbol |
+|---|---|
+| `start()`, `end()` | terminator |
+| `process(title)` | process |
+| `decision(title)` with `.yes(x)`, `.no(x)`, `.to(x, "label")` | decision |
+| `io(title)` | input/output parallelogram |
+| `document(title)`, `predefined(title)`, `data(title)` | document, predefined process, data store |
+
+## State machine
+
+<include meta='title="examples/behavior/state_machine.py"'>../../../../examples/behavior/state_machine.py</include>
+
+![Order lifecycle state machine](/assets/demo/b02.svg)
+
+- `sm.state(title, entry=, do=, exit=)` lists the state's activities.
+- `s.on(event, target, guard=, action=)` labels the transition `event [guard] / action`; a transition
+  to itself is drawn as a loop.
+- `sm.initial` and `sm.final` are one pseudostate per scope.
+- `with sm.composite(title) as c:` nests substates; `with c.region() as r:` adds orthogonal regions
+  (dashed boxes); `c.history(deep=False)` and `sm.choice()` add pseudostates.
+
+## Activity
+
+<include meta='title="examples/behavior/activity.py"'>../../../../examples/behavior/activity.py</include>
+
+![Order fulfilment activity with swimlanes](/assets/demo/b03.svg)
+
+- `with act.lane("Shop"):` puts the nodes created inside into that swimlane (re-entering reuses it).
+- `with act.sequence():` connects nodes in creation order.
+- `with act.parallel() as p:` + `with p.branch():` draws a fork bar, the branches and a join bar.
+- `action`, `decision`, `merge`, `start`, `end`, `flow_end`, `send`, `receive`, `object`; edges to
+  object nodes are dashed.
+
+## Several diagram types on one slide
+
+Any diagram can embed typed regions. A region is a box laid out by its own engine (`layered` by
+default, or `layout={"engine": ..., "direction": ...}`), connected to the rest with normal arrows.
+
+<include meta='title="examples/behavior/mixed.py"'>../../../../examples/behavior/mixed.py</include>
+
+![Architecture and state machine on one slide](/assets/demo/b04.svg)
+
+## Checks
+
+`spinagram check` reports decisions with fewer than two branches, forks with one branch and state
+regions without an initial state. Edges out of a final node or into an initial node fail when the
+diagram is built.

@@ -36,6 +36,8 @@ def _node_id(ref: Any) -> tuple[str | None, str]:
 def validate_groups(d: Diagram) -> None:
     by_id = {g.id: g for g in d.groups}
     nodes = {n.id for n in d.nodes}
+    for both in sorted(nodes & set(by_id)):
+        raise ValueError(f"{d.id}: {both!r} is the id of both a node and a group; rename one")
     owner: dict[str, str] = {}
     for g in d.groups:
         for c in g.children:
@@ -85,7 +87,9 @@ def _rank_order(items: list[str], owner_top: dict[str, str], d: Diagram) -> list
 
     for i in items:
         depth(i, frozenset())
-    return sorted(items, key=lambda i: (rank[i], items.index(i)))
+    linked = {i for i in items if succ[i]} | {j for i in items for j in succ[i]}
+    # unconnected items (notes, standalone boxes) follow the flow instead of landing inside it
+    return sorted(items, key=lambda i: (i not in linked and bool(linked), rank[i], items.index(i)))
 
 
 def build_graph(d: Diagram, theme: Theme) -> tuple[LGraph, dict[str, Node]]:
@@ -227,8 +231,26 @@ def _run_graph(graph: LGraph, name: str) -> LResult:
         for k, pts in sres.routes.items():
             routes[k] = [(round(x + dx, 1), round(y + dy, 1)) for x, y in pts]
     leaves = [boxes[i.id] for i in graph.root.walk() if isinstance(i, LNode) and i.id in boxes]
+    for g in graph.root.walk():  # group captions too: a crossing edge must not run through their text
+        if isinstance(g, LGroup) and g.label and g.id in boxes:
+            gx, gy, gw, _ = boxes[g.id]
+            leaves.append((gx, gy, min(gw, 9.5 * len(str(g.label)) + 48), max(g.pad[0], 36)))
+    busy: dict[Box, set[str]] = {}  # sides already used by an edge end, so crossing edges pick free ones
+
+    def mark(b: Box, p: tuple[float, float]) -> None:
+        busy.setdefault(b, set()).add(_side(b, p).partition("@")[0])
+
+    by_id = {e.id: e for e in graph.edges}
+    for k, pts in routes.items():
+        e = by_id.get(k)
+        if e is not None and len(pts) >= 2 and e.src in boxes and e.dst in boxes:
+            mark(boxes[e.src], pts[0])
+            mark(boxes[e.dst], pts[-1])
     for e in crossing:
-        routes[e.id] = route(boxes[e.src], boxes[e.dst], leaves)
+        pts = route(boxes[e.src], boxes[e.dst], leaves, busy=busy)
+        routes[e.id] = pts
+        mark(boxes[e.src], pts[0])
+        mark(boxes[e.dst], pts[-1])
     return LResult(boxes=boxes, routes=routes)
 
 
@@ -345,10 +367,39 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
         e.via = pts[1:-1] or None
     if d.layout.get("route") == "ortho":
         routed = {le.id for le in graph.edges if res.routes.get(le.id)}
+        walls = [b for k, b in boxes.items() if k in nodes]
+        lf0 = theme.font("body", 700, theme.defaults("zone").get("label_size", 16))
+        for item in graph.root.walk():  # group captions: an edge must not run through their text
+            if isinstance(item, LGroup) and item.label and item.id in boxes:
+                gx, gy, gw, _ = boxes[item.id]
+                walls.append((gx, gy, min(gw, measure(str(item.label), lf0) + 48), max(item.pad[0], 36)))
+        todo = []
         for le in graph.edges:
             e = d.edges[int(le.id[1:])]
             if le.id not in routed and not (e.via or e.curve or _node_id(e.src)[1] or _node_id(e.dst)[1]):
                 _elbow(e, boxes[le.src], boxes[le.dst], le)
+                todo.append((le, e))
+        busy: dict[Box, set[str]] = {}  # sides edge ends use, so a re-routed edge picks a free one
+        for e in d.edges:
+            for ref in (e.src, e.dst):
+                nid, side = _node_id(ref)
+                if nid in boxes and side:
+                    busy.setdefault(boxes[nid], set()).add(side.partition("@")[0])
+        for le, e in todo:
+            a, b = boxes[le.src], boxes[le.dst]
+            heads = [t for o in d.edges if o is not e for t in _tips(boxes, o)]  # other edges' arrowheads
+            others = [w for w in walls if w != a and w != b] + heads
+            pts = [_anchor(boxes, e.src), *(e.via or []), _anchor(boxes, e.dst)]
+            if any(_seg_hits(p, q, w) for p, q in zip(pts, pts[1:]) for w in others[:len(others) - len(heads)]):
+                # the simple elbow crosses a box or a caption: route around them instead
+                for box, ref in ((a, e.src), (b, e.dst)):
+                    busy.get(box, set()).discard(_node_id(ref)[1])
+                pts = route(a, b, others + [a, b], busy=busy)
+                e.src = f"{le.src}.{_side(a, pts[0])}"
+                e.dst = f"{le.dst}.{_side(b, pts[-1])}"
+                e.via = pts[1:-1] or None
+                busy.setdefault(a, set()).add(_side(a, pts[0]).partition("@")[0])
+                busy.setdefault(b, set()).add(_side(b, pts[-1]).partition("@")[0])
     placed: list[Box] = []
     node_boxes = [b for k, b in boxes.items() if k in nodes]
     lf = theme.font("body", 700, theme.defaults("zone").get("label_size", 16))
@@ -356,10 +407,12 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
         if isinstance(item, LGroup) and item.label and item.id in boxes:
             gx, gy, gw, _ = boxes[item.id]
             node_boxes.append((gx, gy, min(gw, measure(str(item.label), lf) + 48), max(item.pad[0], 36)))
-    for le in graph.edges + graph.loops:  # labels of routed edges sit on the route, clear of every node
+    tips = [t for le in graph.edges + graph.loops for t in _tips(boxes, d.edges[int(le.id[1:])])]
+    for le in graph.edges + graph.loops:  # labels sit on the route, clear of every node and arrow end
         e = d.edges[int(le.id[1:])]
-        if e.label and (e.via or le.id in bound) and not e.label_at:
-            e.label_at = _label_point(boxes, e, theme, node_boxes, placed)
+        if e.label and not e.label_at and not e.curve and _node_id(e.src)[0] in boxes \
+                and _node_id(e.dst)[0] in boxes:
+            e.label_at = _label_point(boxes, e, theme, node_boxes, placed, soft=tips)
     d.meta["layout_engine"] = name
     d.meta["laid_out"] = True  # annotations: content came from a layout engine (not hand-placed)
     if d.layout.get("area"):
@@ -368,17 +421,59 @@ def apply_layout(diagram: Diagram, theme: Theme, engine: str | None = None) -> D
     return d
 
 
+TIP = 30.0  # side of the square kept free around each edge end, where arrowheads and markers are drawn
+
+
+def _anchor(boxes: dict[str, Box], ref: str) -> tuple[float, float]:
+    """Point of ``node.side@frac`` on its box; a bare node id is its centre."""
+    nid, side = _node_id(ref)
+    side, _, frac = side.partition("@")
+    x, y, w, h = boxes[nid]
+    f = float(frac) if frac else 0.5
+    return {"left": (x, y + h * f), "right": (x + w, y + h * f), "top": (x + w * f, y),
+            "bottom": (x + w * f, y + h)}.get(side, (x + w / 2, y + h / 2))
+
+
+def _clip(box: Box, inner: tuple[float, float], outer: tuple[float, float]) -> tuple[float, float]:
+    """Where the line from ``inner`` (the box centre) towards ``outer`` leaves ``box``."""
+    x, y, w, h = box
+    cx, cy = inner
+    dx, dy = outer[0] - cx, outer[1] - cy
+    ts = [t for t in ((w / 2 / abs(dx)) if dx else None, (h / 2 / abs(dy)) if dy else None) if t is not None]
+    t = min(ts) if ts else 0.0
+    return cx + dx * t, cy + dy * t
+
+
+def _ends(boxes: dict[str, Box], e) -> list[tuple[float, float]]:
+    """The two end points of an edge as drawn: on the given side, or where a centre-to-centre line
+    leaves each box."""
+    (sn, ss), (dn, ds) = _node_id(e.src), _node_id(e.dst)
+    if sn not in boxes or dn not in boxes:
+        return []
+    a, b = _anchor(boxes, e.src), _anchor(boxes, e.dst)
+    via = list(e.via or [])
+    if not ss:
+        a = _clip(boxes[sn], a, via[0] if via else b)
+    if not ds:
+        b = _clip(boxes[dn], b, via[-1] if via else a)
+    return [a, b]
+
+
+def _tips(boxes: dict[str, Box], e) -> list[Box]:
+    """Squares around the ends of an edge that draw an arrowhead, so labels never cover one."""
+    ends = _ends(boxes, e)
+    if not ends:
+        return []
+    arrow = getattr(e, "arrow", "end") or "end"
+    keep = [ends[0]] * (arrow in ("start", "both")) + [ends[1]] * (arrow in ("end", "both"))
+    return [(x - TIP / 2, y - TIP / 2, TIP, TIP) for x, y in keep]
+
+
 def _label_point(boxes: dict[str, Box], e, theme: Theme | None = None, obstacles: list[Box] | None = None,
-                 placed: list[Box] | None = None) -> tuple[float, float]:
-    """Pill anchor for a routed edge's label: on its longest segments first, then beside them; the first
-    candidate whose pill touches no node box and no label placed before wins (``placed`` grows)."""
-    def anchor(ref: str) -> tuple[float, float]:
-        nid, side = _node_id(ref)
-        side, _, frac = side.partition("@")
-        x, y, w, h = boxes[nid]
-        f = float(frac) if frac else 0.5
-        return {"left": (x, y + h * f), "right": (x + w, y + h * f), "top": (x + w * f, y),
-                "bottom": (x + w * f, y + h)}.get(side, (x + w / 2, y + h / 2))
+                 placed: list[Box] | None = None, soft: list[Box] | None = None) -> tuple[float, float]:
+    """Pill anchor for an edge's label: on its longest segments first, then beside them. The first
+    candidate whose pill touches no obstacle, no label placed before (``placed`` grows) and no ``soft``
+    box (arrow ends) wins; failing that, the first that only touches soft boxes."""
 
     theme = theme or Theme.load(None)
     obstacles, placed = obstacles or [], placed if placed is not None else []
@@ -393,25 +488,58 @@ def _label_point(boxes: dict[str, Box], e, theme: Theme | None = None, obstacles
         """Pill centred on (cx, cy)."""
         return anchored(cx, cy - ph / 2 + size + 3)
 
-    def clear(b: Box) -> bool:
-        return not any(_hit(b, o) for o in obstacles + placed)
+    soft = soft or []
 
-    pts = [anchor(e.src), *(e.via or []), anchor(e.dst)]
+    def clear(b: Box, extra: list[Box] = ()) -> bool:
+        return not any(_hit(b, o) for o in [*obstacles, *placed, *extra])
+
+    a, b = _ends(boxes, e) or [_anchor(boxes, e.src), _anchor(boxes, e.dst)]
+    pts = [a, *(e.via or []), b]
     segs = sorted(zip(pts, pts[1:]), key=lambda s: -(abs(s[1][0] - s[0][0]) + abs(s[1][1] - s[0][1])))
     cands = []
     for (ax, ay), (bx, by) in segs:
         mx, my = (ax + bx) / 2, (ay + by) / 2
-        cands.append(anchored(mx, my - 8))  # on the segment, 8 px up like straight edges
-        if abs(ax - bx) < 1:  # vertical: beside it
+        if abs(ax - bx) < 1:  # vertical: centred on it (clear of both ends), then beside it
+            cands.append(at(mx, my))
+        else:
+            cands.append(anchored(mx, my - 8))  # on the segment, 8 px up like straight edges
+        if abs(ax - bx) < 1:
             cands += [at(mx + pw / 2 + 6, my), at(mx - pw / 2 - 6, my)]
         else:
             cands += [at(mx, my - ph / 2 - 4), at(mx, my + ph / 2 + 4)]
+    for (ax, ay), (bx, by) in segs:  # further out, past the arrowhead zone, for short segments
+        mx, my = (ax + bx) / 2, (ay + by) / 2
+        off = TIP / 2 + 4
+        if abs(ax - bx) < 1:
+            cands += [at(mx + pw / 2 + off, my), at(mx - pw / 2 - off, my)]
+        else:
+            cands += [at(mx, my - ph / 2 - off), at(mx, my + ph / 2 + off)]
     for point, box in cands:
-        if clear(box):
+        if clear(box, soft):
             placed.append(box)
             return point
-    placed.append(cands[0][1])
-    return cands[0][0]
+
+    def cost(b: Box) -> float:  # nothing is clear: cover as little as possible, arrowheads least of all
+        return sum(_overlap_area(b, o) for o in [*obstacles, *placed]) + 4 * sum(_overlap_area(b, o) for o in soft)
+
+    point, box = min(cands, key=lambda c: cost(c[1]))  # min keeps the first of equal costs
+    placed.append(box)
+    return point
+
+
+def _overlap_area(a: Box, b: Box) -> float:
+    """Overlap area of two boxes."""
+    w = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    h = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return max(0.0, w) * max(0.0, h)
+
+
+def _seg_hits(p: tuple[float, float], q: tuple[float, float], b: Box, pad: float = 1.0) -> bool:
+    """Does the axis-aligned segment p–q pass through the inside of box ``b``?"""
+    x, y, w, h = b
+    x0, x1 = sorted((p[0], q[0]))
+    y0, y1 = sorted((p[1], q[1]))
+    return x0 < x + w - pad and x1 > x + pad and y0 < y + h - pad and y1 > y + pad
 
 
 def _hit(a: Box, b: Box, pad: float = 2.0) -> bool:

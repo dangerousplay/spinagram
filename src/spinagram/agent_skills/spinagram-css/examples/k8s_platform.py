@@ -14,7 +14,7 @@ d.stylesheet("showcase.css")
 d.stylesheet("k8s.css")
 
 with d.group("Cluster · prod-eu-1", id="cluster", class_="cluster", direction="down", gap=28, padding=16):
-    with d.group("Control plane", id="cp", class_="cp", direction="right", gap=24):
+    with d.group("Control plane", id="cp", class_="cp", direction="right", gap=64):
         api = d.box("API server", text="REST, admission", icon="k8s:api-labeled", class_="control-plane", **WIDE)
         etcd = d.box("etcd", text="3 members, Raft", icon="k8s:etcd", class_="control-plane", **N)
         sched = d.box("Scheduler", text="binds pods", icon="k8s:sched-labeled", class_="control-plane", **N)
@@ -31,7 +31,7 @@ with d.group("Cluster · prod-eu-1", id="cluster", class_="cluster", direction="
             with d.group("ReplicaSet", id="rs", class_="pods", direction="down", gap=12):
                 pods = [d.box(f"web-{s}", text="ready", icon="k8s:pod", class_="pod", id=f"pod-{s}", **POD)
                         for s in "abc"]
-            with d.group(id="data", class_="bare", direction="down", gap=40):
+            with d.group(id="data", class_="bare", direction="down", gap=64):
                 sts = d.box("StatefulSet", text="postgres ×3", icon="k8s:sts", class_="workload", **WIDE)
                 pvc = d.box("PVC", text="50 Gi, RWO", icon="k8s:pvc", class_="storage", **N)
         pv = d.box("PV", text="gp3 StorageClass", icon="k8s:pv", class_="storage", **N)

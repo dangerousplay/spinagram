@@ -342,7 +342,7 @@ class Diagram:
 
     def _auto_id(self, title: Any) -> str:
         base = re.sub(r"[^a-z0-9]+", "-", str(title or "n").lower()).strip("-")[:24] or "n"
-        ids = {n.id for n in self.nodes}
+        ids = {n.id for n in self.nodes} | {g.id for g in self.groups}  # a box and a group never share an id
         cand, i = base, 2
         while cand in ids:
             cand, i = f"{base}-{i}", i + 1
@@ -358,6 +358,8 @@ class Diagram:
         n = Node(id=id or self._auto_id(title), kind=kind, x=x, y=y, w=w, h=h, title=title, extra=extra, **kw)
         if any(o.id == n.id for o in self.nodes):
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")
+        if any(g.id == n.id for g in self.groups):
+            raise ValueError(f"{self.id}: node id {n.id!r} is already a group id")
         self.nodes.append(n)
         n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
@@ -448,6 +450,8 @@ class Diagram:
                             str(len(self.groups) + 1))
         if any(g.id == gid for g in self.groups):
             raise ValueError(f"{self.id}: duplicate group id {gid!r}")
+        if any(n.id == gid for n in self.nodes):
+            raise ValueError(f"{self.id}: group id {gid!r} is already a node id")
         if "class_" in hints:
             hints["cls"] = hints.pop("class_")
         g = Group(id=gid, label=label, style=style, **hints)

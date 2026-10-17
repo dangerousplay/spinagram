@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .scene import Scene, Shape, TableGrid
+from .scene import Connector, Scene, Shape, TableGrid
 from .text import measure
 
 
@@ -50,6 +50,7 @@ def check(scene: Scene) -> list[Issue]:
     if over:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "
                             f"{over[1]}px tall — enlarge layout.area/canvas, shrink nodes or change direction"))
+    issues += _hidden_heads(scene)
     for it in scene.items:
         if isinstance(it, Shape) and it.label and it.role == "node":
             x, y, w, h = it.label.box
@@ -71,3 +72,75 @@ def check(scene: Scene) -> list[Issue]:
                         if measure(line, cell.block.font) > cw - cell.pad_left:
                             issues.append(Issue(scene.id, f"{it.id}[{r},{c}]", "overflow-x", repr(line)))
     return issues
+
+
+HEAD = 10.0  # how close to an arrowhead's tip a label may come before it hides the head
+COVER = 0.25  # share of a label pill that may lie over a box before the label is reported
+
+
+def _hidden_heads(scene: Scene) -> list[Issue]:
+    """Edge labels drawn over an arrowhead (their own or another edge's)."""
+    conns = [it for it in scene.items if isinstance(it, Connector) and len(it.points) >= 2]
+    heads = []
+    for c in conns:
+        if c.arrow_end and c.marker_end != "none":
+            heads.append((c.id, c.points[-1]))
+        if c.arrow_start and c.marker_start != "none":
+            heads.append((c.id, c.points[0]))
+    out: list[Issue] = []
+    nodes = [it for it in scene.items if isinstance(it, Shape) and it.role == "node"]
+    for c in conns:  # an edge drawn through a box it does not connect
+        if c.route == "curve":
+            continue
+        ends = {b.shape_id for b in (c.src, c.dst) if b is not None}
+        for n in nodes:
+            if n.id in ends or n.id.split(":")[-1] in ends:
+                continue
+            if any(_through(p, q, n) for p, q in zip(c.points, c.points[1:])):
+                out.append(Issue(scene.id, c.id, "edge", f"edge passes through box {n.id} — use layout "
+                                 "route: ortho, another direction, or via points"))
+                break
+    for c in conns:
+        if c.label is None:
+            continue
+        lab = c.label
+        for n in nodes:
+            nx, ny, nw, nh = n.x, n.y, n.w, n.h
+            if n.kind == "diamond":  # the rhombus, not its bounding box: its inscribed rectangle
+                nx, ny, nw, nh = nx + nw / 4, ny + nh / 4, nw / 2, nh / 2
+            ox = min(lab.x + lab.w, nx + nw) - max(lab.x, nx)
+            oy = min(lab.y + lab.h, ny + nh) - max(lab.y, ny)
+            if ox > 0 and oy > 0 and ox * oy > COVER * lab.w * lab.h:  # touching a corner is fine, covering is not
+                out.append(Issue(scene.id, c.id, "label", f"label covers box {n.id} — widen the gap or place "
+                                 "the label with label_at"))
+                break
+        lx, ly, lw, lh = c.label.x, c.label.y, c.label.w, c.label.h
+        for cid, (tx, ty) in heads:
+            if lx - HEAD < tx < lx + lw + HEAD and ly - HEAD < ty < ly + lh + HEAD:
+                whose = "its own arrowhead" if cid == c.id else f"the arrowhead of {cid}"
+                out.append(Issue(scene.id, c.id, "label", f"label hides {whose} — widen the gap between the "
+                                 "boxes or place the label with label_at"))
+                break
+    return out
+
+
+def _through(p, q, n: Shape, inset: float = 6.0) -> bool:
+    """Does the segment p–q cross the inside of ``n`` (shrunk by ``inset``)? Liang–Barsky clipping."""
+    x0, y0, x1, y1 = n.x + inset, n.y + inset, n.x + n.w - inset, n.y + n.h - inset
+    if x1 <= x0 or y1 <= y0:
+        return False
+    dx, dy = q[0] - p[0], q[1] - p[1]
+    t0, t1 = 0.0, 1.0
+    for pk, qk in ((-dx, p[0] - x0), (dx, x1 - p[0]), (-dy, p[1] - y0), (dy, y1 - p[1])):
+        if pk == 0:
+            if qk < 0:
+                return False
+            continue
+        t = qk / pk
+        if pk < 0:
+            t0 = max(t0, t)
+        else:
+            t1 = min(t1, t)
+        if t0 > t1:
+            return False
+    return t1 - t0 > 1e-6
