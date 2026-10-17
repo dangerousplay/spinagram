@@ -355,7 +355,7 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-01, DIR-01
 
 **Done when**:
-- [ ] Docs site builds with 0 broken links
+- [x] Docs site builds with 0 broken links
 
 **Tests**: none
 **Gate**: build

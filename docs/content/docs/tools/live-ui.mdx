@@ -1,15 +1,49 @@
 ---
 title: Live UI
-description: A local preview that re-renders on save.
+description: A local editor and preview that re-renders on save.
 ---
 
-`spinagram serve` opens a local, read-only web UI with live reload. It needs the `ui` extra
+`spinagram serve` opens a local web UI with live reload: the diagram, its Python and CSS side by side, editable
+in the browser. It needs the `ui` extra
 (`pip install 'spinagram[ui]'`); the web bundle ships in the wheel, no Node needed.
 
 ```bash
 spinagram serve specs/ --theme ../my-theme          # http://127.0.0.1:8765, opens the browser
 spinagram serve specs/ --layout elk --port 0 --no-open
 ```
+
+A folder is scanned with its subfolders, so `spinagram serve examples/` shows every example; hidden folders and
+`node_modules`, `__pycache__`, `.venv`, `venv`, `out`, `dist`, `build` and `site-packages` are skipped, and at
+most 2,000 specs load at once.
+
+## Edit the code next to the diagram
+
+Open a diagram and press **Code** (or `e`). The panel shows the diagram's spec file first, then every stylesheet
+file of its cascade (folder `_defaults.yaml` sheets, then the diagram's own), with Python, CSS and YAML
+highlighting.
+
+1. Edit a tab: a dot marks it as modified.
+2. Press **Cmd+S** / **Ctrl+S** or **Save**. The file is written and the diagram re-renders, usually in well
+   under a second.
+3. If the spec no longer loads, your text stays in the editor and the diagram shows the error (file and line)
+   over the last good render. Fix and save again.
+
+**Find a box in the code.** With the panel open, click a box in the diagram: the spec tab scrolls to the first
+line that has its title as a string, such as `d.box("Karpenter", ...)`.
+
+**Changes from elsewhere.** Saving in your own editor updates a clean tab in place. If a tab has unsaved edits
+when the file changes on disk, or a save finds the file changed since it was read, the panel keeps your text
+and asks: **Reload from disk** or **Keep mine** (then save to overwrite). Leaving the diagram or closing the
+page with unsaved edits asks for confirmation.
+
+## Open another folder
+
+**Open folder…** in the header browses folders on this machine, with the number of specs in each, and has a
+path box for pasting a path. Opening a folder makes it the workspace: its diagrams (subfolders included, shown
+with their relative path, such as `kubernetes/eks_platform.py`) replace the current ones and are watched for
+changes, without restarting `serve`.
+
+Opening a folder runs its Python specs, exactly like `spinagram serve <folder>`: open only folders you trust.
 
 The navbar switches between **Diagrams**, **Themes** and **Icon packs**; **Docs** opens this site.
 The left sidebar lists the 10 diagrams you opened last (kept in your browser).
@@ -35,4 +69,10 @@ The left sidebar lists the 10 diagrams you opened last (kept in your browser).
 - **Icon packs**: registry state, a searchable grid per downloaded pack and **Fetch** for missing
   ones. `serve` never downloads during a render (a missing pack is flagged with a link to fetch it).
 
-The server binds 127.0.0.1 only and rejects other `Host` headers.
+## Security
+
+The server binds 127.0.0.1 only and rejects other `Host` headers. Reading sources, saving and browsing folders
+need a header the UI sends (`X-Spinagram: 1`); the server sends no CORS headers, so a page on another site
+cannot send it and cannot read or write your files. Saves go only to files the panel lists for a loaded
+diagram, are refused when the file changed since it was read, keep the file's line endings, and replace the
+file atomically, so a crash never leaves it half written.
