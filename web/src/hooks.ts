@@ -43,6 +43,11 @@ export function setLeaveGuard(guard: (() => boolean) | null): void {
   leaveGuard = guard;
 }
 
+/** Ask the leave guard (if any) whether the current page may be left. */
+export function confirmLeave(): boolean {
+  return leaveGuard ? leaveGuard() : true;
+}
+
 /** Hash routing: `#/` diagrams, `#/d/<key>`, `#/t` and `#/t/<ref>`, `#/p` and `#/p/<name>`. */
 export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
   const [route, setRoute] = useState(() => parse(location.hash));
@@ -52,7 +57,7 @@ export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
     const on = () => {
       const next = parse(location.hash);
       if (href(next) === href(current.current)) return;
-      if (leaveGuard && !leaveGuard()) {
+      if (!confirmLeave()) {
         history.replaceState(null, "", href(current.current)); // stay: the address bar shows this page again
         return;
       }
@@ -62,6 +67,7 @@ export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
     return () => window.removeEventListener("hashchange", on);
   }, []);
   const go = useCallback((r: Route, replace = false) => {
+    if (href(r) !== href(current.current) && !confirmLeave()) return;
     if (replace) history.replaceState(null, "", href(r));
     else location.hash = href(r);
     setRoute(r);

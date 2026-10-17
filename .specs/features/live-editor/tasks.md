@@ -464,8 +464,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Requirement**: EDIT-10
 
 **Done when**:
-- [ ] `confirmLeave` returns the guard's answer and `true` without a guard (unit test); the dialog and `go()` call it
-- [ ] `bun test` and the build gate pass
+- [x] `confirmLeave` returns the guard's answer and `true` without a guard (unit test); the dialog and `go()` call it
+- [x] `bun test` and the build gate pass
 
 **Tests**: unit
 **Gate**: quick-web

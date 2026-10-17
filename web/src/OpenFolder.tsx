@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type DirListing, type Workspace } from "./api";
+import { confirmLeave, setLeaveGuard } from "./hooks";
 
 type Props = {
   onClose: () => void;
@@ -34,12 +35,15 @@ export default function OpenFolder({ onClose, onOpened }: Props) {
 
   const open = () => {
     const target = path.trim() || listing?.path;
-    if (!target) return;
+    if (!target || !confirmLeave()) return; // unsaved code edits: ask before the workspace changes under them
     setBusy(true);
     setError(null);
     api
       .open(target)
-      .then(onOpened)
+      .then((ws) => {
+        setLeaveGuard(null); // already confirmed: the page change that follows must not ask again
+        onOpened(ws);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
   };
