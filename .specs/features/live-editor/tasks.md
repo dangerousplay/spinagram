@@ -238,8 +238,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-01, EDIT-03, EDIT-04, EDIT-05, EDIT-06, EDIT-07
 
 **Done when**:
-- [ ] Saving writes, clears the dot, and the diagram re-renders through the live event
-- [ ] Build gate passes
+- [x] Saving writes, clears the dot, and the diagram re-renders through the live event
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
