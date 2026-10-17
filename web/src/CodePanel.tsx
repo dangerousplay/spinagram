@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api";
 import type { EditorHandle } from "./codemirror";
-import { anyDirty, edit, fromSource, keepMine, merge, reload, saved, type Tab } from "./editor";
+import { anyDirty, edit, fromSource, jumpLine, keepMine, merge, reload, saved, type Tab } from "./editor";
 import { setLeaveGuard } from "./hooks";
 
 type Props = {
   diagramKey: string;
   rev: number; // bumps on every live reload of the diagram: the source is read again
-  jump: { line: number; nonce: number } | null; // a request to show a line of the spec tab
+  jump: { title: string; nonce: number } | null; // show the spec line that creates the node with this title
   onClose: () => void;
 };
 
@@ -125,14 +125,21 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
     }
   }, [tabs, active]);
 
-  // a jump request shows the spec tab and its line
+  // a jump request shows the spec tab and the line holding the title; no such line leaves the editor alone
+  const handled = useRef(0);
   useEffect(() => {
-    if (!jump || !editor.current || !tabs?.length) return;
+    if (!jump || handled.current === jump.nonce || !editor.current || !tabs?.length) return;
+    const line = jumpLine(tabs[0].text, jump.title);
+    if (line === null) {
+      handled.current = jump.nonce;
+      return;
+    }
     if (active !== 0) {
       setActive(0);
       return; // the tab switch re-runs this effect with the spec loaded
     }
-    editor.current.jumpTo(jump.line);
+    handled.current = jump.nonce;
+    editor.current.jumpTo(line);
   }, [jump, active, tabs]);
 
   const current = tabs?.[active];

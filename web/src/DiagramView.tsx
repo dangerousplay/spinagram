@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type StyleReport } from "./api";
 import { href, useKey, usePanZoom } from "./hooks";
+import CodePanel from "./CodePanel";
 import { hitTest, InspectorPanel, Overlay } from "./Inspector";
 
 const INSPECT_KEY = "spinagram.inspect";
+const CODE_KEY = "spinagram.code";
 
-function initialInspect(): boolean {
+function stored(key: string): boolean {
   try {
-    return localStorage.getItem(INSPECT_KEY) === "1";
+    return localStorage.getItem(key) === "1";
   } catch {
     return false;
+  }
+}
+
+function store(key: string, on: boolean): void {
+  try {
+    localStorage.setItem(key, on ? "1" : "0");
+  } catch {
+    /* storage unavailable: the toggle still works for this page */
   }
 }
 
@@ -35,7 +45,9 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const size = useMemo(() => (svg ? svgSize(svg) : null), [svg]);
   const { ref, view, fit, actual, zoomBy } = usePanZoom(size);
   const fitted = useRef(false);
-  const [inspect, setInspect] = useState(initialInspect);
+  const [inspect, setInspect] = useState(() => stored(INSPECT_KEY));
+  const [code, setCode] = useState(() => stored(CODE_KEY));
+  const [jump, setJump] = useState<{ title: string; nonce: number } | null>(null);
   const [report, setReport] = useState<StyleReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -44,19 +56,22 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
 
   const toggleInspect = useCallback(() => {
     setInspect((on) => {
-      try {
-        localStorage.setItem(INSPECT_KEY, on ? "0" : "1");
-      } catch {
-        /* storage unavailable: the toggle still works for this page */
-      }
+      store(INSPECT_KEY, !on);
       return !on;
     });
     setHover(null);
   }, []);
+  const toggleCode = useCallback(() => {
+    setCode((on) => {
+      store(CODE_KEY, !on);
+      return !on;
+    });
+  }, []);
 
-  // the styles report follows the diagram: refetched on every live reload, selection kept by key
+  // the styles report follows the diagram: refetched on every live reload, selection kept by key; the code
+  // panel uses its geometry too, to find the node under a click
   useEffect(() => {
-    if (!inspect) return;
+    if (!inspect && !code) return;
     const ctl = new AbortController();
     api
       .styles(diagramKey, layout, ctl.signal)
@@ -66,7 +81,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       })
       .catch((e: unknown) => !ctl.signal.aborted && setReportError(e instanceof Error ? e.message : String(e)));
     return () => ctl.abort();
-  }, [inspect, diagramKey, layout, rev]);
+  }, [inspect, code, diagramKey, layout, rev]);
 
   const sceneAt = (e: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect();
@@ -83,9 +98,14 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const onUp = (e: React.PointerEvent) => {
     const p0 = press.current;
     press.current = null;
-    if (!inspect || !report || !p0 || Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 4) return; // a drag pans
+    if (!report || !p0 || Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 4) return; // a drag pans
     const p = sceneAt(e);
-    setSelected(hitTest(report, p.x, p.y, 6 / view.scale));
+    const hit = hitTest(report, p.x, p.y, 6 / view.scale);
+    if (inspect) setSelected(hit);
+    else if (code && hit?.startsWith("node:")) {
+      const title = report.elements.find((el) => el.key === hit)?.attrs.label;
+      if (title) setJump({ title, nonce: Date.now() });
+    }
   };
 
   useEffect(() => {
@@ -119,6 +139,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   useKey("+", () => zoomBy(1.25));
   useKey("-", () => zoomBy(0.8));
   useKey("i", toggleInspect);
+  useKey("e", toggleCode);
   useKey("Escape", () => setSelected(null));
 
   const fileError = file?.error && !diagram;
@@ -202,6 +223,16 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         </button>
         <button
           className={`border-l border-slate-200 px-3 py-1 dark:border-slate-700 ${
+            code ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-slate-100 dark:hover:bg-slate-700"
+          }`}
+          onClick={toggleCode}
+          title="Code (e): the Python and CSS of this diagram; click a box to find its line"
+          aria-pressed={code}
+        >
+          Code
+        </button>
+        <button
+          className={`border-l border-slate-200 px-3 py-1 dark:border-slate-700 ${
             inspect ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-slate-100 dark:hover:bg-slate-700"
           }`}
           onClick={toggleInspect}
@@ -212,6 +243,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         </button>
       </div>
     </div>
+    {code && <CodePanel diagramKey={diagramKey} rev={rev} jump={jump} onClose={toggleCode} />}
     {inspect && (
       <InspectorPanel
         report={report}

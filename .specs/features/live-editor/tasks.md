@@ -272,8 +272,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-01, JUMP-01, JUMP-02
 
 **Done when**:
-- [ ] Panel opens next to the canvas; inspector still works
-- [ ] Build gate passes
+- [x] Panel opens next to the canvas; inspector still works
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
