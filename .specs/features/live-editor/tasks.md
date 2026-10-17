@@ -430,8 +430,8 @@ T18 → T19 → T20 → T21 → T22 → T23
 **Requirement**: DIR-04, EDIT-05
 
 **Done when**:
-- [ ] Deleting `retarget.set()` makes the retarget test fail
-- [ ] Quick gate passes
+- [x] Deleting `retarget.set()` makes the retarget test fail
+- [x] Quick gate passes
 
 **Tests**: integration
 **Gate**: quick

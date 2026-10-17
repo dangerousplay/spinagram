@@ -386,23 +386,75 @@ def test_saving_a_nested_spec_rerenders_it(tmp_path):  # DIR-04
     assert "Renamed" in ws.render("aws/deep/x.yaml#DEEP")[0]
 
 
+def _saw(bus: Recorder, key: str) -> bool:
+    return any(e.get("type") == "diagram" and key in e.get("keys", []) for e in bus.events)
+
+
+def _touch_until(bus: Recorder, f: Path, key: str, spec_id: str, limit: float = 10.0) -> float:
+    """Rewrite ``f`` until the watcher reports ``key``; returns the seconds the last write took to show up."""
+    deadline = time.time() + limit
+    while time.time() < deadline:
+        t0 = time.time()
+        f.write_text(SPEC.replace("id: A", f"id: {spec_id}").replace("title: Node", f"title: T{t0}"))
+        while time.time() < t0 + 1.5:
+            if _saw(bus, key):
+                return time.time() - t0
+            time.sleep(0.02)
+    raise AssertionError(f"no diagram event for {key} within {limit}s")
+
+
+def _quiet(bus: Recorder, idle: float = 0.8) -> None:
+    """Wait until the watcher has delivered every trailing event (none for ``idle`` seconds)."""
+    n = -1
+    while n != len(bus.events):
+        n = len(bus.events)
+        time.sleep(idle)
+
+
 def test_watcher_follows_an_opened_folder(tmp_path):  # DIR-04
     (tmp_path / "one").mkdir()
-    (tmp_path / "one" / "a.yaml").write_text(SPEC.replace("id: A", "id: ONE"))
+    old = tmp_path / "one" / "a.yaml"
+    old.write_text(SPEC.replace("id: A", "id: ONE"))
     (tmp_path / "two" / "sub").mkdir(parents=True)
     target = tmp_path / "two" / "sub" / "b.yaml"
     target.write_text(SPEC.replace("id: A", "id: TWO"))
     bus = Recorder()
     ws = Workspace([tmp_path / "one"])
     with TestClient(create_app(ws, bus=bus, watch=True), base_url="http://127.0.0.1") as c:
+        _touch_until(bus, old, "a.yaml#ONE", "ONE")  # the watcher is running on the first folder
+        _quiet(bus)  # no event from the first folder is left to restart the watcher by chance
         assert c.post("/api/workspace/open", headers=H, json={"path": str(tmp_path / "two")}).status_code == 200
-        deadline = time.time() + 10
-        while time.time() < deadline:
-            target.write_text(SPEC.replace("id: A", "id: TWO").replace("title: Node", f"title: T{time.time()}"))
-            time.sleep(0.5)
-            if any(e.get("type") == "diagram" and "sub/b.yaml#TWO" in e.get("keys", []) for e in bus.events):
-                break
-        assert any(e.get("type") == "diagram" and "sub/b.yaml#TWO" in e.get("keys", []) for e in bus.events)
+        _touch_until(bus, target, "sub/b.yaml#TWO", "TWO")  # and now follows the opened one
+
+
+def test_a_save_rerenders_within_one_second(tmp_path):  # EDIT-05
+    (tmp_path / "a.yaml").write_text(SPEC)
+    bus = Recorder()
+    ws = Workspace([tmp_path])
+    with TestClient(create_app(ws, bus=bus, watch=True), base_url="http://127.0.0.1") as c:
+        _touch_until(bus, tmp_path / "a.yaml", "a.yaml#A", "A")  # watcher warm
+        _quiet(bus)
+        src = c.get("/api/diagrams/a.yaml%23A.source", headers=H).json()["files"][0]
+        assert "Saved" not in c.get("/api/diagrams/a.yaml%23A.svg").text
+        t0 = time.time()
+        r = c.put("/api/files", headers=H, json={"path": "a.yaml", "text": src["text"].replace("title: T", "title: Saved T"),
+                                                 "version": src["version"]})
+        assert r.status_code == 200
+        while "Saved" not in c.get("/api/diagrams/a.yaml%23A.svg").text and time.time() - t0 < 3:
+            time.sleep(0.02)
+        assert time.time() - t0 <= 1.0  # the render shows the saved text within a second
+
+
+def test_saving_a_shared_stylesheet_rerenders_every_diagram_using_it(tmp_path):  # edge case
+    (tmp_path / "shared.css").write_text("node { fill: #EEEEEE }\n")
+    for i in (1, 2):
+        (tmp_path / f"d{i}.py").write_text(
+            f"from spinagram import Diagram\nd = Diagram('D{i}', 'D')\nd.stylesheet('shared.css')\nd.box('N')\n")
+    ws = Workspace([tmp_path])
+    sheet = next(f for f in ws.source("d1.py#D1") if f["path"] == "shared.css")
+    ws.write("shared.css", "node { fill: #FF0000 }\n", sheet["version"])
+    events = apply_changes(ws, ws.theme_roots(), {(tmp_path / "shared.css").resolve()})
+    assert {"type": "diagram", "keys": ["d1.py#D1", "d2.py#D2"]} in events
 
 
 # T18 · several roots never share a display path ----------------------------------------------------------
