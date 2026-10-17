@@ -444,7 +444,9 @@ def resolve(ref: str, tone: str = "light", *, packs: dict[str, Pack] | None = No
     if not idx:
         return None
     n = kebab(name)
-    entry = idx["icons"].get(n) or idx["icons"].get(idx["aliases"].get(n, ""))
+    # the registry's curated aliases apply at once, without downloading the pack again
+    entry = idx["icons"].get(n) or idx["icons"].get(idx["aliases"].get(n, "")) \
+        or idx["icons"].get(pack.alias.get(n, ""))
     if not entry:
         return None
     fname = entry.get("dark" if tone == "dark" else "light") or entry.get("light") or entry.get("dark")

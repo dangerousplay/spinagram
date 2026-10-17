@@ -1,0 +1,22 @@
+# Devicon (devicons/devicon, MIT): ~560 programming languages, frameworks, databases and developer tools in
+# their original colours (devicon:python, devicon:rust, devicon:kafka). `-plain` and `-line` are the flat and
+# outline styles, `-wordmark` adds the name.
+devicon:
+  title: Devicon
+  license: MIT (devicons/devicon); logos are trademarks of their owners
+  homepage: https://devicon.dev
+  source: {type: github, repo: devicons/devicon, ref: 6a37858047b0e8d9c9c0e68f4a071fc410652e89, include: ["icons/*"]}
+  rules:   # first match wins
+    - {match: '^icons/(?P<dir>[^/]+)/(?P=dir)-original\.svg$', name: '{dir}'}
+    - {match: '^icons/(?P<dir>[^/]+)/(?P=dir)-plain\.svg$', name: '{dir}-plain', aliases: ['{dir}']}
+    - {match: '^icons/(?P<dir>[^/]+)/(?P=dir)-line\.svg$', name: '{dir}-line', aliases: ['{dir}']}
+    - {match: '^icons/(?P<dir>[^/]+)/(?P=dir)-original-wordmark\.svg$', name: '{dir}-wordmark'}
+    - {match: '^icons/(?P<dir>[^/]+)/(?P=dir)-plain-wordmark\.svg$', name: '{dir}-plain-wordmark', aliases: ['{dir}-wordmark']}
+  alias:
+    golang: go
+    kafka: apachekafka
+    js: javascript
+    ts: typescript
+    postgres: postgresql
+    k8s: kubernetes
+    tf: terraform
