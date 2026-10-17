@@ -42,20 +42,11 @@ bun run build                   # static site in docs/out/
 Pages are MDX files in `docs/content/docs/`, one folder per sidebar section; each folder's `meta.json` sets its title, icon and page order. Code samples are
 pulled from `examples/` with `<include>`, so they always match the files that the tests run.
 
-The diagrams on these pages are rendered by spinagram itself:
+The diagrams on these pages are rendered by spinagram itself, from the files in `examples/`. After changing an
+example or the renderer, refresh every image the docs show:
 
 ```bash
-spinagram render docs/diagrams/ examples/quickstart.py -f svg -o out/
-cp out/S00-spinagram.svg docs/public/assets/overview.svg
-cp out/Q01-web-app-on-aws.svg docs/public/assets/quickstart.svg
-
-# tutorial steps and the gallery
-spinagram render examples/tutorial/ -f svg -o out/tutorial/
-for i in 1 2 3 4 5; do cp out/tutorial/T0$i-checkout.svg docs/public/assets/tutorial/t0$i.svg; done
-spinagram render examples/showcase/ -f svg -o out/showcase/
-for f in out/showcase/*.svg; do id=$(basename "$f" | cut -d- -f1 | tr A-Z a-z); cp "$f" docs/public/assets/gallery/$id.svg; done
-spinagram render examples/looks/ examples/mixed/ examples/icons/ -f svg -o out/examples/
-for f in out/examples/*.svg; do id=$(basename "$f" | cut -d- -f1 | tr A-Z a-z); cp "$f" docs/public/assets/examples/$id.svg; done
+bash docs/scripts/render_assets.sh
 ```
 
 ## Releasing

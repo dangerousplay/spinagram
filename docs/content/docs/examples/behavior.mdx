@@ -1,0 +1,45 @@
+---
+title: Flowcharts, states and swimlanes
+description: Procedures, lifecycles and cross-team processes, with builders that speak each diagram's language.
+---
+
+## Flowchart
+
+**Use it for:** runbooks, approval rules, "what happens when the card is declined".
+
+Every verb draws the right symbol, and decisions get `.yes()` and `.no()`:
+
+<include meta='title="examples/behavior/flowchart.py"'>../../../../examples/behavior/flowchart.py</include>
+
+![Checkout flowchart with two decisions and a retry loop](/assets/demo/b01.svg)
+
+Keep the happy path on `>>` chains and branch off with `.no()`; the layout keeps the main line straight.
+`spinagram check` warns about a decision with only one branch.
+
+## State machine
+
+**Use it for:** order, ticket, deployment or account lifecycles.
+
+`state.on(event, target, guard=, action=)` labels transitions the UML way, `event [guard] / action`.
+Composite states and parallel regions nest with `with`.
+
+<include meta='title="examples/behavior/state_machine.py"'>../../../../examples/behavior/state_machine.py</include>
+
+![Order lifecycle with a composite Fulfilment state and two parallel regions](/assets/demo/b02.svg)
+
+## Process with swimlanes
+
+**Use it for:** cross-team processes, hand-offs, "what happens after the customer clicks Buy".
+
+Put actions inside `with act.lane("Team"):` and let `with act.sequence():` connect them in order. A
+`parallel()` block draws the fork and join bars.
+
+<include meta='title="examples/behavior/activity.py"'>../../../../examples/behavior/activity.py</include>
+
+![Order fulfilment across Customer, Shop and Warehouse lanes](/assets/demo/b03.svg)
+
+## Next to the architecture
+
+Any of these can sit inside an architecture diagram as a region:
+[Several diagram types on one slide](/docs/examples/mixed-diagrams). Every verb and option:
+[Behavior diagrams](/docs/write/behavior).

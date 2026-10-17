@@ -1,0 +1,23 @@
+/* Pastel: soft tinted cards, round corners, gentle shadows. Friendly for product and onboarding docs. */
+:root { --ink: #1F2937; --mute: #6B7280; }
+
+group.canvas        { fill-opacity: 1; opacity: 1; fill: #FFFBF5; stroke: #FDE68A; stroke-width: 2; border-radius: 32px; }
+group.canvas::label { color: #B45309; }
+group.tier          { opacity: 1; fill-opacity: 1; fill: #FFFFFF; stroke-width: 0; border-radius: 24px; box-shadow: 0 8px 22px rgba(180, 83, 9, 0.08); }
+group.tier::label   { color: var(--mute); }
+
+node                { stroke-width: 0; border-radius: 22px; box-shadow: 0 6px 14px rgba(31, 41, 55, 0.10); }
+node::title         { color: var(--ink); font-weight: 600; }
+node::body          { color: var(--mute); }
+node.client         { fill: #EDE9FE; }
+node.edge           { fill: #E0F2FE; }
+node.service        { fill: #DCFCE7; }
+node.hero           { fill: #FCE7F3; stroke: #EC4899; stroke-width: 2; }
+node.store          { fill: #FEF3C7; }
+node.stream         { fill: #FFEDD5; }
+
+edge                { stroke: #CBD5E1; stroke-width: 3; }
+edge::label         { color: var(--mute); }
+edge.async          { stroke: #FB923C; stroke-dasharray: 2 6; }
+
+legend              { fill: #FFFFFF; stroke-width: 0; box-shadow: 0 8px 22px rgba(31, 41, 55, 0.08); }

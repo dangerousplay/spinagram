@@ -35,6 +35,20 @@ defaults for every spec in it.
 | `--json` | check | Print the style report as JSON |
 | `--color auto\|always\|never` | check | Colour the style report (`auto`: a terminal without `NO_COLOR`) |
 
+## What `check` reports
+
+| Kind | Meaning |
+|---|---|
+| `overflow-x`, `overflow-y` | Text wider or taller than its box |
+| `layout: overflow` | The automatic layout does not fit its area |
+| `label` | An edge label hides an arrowhead, or covers a box |
+| `edge` | An edge is drawn through a box it does not connect |
+| `style` | A stylesheet error, an unknown property or a font the theme does not embed |
+| `behavior` | A decision with one branch, a fork with one branch, a state region without an initial state |
+| `legend`, `steps`, `callout`, `annotations` | Annotation problems, see [Annotations](/docs/customize/annotations#checks) |
+
+`check` exits non-zero when it finds anything, so it can gate a pull request.
+
 ## Environment variables
 
 | Variable | Effect |

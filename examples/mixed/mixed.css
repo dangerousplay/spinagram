@@ -1,0 +1,15 @@
+/* Shared look for mixed slides: each region reads as its own card. */
+:root { --ink: #0F172A; --mute: #64748B; --accent: #7C3AED; }
+
+group.arch, group.flow, group.states { fill: #FFFFFF; fill-opacity: 1; stroke: #E2E8F0; stroke-width: 1.5;
+                                       border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08); }
+group.arch::label, group.flow::label, group.states::label { color: var(--accent); }
+
+node        { border-radius: 12px; }
+node::title { color: var(--ink); }
+node::body  { color: var(--mute); }
+node.hero   { fill: #F5F3FF; stroke: var(--accent); stroke-width: 3; }
+
+edge        { stroke: #64748B; }
+edge.link   { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 8 5; }
+edge.link::label { color: var(--accent); }

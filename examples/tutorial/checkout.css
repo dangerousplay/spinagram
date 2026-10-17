@@ -1,0 +1,11 @@
+/* Tutorial step 5: one stylesheet restyles the diagram without touching its code. */
+:root { --brand: #6D28D9; }
+
+node { border-radius: 12px; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12); }
+node::title { color: var(--brand); }
+node.external { fill: #F5F3FF; stroke-dasharray: 8 5; }
+node.critical { fill: #FEE2E2; stroke: #DC2626; stroke-width: 4; }
+node.critical::title { color: #7F1D1D; }
+
+edge { stroke: #475569; }
+edge.async { stroke: #F59E0B; stroke-dasharray: 6 4; marker-end: open-arrow; }

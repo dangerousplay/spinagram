@@ -1,0 +1,40 @@
+---
+title: Networks and homelabs
+description: VLANs, racks, campus and data center networks with the network and selfhosted icon packs.
+---
+
+**Use it for:** network designs, VLAN plans, homelab documentation.
+
+The `network` pack has device symbols (`network:l3-switch`, `network:firewall`, `network:internet`) and the
+`selfhosted` pack has logos for self-hosted software (`selfhosted:proxmox`, `selfhosted:truenas`,
+`selfhosted:pihole`). Groups become VLANs, racks or sites:
+
+```python
+with d.group("VLAN 10 · edge", class_="vlan dmz", direction="down"):
+    internet = d.box("Internet", text="ISP fibre", icon="network:internet")
+    fw = d.box("Firewall", text="OPNsense", icon="selfhosted:opnsense")
+```
+
+## Homelab private cloud
+
+A Proxmox VE cluster behind OPNsense, with TrueNAS storage and off-host backups, split into VLANs.
+[`homelab.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/homelab.py) +
+[`homelab.css`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/homelab.css)
+
+![Homelab private cloud](/assets/gallery/home01.svg)
+
+## Campus network
+
+A redundant core, the access layer and endpoints, with the legend placed by the stylesheet.
+[`campus_network.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/campus_network.py)
+
+![Campus network](/assets/gallery/net01.svg)
+
+## EVPN-VXLAN data center fabric
+
+An eBGP underlay, an EVPN overlay, all-active ESI multihoming and two ISPs.
+[`evpn_fabric.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/evpn_fabric.py)
+
+![EVPN-VXLAN data center fabric](/assets/gallery/net02.svg)
+
+Symbol names, colours and shapes: [Icon packs](/docs/customize/icons#homelab-private-cloud-and-network).

@@ -16,7 +16,7 @@ spec (YAML/.py) + theme dir ──► layout (fonts, wrap, anchors) ──► sv
 1. **Message first.** State the single question the diagram answers. That becomes the `subtitle`, a full sentence with the conclusion. The `title` names the topic in 2–6 words.
 2. **Pick a pattern** (table below) and sketch the grid on paper: columns, rows, gaps.
 3. **Write the spec.** Prefer Python: `a >> b` arrows, `with d.group(...)` zones, loops for repetition, and automatic layout when no node has coordinates. Use YAML when another tool generates the diagram.
-4. **`spinagram check`** must report 0 issues (text overflow).
+4. **`spinagram check`** must report 0 issues: text overflow, labels hiding an arrowhead or covering a box, edges drawn through a box.
 5. **Render PNG and look at it.** Check overlaps, arrows crossing text, label pills on borders, and empty zones. Fix the spec, never the output.
 6. **Deliver.** Use `-f svg,png,pptx` for decks. Add `figma` and follow the Figma hand-off below.
 
@@ -129,15 +129,16 @@ save, shows load/render errors inline, the theme token sheet (colour token names
 Use `icon: "<pack>:<name>"` for vendor icons: `aws`, `gcp`, `azure`, `k8s`, `oci`, `openstack`, `terrastruct`,
 `selfhosted` (Proxmox, OPNsense, VMware ESXi, TrueNAS, UniFi… for homelabs and private clouds) and `network`
 (router, switch, firewall… as `network:router`, `-green`, `-circle`, `-plain`), `ai` (OpenAI, Claude, Gemini,
-Ollama, Bedrock, LangChain, MCP…; `-mono`, `-text`), `cncf` (every CNCF project: `cncf:harbor`, `cncf:argo`,
-`cncf:prometheus`, `cncf:otel`; `-horizontal`, `-stacked`) and `logos` (about 2,000 technology logos:
-`logos:gitlab`, `logos:jfrog`, `logos:oracle`, `logos:jenkins`, `logos:vault`; `-logo` for the full logo) are built in
+Ollama, Bedrock, LangChain, MCP…; `-mono`, `-text`), `cncf` (every CNCF project: `cncf:cilium`, `cncf:envoy`,
+`cncf:argo`, `cncf:prometheus`, `cncf:otel`; `-horizontal`, `-stacked`), `logos` (about 2,000 technology logos:
+`logos:gitlab`, `logos:terraform`, `logos:datadog`, `logos:vault`; `-logo` for the full logo) and `devicon`
+(languages and tools in their colours: `devicon:rust`, `devicon:go`, `devicon:kafka`; `-plain`, `-line`) are built in
 and download on first use (`spinagram icons fetch`). Find names with `spinagram icons search <words>`;
 short aliases exist for common services (`aws:s3`, `aws:alb`, `aws:kms`, `gcp:gke`, `azure:aks`, `k8s:pod`).
 For general software architecture (languages, databases, caches, queues) use `terrastruct`:
 `terrastruct:java|python|go|nodejs|react`, `terrastruct:postgres|mysql|mongo|redis|oracle`,
 `terrastruct:kafka|sqs|sns|service-bus|pubsub`, `terrastruct:tech-server`, `terrastruct:db`. It has no
-native Kafka/RabbitMQ logo: `kafka` maps to the AWS MSK icon.
+native Kafka/RabbitMQ logo: `kafka` maps to the AWS MSK icon; use `devicon:kafka` for the Apache Kafka logo.
 Register a brand or extra set with `spinagram icons add <name> --dir|--zip|--npm|--github …`
 (`--project` writes `./spinagram-icons.yaml`, shareable with the repo). Prefer SVG packs; PNG packs
 (oci, openstack) carry a dark variant used automatically on dark fills.
@@ -162,6 +163,9 @@ coordinates. spinagram sizes and places everything, and each group is drawn as a
 - **Mixed slides:** a legend or note with explicit `at:` stays where you put it; the auto content fills `layout.area`.
 - **Hand-tuning:** `spinagram layout spec.yaml -o frozen.yaml` freezes the result; edit the frozen spec.
 - `check` reports `layout: overflow` when the content does not fit. Change the direction, split the diagram or shorten titles.
+- **Labelled edges need room.** Flex widens the gap between two neighbours joined by a labelled edge, unless the group sets `gap`. With a tight explicit `gap`, `check` reports `label` issues: raise that gap, drop the label or move it with `label_at`.
+- **Fan-outs:** with flex, add `route: ortho` so edges route around boxes; if `check` reports `edge … passes through box`, stack the targets (e.g. AZs `direction: down`) so the fan-out does not cross them.
+- **Ids are shared by boxes and groups.** A group `id="shop"` and a box titled "Shop" would clash; the box gets `shop-2`, an explicit clash is an error.
 
 ## Groups with outlines (AWS-style)
 

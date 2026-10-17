@@ -1,0 +1,5 @@
+/* GitOps activity: actions as soft cards, the gate in AWS orange, the rollback in red. */
+node::title { font-size: 16px; }
+action, send, receive { fill: #FFFFFF; stroke: #326CE5; stroke-width: 2; border-radius: 14px; }
+decision    { fill: #FFF7ED; stroke: #FF9900; stroke-width: 2; }
+#rollback   { fill: #FEF2F2; stroke: #DC2626; }

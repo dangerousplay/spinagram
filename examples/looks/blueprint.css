@@ -1,0 +1,20 @@
+/* Blueprint: white ink on drafting blue, square corners and dashed construction lines. */
+:root { --paper: #0B3D91; --ink: #FFFFFF; --faint: #BFDBFE; }
+
+group.canvas        { fill-opacity: 1; opacity: 1; fill: var(--paper); stroke: var(--ink); stroke-width: 3; border-radius: 0; }
+group.canvas::label { color: var(--ink); font-weight: 700; }
+group.tier          { opacity: 1; fill: #0E4BB0; fill-opacity: 0.6; stroke: var(--faint); stroke-dasharray: 2 6; border-radius: 0; }
+group.tier::label   { color: var(--faint); }
+
+node                { fill: var(--paper); stroke: var(--ink); stroke-width: 2; border-radius: 0; box-shadow: none; }
+node::title         { color: var(--ink); font-weight: 700; }
+node::body          { color: var(--faint); font-style: italic; }
+node.hero           { stroke-width: 4; }
+node.store, node.stream { stroke-dasharray: 10 4; }
+
+edge                { stroke: var(--ink); stroke-width: 1.5; marker-end: open-arrow; }
+edge::label         { color: var(--paper); }  /* label pills keep the white canvas fill */
+edge.async          { stroke: var(--faint); stroke-dasharray: 3 4; marker-end: circle; }
+
+legend              { fill: var(--paper); stroke: var(--ink); border-radius: 0; }
+legend::title, legend::body { color: var(--ink); }

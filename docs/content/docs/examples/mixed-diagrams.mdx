@@ -1,0 +1,51 @@
+---
+title: Several diagram types on one slide
+description: Put a flowchart, a state machine or a swimlane process next to your architecture.
+---
+
+Real explanations mix kinds of diagram: *here is the system*, *here is what it decides*, *here is the life of
+the thing it manages*. In spinagram any diagram can hold typed regions:
+
+| Inside any `Diagram` | You get the verbs of |
+|---|---|
+| `with d.flowchart("Title") as fc:` | `Flowchart`: `start`, `process`, `decision` with `.yes()` / `.no()`, `io`, `end` |
+| `with d.state_machine("Title") as sm:` | `StateMachine`: `state`, `initial`, `final`, `s.on(event, target)` |
+| `with d.activity("Title") as act:` | `Activity`: `lane`, `sequence`, `parallel`, `action`, `send` |
+
+Each region is laid out by its own engine (the layered one by default) and sits in the page like any box. Connect
+across regions with the usual `a.to(b, "label")`.
+
+## Architecture, flowchart and state machine
+
+The payments API runs a fraud check; an approved check creates a payment, whose lifecycle is a state machine.
+
+<include meta='title="examples/mixed/payments.py"'>../../../../examples/mixed/payments.py</include>
+
+![Architecture on the left, a fraud-check flowchart in the middle and the payment state machine on the right](/assets/examples/m01.svg)
+
+## Architecture and swimlanes
+
+The monitoring stack raises the alert; the activity shows what the on-call engineer and the team do next,
+with mitigation and the status page update in parallel.
+
+<include meta='title="examples/mixed/incident.py"'>../../../../examples/mixed/incident.py</include>
+
+![The monitoring stack on top and an incident-response activity with On-call and Team lanes below](/assets/examples/m02.svg)
+
+<include meta='title="examples/mixed/mixed.css"'>../../../../examples/mixed/mixed.css</include>
+
+## Tips
+
+- **Pick the outer direction for the shape of the slide.** Tall regions (top-down flowcharts) sit side by side
+  with `direction: "right"`; wide ones (activities flowing right) stack with `direction: "down"`.
+- **Link to real nodes, not pseudostates.** An arrow into an initial node is rejected, so point at the first
+  action or state instead.
+- **Give each region a class** (`class_="flow"`) and style them as cards, so the reader sees where one diagram
+  ends and the next begins.
+- **Style cross-region arrows apart** (`class_="link"`, dashed and in an accent colour). They read as "this
+  triggers that", not as part of either flow.
+
+For a real-world case, see [Gateway API routing on EKS](/docs/examples/kubernetes#how-gateway-api-routes-a-request):
+an HTTPRoute's rules drawn as a flowchart inside the cluster.
+
+More on each builder: [Behavior diagrams](/docs/write/behavior).

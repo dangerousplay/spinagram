@@ -1,0 +1,39 @@
+/* Kubernetes on EKS: a dark cluster inside the AWS region, Cilium yellow, Gateway API teal. */
+:root { --night: #0B1220; --panel: #131C2E; --rim: #2A3954; --frost: #F8FAFC; --mist: #94A3B8;
+        --cilium: #F8C517; --gateway: #2DD4BF; --addon: #A78BFA; --aws: #FF9900; --k8s: #326CE5; }
+
+group.cluster        { fill: var(--night); fill-opacity: 1; opacity: 1; stroke: var(--k8s); stroke-width: 2;
+                       border-radius: 20px; box-shadow: 0 18px 36px rgba(11, 18, 32, 0.35); }
+group.cluster::label { color: #93C5FD; }
+group.lane           { fill: #0F1A30; fill-opacity: 1; stroke: var(--rim); border-radius: 14px; }
+group.lane::label    { color: var(--mist); }
+group.ns             { stroke: var(--k8s); stroke-dasharray: 8 6; }
+group.bare           { fill-opacity: 0; stroke-width: 0; box-shadow: none; }
+
+group.cluster node        { fill: var(--panel); stroke: var(--rim); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45); }
+group.cluster node::title { color: var(--frost); font-size: 17px; }
+group.cluster node::body  { color: var(--mist); }
+
+.cilium   { stroke: var(--cilium); stroke-width: 2.5; }
+.gateway  { stroke: var(--gateway); stroke-width: 2.5; }
+.addon    { stroke: var(--addon); }
+.workload { stroke: var(--k8s); stroke-width: 2.5; }
+.aws-svc  { stroke: var(--aws); }
+#gateway  { box-shadow: 0 0 24px rgba(45, 212, 191, 0.45); }
+
+edge          { stroke: #64748B; stroke-width: 2; }
+edge.control  { stroke: var(--addon); stroke-dasharray: 6 5; }
+edge::label   { color: #475569; }
+
+group.services        { fill: #FFF7ED; fill-opacity: 1; stroke: var(--aws); border-radius: 16px; }
+group.services::label { color: #C2410C; }
+
+legend        { fill: var(--night); stroke: var(--k8s); stroke-width: 2; }
+legend::title { color: #93C5FD; }
+legend::body  { color: var(--frost); }
+
+/* Flowchart regions inside the cluster */
+group.flow          { fill: #0F1A30; fill-opacity: 1; stroke: var(--gateway); stroke-dasharray: 4 4; border-radius: 14px; }
+group.flow::label   { color: var(--gateway); }
+group.flow node     { stroke: var(--gateway); }
+edge.link           { stroke: var(--gateway); stroke-width: 2.5; }

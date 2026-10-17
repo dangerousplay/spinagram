@@ -16,7 +16,7 @@ const features = [
   ['Editable everywhere', 'PowerPoint slides with native shapes and bound connectors, Figma and FigJam nodes, SVG and PNG.'],
   ['Python first', 'users >> lb >> api. Groups are with-blocks, lists fan out, loops build the rest.'],
   ['Automatic layout', 'No coordinates. Boxes fit their text, groups nest, four engines to choose from.'],
-  ['Thousands of icons', 'AWS, GCP, Azure, Kubernetes, OCI, OpenStack and Terrastruct, downloaded on first use.'],
+  ['Thousands of icons', 'AWS, GCP, Azure, Kubernetes, CNCF projects, product logos, languages and more: twelve packs, downloaded on first use.'],
   ['Your brand', 'One theme directory sets colours, fonts, styles and chrome for every output.'],
   ['Built for review', 'Overflow checks, a live preview, and numbers that carry their sources.'],
 ];
@@ -39,7 +39,7 @@ export default function HomePage() {
           >
             Get started
           </Link>
-          <Link href="/docs/python" className="rounded-full border px-5 py-2.5 font-medium">
+          <Link href="/docs/write/python" className="rounded-full border px-5 py-2.5 font-medium">
             Python guide
           </Link>
         </div>

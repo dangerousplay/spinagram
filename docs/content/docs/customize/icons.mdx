@@ -23,6 +23,10 @@ nodes:
 | `terrastruct` | Terrastruct/D2 icon sheet: languages, databases, frameworks, dev tools, generic infra + cloud subset | SVG |
 | `selfhosted` | [Dashboard Icons](https://github.com/homarr-labs/dashboard-icons) (Apache-2.0): about 3,300 self-hosted and private-cloud logos | SVG |
 | `network` | [Affinity](https://github.com/ecceman/affinity) (Unlicense, public domain): network symbols in 4 colours and 3 shapes | SVG |
+| `ai` | [Lobe Icons](https://github.com/lobehub/lobe-icons) (MIT): about 950 AI logos (providers, models, agents, serving, frameworks) | SVG |
+| `cncf` | [CNCF artwork](https://github.com/cncf/artwork) (Linux Foundation trademark guidelines): about 240 CNCF projects in three forms | SVG |
+| `logos` | [gilbarbara/logos](https://github.com/gilbarbara/logos) (CC0): about 2,000 technology logos (DevOps, vendors, databases, SaaS) | SVG |
+| `devicon` | [Devicon](https://devicon.dev) (MIT): about 560 languages, frameworks, databases and tools; `-plain`, `-line` and `-wordmark` styles | SVG |
 
 Names are kebab-case file names (`aws:amazon-ec2`), with short aliases (`aws:ec2`, `aws:s3`,
 `aws:alb`, `gcp:gke`, `azure:aks`, …). For general software architecture use `terrastruct`:
@@ -32,6 +36,42 @@ technologies by plain name (`terrastruct:python`, `terrastruct:postgres`, `terra
 [`examples/software_architecture.yaml`](https://github.com/dangerousplay/spinagram/blob/main/examples/software_architecture.yaml).
 
 An `icon` can also be a file path, resolved relative to the spec.
+
+## AI, cloud native and technology logos
+
+`ai` covers the AI stack: providers (`ai:openai`, `ai:anthropic`, `ai:google`, `ai:mistral`, `ai:deepseek`), models
+and assistants (`ai:claude`, `ai:gemini`, `ai:copilot`), agents and IDEs (`ai:claude-code`, `ai:cursor`,
+`ai:codex`), serving and platforms (`ai:ollama`, `ai:vllm`, `ai:bedrock`, `ai:azure-ai`, `ai:vertex-ai`,
+`ai:hf`) and frameworks (`ai:langchain`, `ai:langgraph`, `ai:llama-index`, `ai:mcp`).
+
+| Name | Artwork |
+|---|---|
+| `ai:claude` | The colour mark; the monochrome one when there is no colour mark |
+| `ai:claude-mono` | The monochrome mark, black on light fills and white on dark fills |
+| `ai:claude-text` | The wordmark |
+| `ai:google-brand` | The brand mark, where one exists |
+
+`cncf` has every CNCF project by its folder name (`cncf:harbor`, `cncf:argo`, `cncf:prometheus`,
+`cncf:opentelemetry`, `cncf:envoy`, `cncf:istio`, `cncf:helm`, `cncf:flux`, `cncf:falco`), plus `cncf:cncf`
+itself. The bare name is the colour icon; `-horizontal` and `-stacked` are the logos with the name, and `-black`
+any form in one colour. The project's white artwork is used on dark fills. Aliases: `k8s`, `otel`, `argocd`,
+`fluxcd`. A project published only as a logo (`cncf:kanister`) resolves to that logo.
+
+`logos` names a technology the way it is spelled (`logos:gitlab`, `logos:jfrog`, `logos:oracle`,
+`logos:jenkins`, `logos:sonarqube`, `logos:terraform`, `logos:vault`, `logos:dynatrace`, `logos:redhat`). The
+bare name is the square icon when the set has one, else the full logo; `-logo` is always the full logo
+(`logos:gitlab-logo`).
+
+These three packs are downloaded from GitHub on first use, like `selfhosted`. A name can exist in more than one
+pack (`selfhosted:harbor`, `cncf:harbor`); prefer `cncf` for CNCF projects and `logos` for vendors, and keep one
+pack per diagram where you can, so the logos share one style. See
+[`examples/showcase/delivery_ai.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/delivery_ai.py).
+
+`devicon` has languages, frameworks and developer tools in their original colours: `devicon:rust`, `devicon:go`,
+`devicon:python`, `devicon:kafka`, `devicon:postgresql`. Add `-plain` or `-line` for the flat and outline styles,
+`-wordmark` for the logo with the name.
+
+Aliases you add to a pack in your registry (`alias:`) work at once, without downloading the pack again.
 
 ## Homelab, private cloud and network
 
@@ -80,7 +120,9 @@ A pack is YAML (built-ins live in `src/spinagram/icon_packs/`):
   `pattern` regex naming each file), or a local `dir`, plus `include` globs.
 - `rules`: regex → name template, with optional `tone: dark` and `aliases`.
 - `strip`: regexes that derive short aliases.
-- `alias`: a curated alias map.
+- `alias`: a curated alias map; a target may itself be a derived alias.
+- `current_color`: `{light: "#000000", dark: "#ffffff"}` paints SVGs drawn in `currentColor` (they would
+  render black everywhere) and adds a dark-fill copy to those without a dark variant.
 
 Registries merge built-in < `~/.config/spinagram/icons.yaml` < `./spinagram-icons.yaml` <
 `$SPINAGRAM_ICON_PACKS`. A theme can map its own names onto packs:
