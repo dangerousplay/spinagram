@@ -36,11 +36,28 @@ export function href(route: Route): string {
   }
 }
 
+let leaveGuard: (() => boolean) | null = null;
+
+/** While set, every route change asks it first; ``false`` keeps the current page (unsaved code edits). */
+export function setLeaveGuard(guard: (() => boolean) | null): void {
+  leaveGuard = guard;
+}
+
 /** Hash routing: `#/` diagrams, `#/d/<key>`, `#/t` and `#/t/<ref>`, `#/p` and `#/p/<name>`. */
 export function useRoute(): [Route, (r: Route, replace?: boolean) => void] {
   const [route, setRoute] = useState(() => parse(location.hash));
+  const current = useRef(route);
+  current.current = route;
   useEffect(() => {
-    const on = () => setRoute(parse(location.hash));
+    const on = () => {
+      const next = parse(location.hash);
+      if (href(next) === href(current.current)) return;
+      if (leaveGuard && !leaveGuard()) {
+        history.replaceState(null, "", href(current.current)); // stay: the address bar shows this page again
+        return;
+      }
+      setRoute(next);
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);

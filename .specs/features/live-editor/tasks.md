@@ -255,8 +255,8 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: EDIT-08, EDIT-09, EDIT-10
 
 **Done when**:
-- [ ] Keep mine re-saves with the current version; Reload replaces the buffer
-- [ ] Build gate passes
+- [x] Keep mine re-saves with the current version; Reload replaces the buffer
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

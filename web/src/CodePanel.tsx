@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api";
 import type { EditorHandle } from "./codemirror";
-import { edit, fromSource, merge, saved, type Tab } from "./editor";
+import { anyDirty, edit, fromSource, keepMine, merge, reload, saved, type Tab } from "./editor";
+import { setLeaveGuard } from "./hooks";
 
 type Props = {
   diagramKey: string;
@@ -60,11 +61,32 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
       setTabs((prev) => prev && prev.map((x, k) => (k === i && x.text === t.text ? saved(x, version) : x)));
       setNotice(null);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
+      if (e instanceof ApiError && e.status === 409) {
+        await load(); // the file changed since it was read: the refetch turns the modified tab into a conflict
+        setNotice(null);
+      } else setNotice(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
   }, []);
+
+  // unsaved edits: confirm before leaving the diagram or the page
+  const dirty = tabs ? anyDirty(tabs) : false;
+  useEffect(() => {
+    if (!dirty) return;
+    const unload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", unload);
+    setLeaveGuard(() => window.confirm("You have unsaved changes in the code panel. Leave and discard them?"));
+    return () => {
+      window.removeEventListener("beforeunload", unload);
+      setLeaveGuard(null);
+    };
+  }, [dirty]);
+
+  const resolve = (how: (t: Tab) => Tab) => setTabs((prev) => prev && prev.map((t, k) => (k === active ? how(t) : t)));
 
   // the editor is created once, in its own chunk
   useEffect(() => {
@@ -149,6 +171,17 @@ export default function CodePanel({ diagramKey, rev, jump, onClose }: Props) {
       {current && (
         <div className="shrink-0 truncate border-b border-slate-100 px-3 py-1 font-mono text-[11px] text-slate-400 dark:border-slate-900">
           {current.removed ? `file removed: ${current.path}` : current.path}
+        </div>
+      )}
+      {current?.conflict && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200" role="alert">
+          <span className="mr-auto">This file changed on disk since you started editing.</span>
+          <button className="rounded-md border border-amber-300 px-2 py-0.5 hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900" onClick={() => resolve(reload)}>
+            Reload from disk
+          </button>
+          <button className="rounded-md border border-amber-300 px-2 py-0.5 hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900" onClick={() => resolve(keepMine)}>
+            Keep mine
+          </button>
         </div>
       )}
       {(notice || (error && !tabs)) && (
