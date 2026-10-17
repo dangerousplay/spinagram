@@ -168,9 +168,9 @@ T13 → T14 → T15 → T16 → T17
 **Requirement**: DIR-02, DIR-03, DIR-04, DIR-05
 
 **Done when**:
-- [ ] Bad path → 404 and the workspace keeps its files; good path → summary of the new root
-- [ ] A save to a nested spec is classified as a spec change; after `open`, the watcher targets the new root
-- [ ] Tests pass
+- [x] Bad path → 404 and the workspace keeps its files; good path → summary of the new root
+- [x] A save to a nested spec is classified as a spec change; after `open`, the watcher targets the new root
+- [x] Tests pass
 
 **Tests**: integration
 **Gate**: quick

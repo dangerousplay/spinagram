@@ -317,3 +317,89 @@ def test_source_and_save_need_the_header(tmp_path):  # SRC-06
                      json={"path": "own.css", "text": "x\n", "version": _sha(before)}).status_code == 403
         assert "access-control-allow-origin" not in {k.lower() for k in r.headers}
     assert (root / "own.css").read_bytes() == before
+
+
+# T6 · folder routes, nested reloads, watcher retarget -------------------------------------------------
+import time  # noqa: E402
+
+from spinagram.ui.events import EventBus  # noqa: E402
+from spinagram.ui.server import apply_changes  # noqa: E402
+
+
+class Recorder(EventBus):
+    def __init__(self):
+        super().__init__()
+        self.events: list[dict] = []
+
+    def publish(self, event: dict) -> None:
+        self.events.append(event)
+        super().publish(event)
+
+
+def test_fs_route_lists_the_root_and_any_folder(tmp_path):  # DIR-02
+    _tree(tmp_path)
+    ws = Workspace([tmp_path])
+    with _client(ws) as c:
+        root = c.get("/api/fs", headers=H).json()
+        assert root["path"] == str(tmp_path.resolve()) and [d["name"] for d in root["dirs"]] == ["aws"]
+        sub = c.get("/api/fs", headers=H, params={"path": str(tmp_path / "aws")}).json()
+        assert [(d["name"], d["specs"]) for d in sub["dirs"]] == [("deep", 1)] and sub["specs"] == 1
+        r = c.get("/api/fs", headers=H, params={"path": str(tmp_path / "nope")})
+        assert r.status_code == 404 and r.json()["error"] == f"not a directory: {tmp_path / 'nope'}"
+        assert c.get("/api/fs").status_code == 403
+
+
+def test_open_route_switches_the_workspace_and_announces_it(tmp_path):  # DIR-03
+    (tmp_path / "one").mkdir()
+    (tmp_path / "one" / "a.yaml").write_text(SPEC.replace("id: A", "id: ONE"))
+    (tmp_path / "two").mkdir()
+    _tree(tmp_path / "two")
+    bus = Recorder()
+    ws = Workspace([tmp_path / "one"])
+    with TestClient(create_app(ws, bus=bus, watch=False), base_url="http://127.0.0.1") as c:
+        r = c.post("/api/workspace/open", headers=H, json={"path": str(tmp_path / "two")})
+        assert r.status_code == 200
+        assert r.json()["paths"] == [str((tmp_path / "two").resolve())]
+        assert sorted(d["key"] for f in r.json()["files"] for d in f["diagrams"]) == [
+            "aws/deep/x.yaml#DEEP", "aws/eks.yaml#EKS", "top.yaml#TOP"]
+        assert {"type": "workspace"} in bus.events
+
+
+def test_open_route_rejects_a_bad_path_and_keeps_the_workspace(tmp_path):  # DIR-05
+    (tmp_path / "a.yaml").write_text(SPEC)
+    ws = Workspace([tmp_path])
+    with _client(ws) as c:
+        r = c.post("/api/workspace/open", headers=H, json={"path": str(tmp_path / "a.yaml")})
+        assert r.status_code == 404 and r.json()["error"] == f"not a directory: {tmp_path / 'a.yaml'}"
+        assert c.post("/api/workspace/open", json={"path": str(tmp_path)}).status_code == 403
+        assert c.post("/api/workspace/open", headers=H, json={}).status_code == 422
+    assert ws.all_keys() == ["a.yaml#A"]
+
+
+def test_saving_a_nested_spec_rerenders_it(tmp_path):  # DIR-04
+    _tree(tmp_path)
+    ws = Workspace([tmp_path])
+    f = tmp_path / "aws" / "deep" / "x.yaml"
+    f.write_text(SPEC.replace("id: A", "id: DEEP").replace("title: Node", "title: Renamed"))
+    events = apply_changes(ws, ws.theme_roots(), {f.resolve()})
+    assert {"type": "diagram", "keys": ["aws/deep/x.yaml#DEEP"]} in events
+    assert "Renamed" in ws.render("aws/deep/x.yaml#DEEP")[0]
+
+
+def test_watcher_follows_an_opened_folder(tmp_path):  # DIR-04
+    (tmp_path / "one").mkdir()
+    (tmp_path / "one" / "a.yaml").write_text(SPEC.replace("id: A", "id: ONE"))
+    (tmp_path / "two" / "sub").mkdir(parents=True)
+    target = tmp_path / "two" / "sub" / "b.yaml"
+    target.write_text(SPEC.replace("id: A", "id: TWO"))
+    bus = Recorder()
+    ws = Workspace([tmp_path / "one"])
+    with TestClient(create_app(ws, bus=bus, watch=True), base_url="http://127.0.0.1") as c:
+        assert c.post("/api/workspace/open", headers=H, json={"path": str(tmp_path / "two")}).status_code == 200
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            target.write_text(SPEC.replace("id: A", "id: TWO").replace("title: Node", f"title: T{time.time()}"))
+            time.sleep(0.5)
+            if any(e.get("type") == "diagram" and "sub/b.yaml#TWO" in e.get("keys", []) for e in bus.events):
+                break
+        assert any(e.get("type") == "diagram" and "sub/b.yaml#TWO" in e.get("keys", []) for e in bus.events)
