@@ -81,9 +81,15 @@ export default function DiagramsPage({ ws, revs }: Props) {
         </section>
       )}
 
+      {ws.truncated && (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200" role="status">
+          This folder holds more specs than spinagram loads at once; only the first 2,000 are shown. Open a subfolder to see the rest.
+        </p>
+      )}
+
       {all.length === 0 && broken.length === 0 && (
         <p className="mt-16 text-center text-sm text-slate-500">
-          No *.yaml, *.yml or *.py specs in {ws.paths.join(", ")}.
+          No diagrams in {ws.paths.join(", ")} (specs are *.yaml, *.yml and *.py files, subfolders included).
         </p>
       )}
 
@@ -133,6 +139,9 @@ function Card({ d, rev }: { d: DiagramRef; rev: number }) {
           <span className="shrink-0 font-mono text-[11px] text-slate-400">{d.id}</span>
           <span className="truncate text-sm font-medium group-hover:text-accent">{d.title}</span>
         </div>
+        <p className="mt-0.5 truncate font-mono text-[10px] text-slate-400" title={d.key.slice(0, d.key.lastIndexOf("#"))}>
+          {d.key.slice(0, d.key.lastIndexOf("#"))}
+        </p>
         {d.tags.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {d.tags.map((t) => (
