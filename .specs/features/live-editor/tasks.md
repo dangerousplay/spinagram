@@ -359,3 +359,113 @@ T13 → T14 → T15 → T16 → T17
 
 **Tests**: none
 **Gate**: build
+
+---
+
+## Fix iteration 1 (from the Verifier report, validation.md)
+
+### Phase 6: Verifier gaps
+
+```
+T18 → T19 → T20 → T21 → T22 → T23
+```
+
+### T18: Unique display paths with several roots
+
+**What**: `Workspace.display` names files so two roots holding the same relative path never share a display path (absolute paths when serving several roots), so a save cannot reach the wrong file.
+**Where**: `src/spinagram/ui/workspace.py`
+**Depends on**: None (previous phase complete)
+**Reuses**: `display`, `editable`
+**Requirement**: SRC-01, SRC-04
+
+**Done when**:
+- [x] Saving `one/a.yaml` with `Workspace([one, two])` writes `one/a.yaml` only, also when both files are identical
+- [x] Quick gate passes
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
+### T19: Stylesheet tabs stay editable while the spec is broken
+
+**What**: A spec that fails to load keeps listing the stylesheet files it listed when it last loaded, and they stay writable.
+**Where**: `src/spinagram/ui/workspace.py`
+**Depends on**: T18
+**Reuses**: `source_paths`, `reload_files`
+**Requirement**: EDIT-06
+
+**Done when**:
+- [ ] After a good load then a broken save, `source` lists the spec and its stylesheet, and the stylesheet can be saved
+- [ ] Quick gate passes
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
+### T20: Save limits pinned (encoding and size boundary)
+
+**What**: Text that cannot be encoded as UTF-8 (lone surrogates) is refused with 422 before writing; a body of exactly 1 MiB is accepted.
+**Where**: `src/spinagram/ui/server.py`
+**Depends on**: T19
+**Reuses**: `save` route
+**Requirement**: SRC-05
+
+**Done when**:
+- [ ] `"\ud800"` text → 422 and the file is unchanged; a 1,048,576-byte body → 200; one byte more → 413
+- [ ] Quick gate passes
+
+**Tests**: integration
+**Gate**: quick
+
+---
+
+### T21: Discriminating watcher tests and render latency
+
+**What**: The retarget test waits until the watcher runs before opening a folder; a test measures save → `diagram` event ≤ 1 s; a test covers a stylesheet shared by two diagrams.
+**Where**: `tests/test_ui_editor.py`
+**Depends on**: T20
+**Reuses**: `Recorder`
+**Requirement**: DIR-04, EDIT-05
+
+**Done when**:
+- [ ] Deleting `retarget.set()` makes the retarget test fail
+- [ ] Quick gate passes
+
+**Tests**: integration
+**Gate**: quick
+
+---
+
+### T22: Overlapping saves keep the right version
+
+**What**: A pure `savedAs(tab, sentText, version)` transition keeps the server's version when the user typed during the save; Save and Cmd+S do nothing while a save is in flight; `jumpLine` first-match test; unused `languageOf` removed.
+**Where**: `web/src/editor.ts`
+**Depends on**: T21
+**Reuses**: `saved`
+**Requirement**: EDIT-04, JUMP-01
+
+**Done when**:
+- [ ] Typing during a save leaves the tab modified against the new version (next save accepted); repeated title jumps to its first line
+- [ ] `bun test` and the build gate pass
+
+**Tests**: unit
+**Gate**: quick-web
+
+---
+
+### T23: Ask before opening a folder with unsaved edits
+
+**What**: `confirmLeave()` in `hooks.ts`, used by programmatic navigation and by the Open-folder dialog before it asks the server to switch.
+**Where**: `web/src/hooks.ts`
+**Depends on**: T22
+**Reuses**: `setLeaveGuard`
+**Requirement**: EDIT-10
+
+**Done when**:
+- [ ] `confirmLeave` returns the guard's answer and `true` without a guard (unit test); the dialog and `go()` call it
+- [ ] `bun test` and the build gate pass
+
+**Tests**: unit
+**Gate**: quick-web

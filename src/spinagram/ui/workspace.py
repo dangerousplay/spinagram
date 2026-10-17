@@ -284,7 +284,10 @@ class Workspace:
 
     # sources (live editor) ------------------------------------------------------------------------
     def display(self, path: Path) -> str:
-        """How the editor names a file: relative to its root when under one, absolute otherwise."""
+        """How the editor names a file, unique across roots (saves are addressed by it): relative to the root
+        when one root is open, absolute when several are or the file is outside them."""
+        if len(self.paths) > 1:
+            return str(path)
         for p in self.paths:
             if p.is_dir() and path.is_relative_to(p):
                 return path.relative_to(p).as_posix()

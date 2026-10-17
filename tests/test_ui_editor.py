@@ -403,3 +403,17 @@ def test_watcher_follows_an_opened_folder(tmp_path):  # DIR-04
             if any(e.get("type") == "diagram" and "sub/b.yaml#TWO" in e.get("keys", []) for e in bus.events):
                 break
         assert any(e.get("type") == "diagram" and "sub/b.yaml#TWO" in e.get("keys", []) for e in bus.events)
+
+
+# T18 · several roots never share a display path ----------------------------------------------------------
+def test_saving_with_several_roots_writes_the_named_file_only(tmp_path):  # SRC-01, SRC-04
+    for name in ("one", "two"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "a.yaml").write_text(SPEC)  # identical files, same relative path
+    ws = Workspace([tmp_path / "one", tmp_path / "two"])
+    key = next(k for k in ws.all_keys() if k.startswith("one/"))
+    spec = ws.source(key)[0]
+    assert spec["path"] != next(f for k in ws.all_keys() if k.startswith("two/") for f in ws.source(k))["path"]
+    ws.write(spec["path"], SPEC.replace("title: Node", "title: Saved"), spec["version"])
+    assert "Saved" in (tmp_path / "one" / "a.yaml").read_text()
+    assert (tmp_path / "two" / "a.yaml").read_text() == SPEC
