@@ -6,14 +6,16 @@ scene item ids, so the same spec writes the same bytes.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 from pathlib import Path
 from typing import Sequence
 
 from .. import shapes as _shapes
-from ..scene import Binding, Connector, Label, Scene, Shape, Text, TextBlock
+from ..scene import Binding, Connector, Image, Label, Scene, Shape, Text, TextBlock
 from ..text import measure
+from .svg import _mime
 
 SOURCE = "https://github.com/dangerousplay/spinagram"
 _BACK, _FRONT = ("zone", "chrome"), ("pill", "swatch")
@@ -67,6 +69,7 @@ class _Doc:
         self.ids: set[str] = set()
         self.by_shape: dict[str, dict] = {}                       # scene shape id → its first element
         self.bindings: list[tuple[dict, str, Binding]] = []       # (arrow, "start"|"end", binding)
+        self.files: dict[str, dict] = {}
 
     def uid(self, key: str) -> str:
         out, n = key, 1
@@ -117,6 +120,14 @@ class _Doc:
         x = {"middle": it.x - w / 2, "end": it.x - w}.get(it.anchor, it.x)
         self.text(it.id, it.block, x, it.top, w, {"middle": "center", "end": "right"}.get(it.anchor, "left"))
 
+    def image(self, key: str, path: Path, x: float, y: float, w: float, h: float) -> dict:
+        raw = path.read_bytes()
+        fid = hashlib.sha1(raw).hexdigest()
+        mime = _mime(path)
+        self.files.setdefault(fid, {"mimeType": mime, "id": fid, "created": 0,
+                                    "dataURL": f"data:{mime};base64,{base64.b64encode(raw).decode()}"})
+        return self.add(key, "image", x, y, w, h, fileId=fid, status="saved", scale=[1, 1], crop=None)
+
     def connector(self, c: Connector) -> None:
         a = self.polyline(c.id, c.points, type="arrow", strokeColor=c.color, strokeWidth=_n(c.width),
                           strokeStyle=_style(c.dashed, c.dash), opacity=round(c.opacity * 100),
@@ -149,6 +160,9 @@ class _Doc:
         first = len(self.elements)
         self._outline(s)
         self.by_shape.setdefault(s.id, self.elements[first])
+        if s.icon:
+            i = s.icon
+            self.image(f"{s.id}:icon", i.path, i.x, i.y, i.size, i.size)
         if s.label:
             self.label(self.elements[first], s.label)
         own = self.elements[first:]
@@ -195,11 +209,13 @@ class _Doc:
                 self.free_text(it)
             elif isinstance(it, Connector):
                 self.connector(it)
+            elif isinstance(it, Image):
+                self.image(it.id, it.path, it.x, it.y, it.w, it.h)
         self.bind()
         for el in self.elements[1:]:
             el["frameId"] = frame["id"]
         return {"type": "excalidraw", "version": 2, "source": SOURCE, "elements": self.elements,
-                "appState": {"viewBackgroundColor": sc.background, "gridSize": None}, "files": {}}
+                "appState": {"viewBackgroundColor": sc.background, "gridSize": None}, "files": self.files}
 
 
 def to_excalidraw(scene: Scene) -> dict:

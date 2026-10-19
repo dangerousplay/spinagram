@@ -296,3 +296,50 @@ def test_edge_label_grouped_with_arrow():  # EXC-10
     assert text["text"] == "go"
     shared = set(arrow["groupIds"]) & set(rect["groupIds"]) & set(text["groupIds"])
     assert shared
+
+
+# T5 -------------------------------------------------------------------------------------------------
+SVG_DOT = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><circle r="4"/></svg>'
+
+
+def test_icon_and_image_become_image_elements(tmp_path):  # EXC-11
+    import base64
+
+    from spinagram.scene import Icon, Image
+
+    (tmp_path / "dot.svg").write_bytes(SVG_DOT)
+    (tmp_path / "pic.png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
+    doc = to_excalidraw(scene(box("a", icon=Icon(tmp_path / "dot.svg", 120, 220, 48)),
+                              Image("img", tmp_path / "pic.png", 10, 20, 64, 32)))
+    icon, img = els(doc, "image")
+    assert (icon["x"], icon["y"], icon["width"], icon["height"]) == (120, 220, 48, 48)
+    assert (img["x"], img["y"], img["width"], img["height"]) == (10, 20, 64, 32)
+    for el, raw, mime in ((icon, SVG_DOT, "image/svg+xml"), (img, b"\x89PNG\r\n\x1a\nfake", "image/png")):
+        f = doc["files"][el["fileId"]]
+        assert f["id"] == el["fileId"] and f["mimeType"] == mime
+        head, data = f["dataURL"].split(",", 1)
+        assert head == f"data:{mime};base64" and base64.b64decode(data) == raw
+    assert icon["groupIds"] == by_id(doc, "a")["groupIds"] != []     # the icon moves with its box
+
+
+def test_same_bytes_stored_once(tmp_path):  # EXC-12
+    from spinagram.scene import Icon
+
+    (tmp_path / "one.svg").write_bytes(SVG_DOT)
+    (tmp_path / "two.svg").write_bytes(SVG_DOT)
+    doc = to_excalidraw(scene(box("a", icon=Icon(tmp_path / "one.svg", 0, 0, 10)),
+                              box("b", icon=Icon(tmp_path / "two.svg", 50, 0, 10))))
+    assert len(els(doc, "image")) == 2 and len(doc["files"]) == 1
+
+
+def test_missing_icon_raises_like_svg(tmp_path):  # edge case
+    import pytest
+
+    from spinagram.backends.svg import to_svg
+    from spinagram.scene import Icon
+
+    sc = scene(box("a", icon=Icon(tmp_path / "gone.svg", 0, 0, 10)))
+    with pytest.raises(FileNotFoundError):
+        to_svg(sc)
+    with pytest.raises(FileNotFoundError):
+        to_excalidraw(sc)

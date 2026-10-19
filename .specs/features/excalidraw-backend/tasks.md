@@ -115,7 +115,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T5: Icons and images [ ]
+### T5: Icons and images [x]
 
 **What**: Icons and `Image` items → `image` elements; `files` keyed by SHA-1 of the bytes with `dataURL` and `mimeType`; duplicates stored once; missing file raises like SVG.
 **Where**: `src/spinagram/backends/excalidraw.py`
