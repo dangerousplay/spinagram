@@ -124,5 +124,8 @@ def _toml(path: Path, text: str, name: str, new: dict, force: bool) -> str:
     end = start + 1
     while end < len(lines) and (not lines[end].lstrip().startswith("[") or head.match(lines[end])):
         end += 1
+    if end < len(lines):  # comments and blank lines right above the next table belong to it
+        while end > start + 1 and (not lines[end - 1].strip() or lines[end - 1].lstrip().startswith("#")):
+            end -= 1
     rest = "".join(lines[end:])
-    return "".join(lines[:start]) + table + ("\n" + rest if rest else "")
+    return "".join(lines[:start]) + table + ("\n" + rest.lstrip("\n") if rest else "")

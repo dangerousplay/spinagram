@@ -225,7 +225,7 @@ T9 → T10 → T11 → T12 → T13
 
 ---
 
-### T11: JSON text and TOML comments (gaps 3, 4) [ ]
+### T11: JSON text and TOML comments (gaps 3, 4) [x]
 
 **What**: JSON is written with indent 2 and a final newline (exact text asserted); a Codex `--force` keeps comment lines that sit above the next table.
 **Where**: `src/spinagram/mcp_server/install.py`

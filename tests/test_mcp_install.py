@@ -217,3 +217,22 @@ def test_codex_invalid_toml_left_alone(dirs):  # INST-09 (codex)
     with pytest.raises(ValueError, match=rf"^cannot parse {path}: "):
         ins.install("codex", command=CMD, base=base, home=home)
     assert path.read_text(encoding="utf-8") == "[broken\n"
+
+
+# T11 (validation.md, iteration 1) --------------------------------------------------------------------
+def test_json_text_is_indented_two(dirs):  # edge case: rewritten with indent 2
+    base, home = dirs
+    path = ins.install("cursor", url=URL, base=base, home=home)
+    assert path.read_text(encoding="utf-8") == ('{\n  "mcpServers": {\n    "spinagram": {\n      "url": "' + URL +
+                                                '"\n    }\n  }\n}\n')
+
+
+def test_codex_force_keeps_the_comment_above_the_next_table(dirs):  # INST-07
+    base, home = dirs
+    path = base / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text('[mcp_servers.spinagram]\ncommand = "old"\n\n# profiles below\n[profiles.fast]\nmodel = "m"\n',
+                    encoding="utf-8")
+    ins.install("codex", url=URL, force=True, base=base, home=home)
+    assert path.read_text(encoding="utf-8") == (f'[mcp_servers.spinagram]\nurl = "{URL}"\n\n# profiles below\n'
+                                                '[profiles.fast]\nmodel = "m"\n')
