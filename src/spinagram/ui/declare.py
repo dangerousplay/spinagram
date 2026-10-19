@@ -9,12 +9,13 @@ from __future__ import annotations
 import re
 
 
+# no numbered groups: _yaml fragments are joined into one pattern, where `\1` would point at the first one
 def _quoted(v: str | None) -> str | None:
-    return rf"""(["']){re.escape(v)}\1""" if v else None
+    return f"""(?:"{re.escape(v)}"|'{re.escape(v)}')""" if v else None
 
 
 def _yaml(key: str, v: str | None) -> str | None:
-    return rf"""(?:^|[\s{{,]){key}:\s*(["']?){re.escape(v)}\1\s*(?:[,}}#]|$)""" if v else None
+    return rf"""(?:^|[\s{{,]){key}:\s*(?:{_quoted(v)}|{re.escape(v)})\s*(?:[,}}#]|$)""" if v else None
 
 
 def _patterns(py: bool, element: dict) -> list[str | None]:

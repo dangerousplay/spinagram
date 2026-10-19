@@ -96,3 +96,25 @@ def test_not_found():  # DECL-05
 def test_diagram_element():  # DECL-06 (diagram)
     assert locate(YAML, ".yaml", {"type": "diagram", "id": "L01", "attrs": {}}) == 1
     assert locate(PY, ".py", {"type": "diagram", "id": "Q01", "attrs": {}}) == 3
+
+
+# verifier gaps (validation.md, iteration 1) -----------------------------------------------------
+def test_yaml_edge_ends_quoted_differently():  # DECL-03 (gap D1)
+    assert locate('edges:\n  - {from: a, to: "b"}\n', ".yaml", edge("a", "b")) == 2
+    assert locate("edges:\n  - {from: \"a\", to: b}\n", ".yaml", edge("a", "b")) == 2
+    assert locate("edges:\n  - {from: 'a', to: \"b\"}\n", ".yaml", edge("a", "b")) == 2
+
+
+def test_first_match_wins():  # DECL-01, DECL-02, DECL-03: "first" line
+    assert locate("- {id: a}\n- {id: a}\n", ".yaml", node("a")) == 1
+    assert locate('x = d.box("A")\ny = d.box("A")\n', ".py", node("a", "A")) == 1
+    assert locate('- "a -> b"\n- "a -> b"\n', ".yaml", edge("a", "b")) == 1
+
+
+def test_ids_are_matched_literally():  # DECL-01 edge case: regex characters
+    src = "- {id: vaultx1}\n- {id: vault.1}\n"
+    assert locate(src, ".yaml", node("vault.1")) == 2                  # `.` would also match the `x` on line 1
+
+
+def test_yaml_edge_is_word_bounded_on_the_left():  # DECL-03: word-bounded
+    assert locate('- "xa -> b"\n- "a -> b"\n', ".yaml", edge("a", "b")) == 2

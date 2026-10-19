@@ -29,9 +29,9 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Gate Level | When to Use | Command |
 |---|---|---|
-| Quick | Python tasks | `uv run pytest -q tests/test_css.py tests/test_ui_declare.py tests/test_ui.py` |
+| Quick | Python tasks | `uv run --extra ui pytest -q tests/test_css.py tests/test_ui_declare.py tests/test_ui.py` |
 | Quick-web | `inspect.ts` | `cd web && bun test` |
-| Build | UI components, phase ends | `uv run ruff check src tests examples && uv run pytest -q && (cd web && bun test && bunx bun@1.4.2 run build)` |
+| Build | UI components, phase ends | `uv run ruff check src tests examples && uv run --extra ui pytest -q && (cd web && bun test && bunx bun@1.4.2 run build)` |
 
 ---
 
@@ -47,6 +47,12 @@ T1 → T2 → T3
 
 ```
 T4 → T5 → T6 → T7 → T8 → T10 → T9
+```
+
+### Phase 3: Verifier fixes (validation.md, iteration 1)
+
+```
+T11 → T12 → T13
 ```
 
 ---
@@ -223,3 +229,55 @@ T4 → T5 → T6 → T7 → T8 → T10 → T9
 **Tests**: unit
 **Gate**: quick-web
 **Commit**: `fix(ui): keep single-key shortcuts out of the code editor`
+
+---
+
+### T11: Declarations of mixed-quote YAML edges; first-match, literal and boundary tests [x]
+
+**What**: `_yaml`/`_quoted` match `"v"`, `'v'` or bare `v` without numbered backreferences (gap D1); tests kill M2 (escape), M3 (edge left boundary), M4 (first match).
+**Where**: `src/spinagram/ui/declare.py`
+**Depends on**: None
+**Requirement**: DECL-01, DECL-02, DECL-03
+
+**Done when**:
+
+- [ ] `{from: a, to: "b"}` and `{from: "a", to: b}` are found
+- [ ] A missing `re.escape`, a missing edge left boundary or a last-match search each fail a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `fix(ui): find YAML edges whose ends are quoted differently`
+
+---
+
+### T12: HIL-04 boundary test [ ]
+
+**What**: A box whose top is within chip height + gap of the scene top gets the chip below; exactly at the threshold it stays above (kills M14).
+**Where**: `web/src/inspect.test.ts`
+**Depends on**: T11
+**Requirement**: HIL-04
+
+**Done when**:
+
+- [ ] Ignoring the gap in the below test fails a test
+
+**Tests**: unit
+**Gate**: quick-web
+**Commit**: `test(ui): pin the hover label's below threshold`
+
+---
+
+### T13: Spec wording and gates [ ]
+
+**What**: DECL-01 terminators match the code (`,`, `}`, `#` or end of line); the list-title limit for Python is logged; gates run with the `ui` extra.
+**Where**: `.specs/features/inspector-declarations/spec.md`
+**Depends on**: T12
+**Requirement**: DECL-01
+
+**Done when**:
+
+- [ ] `validate_spec.py` clean
+
+**Tests**: none
+**Gate**: build
+**Commit**: `docs(specs): align DECL-01 with the locator and log its limits`
