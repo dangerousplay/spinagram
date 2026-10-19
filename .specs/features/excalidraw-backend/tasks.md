@@ -282,7 +282,7 @@ T13 → T14
 
 ---
 
-### T14: Swatch layer and monospace fallback (gaps 3, 4) [ ]
+### T14: Swatch layer and monospace fallback (gaps 3, 4) [x]
 
 **What**: `swatch` shapes draw in the front layer; a family whose fallback is `monospace` maps to font 3 (kills N04, N01).
 **Where**: `tests/test_excalidraw.py`
