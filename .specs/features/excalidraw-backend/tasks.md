@@ -224,7 +224,7 @@ T9 → T10 → T11 → T12
 
 ---
 
-### T11: Centred multi-block labels (gap 5) [ ]
+### T11: Centred multi-block labels (gap 5) [x]
 
 **What**: EXC-07 states the reference point (Excalidraw `x` is the left edge: centre x − width / 2); test a centred multi-block label.
 **Where**: `tests/test_excalidraw.py`

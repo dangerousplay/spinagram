@@ -466,3 +466,14 @@ def test_file_created_is_zero(tmp_path):  # Icons row: created 0
     (tmp_path / "dot.svg").write_bytes(SVG_DOT)
     doc = to_excalidraw(scene(Image("img", tmp_path / "dot.svg", 0, 0, 8, 8)))
     assert [f["created"] for f in doc["files"].values()] == [0]
+
+
+# T11 (validation.md, iteration 1) --------------------------------------------------------------------
+def test_centred_multi_block_label_uses_the_left_edge():  # EXC-07: Excalidraw x is the left edge
+    from spinagram.scene import Label
+
+    lab = Label([block(["Title"]), block(["body"], size=16)], (110, 210, 280, 100), align="center")
+    texts = els(to_excalidraw(scene(box("a", label=lab))), "text")
+    for t, (b, x, top) in zip(texts, lab.place()):
+        assert x == 110 + 280 / 2                                   # place() gives the centre for centred labels
+        assert (t["x"], t["y"], t["width"], t["textAlign"]) == (110, top, 280, "center")
