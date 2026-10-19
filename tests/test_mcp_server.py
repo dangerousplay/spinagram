@@ -225,3 +225,47 @@ def test_icons_search_pack_filter(root, tmp_path, monkeypatch):  # MCP-08: `pack
     hits = lambda args: [c.text for c in call(s, "icons_search", args).content]  # noqa: E731  (one text per name)
     assert sorted(hits({"query": "dot"})) == ["one:dot", "two:dot"]
     assert hits({"query": "dot", "pack": ["two"]}) == ["two:dot"]
+
+
+# T18 (validation.md, pass 4) -------------------------------------------------------------------------
+def test_sibling_folder_sharing_the_root_prefix(tmp_path):  # MCP-09 (G1)
+    root, sibling = tmp_path / "root", tmp_path / "root2"
+    root.mkdir()
+    sibling.mkdir()
+    shutil.copy(EXAMPLES / "decision.yaml", sibling / "x.yaml")
+    r = call(srv.build(Tools(root)), "check", {"paths": ["../root2/x.yaml"]})
+    assert r.is_error and [c.text for c in r.content] == ["path outside root: ../root2/x.yaml"]
+
+
+def test_error_result_has_one_text(root):  # MCP-10 (G9): exactly one text content
+    r = call(srv.build(Tools(root)), "check", {"paths": []})
+    assert r.is_error and len(r.content) == 1 and r.content[0].type == "text"
+
+
+def test_codex_force_with_a_quoted_name(tmp_path):  # INST-08 (G5)
+    import sys
+    import tomllib
+
+    from spinagram.mcp_server import install as ins
+
+    kw = {"name": "my diagrams", "base": tmp_path, "home": tmp_path / "h"}
+    path = ins.install("codex", command=[sys.executable, "-m", "spinagram", "mcp"], **kw)
+    ins.install("codex", url="http://127.0.0.1:8766/mcp", force=True, **kw)
+    assert tomllib.loads(path.read_text(encoding="utf-8"))["mcp_servers"] == {
+        "my diagrams": {"url": "http://127.0.0.1:8766/mcp"}}
+
+
+def test_icons_search_default_limit(root, tmp_path, monkeypatch):  # MCP-08 (G20): limit defaults to 40
+    from spinagram import icons
+
+    monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    d = tmp_path / "many"
+    d.mkdir()
+    for i in range(45):
+        (d / f"dot-{i:02d}.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
+    icons.register("many", {"type": "dir", "path": str(d)})
+    icons.fetch(icons.registry()["many"])
+    assert len(Tools(root).icons_search("dot")) == 40
+    r = call(srv.build(Tools(root)), "icons_search", {"query": "dot"})
+    assert len(r.content) == 40

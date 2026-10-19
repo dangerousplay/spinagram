@@ -61,6 +61,12 @@ T14 → T15 → T16
 T17
 ```
 
+### Phase 5: Pass-4 gaps (user: add the tests and release without a 5th pass)
+
+```
+T18
+```
+
 ---
 
 ## Task Breakdown
@@ -349,9 +355,27 @@ T17
 
 **Done when**:
 
-- [ ] N24 and N17 each fail a test
-- [ ] Build gate passes
+- [x] N24 and N17 each fail a test
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
 **Commit**: `test(mcp): compare select output exactly and append to unterminated codex files`
+
+---
+
+### T18: Sibling-prefix root, one error text, quoted force, default limit (G1, G9, G5, G20) [x]
+
+**What**: `../root2/x.yaml` is outside a root named `root` (G1); an error result has exactly one content (G9); `--force` replaces a Codex entry whose name needs quoting (G5); `icons_search` returns 40 of 45 hits by default, via `Tools` and the server (G20).
+**Where**: `tests/test_mcp_server.py`
+**Depends on**: None (Phase 4 done)
+**Requirement**: MCP-08, MCP-09, MCP-10, INST-08
+
+**Done when**:
+
+- [ ] Each of G1, G9, G5, G20 fails a test
+- [ ] Build gate passes
+
+**Tests**: integration
+**Gate**: build
+**Commit**: `test(mcp): pin root prefixes, single error text, quoted force and the search limit`
