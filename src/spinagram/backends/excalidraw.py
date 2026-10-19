@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .. import shapes as _shapes
-from ..scene import Binding, Connector, Image, Label, Scene, Shape, Text, TextBlock
+from ..scene import Binding, Connector, Image, Label, Line, Scene, Shape, TableGrid, Text, TextBlock
 from ..text import measure
 from .svg import _mime
 
@@ -128,6 +128,26 @@ class _Doc:
                                     "dataURL": f"data:{mime};base64,{base64.b64encode(raw).decode()}"})
         return self.add(key, "image", x, y, w, h, fileId=fid, status="saved", scale=[1, 1], crop=None)
 
+    def table(self, t: TableGrid) -> None:
+        first = len(self.elements)
+        y = t.y
+        for r, (rh, row) in enumerate(zip(t.row_heights, t.cells)):
+            x = t.x
+            for c, (w, cell) in enumerate(zip(t.col_widths, row)):
+                self.add(f"{t.id}:r{r}c{c}", "rectangle", x, y, w, rh, backgroundColor=cell.fill or "transparent")
+                if cell.icon:
+                    self.image(f"{t.id}:r{r}c{c}:icon", cell.icon.path, x + 14, y + (rh - cell.icon.size) / 2,
+                               cell.icon.size, cell.icon.size)
+                b = cell.block
+                self.text(f"{t.id}:r{r}c{c}:text", b, x + cell.pad_left, y + (rh - b.height) / 2, w - cell.pad_left)
+                x += w
+            if r:
+                self.polyline(f"{t.id}:r{r}:rule", [(t.x, y + rh), (t.x + t.w, y + rh)], strokeColor=t.border,
+                              polygon=False)
+            y += rh
+        for el in self.elements[first:]:
+            el["groupIds"] = [f"g:{t.id}"]
+
     def connector(self, c: Connector) -> None:
         a = self.polyline(c.id, c.points, type="arrow", strokeColor=c.color, strokeWidth=_n(c.width),
                           strokeStyle=_style(c.dashed, c.dash), opacity=round(c.opacity * 100),
@@ -211,6 +231,11 @@ class _Doc:
                 self.connector(it)
             elif isinstance(it, Image):
                 self.image(it.id, it.path, it.x, it.y, it.w, it.h)
+            elif isinstance(it, Line):
+                self.polyline(it.id, [(it.x1, it.y1), (it.x2, it.y2)], strokeColor=it.color,
+                              strokeWidth=_n(it.width), polygon=False)
+            elif isinstance(it, TableGrid):
+                self.table(it)
         self.bind()
         for el in self.elements[1:]:
             el["frameId"] = frame["id"]

@@ -343,3 +343,31 @@ def test_missing_icon_raises_like_svg(tmp_path):  # edge case
         to_svg(sc)
     with pytest.raises(FileNotFoundError):
         to_excalidraw(sc)
+
+
+# T6 -------------------------------------------------------------------------------------------------
+def test_line_item():  # EXC-13 (Line)
+    from spinagram.scene import Line
+
+    ln = by_id(to_excalidraw(scene(Line("rule", 80, 1000, 1840, 1000, "#CCCCCC", 2))), "rule")
+    assert ln["type"] == "line" and ln["polygon"] is False
+    assert [(ln["x"] + px, ln["y"] + py) for px, py in ln["points"]] == [(80, 1000), (1840, 1000)]
+    assert (ln["strokeColor"], ln["strokeWidth"]) == ("#CCCCCC", 2)
+
+
+def test_table_cells_grouped():  # EXC-13 (TableGrid)
+    from spinagram.scene import Cell, TableGrid
+
+    head, body = "#003366", "#FFFFFF"
+    cells = [[Cell(block(["Col A"]), head), Cell(block(["Col B"]), head)],
+             [Cell(block(["1"]), body), Cell(block(["2"]), body)]]
+    doc = to_excalidraw(scene(TableGrid("t", 100, 300, [200, 150], [40, 50], cells, "#DDDDDD")))
+    rects = els(doc, "rectangle")
+    boxes = [(r["x"], r["y"], r["width"], r["height"], r["backgroundColor"]) for r in rects]
+    assert boxes == [(100, 300, 200, 40, head), (300, 300, 150, 40, head),
+                     (100, 340, 200, 50, body), (300, 340, 150, 50, body)]
+    texts = els(doc, "text")
+    assert [t["text"] for t in texts] == ["Col A", "Col B", "1", "2"]
+    assert texts[0]["x"] == 100 + 16 and texts[0]["y"] == 300 + (40 - 26) / 2
+    table = [e for e in doc["elements"] if e["type"] != "frame"]
+    assert {tuple(e["groupIds"]) for e in table} == {("g:t",)}

@@ -132,7 +132,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T6: Lines and tables [ ]
+### T6: Lines and tables [x]
 
 **What**: `Line` → `line` element; `TableGrid` → grouped cell rectangles + texts.
 **Where**: `src/spinagram/backends/excalidraw.py`
