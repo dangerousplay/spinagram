@@ -53,6 +53,7 @@ png = "spinagram.backends.png:PngBackend"
 pptx = "spinagram.backends.pptx:PptxBackend"
 figma = "spinagram.backends.figma:FigmaBackend"
 figjam = "spinagram.backends.figma:FigjamBackend"
+excalidraw = "spinagram.backends.excalidraw:ExcalidrawBackend"
 
 [build-system]
 requires = ["hatchling>=1.27"]  # PEP 639 license metadata

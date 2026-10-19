@@ -106,7 +106,7 @@ in Excalidraw.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| EXC-01 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-01 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-02 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-03 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-04 | P1: Render native Excalidraw | Tasks | Implementing |

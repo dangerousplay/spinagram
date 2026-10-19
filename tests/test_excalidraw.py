@@ -371,3 +371,28 @@ def test_table_cells_grouped():  # EXC-13 (TableGrid)
     assert texts[0]["x"] == 100 + 16 and texts[0]["y"] == 300 + (40 - 26) / 2
     table = [e for e in doc["elements"] if e["type"] != "frame"]
     assert {tuple(e["groupIds"]) for e in table} == {("g:t",)}
+
+
+# T7 -------------------------------------------------------------------------------------------------
+def test_registered():  # EXC-01
+    from spinagram.backends import available, get_backend
+
+    assert available()["excalidraw"] == "spinagram.backends.excalidraw:ExcalidrawBackend"
+    assert isinstance(get_backend("excalidraw"), ExcalidrawBackend)
+
+
+def test_render_examples_with_the_cli(tmp_path, capsys):  # EXC-01, EXC-02 over every example
+    from pathlib import Path
+
+    from spinagram.cli import main
+    from spinagram.yaml_io import load
+
+    root = Path(__file__).resolve().parents[1] / "examples"
+    specs = sorted(p for p in root.glob("*.yaml"))
+    assert main(["render", *map(str, specs), "-f", "excalidraw", "-o", str(tmp_path), "--no-gallery"]) == 0
+    written = sorted(tmp_path.glob("*.excalidraw"))
+    assert len(written) == sum(len(load(str(p))) for p in specs)
+    for p in written:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+        assert doc["type"] == "excalidraw" and doc["elements"][0]["type"] == "frame"
+    assert "excalidraw" in capsys.readouterr().out

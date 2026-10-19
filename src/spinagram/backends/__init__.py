@@ -18,6 +18,7 @@ _BUILTIN = {
     "pptx": "spinagram.backends.pptx:PptxBackend",
     "figma": "spinagram.backends.figma:FigmaBackend",
     "figjam": "spinagram.backends.figma:FigjamBackend",
+    "excalidraw": "spinagram.backends.excalidraw:ExcalidrawBackend",
 }
 
 

@@ -149,7 +149,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T7: Register the backend [ ]
+### T7: Register the backend [x]
 
 **What**: `excalidraw` in `_BUILTIN` and the `spinagram.backends` entry point; `render -f excalidraw` over `examples/` writes parseable files.
 **Where**: `src/spinagram/backends/__init__.py`
