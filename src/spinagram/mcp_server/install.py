@@ -33,8 +33,8 @@ def launch(args: list[str], uvx: bool = False) -> list[str]:
 
 def server_args(theme: str | None = None, root: str | None = None, formats: str | None = None,
                 layout: str | None = None) -> list[str]:
-    """``spinagram mcp`` flags for the entry; ``root`` becomes absolute."""
-    out = ["-t", theme] if theme else []
+    """``spinagram mcp`` flags for the entry; ``root``, and ``theme`` when it is a folder, become absolute."""
+    out = ["-t", str(Path(theme).resolve()) if Path(theme).exists() else theme] if theme else []
     if root:
         out += ["--root", str(Path(root).resolve())]
     if formats:

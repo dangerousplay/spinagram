@@ -137,3 +137,35 @@ def test_server_defaults_and_call_overrides(root, monkeypatch):  # MCP-11
     t.render(["specs/decision.yaml"], formats=["pptx"], layout="dot")
     assert (seen["formats"], seen["layout"]) == (["pptx"], "dot")
     assert Tools(root).formats == ["svg", "png"]                              # CLI default -f svg,png
+
+
+# T9 (validation.md, iteration 1) ---------------------------------------------------------------------
+def _theme_dir(where: Path) -> Path:
+    where.mkdir(parents=True)
+    (where / "theme.yaml").write_text("extends: default\ncolors: {brand: '#123456'}\n", encoding="utf-8")
+    return where
+
+
+def test_server_theme_outside_root(root, tmp_path, monkeypatch):  # MCP-11: -t is not root-checked
+    theme = _theme_dir(tmp_path / "themes" / "brand")
+    assert Tools(root, theme=str(theme)).check(["specs/decision.yaml"])["diagrams"] == 1
+    monkeypatch.chdir(tmp_path)                                               # relative to the server's cwd at start
+    t = Tools(root, theme="themes/brand")
+    monkeypatch.chdir(root)
+    assert t.theme == str(theme.resolve())
+    assert t.check(["specs/decision.yaml"])["diagrams"] == 1
+
+
+def test_call_theme_path_stays_confined(root, tmp_path):  # MCP-09 applies to tool arguments
+    _theme_dir(tmp_path / "outside")
+    with pytest.raises(ValueError, match="^path outside root: ../outside$"):
+        Tools(root).render(["specs/decision.yaml"], formats=["svg"], theme="../outside")
+
+
+def test_install_makes_an_existing_theme_absolute(tmp_path, monkeypatch):  # INST-04
+    from spinagram.mcp_server.install import server_args
+
+    _theme_dir(tmp_path / "brand")
+    monkeypatch.chdir(tmp_path)
+    assert server_args(theme="brand") == ["-t", str((tmp_path / "brand").resolve())]
+    assert server_args(theme="default") == ["-t", "default"]                 # a built-in name stays

@@ -15,7 +15,9 @@ class Tools:
     def __init__(self, root: str | Path | None = None, theme: str | None = None, layout: str | None = None,
                  formats: list[str] | None = None):
         self.root = Path(root or Path.cwd()).resolve()
-        self.theme, self.layout, self.formats = theme, layout, formats or ["svg", "png"]
+        # the server's own theme is resolved now, against its cwd, and may live outside the root
+        self.theme = str(Path(theme).resolve()) if theme and Path(theme).exists() else theme
+        self.layout, self.formats = layout, formats or ["svg", "png"]
 
     def path(self, p: str) -> Path:
         """``p`` resolved under the root (symlinks followed); ValueError when it leaves the root."""
@@ -25,10 +27,10 @@ class Tools:
         return q
 
     def _theme(self, theme: str | None) -> Theme:
-        ref = theme or self.theme
-        if ref and (self.root / ref).exists():
-            return Theme.load(self.path(ref))
-        return Theme.load(ref)
+        """A call's theme (a folder under the root, or a built-in name), else the server's."""
+        if not theme:
+            return Theme.load(self.theme)
+        return Theme.load(self.path(theme) if (self.root / theme).exists() else theme)
 
     def diagrams(self, paths: list[str], only: list[str] | None = None):
         files = [self.path(p) for p in paths]

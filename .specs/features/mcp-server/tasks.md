@@ -191,7 +191,7 @@ T9 → T10 → T11 → T12 → T13
 
 ---
 
-### T9: Server theme outside the root (gap 1, bug) [ ]
+### T9: Server theme outside the root (gap 1, bug) [x]
 
 **What**: `Tools` resolves the server `-t` once against the start cwd and never root-checks it; per-call theme paths stay confined; `install` stores an existing `-t` folder as absolute.
 **Where**: `src/spinagram/mcp_server/tools.py`
