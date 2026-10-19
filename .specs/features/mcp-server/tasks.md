@@ -316,7 +316,7 @@ T14 → T15 → T16
 
 ---
 
-### T16: Filters that remove results (gaps 3-5) [ ]
+### T16: Filters that remove results (gaps 3-5) [x]
 
 **What**: `styles(select=)` on a styled spec drops elements; previews honour `only`; `icons_search(pack=)` with two packs (kills F3, F7, F11).
 **Where**: `tests/test_mcp_server.py`

@@ -188,3 +188,40 @@ def test_skills_are_resources(root):  # MCP-15, MCP-16
     got = run(s, lambda c: c.read_resource("spinagram://skills/spinagram")).contents[0]
     assert got.mime_type == "text/markdown"
     assert got.text == (want["spinagram"].path / "SKILL.md").read_text(encoding="utf-8")
+
+
+# T16 (validation.md, iteration 2) --------------------------------------------------------------------
+def test_styles_select_filters(root):  # MCP-07: `select` drops non-matching elements
+    for name in ("styled.py", "brand.css"):
+        shutil.copy(EXAMPLES / "styling" / name, root / name)
+    s = srv.build(Tools(root))
+    full = json.loads(call(s, "styles", {"paths": ["styled.py"]}).content[0].text)["elements"]
+    edges = json.loads(call(s, "styles", {"paths": ["styled.py"], "select": "edge"}).content[0].text)["elements"]
+    assert edges and len(edges) < len(full)
+    assert {e["type"] for e in edges} == {"edge"}
+
+
+def test_previews_follow_only(root, monkeypatch):  # MCP-03: previews of the rendered diagrams
+    seen = []
+    monkeypatch.setattr(srv, "png_previews", lambda scenes: seen.extend(sc.id for sc in scenes) or [])
+    (root / "many.yaml").write_text("".join(f"- id: M{i}\n  title: Diagram {i}\n  nodes:\n    - {{id: a, title: A, "
+                                            f"x: 100, y: 200}}\n" for i in range(3)), encoding="utf-8")
+    r = call(srv.build(Tools(root)), "render", {"paths": ["many.yaml"], "only": ["M2"], "formats": ["svg"]})
+    assert not r.is_error and seen == ["M2"]
+
+
+def test_icons_search_pack_filter(root, tmp_path, monkeypatch):  # MCP-08: `pack` limits the packs searched
+    from spinagram import icons
+
+    monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    for pack in ("one", "two"):
+        d = tmp_path / pack
+        d.mkdir()
+        (d / "dot.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
+        icons.register(pack, {"type": "dir", "path": str(d)})
+        icons.fetch(icons.registry()[pack])
+    s = srv.build(Tools(root))
+    hits = lambda args: [c.text for c in call(s, "icons_search", args).content]  # noqa: E731  (one text per name)
+    assert sorted(hits({"query": "dot"})) == ["one:dot", "two:dot"]
+    assert hits({"query": "dot", "pack": ["two"]}) == ["two:dot"]
