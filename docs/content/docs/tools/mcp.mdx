@@ -1,0 +1,90 @@
+---
+title: MCP server
+description: Let any MCP-capable agent render, check and preview diagrams, with no shell.
+---
+
+`spinagram mcp` serves spinagram's tools over the [Model Context Protocol](https://modelcontextprotocol.io).
+An agent connected to it renders and checks diagrams, gets a PNG preview of what it drew, and reads the
+spinagram skills, all without running shell commands.
+
+## Install
+
+```bash
+pip install 'spinagram[mcp]'                 # or: uv tool install 'spinagram[mcp]'
+spinagram mcp install -a claude              # writes .mcp.json in this project
+```
+
+`install` adds a `spinagram` entry to the agent's own config file and keeps every other server in it:
+
+| `-a` | Project file | With `--user` |
+|---|---|---|
+| `claude` | `.mcp.json` | `~/.claude.json` |
+| `codex` | `.codex/config.toml` | `~/.codex/config.toml` |
+| `copilot` | `.vscode/mcp.json` (VS Code) | `~/.copilot/mcp-config.json` (Copilot CLI) |
+| `cursor` | `.cursor/mcp.json` | `~/.cursor/mcp.json` |
+| `gemini` | `.gemini/settings.json` | `~/.gemini/settings.json` |
+| `opencode` | `opencode.json` | `~/.config/opencode/opencode.json` |
+
+```bash
+spinagram mcp install -a cursor -a codex --root specs -t ../brand-theme --formats svg,png,excalidraw
+spinagram mcp install -a opencode --uvx          # launch through uvx, pinned to this version
+spinagram mcp install -a claude --name brand -t ../brand-theme   # a second server with another theme
+```
+
+| Option | Effect |
+|---|---|
+| `-a, --agent` | Target agent, repeatable |
+| `--user` | Write the agent's user config instead of the project's |
+| `--name` | Server name in the config (default `spinagram`) |
+| `--force` | Replace an existing entry with the same name (otherwise `install` exits 1 and changes nothing) |
+| `--uvx` | Launch with `uvx --from spinagram[mcp]==<version>` instead of this Python |
+| `--url URL` | Connect to a running HTTP server instead of launching one |
+| `-t`, `--root`, `--formats`, `--layout` | Server defaults, stored in the entry (`--root` and a theme folder as absolute paths) |
+
+By default the entry launches the Python that ran `install` (`python -m spinagram mcp`). That works from
+desktop apps whose `PATH` does not include your virtual environment. `install` refuses files it cannot
+parse, such as JSON with comments, and leaves them untouched.
+
+## Tools
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `render` | `paths`, `formats`, `only`, `out` | Written paths, plus PNG previews of the first 4 diagrams |
+| `check` | `paths`, `only` | `{"diagrams": n, "issues": [...]}`, the same issue lines as `spinagram check` |
+| `layout` | `paths`, `only` | The frozen YAML spec, as `spinagram layout` prints it |
+| `styles` | `paths`, `only`, `select` | The CSS style report of `spinagram check --json` |
+| `icons_search` | `query`, `pack`, `limit` (40) | `pack:name` icon names from downloaded packs |
+
+The skills are resources: `spinagram://skills/spinagram` and `spinagram://skills/spinagram-css`.
+
+A real session:
+
+```text
+→ render  {"paths": ["specs/quickstart.yaml"]}
+← {"written": ["out/Q01-web-app-on-aws.svg", "out/Q01-web-app-on-aws.excalidraw", "out/index.html"]}
+  + image/png preview of Q01
+```
+
+- **Previews** need the `png` extra (Playwright and Chromium). Without it, `render` still writes the files
+  and says `"preview": "preview needs spinagram[png]"`.
+- **Errors** come back as tool errors with the CLI's message (`no diagrams found`,
+  `path outside root: …`), and the server keeps running.
+- **Logging:** each call logs one line to stderr, such as `spinagram-mcp: render 412ms ok`.
+
+## Root folder
+
+Every path a tool receives is relative to `--root` (default: the folder the server starts in). A path
+that leaves it, including through a symlink, is refused. `render` writes to `out/` under the root unless
+it gets another `out`. The server's own `-t` theme can live anywhere.
+
+Python specs run as they do with `spinagram render`, so point the server only at specs you trust.
+
+## HTTP
+
+```bash
+spinagram mcp --http 8766 --root specs        # http://127.0.0.1:8766/mcp
+spinagram mcp install -a gemini --url http://127.0.0.1:8766/mcp
+```
+
+One server can then be shared by several tools. It listens on 127.0.0.1. `--host` binds another address,
+but the server has no authentication, so it prints `warning: no authentication on <host>:<port>`.

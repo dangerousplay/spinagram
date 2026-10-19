@@ -47,6 +47,13 @@ pass it with `--dest`. `--agent` can be repeated, and tools that share a folder 
 Commit a project install to share it with your team. A user install with `--link` stays current
 across upgrades.
 
+## Agents with MCP
+
+Agents that speak MCP can also use spinagram as a tool: `spinagram mcp install -a claude` connects the
+[MCP server](/docs/tools/mcp), which renders, checks and previews diagrams and serves these same skills
+as resources. Skills teach the agent *how* to write a spec; the server lets it run and look at the result
+without a shell.
+
 ## Agents without skill support
 
 Print a skill and put it where your agent reads instructions (`AGENTS.md`, a rules file or a system

@@ -1,0 +1,55 @@
+---
+title: Excalidraw
+description: Native, editable Excalidraw scenes from any spinagram diagram.
+---
+
+```bash
+spinagram render specs/ -f excalidraw -o out/      # out/<id>-<slug>.excalidraw
+```
+
+```python
+from spinagram import load, render
+
+render(load("specs/"), "out", formats=["excalidraw"])
+```
+
+Open the file in [Excalidraw](https://excalidraw.com) with **File → Open**, or drop it on the canvas.
+The file never leaves your machine unless you share it from Excalidraw.
+
+![Web app on AWS, drawn by Excalidraw from spinagram's scene](/assets/excalidraw/q01.svg)
+
+This picture was rendered by Excalidraw's own exporter from [`q01.excalidraw`](/assets/excalidraw/q01.excalidraw).
+More in the [0.3 showcase](/docs/whats-new#edit-your-diagrams-in-excalidraw).
+
+## What you get
+
+| spinagram | In Excalidraw |
+|---|---|
+| Box, rounded box, pill | Rectangle, rounded where the box is |
+| Diamond | Diamond |
+| Symbols: cylinder, document, terminator, parallelogram, states… | Polygons grouped with their label |
+| Arrow | Arrow bound to the boxes it connects (moving a box drags it), same route, same arrowheads |
+| Arrow label | Its pill and text, grouped with the arrow |
+| One-line label | Text bound inside the box (edit it in place) |
+| Title + body label | One text per block, grouped with the box |
+| Icon, image | Image element; each distinct file is stored once in the scene |
+| Table | One rectangle and text per cell, grouped |
+| Slide | A frame named `spinagram:<id>` holding everything, with the background colour |
+
+The style is Excalidraw's clean "architect" look: no hand-drawn roughness, solid fills, and your theme's
+colours, stroke widths, dashes and opacity.
+
+## Differences from the SVG
+
+- **Fonts.** Excalidraw only draws its own fonts. Text uses Helvetica, or Cascadia when the theme font is
+  monospace, and Excalidraw has no bold. Line breaks stay where spinagram put them, so a line can come
+  out slightly wider or narrower than in the SVG.
+- **No shadows.** Excalidraw has no drop shadows, so `box-shadow` is not drawn.
+- **Arrow labels** keep spinagram's position (`label_at`) instead of Excalidraw's midpoint, so they are
+  grouped with the arrow rather than bound to it.
+
+## In git
+
+The same spec always writes the same bytes: element ids come from the diagram's ids, and seeds and
+versions are fixed. Commit the `.excalidraw` next to the SVG and the diff shows only real changes.
+Edits made in Excalidraw are not read back into the spec. Change the spec and render again.

@@ -15,6 +15,9 @@ spinagram icons search "load balancer"             # icon pack management
 spinagram vectorize icons/ -o vector/              # trace PNG icons into SVG
 spinagram deck deck.yaml -o slides.html            # HTML presentation
 spinagram skills install --agent claude            # agent skills, see AI agent skills
+spinagram mcp install -a claude                    # MCP server for agents, see MCP server
+spinagram mcp --http 8766                          # the MCP server over streamable HTTP
+python -m spinagram render specs/                  # the same CLI from any Python with spinagram
 ```
 
 `paths` are spec files or directories (`*.yaml`, `*.py`). A `_defaults.yaml` in a directory sets
@@ -27,7 +30,7 @@ defaults for every spec in it.
 | `--tag TAG` | render, check, facts, layout | Only diagrams with this tag, declared or inferred from icons; repeat to require several |
 | `--category NAME` | render, check, facts, layout | Only diagrams in this category (case-insensitive) |
 | `--layout ENGINE` | render, check, facts, layout, serve | Engine for specs with `layout:` (`flex`, `dot`, `elk`, `d2`; env `SPINAGRAM_LAYOUT`) |
-| `-f, --formats` | render | Comma list from `svg`, `png`, `pptx`, `figma`, `figjam` |
+| `-f, --formats` | render | Comma list from `svg`, `png`, `pptx`, `figma`, `figjam`, `excalidraw` |
 | `-o, --out` | render, layout, vectorize, deck | Output directory or file |
 | `--no-gallery` | render | Skip `index.html` |
 | `--styles` | check | Explain each element's computed style: matching rules, overrides, inheritance ([details](/docs/customize/css-reference#inspect-computed-styles)) |
@@ -48,6 +51,16 @@ defaults for every spec in it.
 | `legend`, `steps`, `callout`, `annotations` | Annotation problems, see [Annotations](/docs/customize/annotations#checks) |
 
 `check` exits non-zero when it finds anything, so it can gate a pull request.
+
+## `mcp`
+
+| Option | Meaning |
+|---|---|
+| `-t`, `--layout`, `--formats` | Defaults for every tool call (`--formats` is a comma list; default `svg,png`) |
+| `--root DIR` | Folder every tool path must stay inside (default: the current folder) |
+| `--http PORT`, `--host` | Serve streamable HTTP at `http://HOST:PORT/mcp` instead of stdio (host default `127.0.0.1`) |
+
+`spinagram mcp install` writes the server into an agent's config. See [MCP server](/docs/tools/mcp) for both.
 
 ## Environment variables
 

@@ -8,17 +8,33 @@
 
 Corroborated across multiple features. Safe to apply as guidance.
 
-_none_
+### L-001 - Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend, layered-layout
+- evidence: M9b (hash tie-break) (tests) (+1 more)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-014 - Give every clause of a multi-clause acceptance criterion its own assertion
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: annotations, excalidraw-backend
+- evidence: validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests) (+1 more)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-017 - Test each layout property on every band side or branch it applies to, not only the default side
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend, legend-css
+- evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests) (+1 more)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-020 - When new enum values are added, cover each one in every consumer that branches on it, including qa checks
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend, legend-css
+- evidence: validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests) (+1 more)
+- last seen: 2026-10-19T18:20:26Z
 
 ## Candidates (under observation - do NOT load as guidance yet)
 
 Seen once or not yet corroborated. Tracked, not trusted.
-
-### L-001 - Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: layered-layout
-- evidence: M9b (hash tie-break) (tests)
-- last seen: 2026-10-12T04:39:39Z
 
 ### L-002 - Give placement ACs a measurable bound (e.g. pill within 6 px of its segment) before writing the test.
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
@@ -92,12 +108,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md M38 src/spinagram/model.py:492 (tests)
 - last seen: 2026-10-12T18:18:23Z
 
-### L-014 - Give every clause of a multi-clause acceptance criterion its own assertion
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: annotations
-- evidence: validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests)
-- last seen: 2026-10-12T18:18:23Z
-
 ### L-015 - When a spec says first-use order over mixed element types, state the order across types
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
 - features: annotations
@@ -110,12 +120,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md M02 src/spinagram/icon_packs/network.yaml:13 tests/test_icon_packs.py:51 (ICON-09) (tests)
 - last seen: 2026-10-12T19:04:51Z
 
-### L-017 - Test each layout property on every band side or branch it applies to, not only the default side
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: legend-css
-- evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests)
-- last seen: 2026-10-12T20:03:34Z
-
 ### L-018 - When an explicit setting overrides an automatic rule, test it under the condition that triggers the rule
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
 - features: legend-css
@@ -126,12 +130,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `yaml-loaders` · harmful: 0
 - features: legend-css
 - evidence: validation.md M30 src/spinagram/yaml_io.py:140 (LCSS-04) (yaml-loaders)
-- last seen: 2026-10-12T20:03:34Z
-
-### L-020 - When new enum values are added, cover each one in every consumer that branches on it, including qa checks
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: legend-css
-- evidence: validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests)
 - last seen: 2026-10-12T20:03:34Z
 
 ### L-021 - Give every clause of a multi-clause acceptance criterion its own assertion
@@ -229,6 +227,156 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: inspector-declarations
 - evidence: validation.md iteration 3 N3 (src/spinagram/ui/declare.py:14) (tests)
 - last seen: 2026-10-19T05:16:52Z
+
+### L-037 - Pick geometry fixtures that hit every structural branch the real inputs have, such as multiple subpaths and closed paths that do not end on their start.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: M08,M16 src/spinagram/backends/excalidraw.py:49-50,207 (EXC-05) (tests)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-038 - Test a rounding rule with a value where rounding and truncation give different results.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: M15 src/spinagram/backends/excalidraw.py:195 (Opacity row) (tests)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-039 - When an AC reuses a helper's coordinates in another format, state which reference point the output uses, such as left edge or centre.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: excalidraw-backend
+- evidence: EXC-07 spec.md (Label.place() x is the centre for align=center) (spec)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-040 - Test bindings and references on a fully composed element (label, icon and links together), not on a bare one
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md N05, N13 (EXC-06/EXC-09) (tests)
+- last seen: 2026-10-19T18:20:26Z
+
+### L-041 - Test a detection rule once per input field it reads, with only that field triggering it
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md N01 (EXC-15) (tests) (+1 more)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-042 - Test references to an element on every variant whose element structure differs, such as native and multi-element shapes
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md N13b (EXC-09) (tests)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-043 - Use non-integer values in fixtures for numeric fields copied to output so truncation or rounding is caught
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md P10 (EXC-15) (tests)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-044 - Test an absent-value rule for every way the value can be absent, such as null and zero
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md P17 (Transparent row) (tests)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-045 - Test each cross-cutting style rule on every element kind that applies it, not only the plainest native shape
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q01,Q04,Q05,Q06,Q07 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-046 - Test the null entry of a value mapping at every position that uses the mapping
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q02 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-047 - Test ordering rules with items that have children, asserting each child follows its owner
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q09 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-048 - Test a rule that overrides an input field with a fixture where that field holds a conflicting value
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q03 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-049 - When a requirement says server defaults apply to every call, assert the default reaches each tool, not just one
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: validation.md M5 (src/spinagram/mcp_server/tools.py:52) (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-050 - When the spec fixes a file format detail such as indentation, assert the exact written text, not only the parsed values
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md M26 (src/spinagram/mcp_server/install.py:96) (config-writers)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-051 - Apply path confinement only to paths from untrusted tool arguments, and resolve operator-supplied startup paths once against the launch directory
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: MCP-11 / src/spinagram/mcp_server/tools.py:27-31 (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-052 - Specify the exact protocol shape of error results, including flags and any SDK-added prefix, when an AC requires a specific error message
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: MCP-10 / src/spinagram/mcp_server/server.py:45 (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-053 - Test each optional filter argument on a fixture where the filter removes at least one result
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md F3, F7, F11 (tools.py:80, server.py:64, tools.py:88) (tests)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-054 - Test a configured setting with a value distinct from the built-in default and assert that value is what gets used
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md F1 (tools.py:32; tests/test_mcp_tools.py:136) (tests)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-055 - When editing a config file as text, parse the result before writing and refuse when it no longer parses
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md probe 1, INST-01 (install.py:117-120) (config-writers)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-056 - When a result must equal a reference output, compare it exactly to the reference on a fixture where it is non-empty, not only check it is a subset
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md N24 (MCP-07) (tests)
+- last seen: 2026-10-19T19:31:29Z
+
+### L-057 - Test text-appending config writers on an existing file that lacks a trailing newline
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md N17 (INST-01) (config-writers)
+- last seen: 2026-10-19T19:31:29Z
+
+### L-058 - Test path confinement with a sibling folder whose name starts with the root's name, not only with dot-dot and absolute paths
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G1 tools.py:25 (MCP-09) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-059 - Test a numeric default such as a result limit with more items than the default so the cap is observable
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G20 server.py:90 (MCP-08) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-060 - When the spec says exactly one item assert the length, not only the first element
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G9 server.py:45 (MCP-10) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-061 - Exercise replace and force paths with names that need quoting, not only bare identifiers
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G5 install.py:134 (INST-08) (tests)
+- last seen: 2026-10-19T19:42:02Z
 
 ## Quarantined (failed when applied - ignore)
 

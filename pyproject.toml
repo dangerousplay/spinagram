@@ -1,6 +1,6 @@
 [project]
 name = "spinagram"
-version = "0.2.0"
+version = "0.3.0"
 description = "Diagrams as code rendered to editable SVG, PNG, PowerPoint and Figma, with pluggable themes and backends."
 readme = "README.md"
 license = "MIT"
@@ -30,12 +30,13 @@ dependencies = [
 pptx = ["python-pptx>=1.0", "lxml>=5.0"]
 png = ["playwright>=1.40"]
 vector = ["vtracer>=0.6", "resvg-py>=0.5"]
-all = ["spinagram[pptx,png,vector,ui]"]
+all = ["spinagram[pptx,png,vector,ui,mcp]"]
 ui = [
     "starlette>=0.37",
     "uvicorn>=0.29",
     "watchfiles>=0.21",
 ]
+mcp = ["mcp>=2.3,<3"]
 
 [project.urls]
 Homepage = "https://github.com/dangerousplay/spinagram"
@@ -53,6 +54,7 @@ png = "spinagram.backends.png:PngBackend"
 pptx = "spinagram.backends.pptx:PptxBackend"
 figma = "spinagram.backends.figma:FigmaBackend"
 figjam = "spinagram.backends.figma:FigjamBackend"
+excalidraw = "spinagram.backends.excalidraw:ExcalidrawBackend"
 
 [build-system]
 requires = ["hatchling>=1.27"]  # PEP 639 license metadata
