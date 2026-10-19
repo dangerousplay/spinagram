@@ -134,7 +134,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T6: Codex TOML writer [ ]
+### T6: Codex TOML writer [x]
 
 **What**: `[mcp_servers.<name>]` table appended or replaced as text; rest of the file byte-identical; `tomllib` parse check.
 **Where**: `src/spinagram/mcp_server/install.py`

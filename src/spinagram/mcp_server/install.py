@@ -7,6 +7,7 @@ table.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -76,6 +77,11 @@ def install(agent: str, *, command: list[str] | None = None, url: str | None = N
     path = config_path(agent, user, base, home)
     new = entry(agent, user, command, url)
     text = path.read_text(encoding="utf-8") if path.exists() else None
+    if agent == "codex":
+        out = _toml(path, text or "", name, new, force)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(out, encoding="utf-8")
+        return path
     try:
         data = json.loads(text) if text is not None else {}
         if not isinstance(data, dict):
@@ -89,3 +95,34 @@ def install(agent: str, *, command: list[str] | None = None, url: str | None = N
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return path
+
+
+def _toml_key(s: str) -> str:
+    return s if re.fullmatch(r"[A-Za-z0-9_-]+", s) else json.dumps(s)
+
+
+def _toml(path: Path, text: str, name: str, new: dict, force: bool) -> str:
+    """``text`` with the table ``[mcp_servers.<name>]`` added or replaced; the other text is kept as is."""
+    import tomllib
+
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f"cannot parse {path}: {exc}") from None
+    table = f"[mcp_servers.{_toml_key(name)}]\n" + "".join(f"{k} = {json.dumps(v, ensure_ascii=False)}\n"
+                                                           for k, v in new.items())
+    if name not in data.get("mcp_servers", {}):
+        return text + ("\n" if text and not text.endswith("\n") else "") + ("\n" if text else "") + table
+    if not force:
+        raise FileExistsError(f"already installed: {name} in {path} (use --force to replace)")
+    lines = text.splitlines(keepends=True)
+    head = re.compile(r"\s*\[\s*mcp_servers\s*\.\s*(?:" + re.escape(name) + "|" + re.escape(json.dumps(name)) +
+                      r")\s*(?:\]|\.)")
+    start = next((i for i, ln in enumerate(lines) if head.match(ln)), None)
+    if start is None:
+        raise ValueError(f"cannot parse {path}: {name} is not a [mcp_servers.{name}] table; edit it by hand")
+    end = start + 1
+    while end < len(lines) and (not lines[end].lstrip().startswith("[") or head.match(lines[end])):
+        end += 1
+    rest = "".join(lines[end:])
+    return "".join(lines[:start]) + table + ("\n" + rest if rest else "")

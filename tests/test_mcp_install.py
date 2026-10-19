@@ -145,3 +145,75 @@ def test_unknown_agent(dirs):  # INST-10 (function level)
     with pytest.raises(ValueError, match=r"^unknown agent 'vim'; known: claude, codex, copilot, cursor, gemini, "
                                          r"opencode$"):
         ins.install("vim", command=CMD, base=base, home=home)
+
+
+# T6: Codex TOML --------------------------------------------------------------------------------------
+import tomllib  # noqa: E402
+
+CODEX_OTHER = """\
+# my settings
+model = "o4"
+
+[mcp_servers.github]
+url = "https://example.test/mcp"
+
+[profiles.fast]
+model = "mini"   # keep this comment
+"""
+
+
+@pytest.mark.parametrize("user", [False, True])
+def test_codex_new_file(user, dirs):  # INST-01, INST-02 (codex)
+    base, home = dirs
+    path = ins.install("codex", command=CMD, user=user, base=base, home=home)
+    assert path == (home if user else base) / ".codex/config.toml"
+    assert tomllib.loads(path.read_text(encoding="utf-8")) == {
+        "mcp_servers": {"spinagram": {"command": CMD[0], "args": CMD[1:]}}}
+
+
+def test_codex_keeps_other_text(dirs):  # INST-07: same text outside the server's table
+    base, home = dirs
+    path = base / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text(CODEX_OTHER, encoding="utf-8")
+    ins.install("codex", command=CMD, base=base, home=home)
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith(CODEX_OTHER)
+    data = tomllib.loads(text)
+    assert data["mcp_servers"]["spinagram"] == {"command": CMD[0], "args": CMD[1:]}
+    assert data["mcp_servers"]["github"] == {"url": "https://example.test/mcp"}
+    assert data["profiles"] == {"fast": {"model": "mini"}}
+
+
+def test_codex_url_and_quoted_values(dirs):  # INST-06 (codex: url), values escaped as TOML strings
+    base, home = dirs
+    path = ins.install("codex", url='http://h/"mcp"\\x', name="my diagrams", base=base, home=home)
+    assert tomllib.loads(path.read_text(encoding="utf-8")) == {"mcp_servers": {"my diagrams": {"url": 'http://h/"mcp"\\x'}}}
+
+
+def test_codex_duplicate_and_force(dirs):  # INST-08 (codex)
+    base, home = dirs
+    path = base / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text(CODEX_OTHER + '\n[mcp_servers.spinagram]\ncommand = "old"\n\n[mcp_servers.spinagram.env]\nA = "1"\n'
+                    '\n[tail]\nx = 1\n', encoding="utf-8")
+    before = path.read_bytes()
+    with pytest.raises(FileExistsError, match=r"^already installed: spinagram in "):
+        ins.install("codex", url=URL, base=base, home=home)
+    assert path.read_bytes() == before
+    ins.install("codex", url=URL, force=True, base=base, home=home)
+    text = path.read_text(encoding="utf-8")
+    data = tomllib.loads(text)
+    assert data["mcp_servers"]["spinagram"] == {"url": URL}                 # old table and its env subtable gone
+    assert data["tail"] == {"x": 1} and data["mcp_servers"]["github"]
+    assert text.startswith(CODEX_OTHER) and text.endswith("[tail]\nx = 1\n")
+
+
+def test_codex_invalid_toml_left_alone(dirs):  # INST-09 (codex)
+    base, home = dirs
+    path = base / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text("[broken\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=rf"^cannot parse {path}: "):
+        ins.install("codex", command=CMD, base=base, home=home)
+    assert path.read_text(encoding="utf-8") == "[broken\n"
