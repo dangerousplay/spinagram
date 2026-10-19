@@ -1,6 +1,6 @@
 # Feature: MCP server for coding agents
 
-**Status:** Draft (2026-10-19) · **Size:** Large · **Owner:** spinagram
+**Status:** Accepted by the user without a passing verification (2026-10-19; see validation.md) · **Size:** Large · **Owner:** spinagram
 
 ## Problem Statement
 
@@ -89,8 +89,8 @@ produce diagrams without a shell.
 7. WHEN `styles` is called with `paths` (optional `select`) THEN the system SHALL return the same JSON as `spinagram check --json` (one report or a list). <!-- MCP-07 -->
 8. WHEN `icons_search` is called with `query` (optional `pack`, `limit` default 40) THEN the system SHALL return `["pack:name", …]` as `spinagram icons search` finds them. <!-- MCP-08 -->
 9. IF a path argument resolves outside the root THEN the tool SHALL return an error result `path outside root: <path>` and touch no file. <!-- MCP-09 -->
-10. IF a tool raises (unknown diagram id, bad spec, missing engine) THEN the server SHALL return an error result with the message the CLI prints after `spinagram: error: ` and keep serving. <!-- MCP-10 -->
-11. WHEN the server starts with `-t THEME`, `--layout ENGINE` or `--formats LIST` THEN the system SHALL use them as the defaults of every tool call that does not pass its own. <!-- MCP-11 -->
+10. IF a tool raises (unknown diagram id, bad spec, missing engine) THEN the server SHALL return a result with `isError: true` and one text content equal to the message the CLI prints after `spinagram: error: ` (no "Error executing tool" prefix), and keep serving. <!-- MCP-10 -->
+11. WHEN the server starts with `-t THEME`, `--layout ENGINE` or `--formats LIST` THEN the system SHALL use them as the defaults of every tool call (`render`, `check`, `layout`, `styles`) that does not pass its own; a `-t` path SHALL resolve against the server's working directory at start and is not subject to the root rule (MCP-09 applies to tool arguments only). <!-- MCP-11 -->
 12. IF the `mcp` extra is missing THEN `spinagram mcp` SHALL print `spinagram: mcp needs the mcp extra: pip install 'spinagram[mcp]'` to stderr and exit 2. <!-- MCP-12 -->
 13. The server SHALL log one line per tool call to stderr, `spinagram-mcp: <tool> <ms>ms ok` or `… error`, and write nothing else to stdout. <!-- MCP-13 -->
 14. WHILE a `render` call runs the server SHALL hold later writing calls until it finishes. <!-- MCP-14 -->
@@ -123,7 +123,7 @@ without me hand-writing JSON.
 1. WHEN `spinagram mcp install -a AGENT` runs THEN the system SHALL add the stdio entry of the AGENT table under the server name in the project file, creating file and folders when missing, and print `installed <name> in <file>`. <!-- INST-01 -->
 2. WHEN `--user` is given THEN the system SHALL write the user file of the AGENT table instead. <!-- INST-02 -->
 3. WHEN `-a` is repeated THEN the system SHALL write one entry per agent. <!-- INST-03 -->
-4. WHEN `-t`, `--root`, `--formats` or `--layout` is given THEN the system SHALL append them to the entry's `args` after `mcp`, `--root` as an absolute path. <!-- INST-04 -->
+4. WHEN `-t`, `--root`, `--formats` or `--layout` is given THEN the system SHALL append them to the entry's `args` after `mcp`, `--root` as an absolute path and `-t` as an absolute path when it names an existing folder (a built-in theme name stays as given). <!-- INST-04 -->
 5. The stdio entry SHALL launch `[sys.executable, "-m", "spinagram", "mcp", …]`; WHERE `--uvx` is given it SHALL launch `uvx --from spinagram[mcp]==<version> spinagram mcp …`. <!-- INST-05 -->
 6. WHEN `--url URL` is given THEN the system SHALL write the HTTP entry of the AGENT table with that URL instead of a stdio entry. <!-- INST-06 -->
 7. The system SHALL keep every other key and server in the file unchanged (JSON: same parsed values; TOML: same text outside the server's table). <!-- INST-07 -->
@@ -159,6 +159,7 @@ without me hand-writing JSON.
 ## Edge Cases
 
 - IF `paths` is empty or finds no diagram THEN the tool SHALL return the error `no diagrams found` (CLI message).
+- IF the PNG preview fails for another reason (e.g. Chromium not installed) THEN `render` SHALL succeed with `"preview": "preview failed: <first line of the error>"`.
 - WHEN `out` is relative THEN it SHALL resolve under the root; IF absolute outside the root THEN MCP-09 applies.
 - WHEN a symlink inside the root points outside it THEN MCP-09 SHALL apply (resolve before checking).
 - IF `~/.claude.json` is large THEN install SHALL rewrite it with the same values (indent 2), nothing else changed.
@@ -169,37 +170,37 @@ without me hand-writing JSON.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| MCP-01 | P1: Run the server | Tasks | Pending |
-| MCP-02 | P1: Run the server | Tasks | Pending |
-| MCP-03 | P1: Run the server | Tasks | Pending |
-| MCP-04 | P1: Run the server | Tasks | Pending |
-| MCP-05 | P1: Run the server | Tasks | Pending |
-| MCP-06 | P1: Run the server | Tasks | Pending |
-| MCP-07 | P1: Run the server | Tasks | Pending |
-| MCP-08 | P1: Run the server | Tasks | Pending |
-| MCP-09 | P1: Run the server | Tasks | Pending |
-| MCP-10 | P1: Run the server | Tasks | Pending |
-| MCP-11 | P1: Run the server | Tasks | Pending |
-| MCP-12 | P1: Run the server | Tasks | Pending |
-| MCP-13 | P1: Run the server | Tasks | Pending |
-| MCP-14 | P1: Run the server | Tasks | Pending |
-| MCP-15 | P1: Skills as resources | Tasks | Pending |
-| MCP-16 | P1: Skills as resources | Tasks | Pending |
-| INST-01 | P1: Install per agent | Tasks | Pending |
-| INST-02 | P1: Install per agent | Tasks | Pending |
-| INST-03 | P1: Install per agent | Tasks | Pending |
-| INST-04 | P1: Install per agent | Tasks | Pending |
-| INST-05 | P1: Install per agent | Tasks | Pending |
-| INST-06 | P1: Install per agent | Tasks | Pending |
-| INST-07 | P1: Install per agent | Tasks | Pending |
-| INST-08 | P1: Install per agent | Tasks | Pending |
-| INST-09 | P1: Install per agent | Tasks | Pending |
-| INST-10 | P1: Install per agent | Tasks | Pending |
-| HTTP-01 | P2: Streamable HTTP | Tasks | Pending |
-| HTTP-02 | P2: Streamable HTTP | Tasks | Pending |
-| DOC-01 | P2: Skill docs | Tasks | Pending |
+| MCP-01 | P1: Run the server | Tasks | Implementing |
+| MCP-02 | P1: Run the server | Tasks | Implementing |
+| MCP-03 | P1: Run the server | Tasks | Implementing |
+| MCP-04 | P1: Run the server | Tasks | Implementing |
+| MCP-05 | P1: Run the server | Tasks | Implementing |
+| MCP-06 | P1: Run the server | Tasks | Implementing |
+| MCP-07 | P1: Run the server | Tasks | Implementing |
+| MCP-08 | P1: Run the server | Tasks | Implementing |
+| MCP-09 | P1: Run the server | Tasks | Implementing |
+| MCP-10 | P1: Run the server | Tasks | Implementing |
+| MCP-11 | P1: Run the server | Tasks | Implementing |
+| MCP-12 | P1: Run the server | Tasks | Implementing |
+| MCP-13 | P1: Run the server | Tasks | Implementing |
+| MCP-14 | P1: Run the server | Tasks | Implementing |
+| MCP-15 | P1: Skills as resources | Tasks | Implementing |
+| MCP-16 | P1: Skills as resources | Tasks | Implementing |
+| INST-01 | P1: Install per agent | Tasks | Implementing |
+| INST-02 | P1: Install per agent | Tasks | Implementing |
+| INST-03 | P1: Install per agent | Tasks | Implementing |
+| INST-04 | P1: Install per agent | Tasks | Implementing |
+| INST-05 | P1: Install per agent | Tasks | Implementing |
+| INST-06 | P1: Install per agent | Tasks | Implementing |
+| INST-07 | P1: Install per agent | Tasks | Implementing |
+| INST-08 | P1: Install per agent | Tasks | Implementing |
+| INST-09 | P1: Install per agent | Tasks | Implementing |
+| INST-10 | P1: Install per agent | Tasks | Implementing |
+| HTTP-01 | P2: Streamable HTTP | Tasks | Implementing |
+| HTTP-02 | P2: Streamable HTTP | Tasks | Implementing |
+| DOC-01 | P2: Skill docs | Tasks | Implementing |
 
-**Coverage:** 29 total, 0 mapped to tasks, 29 unmapped ⚠️
+**Coverage:** 29 total, 29 mapped to tasks (T1–T13), 0 unmapped
 
 ---
 

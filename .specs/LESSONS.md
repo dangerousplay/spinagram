@@ -10,7 +10,7 @@ Corroborated across multiple features. Safe to apply as guidance.
 
 ### L-001 - Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.
 - signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
-- features: layered-layout, excalidraw-backend
+- features: excalidraw-backend, layered-layout
 - evidence: M9b (hash tie-break) (tests) (+1 more)
 - last seen: 2026-10-19T18:02:51Z
 
@@ -22,13 +22,13 @@ Corroborated across multiple features. Safe to apply as guidance.
 
 ### L-017 - Test each layout property on every band side or branch it applies to, not only the default side
 - signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
-- features: legend-css, excalidraw-backend
+- features: excalidraw-backend, legend-css
 - evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests) (+1 more)
 - last seen: 2026-10-19T18:02:51Z
 
 ### L-020 - When new enum values are added, cover each one in every consumer that branches on it, including qa checks
 - signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
-- features: legend-css, excalidraw-backend
+- features: excalidraw-backend, legend-css
 - evidence: validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests) (+1 more)
 - last seen: 2026-10-19T18:20:26Z
 
@@ -299,6 +299,84 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: excalidraw-backend
 - evidence: validation.md Q03 (tests)
 - last seen: 2026-10-19T19:27:53Z
+
+### L-049 - When a requirement says server defaults apply to every call, assert the default reaches each tool, not just one
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: validation.md M5 (src/spinagram/mcp_server/tools.py:52) (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-050 - When the spec fixes a file format detail such as indentation, assert the exact written text, not only the parsed values
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md M26 (src/spinagram/mcp_server/install.py:96) (config-writers)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-051 - Apply path confinement only to paths from untrusted tool arguments, and resolve operator-supplied startup paths once against the launch directory
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: MCP-11 / src/spinagram/mcp_server/tools.py:27-31 (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-052 - Specify the exact protocol shape of error results, including flags and any SDK-added prefix, when an AC requires a specific error message
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: MCP-10 / src/spinagram/mcp_server/server.py:45 (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-053 - Test each optional filter argument on a fixture where the filter removes at least one result
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md F3, F7, F11 (tools.py:80, server.py:64, tools.py:88) (tests)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-054 - Test a configured setting with a value distinct from the built-in default and assert that value is what gets used
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md F1 (tools.py:32; tests/test_mcp_tools.py:136) (tests)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-055 - When editing a config file as text, parse the result before writing and refuse when it no longer parses
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md probe 1, INST-01 (install.py:117-120) (config-writers)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-056 - When a result must equal a reference output, compare it exactly to the reference on a fixture where it is non-empty, not only check it is a subset
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md N24 (MCP-07) (tests)
+- last seen: 2026-10-19T19:31:29Z
+
+### L-057 - Test text-appending config writers on an existing file that lacks a trailing newline
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md N17 (INST-01) (config-writers)
+- last seen: 2026-10-19T19:31:29Z
+
+### L-058 - Test path confinement with a sibling folder whose name starts with the root's name, not only with dot-dot and absolute paths
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G1 tools.py:25 (MCP-09) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-059 - Test a numeric default such as a result limit with more items than the default so the cap is observable
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G20 server.py:90 (MCP-08) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-060 - When the spec says exactly one item assert the length, not only the first element
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G9 server.py:45 (MCP-10) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-061 - Exercise replace and force paths with names that need quoting, not only bare identifiers
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G5 install.py:134 (INST-08) (tests)
+- last seen: 2026-10-19T19:42:02Z
 
 ## Quarantined (failed when applied - ignore)
 

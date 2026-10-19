@@ -239,6 +239,25 @@ are not loaded as specs.
   - Text keeps spinagram's line breaks in Excalidraw's fonts (Helvetica, or Cascadia for monospace themes), so widths can differ slightly. A one-paragraph label is bound into its box; a title + body label is grouped text.
   - Icons are embedded images; a frame `spinagram:<id>` holds the slide. Drop shadows are not drawn.
 
+## MCP server
+
+Agents without a shell (or with shell calls gated) use spinagram through its MCP server. Install it once per agent:
+
+```bash
+pip install 'spinagram[mcp]'                       # or: uv tool install 'spinagram[mcp]'
+spinagram mcp install -a claude                   # project .mcp.json; --user for ~/.claude.json
+spinagram mcp install -a cursor -a codex --root specs -t <theme-dir> --formats svg,png,excalidraw
+spinagram mcp install -a opencode --uvx           # launch through uvx, pinned to this version
+spinagram mcp --http 8766 &                        # one shared server over streamable HTTP (127.0.0.1)
+spinagram mcp install -a gemini --url http://127.0.0.1:8766/mcp
+```
+
+- **Agents:** `claude`, `codex`, `copilot` (VS Code `.vscode/mcp.json`; `--user` writes the Copilot CLI file), `cursor`, `gemini`, `opencode`. Other servers in the file are kept; an existing `spinagram` entry needs `--force`; `--name` installs a second one (another theme).
+- **Tools:** `render` (written paths + PNG previews of the first 4 diagrams; previews need the `png` extra), `check` (QA issues, same strings as the CLI), `layout` (frozen YAML), `styles` (the `check --json` CSS report, `select` filters), `icons_search`.
+- **Root:** every path is relative to the server's `--root` (default: the folder it starts in). Paths outside it are refused; `render` writes to `out/` under the root by default.
+- **Skills:** read `spinagram://skills/spinagram` (and `spinagram://skills/spinagram-css`) before writing a spec.
+- Python specs run as with the CLI: only point the server at specs you trust.
+
 ## CSS styling
 
 Stylesheets restyle any diagram without touching its code: `d.stylesheet("brand.css")`, `class_="critical"`,

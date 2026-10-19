@@ -71,6 +71,11 @@
   behaviour bug); the last gaps got tests (T16) but no 5th pass. Clean style, native shapes, bound arrows.
   See `features/excalidraw-backend/validation.md`.
 
+- 2026-10-19 · MCP server (`spinagram mcp`, official `mcp` SDK v2 `MCPServer`, stdio + streamable HTTP;
+  `spinagram mcp install -a <agent>` writes claude/codex/copilot/cursor/gemini/opencode configs). Tool paths
+  confined to `--root`; the server `-t` is not. Accepted by the user after 4 Verifier passes found only test gaps
+  after iteration 2; see `features/mcp-server/validation.md`.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).

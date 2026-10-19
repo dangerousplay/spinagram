@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 49,
+  "next_id": 62,
   "lessons": [
     {
       "id": "L-001",
@@ -13,8 +13,8 @@
       "scope": "tests",
       "status": "confirmed",
       "features": [
-        "layered-layout",
-        "excalidraw-backend"
+        "excalidraw-backend",
+        "layered-layout"
       ],
       "recurrence": 2,
       "harmful": 0,
@@ -305,8 +305,8 @@
       "scope": "tests",
       "status": "confirmed",
       "features": [
-        "legend-css",
-        "excalidraw-backend"
+        "excalidraw-backend",
+        "legend-css"
       ],
       "recurrence": 2,
       "harmful": 0,
@@ -361,8 +361,8 @@
       "scope": "tests",
       "status": "confirmed",
       "features": [
-        "legend-css",
-        "excalidraw-backend"
+        "excalidraw-backend",
+        "legend-css"
       ],
       "recurrence": 2,
       "harmful": 0,
@@ -877,6 +877,240 @@
       ],
       "created": "2026-10-19T19:27:53Z",
       "last_seen": "2026-10-19T19:27:53Z"
+    },
+    {
+      "id": "L-049",
+      "key": "surviving_mutant::when a requirement says server defaults apply to every call assert the default reaches each tool not just one",
+      "text": "When a requirement says server defaults apply to every call, assert the default reaches each tool, not just one",
+      "signal": "surviving_mutant",
+      "scope": "mcp-server",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M5 (src/spinagram/mcp_server/tools.py:52) (mcp-server)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-050",
+      "key": "surviving_mutant::when the spec fixes a file format detail such as indentation assert the exact written text not only the parsed values",
+      "text": "When the spec fixes a file format detail such as indentation, assert the exact written text, not only the parsed values",
+      "signal": "surviving_mutant",
+      "scope": "config-writers",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M26 (src/spinagram/mcp_server/install.py:96) (config-writers)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-051",
+      "key": "ac_gap::apply path confinement only to paths from untrusted tool arguments and resolve operator supplied startup paths once against the launch directory",
+      "text": "Apply path confinement only to paths from untrusted tool arguments, and resolve operator-supplied startup paths once against the launch directory",
+      "signal": "ac_gap",
+      "scope": "mcp-server",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "MCP-11 / src/spinagram/mcp_server/tools.py:27-31 (mcp-server)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-052",
+      "key": "spec_precision_gap::specify the exact protocol shape of error results including flags and any sdk added prefix when an ac requires a specific error message",
+      "text": "Specify the exact protocol shape of error results, including flags and any SDK-added prefix, when an AC requires a specific error message",
+      "signal": "spec_precision_gap",
+      "scope": "mcp-server",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "MCP-10 / src/spinagram/mcp_server/server.py:45 (mcp-server)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-053",
+      "key": "surviving_mutant::test each optional filter argument on a fixture where the filter removes at least one result",
+      "text": "Test each optional filter argument on a fixture where the filter removes at least one result",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md F3, F7, F11 (tools.py:80, server.py:64, tools.py:88) (tests)"
+      ],
+      "created": "2026-10-19T18:32:47Z",
+      "last_seen": "2026-10-19T18:32:47Z"
+    },
+    {
+      "id": "L-054",
+      "key": "surviving_mutant::test a configured setting with a value distinct from the built in default and assert that value is what gets used",
+      "text": "Test a configured setting with a value distinct from the built-in default and assert that value is what gets used",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md F1 (tools.py:32; tests/test_mcp_tools.py:136) (tests)"
+      ],
+      "created": "2026-10-19T18:32:47Z",
+      "last_seen": "2026-10-19T18:32:47Z"
+    },
+    {
+      "id": "L-055",
+      "key": "ac_gap::when editing a config file as text parse the result before writing and refuse when it no longer parses",
+      "text": "When editing a config file as text, parse the result before writing and refuse when it no longer parses",
+      "signal": "ac_gap",
+      "scope": "config-writers",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md probe 1, INST-01 (install.py:117-120) (config-writers)"
+      ],
+      "created": "2026-10-19T18:32:47Z",
+      "last_seen": "2026-10-19T18:32:47Z"
+    },
+    {
+      "id": "L-056",
+      "key": "surviving_mutant::when a result must equal a reference output compare it exactly to the reference on a fixture where it is non empty not only check it is a subset",
+      "text": "When a result must equal a reference output, compare it exactly to the reference on a fixture where it is non-empty, not only check it is a subset",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N24 (MCP-07) (tests)"
+      ],
+      "created": "2026-10-19T19:31:29Z",
+      "last_seen": "2026-10-19T19:31:29Z"
+    },
+    {
+      "id": "L-057",
+      "key": "surviving_mutant::test text appending config writers on an existing file that lacks a trailing newline",
+      "text": "Test text-appending config writers on an existing file that lacks a trailing newline",
+      "signal": "surviving_mutant",
+      "scope": "config-writers",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N17 (INST-01) (config-writers)"
+      ],
+      "created": "2026-10-19T19:31:29Z",
+      "last_seen": "2026-10-19T19:31:29Z"
+    },
+    {
+      "id": "L-058",
+      "key": "surviving_mutant::test path confinement with a sibling folder whose name starts with the root s name not only with dot dot and absolute paths",
+      "text": "Test path confinement with a sibling folder whose name starts with the root's name, not only with dot-dot and absolute paths",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G1 tools.py:25 (MCP-09) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
+    },
+    {
+      "id": "L-059",
+      "key": "surviving_mutant::test a numeric default such as a result limit with more items than the default so the cap is observable",
+      "text": "Test a numeric default such as a result limit with more items than the default so the cap is observable",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G20 server.py:90 (MCP-08) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
+    },
+    {
+      "id": "L-060",
+      "key": "surviving_mutant::when the spec says exactly one item assert the length not only the first element",
+      "text": "When the spec says exactly one item assert the length, not only the first element",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G9 server.py:45 (MCP-10) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
+    },
+    {
+      "id": "L-061",
+      "key": "surviving_mutant::exercise replace and force paths with names that need quoting not only bare identifiers",
+      "text": "Exercise replace and force paths with names that need quoting, not only bare identifiers",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G5 install.py:134 (INST-08) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
     }
   ]
 }

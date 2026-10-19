@@ -30,12 +30,13 @@ dependencies = [
 pptx = ["python-pptx>=1.0", "lxml>=5.0"]
 png = ["playwright>=1.40"]
 vector = ["vtracer>=0.6", "resvg-py>=0.5"]
-all = ["spinagram[pptx,png,vector,ui]"]
+all = ["spinagram[pptx,png,vector,ui,mcp]"]
 ui = [
     "starlette>=0.37",
     "uvicorn>=0.29",
     "watchfiles>=0.21",
 ]
+mcp = ["mcp>=2.3,<3"]
 
 [project.urls]
 Homepage = "https://github.com/dangerousplay/spinagram"
