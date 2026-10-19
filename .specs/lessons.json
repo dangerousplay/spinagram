@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 44,
+  "next_id": 47,
   "lessons": [
     {
       "id": "L-001",
@@ -784,6 +784,60 @@
       ],
       "created": "2026-10-19T18:22:47Z",
       "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-044",
+      "key": "surviving_mutant::test each optional filter argument on a fixture where the filter removes at least one result",
+      "text": "Test each optional filter argument on a fixture where the filter removes at least one result",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md F3, F7, F11 (tools.py:80, server.py:64, tools.py:88) (tests)"
+      ],
+      "created": "2026-10-19T18:32:47Z",
+      "last_seen": "2026-10-19T18:32:47Z"
+    },
+    {
+      "id": "L-045",
+      "key": "surviving_mutant::test a configured setting with a value distinct from the built in default and assert that value is what gets used",
+      "text": "Test a configured setting with a value distinct from the built-in default and assert that value is what gets used",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md F1 (tools.py:32; tests/test_mcp_tools.py:136) (tests)"
+      ],
+      "created": "2026-10-19T18:32:47Z",
+      "last_seen": "2026-10-19T18:32:47Z"
+    },
+    {
+      "id": "L-046",
+      "key": "ac_gap::when editing a config file as text parse the result before writing and refuse when it no longer parses",
+      "text": "When editing a config file as text, parse the result before writing and refuse when it no longer parses",
+      "signal": "ac_gap",
+      "scope": "config-writers",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md probe 1, INST-01 (install.py:117-120) (config-writers)"
+      ],
+      "created": "2026-10-19T18:32:47Z",
+      "last_seen": "2026-10-19T18:32:47Z"
     }
   ]
 }

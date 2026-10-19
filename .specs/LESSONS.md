@@ -270,6 +270,24 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: MCP-10 / src/spinagram/mcp_server/server.py:45 (mcp-server)
 - last seen: 2026-10-19T18:22:47Z
 
+### L-044 - Test each optional filter argument on a fixture where the filter removes at least one result
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md F3, F7, F11 (tools.py:80, server.py:64, tools.py:88) (tests)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-045 - Test a configured setting with a value distinct from the built-in default and assert that value is what gets used
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md F1 (tools.py:32; tests/test_mcp_tools.py:136) (tests)
+- last seen: 2026-10-19T18:32:47Z
+
+### L-046 - When editing a config file as text, parse the result before writing and refuse when it no longer parses
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md probe 1, INST-01 (install.py:117-120) (config-writers)
+- last seen: 2026-10-19T18:32:47Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

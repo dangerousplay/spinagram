@@ -49,6 +49,12 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 T9 → T10 → T11 → T12 → T13
 ```
 
+### Phase 3: Verifier fixes (validation.md, iteration 2)
+
+```
+T14 → T15 → T16
+```
+
 ---
 
 ## Task Breakdown
@@ -200,7 +206,7 @@ T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Tests: a theme folder outside the root works as the server default (absolute and relative-to-cwd); `server_args` makes an existing `-t` absolute and keeps a built-in name
+- [x] Tests: a theme folder outside the root works as the server default (absolute and relative-to-cwd); `server_args` makes an existing `-t` absolute and keeps a built-in name
 
 **Tests**: unit
 **Gate**: quick
@@ -217,7 +223,7 @@ T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Ignoring the default layout in `scenes` or `layout_yaml` fails a test
+- [x] Ignoring the default layout in `scenes` or `layout_yaml` fails a test
 
 **Tests**: unit
 **Gate**: quick
@@ -234,7 +240,7 @@ T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Tests: exact written JSON text; comment above the next table survives `--force`
+- [x] Tests: exact written JSON text; comment above the next table survives `--force`
 
 **Tests**: unit
 **Gate**: quick
@@ -251,7 +257,7 @@ T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Test: non-object key → ValueError, file unchanged; CLI exit 2
+- [x] Test: non-object key → ValueError, file unchanged; CLI exit 2
 
 **Tests**: unit
 **Gate**: quick
@@ -268,8 +274,60 @@ T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] `validate_spec.py` clean; build gate passes
+- [x] `validate_spec.py` clean; build gate passes
 
 **Tests**: none
 **Gate**: build
 **Commit**: `docs(specs): define the mcp error result`
+
+---
+
+### T14: Codex output must parse (gap 1, bug) [ ]
+
+**What**: The written TOML is parsed before writing; if the entry cannot be added as a table (e.g. `mcp_servers` is an inline table) → `cannot parse <file>: … edit it by hand`, exit 2, unchanged.
+**Where**: `src/spinagram/mcp_server/install.py`
+**Depends on**: None (Phase 2 done)
+**Requirement**: INST-07, INST-09
+
+**Done when**:
+
+- [ ] Test: inline-table `mcp_servers` → ValueError, file unchanged
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `fix(mcp): refuse codex configs the new table would break`
+
+---
+
+### T15: Server theme reaches the tools (gap 2) [ ]
+
+**What**: A brand theme (outside the root) changes the rendered SVG colours; kills F1.
+**Where**: `tests/test_mcp_tools.py`
+**Depends on**: T14
+**Requirement**: MCP-11
+
+**Done when**:
+
+- [ ] Ignoring the server theme fails a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(mcp): assert the server theme is the one tools use`
+
+---
+
+### T16: Filters that remove results (gaps 3-5) [ ]
+
+**What**: `styles(select=)` on a styled spec drops elements; previews honour `only`; `icons_search(pack=)` with two packs (kills F3, F7, F11).
+**Where**: `tests/test_mcp_server.py`
+**Depends on**: T15
+**Requirement**: MCP-03, MCP-07, MCP-08
+
+**Done when**:
+
+- [ ] Each mutant fails a test
+- [ ] Build gate passes
+
+**Tests**: integration
+**Gate**: build
+**Commit**: `test(mcp): exercise the select, only and pack filters`
