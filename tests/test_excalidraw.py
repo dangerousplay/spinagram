@@ -526,3 +526,32 @@ def test_monospace_from_the_fallback():  # EXC-15: family or fallback
 
     t = by_id(to_excalidraw(scene(Text("c", 0, 30, block(["x"], family="Courier New", fallback="monospace")))), "c")
     assert t["fontFamily"] == 3
+
+
+# T15 (validation.md, iteration 3) --------------------------------------------------------------------
+def test_binding_on_a_symbol_shape():  # EXC-09: the shape's own (first) element, not its last subpath
+    from spinagram import shapes
+    from spinagram.scene import Binding
+
+    db = box("db", kind="data", parts=shapes.parts("data", 600, 200, 200, 120), stroke="#333333", stroke_width=2)
+    doc = to_excalidraw(scene(db, conn(points=((400, 260), (600, 260)), dst=Binding("db", "left"))))
+    assert by_id(doc, "e")["endBinding"]["elementId"] == "db"
+    assert by_id(doc, "db")["boundElements"] == [{"type": "arrow", "id": "e"}]
+
+
+def test_fractional_font_size():  # EXC-15: fontSize = the block's font size
+    from spinagram.scene import Text
+
+    assert by_id(to_excalidraw(scene(Text("t", 0, 30, block(["x"], size=13.5)))), "t")["fontSize"] == 13.5
+
+
+def test_monospace_from_the_family():  # EXC-15: a mono family with a sans fallback
+    from spinagram.scene import Text
+
+    t = by_id(to_excalidraw(scene(Text("c", 0, 30, block(["x"], family="Roboto Mono", fallback="sans-serif")))), "c")
+    assert t["fontFamily"] == 3
+
+
+def test_zero_width_stroke_is_transparent():  # Transparent row: width 0 is no stroke (as in SVG)
+    r = by_id(to_excalidraw(scene(box("a", stroke="#333333", stroke_width=0))), "a")
+    assert (r["strokeColor"], r["strokeWidth"]) == ("transparent", 1)

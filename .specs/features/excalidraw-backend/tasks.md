@@ -306,7 +306,7 @@ T15
 
 ---
 
-### T15: Symbol bindings, font size, mono family, zero-width stroke (gaps 1-4) [ ]
+### T15: Symbol bindings, font size, mono family, zero-width stroke (gaps 1-4) [x]
 
 **What**: An arrow bound to a `data` shape targets the shape's first element (kills N13b); `fontSize` 13.5 stays 13.5 (P10); "Roboto Mono" with a sans fallback → 3 (P16); stroke with width 0 → transparent, 1 (P17).
 **Where**: `tests/test_excalidraw.py`
