@@ -117,7 +117,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T5: Agent config writers (JSON) [ ]
+### T5: Agent config writers (JSON) [x]
 
 **What**: `AGENTS` table, `entry(agent, scope, args|url)` and `install(agent, user, name, entry, force, base, home)` for claude, cursor, gemini, copilot, opencode: create, merge, keep other keys, refuse duplicates, `--force`, parse errors.
 **Where**: `src/spinagram/mcp_server/install.py`
