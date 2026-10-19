@@ -183,3 +183,12 @@ All four are test-only. HEAD behaviour is correct in each case (probes above).
 **validate_state**: `python3 …/tlc-spec-driven/scripts/validate_state.py mcp-server` → `ERROR mcp-server: validation.md verdict is FAIL - route the ranked gaps to fix tasks, then re-verify (feature is not done)` (exit 1, expected for a FAIL verdict)
 
 **Lessons recorded**: L-049 (G1, sibling-prefix confinement), L-050 (G20, observable defaults), L-051 (G9, assert exact length), L-052 (G5, quoted names on replace paths). N17b is equivalent, so no lesson.
+
+---
+
+## Acceptance (2026-10-19, user decision)
+
+Pass 4 failed on 4 test-only gaps (G1, G9, G5, G20); the probes showed the code correct in every case. The user chose
+to add the tests and release without a 5th pass. T18 adds them; each of G1, G9, G5 and G20 was re-applied in a scratch
+worktree and now fails `tests/test_mcp_server.py`. The verdict above stays FAIL because no independent pass ran after
+T18: the feature is accepted by the user, not verified.
