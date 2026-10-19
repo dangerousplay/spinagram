@@ -300,6 +300,30 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md N17 (INST-01) (config-writers)
 - last seen: 2026-10-19T19:31:29Z
 
+### L-049 - Test path confinement with a sibling folder whose name starts with the root's name, not only with dot-dot and absolute paths
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G1 tools.py:25 (MCP-09) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-050 - Test a numeric default such as a result limit with more items than the default so the cap is observable
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G20 server.py:90 (MCP-08) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-051 - When the spec says exactly one item assert the length, not only the first element
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G9 server.py:45 (MCP-10) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
+### L-052 - Exercise replace and force paths with names that need quoting, not only bare identifiers
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: G5 install.py:134 (INST-08) (tests)
+- last seen: 2026-10-19T19:42:02Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

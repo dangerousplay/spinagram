@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 49,
+  "next_id": 53,
   "lessons": [
     {
       "id": "L-001",
@@ -874,6 +874,78 @@
       ],
       "created": "2026-10-19T19:31:29Z",
       "last_seen": "2026-10-19T19:31:29Z"
+    },
+    {
+      "id": "L-049",
+      "key": "surviving_mutant::test path confinement with a sibling folder whose name starts with the root s name not only with dot dot and absolute paths",
+      "text": "Test path confinement with a sibling folder whose name starts with the root's name, not only with dot-dot and absolute paths",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G1 tools.py:25 (MCP-09) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
+    },
+    {
+      "id": "L-050",
+      "key": "surviving_mutant::test a numeric default such as a result limit with more items than the default so the cap is observable",
+      "text": "Test a numeric default such as a result limit with more items than the default so the cap is observable",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G20 server.py:90 (MCP-08) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
+    },
+    {
+      "id": "L-051",
+      "key": "surviving_mutant::when the spec says exactly one item assert the length not only the first element",
+      "text": "When the spec says exactly one item assert the length, not only the first element",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G9 server.py:45 (MCP-10) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
+    },
+    {
+      "id": "L-052",
+      "key": "surviving_mutant::exercise replace and force paths with names that need quoting not only bare identifiers",
+      "text": "Exercise replace and force paths with names that need quoting, not only bare identifiers",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "G5 install.py:134 (INST-08) (tests)"
+      ],
+      "created": "2026-10-19T19:42:02Z",
+      "last_seen": "2026-10-19T19:42:02Z"
     }
   ]
 }
