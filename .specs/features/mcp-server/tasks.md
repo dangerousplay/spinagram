@@ -55,6 +55,12 @@ T9 → T10 → T11 → T12 → T13
 T14 → T15 → T16
 ```
 
+### Phase 4: Verifier fixes (validation.md, iteration 3; 4th pass approved by the user)
+
+```
+T17
+```
+
 ---
 
 ## Task Breakdown
@@ -291,7 +297,7 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Test: inline-table `mcp_servers` → ValueError, file unchanged
+- [x] Test: inline-table `mcp_servers` → ValueError, file unchanged
 
 **Tests**: unit
 **Gate**: quick
@@ -308,7 +314,7 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Ignoring the server theme fails a test
+- [x] Ignoring the server theme fails a test
 
 **Tests**: unit
 **Gate**: quick
@@ -325,9 +331,27 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Each mutant fails a test
-- [ ] Build gate passes
+- [x] Each mutant fails a test
+- [x] Build gate passes
 
 **Tests**: integration
 **Gate**: build
 **Commit**: `test(mcp): exercise the select, only and pack filters`
+
+---
+
+### T17: Exact select output and Codex files without a final newline (N24, N17) [x]
+
+**What**: `styles(select="edge")` on `examples/styling/styled.py` equals `check --json --select edge` exactly and is non-empty; a Codex config without a final newline gets the entry after a newline.
+**Where**: `tests/test_mcp_tools.py`
+**Depends on**: None (Phase 3 done)
+**Requirement**: MCP-07, INST-01
+
+**Done when**:
+
+- [ ] N24 and N17 each fail a test
+- [ ] Build gate passes
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `test(mcp): compare select output exactly and append to unterminated codex files`

@@ -204,3 +204,27 @@ def test_server_theme_is_the_one_tools_use(root, tmp_path):  # MCP-11: -t reache
     plain = Tools(root).render(["specs/decision.yaml"], formats=["svg"], out="b")
     svg = lambda res: next((root / p).read_text(encoding="utf-8") for p in res["written"] if p.endswith(".svg"))  # noqa: E731
     assert "#123456" in svg(branded).upper() and "#123456" not in svg(plain).upper()
+
+
+# T17 (validation.md, iteration 3) --------------------------------------------------------------------
+def test_styles_select_equals_the_cli(root, capsys):  # MCP-07 on a styled spec: exact, non-empty
+    for name in ("styled.py", "brand.css"):
+        shutil.copy(EXAMPLES / "styling" / name, root / name)
+    got = Tools(root).styles(["styled.py"], select="edge")
+    assert got == json.loads(cli(capsys, "check", str(root / "styled.py"), "--json", "--select", "edge"))
+    assert len(got["elements"]) > 1
+
+
+def test_codex_file_without_final_newline(tmp_path):  # INST-01 (codex): append after a newline
+    import sys
+    import tomllib
+
+    from spinagram.mcp_server import install as ins
+
+    path = tmp_path / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text('model = "o3"', encoding="utf-8")
+    ins.install("codex", command=[sys.executable, "-m", "spinagram", "mcp"], base=tmp_path, home=tmp_path / "h")
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith('model = "o3"\n')
+    assert tomllib.loads(text)["mcp_servers"]["spinagram"]["command"] == sys.executable
