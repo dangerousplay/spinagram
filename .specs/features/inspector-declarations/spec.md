@@ -34,6 +34,7 @@ declared in the source.
 
 | Assumption / decision | Chosen default | Rationale | Confirmed? |
 |---|---|---|---|
+| "Hide the doc on the left" | Collapse the Recent sidebar to a rail, like the code panel; key `[`; remembered per browser | Same pattern users already know from the code rail | n |
 | "Black right doc" | The empty strip right of the code panel (dark-mode body colour) | Reproduced in the browser: wrapper 912 px, panel 420 px | n |
 | Declaration source | Server-side text search of the spec file (`spinagram.ui.declare.locate`), first matching line | Pure, testable, no model change | n |
 | YAML node / group match | A line with `id: <id>` (quoted or not); else `title:`/`label:` equal to the element's label | YAML specs declare ids; auto ids come from titles | n |
@@ -112,6 +113,19 @@ so that I can go and change it.
 
 **Independent Test**: inspect `examples/aws_layout.yaml`, click "Applications": Declaration `aws_layout.yaml:22`.
 
+### P2: Hide the left sidebar
+
+**User Story**: As a diagram author, I want to fold the Recent sidebar away so that the diagram and code get
+the room. (Added 2026-10-19 during execution.)
+
+**Acceptance Criteria**:
+
+1. WHEN the user clicks the collapse button (`«`) in the sidebar header THEN the UI SHALL replace the 256 px sidebar with a 32 px rail labelled "Recent". <!-- SIDE-01 -->
+2. WHEN the user clicks the rail or presses `[` while collapsed THEN the UI SHALL show the 256 px sidebar again; `[` while expanded SHALL collapse it. <!-- SIDE-02 -->
+3. WHEN the page reloads THEN the UI SHALL restore the last state from `localStorage["spinagram.sidebar"]` (`"0"` collapsed); IF storage is unavailable THEN the sidebar SHALL start expanded. <!-- SIDE-03 -->
+
+**Independent Test**: click `«`, sidebar becomes a rail; reload, still a rail; press `[`, sidebar returns.
+
 ---
 
 ## Edge Cases
@@ -134,7 +148,7 @@ additions to an existing local endpoint.
 | ELI-01 | P1: Inspect any diagram | Tasks | Implemented |
 | ELI-02 | P1: Inspect any diagram | Tasks | Implemented |
 | ELI-03 | P1: Inspect any diagram | Tasks | Implemented |
-| ELI-04 | P1: Inspect any diagram | Tasks | Pending |
+| ELI-04 | P1: Inspect any diagram | Tasks | Implemented |
 | HIL-01 | P1: Highlight | Tasks | Implemented |
 | HIL-02 | P1: Highlight | Tasks | Implemented |
 | HIL-03 | P1: Highlight | Tasks | Implemented |
@@ -145,12 +159,15 @@ additions to an existing local endpoint.
 | DECL-04 | P1: Declarations | Tasks | Implemented |
 | DECL-05 | P1: Declarations | Tasks | Implemented |
 | DECL-06 | P1: Declarations | Tasks | Implemented |
-| DECL-07 | P1: Declarations | Tasks | Pending |
-| DECL-08 | P1: Declarations | Tasks | Pending |
+| DECL-07 | P1: Declarations | Tasks | Implemented |
+| DECL-08 | P1: Declarations | Tasks | Implemented |
 | DECL-09 | P1: Declarations | Tasks | Pending |
 | DECL-10 | P1: Declarations | Tasks | Pending |
+| SIDE-01 | P2: Hide sidebar | Tasks | Pending |
+| SIDE-02 | P2: Hide sidebar | Tasks | Pending |
+| SIDE-03 | P2: Hide sidebar | Tasks | Pending |
 
-**Coverage:** 20 total, 20 mapped to tasks, 0 unmapped
+**Coverage:** 23 total, 23 mapped to tasks, 0 unmapped
 
 ---
 

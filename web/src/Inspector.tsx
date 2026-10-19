@@ -202,12 +202,26 @@ function Computed({ values }: { values: Record<string, unknown> }) {
   );
 }
 
+function Declaration({ el, specPath }: { el: CssElement; specPath: string | undefined }) {
+  const d = el.declaration;
+  if (!d) return <p className="text-xs text-slate-500">Declaration not found in {specPath ?? "the spec"}</p>;
+  return (
+    <div className="rounded-md border border-slate-200 dark:border-slate-800">
+      <p className="border-b border-slate-100 px-2 py-1 font-mono text-[10px] text-slate-400 dark:border-slate-800">
+        {d.file}:{d.line}
+      </p>
+      <pre className="overflow-x-auto px-2 py-1 font-mono text-xs leading-5">{d.text}</pre>
+    </div>
+  );
+}
+
 function H({ children }: { children: React.ReactNode }) {
   return <h3 className="mt-4 mb-1.5 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{children}</h3>;
 }
 
 type PanelProps = {
   report: StyleReport | null;
+  specPath: string | undefined; // named when an element's declaration is not found
   error: string | null;
   selected: string | null;
   onSelect: (key: string | null) => void;
@@ -215,7 +229,7 @@ type PanelProps = {
   onClose: () => void;
 };
 
-export function InspectorPanel({ report, error, selected, onSelect, onHover, onClose }: PanelProps) {
+export function InspectorPanel({ report, specPath, error, selected, onSelect, onHover, onClose }: PanelProps) {
   const el = report?.elements.find((e) => e.key === selected);
   const labels = Object.fromEntries((report?.elements ?? []).map((e) => [e.key, elementLabel(e)]));
   return (
@@ -234,11 +248,11 @@ export function InspectorPanel({ report, error, selected, onSelect, onHover, onC
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {error && <p className="rounded-md bg-red-50 p-2 text-xs text-red-800 dark:bg-red-950 dark:text-red-300">{error}</p>}
         {report && !report.styled && (
-          <p className="text-sm text-slate-500">
+          <p className="mb-3 text-xs text-slate-500">
             This diagram uses no stylesheet and no inline <code>css</code>. Add <code>stylesheets:</code> or <code>class:</code> to style it.
           </p>
         )}
-        {report?.styled && !el && (
+        {report && !el && (
           <>
             <p className="mb-2 text-xs text-slate-500">Click an element in the diagram, or pick one:</p>
             <ul className="space-y-0.5">
@@ -254,14 +268,14 @@ export function InspectorPanel({ report, error, selected, onSelect, onHover, onC
                       onMouseEnter={() => onHover(e.key)}
                       onMouseLeave={() => onHover(null)}
                     >
-                      <span className={Object.keys(e.trace).length ? "" : "text-slate-400"}>{labels[e.key]}</span>
+                      <span className={report.styled && !Object.keys(e.trace).length ? "text-slate-400" : ""}>{labels[e.key]}</span>
                       {n > 0 && <span className="ml-auto text-[10px] text-slate-400">{n}</span>}
                     </button>
                   </li>
                 );
               })}
             </ul>
-            <H>Cascade</H>
+            {report.styled && <H>Cascade</H>}
             <ol className="space-y-0.5 font-mono text-xs">
               {report.sheets.map((s, i) => (
                 <li key={i} title={s.origin}>
@@ -306,6 +320,8 @@ export function InspectorPanel({ report, error, selected, onSelect, onHover, onC
                   </span>
                 ))}
             </div>
+            <H>Declaration</H>
+            <Declaration el={el} specPath={specPath} />
             <H>Computed</H>
             <Computed values={el.styles[""] ?? {}} />
             <H>Rules</H>

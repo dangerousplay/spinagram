@@ -46,7 +46,7 @@ T1 → T2 → T3
 ### Phase 2: UI
 
 ```
-T4 → T5 → T6 → T7 → T8
+T4 → T5 → T6 → T7 → T8 → T9
 ```
 
 ---
@@ -157,7 +157,7 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T7: Panel shows details and the declaration for any diagram [ ]
+### T7: Panel shows details and the declaration for any diagram [x]
 
 **What**: `InspectorPanel` lists elements for unstyled diagrams, shows a Declaration section (`file:line`, source line, Show in code) or the not-found message; `api.ts` gains the type.
 **Where**: `web/src/Inspector.tsx`
@@ -188,3 +188,20 @@ T4 → T5 → T6 → T7 → T8
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(ui): jump from an element to its declaration line`
+
+---
+
+### T9: Collapsible Recent sidebar [ ]
+
+**What**: `Recents` folds to a 32 px rail via `«`, the rail or `[`; state in `localStorage["spinagram.sidebar"]`.
+**Where**: `web/src/App.tsx`
+**Depends on**: T8
+**Requirement**: SIDE-01, SIDE-02, SIDE-03
+
+**Done when**:
+
+- [ ] Browser: `«` → rail 32 px; reload keeps it; `[` restores 256 px
+
+**Tests**: none
+**Gate**: build
+**Commit**: `feat(ui): let the recent sidebar collapse to a rail`

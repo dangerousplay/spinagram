@@ -262,6 +262,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     {inspect && (
       <InspectorPanel
         report={report}
+        specPath={file?.path}
         error={reportError}
         selected={selected}
         onSelect={setSelected}
