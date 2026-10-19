@@ -98,7 +98,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T4: Arrows, bindings and edge labels [ ]
+### T4: Arrows, bindings and edge labels [x]
 
 **What**: Connectors → arrows with relative points, curve roundness, arrowheads, dash; bindings with `fixedPoint` and shape `boundElements`; label pill + text grouped with the arrow.
 **Where**: `src/spinagram/backends/excalidraw.py`

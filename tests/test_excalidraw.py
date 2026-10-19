@@ -227,3 +227,72 @@ def test_fonts():  # EXC-15
     assert (sans["fontFamily"], sans["fontSize"]) == (2, 18)
     assert mono["fontFamily"] == 3
     assert sans["lineHeight"] == round(26 / 18, 2) and sans["autoResize"] is False
+
+
+# T4 -------------------------------------------------------------------------------------------------
+def conn(id="e", points=((400, 260), (500, 260), (500, 400)), **kw):
+    from spinagram.scene import Connector
+
+    return Connector(id, [tuple(p) for p in points], kw.pop("route", "poly"), kw.pop("color", "#444444"),
+                     kw.pop("width", 2), **kw)
+
+
+def test_arrow_points_and_paint():  # EXC-08
+    doc = to_excalidraw(scene(conn(dashed=True, opacity=0.5)))
+    a = by_id(doc, "e")
+    assert a["type"] == "arrow" and a["elbowed"] is False and a["roundness"] is None
+    assert [(a["x"] + px, a["y"] + py) for px, py in a["points"]] == [(400, 260), (500, 260), (500, 400)]
+    assert (a["strokeColor"], a["strokeWidth"], a["strokeStyle"], a["opacity"]) == ("#444444", 2, "dashed", 50)
+    assert (a["width"], a["height"]) == (100, 140)
+
+
+def test_curve_keeps_three_points_and_rounds():  # EXC-08 (curve)
+    a = by_id(to_excalidraw(scene(conn(points=((0, 0), (50, -40), (100, 0)), route="curve"))), "e")
+    assert [(a["x"] + px, a["y"] + py) for px, py in a["points"]] == [(0, 0), (50, -40), (100, 0)]
+    assert a["roundness"] == {"type": 2}
+
+
+def test_arrowheads():  # Arrowheads row
+    pairs = {"arrow": "triangle", "open-arrow": "arrow", "diamond": "diamond", "open-diamond": "diamond_outline",
+             "circle": "circle", "bar": "bar"}
+    for ours, theirs in pairs.items():
+        a = by_id(to_excalidraw(scene(conn(arrow_start=True, marker_start=ours, marker_end=ours))), "e")
+        assert (a["startArrowhead"], a["endArrowhead"]) == (theirs, theirs)
+    a = by_id(to_excalidraw(scene(conn(arrow_end=False))), "e")
+    assert (a["startArrowhead"], a["endArrowhead"]) == (None, None)
+    a = by_id(to_excalidraw(scene(conn(arrow_start=True, marker_start="none"))), "e")
+    assert a["startArrowhead"] is None
+
+
+def test_bindings():  # EXC-09
+    from spinagram.scene import Binding
+
+    a, b = box("a", x=100, y=200, w=300, h=120), box("b", x=600, y=200, w=200, h=100)
+    e = conn(points=((400, 260), (600, 225)), src=Binding("a", "right"), dst=Binding("b", "left", 0.25))
+    doc = to_excalidraw(scene(e, a, b))                                # connector listed before its shapes
+    arrow = by_id(doc, "e")
+    assert arrow["startBinding"]["elementId"] == "a" and arrow["endBinding"]["elementId"] == "b"
+    assert arrow["startBinding"]["fixedPoint"] == [1, 0.5]
+    assert arrow["endBinding"]["fixedPoint"] == [0, 0.25]
+    assert by_id(doc, "a")["boundElements"] == [{"type": "arrow", "id": "e"}]
+    assert by_id(doc, "b")["boundElements"] == [{"type": "arrow", "id": "e"}]
+
+
+def test_unbound_end_is_null():  # edge case
+    from spinagram.scene import Binding
+
+    doc = to_excalidraw(scene(box("a"), conn(src=Binding("a", "right"))))
+    assert by_id(doc, "e")["endBinding"] is None and by_id(doc, "e")["startBinding"] is not None
+
+
+def test_edge_label_grouped_with_arrow():  # EXC-10
+    from spinagram.scene import Label
+
+    pill = box("e:label", kind="pill", x=430, y=245, w=60, h=30, role="pill",
+               label=Label([block(["go"], size=14)], (430, 245, 60, 30), align="center"))
+    doc = to_excalidraw(scene(conn(label=pill)))
+    arrow, rect, text = by_id(doc, "e"), by_id(doc, "e:label"), els(doc, "text")[0]
+    assert (rect["x"], rect["y"], rect["width"], rect["height"]) == (430, 245, 60, 30)
+    assert text["text"] == "go"
+    shared = set(arrow["groupIds"]) & set(rect["groupIds"]) & set(text["groupIds"])
+    assert shared

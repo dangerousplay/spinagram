@@ -113,9 +113,9 @@ in Excalidraw.
 | EXC-05 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-06 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-07 | P1: Render native Excalidraw | Tasks | Implementing |
-| EXC-08 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-09 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-10 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-08 | P1: Render native Excalidraw | Tasks | Implementing |
+| EXC-09 | P1: Render native Excalidraw | Tasks | Implementing |
+| EXC-10 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-11 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-12 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-13 | P1: Render native Excalidraw | Tasks | Implementing |

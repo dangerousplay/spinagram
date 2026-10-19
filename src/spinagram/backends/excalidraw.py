@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import Sequence
 
 from .. import shapes as _shapes
-from ..scene import Label, Scene, Shape, Text, TextBlock
+from ..scene import Binding, Connector, Label, Scene, Shape, Text, TextBlock
 from ..text import measure
 
 SOURCE = "https://github.com/dangerousplay/spinagram"
 _BACK, _FRONT = ("zone", "chrome"), ("pill", "swatch")
+_HEADS = {"arrow": "triangle", "open-arrow": "arrow", "diamond": "diamond", "open-diamond": "diamond_outline",
+          "circle": "circle", "bar": "bar"}  # spinagram's "arrow" is filled; Excalidraw's "arrow" is a chevron
 
 
 def _n(v: float) -> float:
@@ -63,6 +65,8 @@ class _Doc:
         self.scene = scene
         self.elements: list[dict] = []
         self.ids: set[str] = set()
+        self.by_shape: dict[str, dict] = {}                       # scene shape id → its first element
+        self.bindings: list[tuple[dict, str, Binding]] = []       # (arrow, "start"|"end", binding)
 
     def uid(self, key: str) -> str:
         out, n = key, 1
@@ -113,9 +117,38 @@ class _Doc:
         x = {"middle": it.x - w / 2, "end": it.x - w}.get(it.anchor, it.x)
         self.text(it.id, it.block, x, it.top, w, {"middle": "center", "end": "right"}.get(it.anchor, "left"))
 
+    def connector(self, c: Connector) -> None:
+        a = self.polyline(c.id, c.points, type="arrow", strokeColor=c.color, strokeWidth=_n(c.width),
+                          strokeStyle=_style(c.dashed, c.dash), opacity=round(c.opacity * 100),
+                          roundness={"type": 2} if c.route == "curve" else None, elbowed=False,
+                          startArrowhead=_HEADS.get(c.marker_start) if c.arrow_start else None,
+                          endArrowhead=_HEADS.get(c.marker_end) if c.arrow_end else None,
+                          startBinding=None, endBinding=None)
+        for end, b in (("start", c.src), ("end", c.dst)):
+            if b:
+                self.bindings.append((a, end, b))
+        if c.label:
+            first = len(self.elements)
+            self.shape(c.label)
+            a["groupIds"] = [f"g:{c.id}"]
+            for el in self.elements[first:]:
+                el["groupIds"] = el["groupIds"] + [f"g:{c.id}"]
+
+    def bind(self) -> None:
+        shapes = self.scene.shapes()
+        for arrow, end, b in self.bindings:
+            el, s = self.by_shape.get(b.shape_id), shapes.get(b.shape_id)
+            if el is None or not s.w or not s.h:
+                continue
+            ax, ay = s.anchor(b.side, b.frac)
+            arrow[f"{end}Binding"] = {"elementId": el["id"], "focus": 0, "gap": 1,
+                                      "fixedPoint": [_n((ax - s.x) / s.w), _n((ay - s.y) / s.h)], "mode": "orbit"}
+            el["boundElements"] = (el["boundElements"] or []) + [{"type": "arrow", "id": arrow["id"]}]
+
     def shape(self, s: Shape) -> None:
         first = len(self.elements)
         self._outline(s)
+        self.by_shape.setdefault(s.id, self.elements[first])
         if s.label:
             self.label(self.elements[first], s.label)
         own = self.elements[first:]
@@ -160,6 +193,9 @@ class _Doc:
                 self.shape(it)
             elif isinstance(it, Text):
                 self.free_text(it)
+            elif isinstance(it, Connector):
+                self.connector(it)
+        self.bind()
         for el in self.elements[1:]:
             el["frameId"] = frame["id"]
         return {"type": "excalidraw", "version": 2, "source": SOURCE, "elements": self.elements,
