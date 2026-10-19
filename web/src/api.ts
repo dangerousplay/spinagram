@@ -57,6 +57,7 @@ export type CssElement = {
   parent: string | null;
   styles: Record<string, Record<string, unknown>>;
   trace: Record<string, CssTrace>;
+  declaration: { file: string; line: number; text: string } | null; // the spec line declaring it, when found
 };
 export type Geometry = { box?: [number, number, number, number]; points?: [number, number][]; route?: string; label?: [number, number, number, number] };
 export type StyleReport = {

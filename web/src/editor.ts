@@ -62,11 +62,3 @@ export function merge(tabs: Tab[], files: SourceFile[]): Tab[] {
   for (const f of files) if (!tabs.some((t) => t.path === f.path)) out.push(fresh(f));
   return out;
 }
-
-/** 1-based line of the first string literal equal to ``title`` ("title" or 'title'), or null. */
-export function jumpLine(text: string, title: string): number | null {
-  if (!title) return null;
-  const lines = text.split("\n");
-  const i = lines.findIndex((l) => l.includes(`"${title}"`) || l.includes(`'${title}'`));
-  return i < 0 ? null : i + 1;
-}

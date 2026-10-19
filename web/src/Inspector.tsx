@@ -1,5 +1,6 @@
 // CSS inspector: hit-testing in scene coordinates, the highlight overlay and the styles panel.
 import type { CssDecl, CssElement, CssTrace, Geometry, StyleReport } from "./api";
+import { chip, elementLabel } from "./inspect";
 
 type Box = [number, number, number, number];
 
@@ -49,7 +50,7 @@ export function hitTest(report: StyleReport, x: number, y: number, tol: number):
   return smallest("group:") ?? (g.diagram ? "diagram" : null);
 }
 
-export function Overlay({ report, hover, selected }: { report: StyleReport; hover: string | null; selected: string | null }) {
+export function Overlay({ report, hover, selected, scale }: { report: StyleReport; hover: string | null; selected: string | null; scale: number }) {
   const [w, h] = report.size;
   const shape = (key: string, cls: string) => {
     const g = report.geometry[key];
@@ -68,21 +69,25 @@ export function Overlay({ report, hover, selected }: { report: StyleReport; hove
       </g>
     );
   };
+  const c = hover ? chip(report, hover, scale) : null;
+  const px = 1 / scale; // one screen pixel in scene units: the chip keeps its size at any zoom
   return (
-    <svg className="pointer-events-none absolute inset-0" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      {hover && hover !== selected && shape(hover, "fill-blue-500/5 stroke-blue-500 [stroke-dasharray:6_4] [stroke-width:2]")}
+    <svg className="pointer-events-none absolute inset-0 overflow-visible" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
       {selected && shape(selected, "fill-blue-500/10 stroke-blue-600 [stroke-width:3]")}
+      {hover && hover !== selected && shape(hover, "fill-sky-400/25 stroke-sky-500 [stroke-width:2]")}
+      {c && (
+        <g>
+          <rect x={c.x} y={c.y} width={(c.text.length * 7.2 + 16) * px} height={c.h} rx={4 * px} className="fill-slate-900/90" />
+          <text x={c.x + 8 * px} y={c.y + c.h / 2} dominantBaseline="central" fontSize={12 * px} className="fill-white font-mono">
+            {c.text}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
 
 // panel ------------------------------------------------------------------------------------------
-export function elementLabel(e: CssElement): string {
-  const cls = e.classes.map((c) => `.${c}`).join("");
-  if (e.type === "edge") return `edge${cls} ${e.attrs.from} → ${e.attrs.to}`;
-  return `${e.type}${e.id ? `#${e.id}` : ""}${cls}`;
-}
-
 const HEX = /#[0-9a-fA-F]{6}\b/g;
 
 function Value({ v }: { v: string }) {
@@ -197,12 +202,32 @@ function Computed({ values }: { values: Record<string, unknown> }) {
   );
 }
 
+function Declaration({ el, specPath, onShow }: { el: CssElement; specPath: string | undefined; onShow: (line: number) => void }) {
+  const d = el.declaration;
+  if (!d) return <p className="text-xs text-slate-500">Declaration not found in {specPath ?? "the spec"}</p>;
+  return (
+    <div className="rounded-md border border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-2 py-1 dark:border-slate-800">
+        <span className="font-mono text-[10px] text-slate-400">
+          {d.file}:{d.line}
+        </span>
+        <button className="text-xs text-blue-600 hover:underline" onClick={() => onShow(d.line)} title="Open the code panel on this line">
+          Show in code
+        </button>
+      </div>
+      <pre className="overflow-x-auto px-2 py-1 font-mono text-xs leading-5">{d.text}</pre>
+    </div>
+  );
+}
+
 function H({ children }: { children: React.ReactNode }) {
   return <h3 className="mt-4 mb-1.5 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{children}</h3>;
 }
 
 type PanelProps = {
   report: StyleReport | null;
+  specPath: string | undefined; // named when an element's declaration is not found
+  onShow: (line: number) => void; // open the code panel on this spec line
   error: string | null;
   selected: string | null;
   onSelect: (key: string | null) => void;
@@ -210,7 +235,7 @@ type PanelProps = {
   onClose: () => void;
 };
 
-export function InspectorPanel({ report, error, selected, onSelect, onHover, onClose }: PanelProps) {
+export function InspectorPanel({ report, specPath, onShow, error, selected, onSelect, onHover, onClose }: PanelProps) {
   const el = report?.elements.find((e) => e.key === selected);
   const labels = Object.fromEntries((report?.elements ?? []).map((e) => [e.key, elementLabel(e)]));
   return (
@@ -229,11 +254,11 @@ export function InspectorPanel({ report, error, selected, onSelect, onHover, onC
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {error && <p className="rounded-md bg-red-50 p-2 text-xs text-red-800 dark:bg-red-950 dark:text-red-300">{error}</p>}
         {report && !report.styled && (
-          <p className="text-sm text-slate-500">
+          <p className="mb-3 text-xs text-slate-500">
             This diagram uses no stylesheet and no inline <code>css</code>. Add <code>stylesheets:</code> or <code>class:</code> to style it.
           </p>
         )}
-        {report?.styled && !el && (
+        {report && !el && (
           <>
             <p className="mb-2 text-xs text-slate-500">Click an element in the diagram, or pick one:</p>
             <ul className="space-y-0.5">
@@ -249,14 +274,14 @@ export function InspectorPanel({ report, error, selected, onSelect, onHover, onC
                       onMouseEnter={() => onHover(e.key)}
                       onMouseLeave={() => onHover(null)}
                     >
-                      <span className={Object.keys(e.trace).length ? "" : "text-slate-400"}>{labels[e.key]}</span>
+                      <span className={report.styled && !Object.keys(e.trace).length ? "text-slate-400" : ""}>{labels[e.key]}</span>
                       {n > 0 && <span className="ml-auto text-[10px] text-slate-400">{n}</span>}
                     </button>
                   </li>
                 );
               })}
             </ul>
-            <H>Cascade</H>
+            {report.styled && <H>Cascade</H>}
             <ol className="space-y-0.5 font-mono text-xs">
               {report.sheets.map((s, i) => (
                 <li key={i} title={s.origin}>
@@ -301,6 +326,8 @@ export function InspectorPanel({ report, error, selected, onSelect, onHover, onC
                   </span>
                 ))}
             </div>
+            <H>Declaration</H>
+            <Declaration el={el} specPath={specPath} onShow={onShow} />
             <H>Computed</H>
             <Computed values={el.styles[""] ?? {}} />
             <H>Rules</H>

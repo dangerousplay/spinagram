@@ -48,7 +48,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [code, setCode] = useState(false); // the code panel starts collapsed: the diagram gets the room
   const [codeMounted, setCodeMounted] = useState(false); // once opened it stays mounted, so collapsing keeps edits
   const [codeDirty, setCodeDirty] = useState(false);
-  const [jump, setJump] = useState<{ title: string; nonce: number } | null>(null);
+  const [jump, setJump] = useState<{ line: number; nonce: number } | null>(null);
   const [report, setReport] = useState<StyleReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -65,6 +65,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const toggleCode = useCallback(() => {
     setCodeMounted(true);
     setCode((on) => !on);
+  }, []);
+  const showLine = useCallback((line: number) => {
+    setCodeMounted(true);
+    setCode(true);
+    setJump({ line, nonce: Date.now() });
   }, []);
 
   // the styles report follows the diagram: refetched on every live reload, selection kept by key; the code
@@ -101,9 +106,9 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     const p = sceneAt(e);
     const hit = hitTest(report, p.x, p.y, 6 / view.scale);
     if (inspect) setSelected(hit);
-    else if (code && hit?.startsWith("node:")) {
-      const title = report.elements.find((el) => el.key === hit)?.attrs.label;
-      if (title) setJump({ title, nonce: Date.now() });
+    else if (code && hit) {
+      const line = report.elements.find((el) => el.key === hit)?.declaration?.line;
+      if (line) setJump({ line, nonce: Date.now() });
     }
   };
 
@@ -161,7 +166,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, width: size?.w, height: size?.h }}
           >
             <div dangerouslySetInnerHTML={{ __html: svg }} />
-            {inspect && report && <Overlay report={report} hover={hover} selected={selected} />}
+            {inspect && report && <Overlay report={report} hover={hover} selected={selected} scale={view.scale} />}
           </div>
         )}
       </div>
@@ -243,7 +248,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       </div>
     </div>
     {codeMounted && (
-      <div className={code ? "flex" : "hidden"}>
+      <div className={code ? "flex w-[44%] min-w-[420px] shrink-0" : "hidden"}>
         <CodePanel diagramKey={diagramKey} rev={rev} jump={jump} onCollapse={toggleCode} onDirty={setCodeDirty} />
       </div>
     )}
@@ -262,6 +267,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     {inspect && (
       <InspectorPanel
         report={report}
+        specPath={file?.path}
+        onShow={showLine}
         error={reportError}
         selected={selected}
         onSelect={setSelected}

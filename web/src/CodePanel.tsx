@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api";
 import type { EditorHandle } from "./codemirror";
-import { anyDirty, edit, fromSource, jumpLine, keepMine, merge, reload, saved, type Tab } from "./editor";
+import { anyDirty, edit, fromSource, keepMine, merge, reload, saved, type Tab } from "./editor";
 import { setLeaveGuard } from "./hooks";
 
 type Props = {
   diagramKey: string;
   rev: number; // bumps on every live reload of the diagram: the source is read again
-  jump: { title: string; nonce: number } | null; // show the spec line that creates the node with this title
+  jump: { line: number; nonce: number } | null; // select this line of the spec (an element's declaration)
   onCollapse: () => void;
   onDirty: (dirty: boolean) => void; // the rail shows unsaved edits while the panel is collapsed
 };
@@ -130,26 +130,21 @@ export default function CodePanel({ diagramKey, rev, jump, onCollapse, onDirty }
     }
   }, [tabs, active]);
 
-  // a jump request shows the spec tab and the line holding the title; no such line leaves the editor alone
+  // a jump request shows the spec tab and selects the line
   const handled = useRef(0);
   useEffect(() => {
     if (!jump || handled.current === jump.nonce || !editor.current || !tabs?.length) return;
-    const line = jumpLine(tabs[0].text, jump.title);
-    if (line === null) {
-      handled.current = jump.nonce;
-      return;
-    }
     if (active !== 0) {
       setActive(0);
       return; // the tab switch re-runs this effect with the spec loaded
     }
     handled.current = jump.nonce;
-    editor.current.jumpTo(line);
+    editor.current.jumpTo(jump.line);
   }, [jump, active, tabs]);
 
   const current = tabs?.[active];
   return (
-    <aside className="flex w-[44%] min-w-[420px] flex-col border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" aria-label="Code">
+    <aside className="flex min-w-0 flex-1 flex-col border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" aria-label="Code">
       <div className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 px-2 dark:border-slate-800" role="tablist">
         {tabs?.map((t, i) => (
           <button

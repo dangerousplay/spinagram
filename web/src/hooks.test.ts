@@ -1,6 +1,6 @@
 // Section routes (spec: .specs/features/diagram-catalog/spec.md, META-27). Run: `bun test`.
 import { describe, expect, test } from "bun:test";
-import { confirmLeave, href, mayLeave, parse, setLeaveGuard, type Route } from "./hooks";
+import { confirmLeave, href, mayLeave, parse, setLeaveGuard, typingIn, type Route } from "./hooks";
 
 describe("META-27 default route", () => {
   test("no hash lands on the Diagrams page", () => {
@@ -60,5 +60,23 @@ describe("EDIT-10 navigation decision", () => {
     expect(mayLeave("#/d/a.py%23A", "#/")).toBe(true);
     setLeaveGuard(null);
     expect(mayLeave("#/d/a.py%23A", "#/")).toBe(true);
+  });
+});
+
+describe("KEY-01 shortcuts skip editable targets", () => {
+  // stand-ins for DOM elements: `closest` answers like the browser for the element's own tag
+  const el = (tag: string, editable = false) => ({
+    isContentEditable: editable,
+    closest: (sel: string) => (sel.split(",").map((s) => s.trim()).includes(tag) ? {} : null),
+  });
+  test("the code editor (contenteditable), inputs, textareas and selects are typing targets", () => {
+    expect(typingIn(el("div", true))).toBe(true);
+    expect(typingIn(el("input"))).toBe(true);
+    expect(typingIn(el("textarea"))).toBe(true);
+    expect(typingIn(el("select"))).toBe(true);
+  });
+  test("the page itself is not", () => {
+    expect(typingIn(el("div"))).toBe(false);
+    expect(typingIn(null)).toBe(false);
   });
 });

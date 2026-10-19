@@ -3,7 +3,7 @@ import { api, type DiagramRef, type Pack, type ThemeEntry, type UiEvent, type Wo
 import { pushRecent, recentStore, visibleRecents } from "./catalog";
 import DiagramsPage from "./DiagramsPage";
 import DiagramView from "./DiagramView";
-import { href, useEvents, useRoute, type Route } from "./hooks";
+import { href, useEvents, useKey, useRoute, type Route } from "./hooks";
 import OpenFolder from "./OpenFolder";
 import PacksPage from "./PacksPage";
 import PackView from "./PackView";
@@ -27,6 +27,16 @@ export default function App() {
   const [layoutInit, setLayoutInit] = useState(false);
   const store = useMemo(() => recentStore(), []);
   const [recents, setRecents] = useState<string[]>(() => store.load());
+  const [sidebar, setSidebar] = useState(() => !sidebarFolded());
+  const toggleSidebar = useCallback(
+    () =>
+      setSidebar((on) => {
+        foldSidebar(on);
+        return !on;
+      }),
+    [],
+  );
+  useKey("[", toggleSidebar);
   const section = SECTION[route.kind];
 
   // opening a diagram makes it the newest recent entry
@@ -178,7 +188,19 @@ export default function App() {
         />
       )}
       <div className="flex min-h-0 flex-1">
-        <Recents route={route} diagrams={recentDiagrams} ws={ws} />
+        {sidebar ? (
+          <Recents route={route} diagrams={recentDiagrams} ws={ws} onCollapse={toggleSidebar} />
+        ) : (
+          <button
+            onClick={toggleSidebar}
+            title="Show the recent diagrams ([)"
+            aria-label="Show the recent diagrams"
+            className="flex w-8 shrink-0 flex-col items-center gap-2 border-r border-slate-200 py-3 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          >
+            <span aria-hidden>»</span>
+            <span className="[writing-mode:vertical-rl]">Recent</span>
+          </button>
+        )}
         <main className="min-w-0 flex-1">
           {wsError && !ws ? (
             <Empty title="Cannot reach spinagram serve" body={wsError} />
@@ -242,11 +264,41 @@ function TopLink({ to, active, children }: { to: Route; active: boolean; childre
   );
 }
 
-function Recents({ route, diagrams, ws }: { route: Route; diagrams: DiagramRef[]; ws: Workspace | null }) {
+const SIDEBAR_KEY = "spinagram.sidebar"; // "0": folded to a rail
+
+function sidebarFolded(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "0";
+  } catch {
+    return false;
+  }
+}
+
+function foldSidebar(folded: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, folded ? "0" : "1");
+  } catch {
+    /* storage unavailable: the toggle still works for this page */
+  }
+}
+
+type RecentsProps = { route: Route; diagrams: DiagramRef[]; ws: Workspace | null; onCollapse: () => void };
+
+function Recents({ route, diagrams, ws, onCollapse }: RecentsProps) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-800" aria-label="Recent diagrams">
       <div className="flex-1 overflow-y-auto p-3">
-        <h2 className="mb-1 px-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Recent</h2>
+        <div className="mb-1 flex items-center justify-between px-2">
+          <h2 className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Recent</h2>
+          <button
+            onClick={onCollapse}
+            title="Hide the sidebar ([)"
+            aria-label="Hide the sidebar"
+            className="rounded-md px-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            «
+          </button>
+        </div>
         {diagrams.length === 0 && <p className="px-2 text-xs text-slate-500">Diagrams you open appear here.</p>}
         {diagrams.map((d) => {
           const active = route.kind === "diagram" && route.key === d.key;
