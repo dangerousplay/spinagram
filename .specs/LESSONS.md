@@ -255,8 +255,26 @@ Seen once or not yet corroborated. Tracked, not trusted.
 ### L-041 - Test a detection rule once per input field it reads, with only that field triggering it
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
 - features: excalidraw-backend
-- evidence: validation.md N01 (EXC-15) (tests)
-- last seen: 2026-10-19T18:20:26Z
+- evidence: validation.md N01 (EXC-15) (tests) (+1 more)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-042 - Test references to an element on every variant whose element structure differs, such as native and multi-element shapes
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md N13b (EXC-09) (tests)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-043 - Use non-integer values in fixtures for numeric fields copied to output so truncation or rounding is caught
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md P10 (EXC-15) (tests)
+- last seen: 2026-10-19T18:26:47Z
+
+### L-044 - Test an absent-value rule for every way the value can be absent, such as null and zero
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md P17 (Transparent row) (tests)
+- last seen: 2026-10-19T18:26:47Z
 
 ## Quarantined (failed when applied - ignore)
 

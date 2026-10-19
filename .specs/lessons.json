@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 42,
+  "next_id": 45,
   "lessons": [
     {
       "id": "L-001",
@@ -746,10 +746,65 @@
       "recurrence": 1,
       "harmful": 0,
       "evidence": [
-        "validation.md N01 (EXC-15) (tests)"
+        "validation.md N01 (EXC-15) (tests)",
+        "validation.md P16 (EXC-15) (tests)"
       ],
       "created": "2026-10-19T18:20:26Z",
-      "last_seen": "2026-10-19T18:20:26Z"
+      "last_seen": "2026-10-19T18:26:47Z"
+    },
+    {
+      "id": "L-042",
+      "key": "surviving_mutant::test references to an element on every variant whose element structure differs such as native and multi element shapes",
+      "text": "Test references to an element on every variant whose element structure differs, such as native and multi-element shapes",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N13b (EXC-09) (tests)"
+      ],
+      "created": "2026-10-19T18:26:47Z",
+      "last_seen": "2026-10-19T18:26:47Z"
+    },
+    {
+      "id": "L-043",
+      "key": "surviving_mutant::use non integer values in fixtures for numeric fields copied to output so truncation or rounding is caught",
+      "text": "Use non-integer values in fixtures for numeric fields copied to output so truncation or rounding is caught",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md P10 (EXC-15) (tests)"
+      ],
+      "created": "2026-10-19T18:26:47Z",
+      "last_seen": "2026-10-19T18:26:47Z"
+    },
+    {
+      "id": "L-044",
+      "key": "surviving_mutant::test an absent value rule for every way the value can be absent such as null and zero",
+      "text": "Test an absent-value rule for every way the value can be absent, such as null and zero",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md P17 (Transparent row) (tests)"
+      ],
+      "created": "2026-10-19T18:26:47Z",
+      "last_seen": "2026-10-19T18:26:47Z"
     }
   ]
 }

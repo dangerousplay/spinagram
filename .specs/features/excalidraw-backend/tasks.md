@@ -52,6 +52,12 @@ T9 → T10 → T11 → T12
 T13 → T14
 ```
 
+### Phase 4: Verifier fixes (validation.md, iteration 3; 4th pass approved by the user)
+
+```
+T15
+```
+
 ---
 
 ## Task Breakdown
@@ -274,7 +280,7 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Binding to the shape's last element, or overwriting `boundElements`, fails a test
+- [x] Binding to the shape's last element, or overwriting `boundElements`, fails a test
 
 **Tests**: unit
 **Gate**: quick
@@ -291,9 +297,27 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Dropping `swatch` from the front layer, or reading only the family name, fails a test
-- [ ] Build gate passes
+- [x] Dropping `swatch` from the front layer, or reading only the family name, fails a test
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
 **Commit**: `test(excalidraw): cover swatch layering and monospace fallbacks`
+
+---
+
+### T15: Symbol bindings, font size, mono family, zero-width stroke (gaps 1-4) [ ]
+
+**What**: An arrow bound to a `data` shape targets the shape's first element (kills N13b); `fontSize` 13.5 stays 13.5 (P10); "Roboto Mono" with a sans fallback → 3 (P16); stroke with width 0 → transparent, 1 (P17).
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: None (Phase 3 done)
+**Requirement**: EXC-09, EXC-15, EXC-04
+
+**Done when**:
+
+- [ ] Each of N13b, P10, P16, P17 fails a test
+- [ ] Build gate passes
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `test(excalidraw): cover symbol bindings, fractional font sizes and zero-width strokes`
