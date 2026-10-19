@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 40,
+  "next_id": 44,
   "lessons": [
     {
       "id": "L-001",
@@ -712,6 +712,78 @@
       ],
       "created": "2026-10-19T18:02:51Z",
       "last_seen": "2026-10-19T18:02:51Z"
+    },
+    {
+      "id": "L-040",
+      "key": "surviving_mutant::when a requirement says server defaults apply to every call assert the default reaches each tool not just one",
+      "text": "When a requirement says server defaults apply to every call, assert the default reaches each tool, not just one",
+      "signal": "surviving_mutant",
+      "scope": "mcp-server",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M5 (src/spinagram/mcp_server/tools.py:52) (mcp-server)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-041",
+      "key": "surviving_mutant::when the spec fixes a file format detail such as indentation assert the exact written text not only the parsed values",
+      "text": "When the spec fixes a file format detail such as indentation, assert the exact written text, not only the parsed values",
+      "signal": "surviving_mutant",
+      "scope": "config-writers",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M26 (src/spinagram/mcp_server/install.py:96) (config-writers)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-042",
+      "key": "ac_gap::apply path confinement only to paths from untrusted tool arguments and resolve operator supplied startup paths once against the launch directory",
+      "text": "Apply path confinement only to paths from untrusted tool arguments, and resolve operator-supplied startup paths once against the launch directory",
+      "signal": "ac_gap",
+      "scope": "mcp-server",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "MCP-11 / src/spinagram/mcp_server/tools.py:27-31 (mcp-server)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
+    },
+    {
+      "id": "L-043",
+      "key": "spec_precision_gap::specify the exact protocol shape of error results including flags and any sdk added prefix when an ac requires a specific error message",
+      "text": "Specify the exact protocol shape of error results, including flags and any SDK-added prefix, when an AC requires a specific error message",
+      "signal": "spec_precision_gap",
+      "scope": "mcp-server",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "MCP-10 / src/spinagram/mcp_server/server.py:45 (mcp-server)"
+      ],
+      "created": "2026-10-19T18:22:47Z",
+      "last_seen": "2026-10-19T18:22:47Z"
     }
   ]
 }

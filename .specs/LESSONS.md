@@ -246,6 +246,30 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: EXC-07 spec.md (Label.place() x is the centre for align=center) (spec)
 - last seen: 2026-10-19T18:02:51Z
 
+### L-040 - When a requirement says server defaults apply to every call, assert the default reaches each tool, not just one
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: validation.md M5 (src/spinagram/mcp_server/tools.py:52) (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-041 - When the spec fixes a file format detail such as indentation, assert the exact written text, not only the parsed values
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md M26 (src/spinagram/mcp_server/install.py:96) (config-writers)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-042 - Apply path confinement only to paths from untrusted tool arguments, and resolve operator-supplied startup paths once against the launch directory
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: MCP-11 / src/spinagram/mcp_server/tools.py:27-31 (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
+### L-043 - Specify the exact protocol shape of error results, including flags and any SDK-added prefix, when an AC requires a specific error message
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `mcp-server` · harmful: 0
+- features: mcp-server
+- evidence: MCP-10 / src/spinagram/mcp_server/server.py:45 (mcp-server)
+- last seen: 2026-10-19T18:22:47Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

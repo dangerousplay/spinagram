@@ -43,6 +43,12 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 ```
 
+### Phase 2: Verifier fixes (validation.md, iteration 1)
+
+```
+T9 → T10 → T11 → T12 → T13
+```
+
 ---
 
 ## Task Breakdown
@@ -56,8 +62,8 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Test: `[sys.executable, "-m", "spinagram", "-V"]` prints the version, exit 0
-- [ ] Build gate passes
+- [x] Test: `[sys.executable, "-m", "spinagram", "-V"]` prints the version, exit 0
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
@@ -75,7 +81,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Tests: each tool's output equals what the CLI prints for the same input; out-of-root paths, `..`, absolute `out` and symlinks → `path outside root`; relative `out` under root; empty paths → `no diagrams found`; server defaults vs per-call overrides
+- [x] Tests: each tool's output equals what the CLI prints for the same input; out-of-root paths, `..`, absolute `out` and symlinks → `path outside root`; relative `out` under root; empty paths → `no diagrams found`; server defaults vs per-call overrides
 
 **Tests**: unit
 **Gate**: quick
@@ -92,7 +98,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Integration tests via `mcp.Client(server)`: tool names; render result + images (stubbed renderer: 5 diagrams → 4 images in order); missing png → note; error result text; log lines; resources list/read; concurrent renders serialised
+- [x] Integration tests via `mcp.Client(server)`: tool names; render result + images (stubbed renderer: 5 diagrams → 4 images in order); missing png → note; error result text; log lines; resources list/read; concurrent renders serialised
 
 **Tests**: integration
 **Gate**: quick
@@ -109,7 +115,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Tests: missing `mcp` import → stderr message, exit 2; `--http` on a free port answers `check` through an HTTP `mcp.Client`; `--host 0.0.0.0` prints the warning
+- [x] Tests: missing `mcp` import → stderr message, exit 2; `--http` on a free port answers `check` through an HTTP `mcp.Client`; `--host 0.0.0.0` prints the warning
 
 **Tests**: integration
 **Gate**: quick
@@ -126,7 +132,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Tests per agent × scope: file path, key, exact entry (stdio, `--uvx`, `--url`); other servers and keys survive; duplicate → `FileExistsError` and unchanged bytes; force replaces only the entry; bad JSON → error, unchanged
+- [x] Tests per agent × scope: file path, key, exact entry (stdio, `--uvx`, `--url`); other servers and keys survive; duplicate → `FileExistsError` and unchanged bytes; force replaces only the entry; bad JSON → error, unchanged
 
 **Tests**: unit
 **Gate**: quick
@@ -143,7 +149,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Tests: new file; existing file with other tables (text outside the table unchanged); duplicate; force; `url` entry; invalid TOML → error, unchanged
+- [x] Tests: new file; existing file with other tables (text outside the table unchanged); duplicate; force; `url` entry; invalid TOML → error, unchanged
 
 **Tests**: unit
 **Gate**: quick
@@ -160,7 +166,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Tests: `installed <name> in <file>` per agent; two `-a` → two files; flags appear in args with absolute root; duplicate → exit 1 + message; bad file → exit 2 + message; unknown/missing agent → exit 2 listing agents
+- [x] Tests: `installed <name> in <file>` per agent; two `-a` → two files; flags appear in args with absolute root; duplicate → exit 1 + message; bad file → exit 2 + message; unknown/missing agent → exit 2 listing agents
 
 **Tests**: integration
 **Gate**: build
@@ -177,8 +183,93 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 **Done when**:
 
-- [ ] Build gate passes
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
 **Commit**: `docs(skills): document the spinagram mcp server`
+
+---
+
+### T9: Server theme outside the root (gap 1, bug) [ ]
+
+**What**: `Tools` resolves the server `-t` once against the start cwd and never root-checks it; per-call theme paths stay confined; `install` stores an existing `-t` folder as absolute.
+**Where**: `src/spinagram/mcp_server/tools.py`
+**Depends on**: None (Phase 1 done)
+**Requirement**: MCP-11, INST-04
+
+**Done when**:
+
+- [ ] Tests: a theme folder outside the root works as the server default (absolute and relative-to-cwd); `server_args` makes an existing `-t` absolute and keeps a built-in name
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `fix(mcp): let the server theme live outside the root`
+
+---
+
+### T10: Layout default on every tool (gap 2) [ ]
+
+**What**: Tests that `check`, `layout` and `styles` use the server `--layout` and a per-call value wins (kills M5).
+**Where**: `tests/test_mcp_tools.py`
+**Depends on**: T9
+**Requirement**: MCP-11
+
+**Done when**:
+
+- [ ] Ignoring the default layout in `scenes` or `layout_yaml` fails a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(mcp): require the server layout default on every tool`
+
+---
+
+### T11: JSON text and TOML comments (gaps 3, 4) [ ]
+
+**What**: JSON is written with indent 2 and a final newline (exact text asserted); a Codex `--force` keeps comment lines that sit above the next table.
+**Where**: `src/spinagram/mcp_server/install.py`
+**Depends on**: T10
+**Requirement**: INST-07
+
+**Done when**:
+
+- [ ] Tests: exact written JSON text; comment above the next table survives `--force`
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `fix(mcp): keep comments above the next codex table on replace`
+
+---
+
+### T12: Server key that is not an object (gap 5) [ ]
+
+**What**: `{"mcpServers": []}` (or any non-object under the key) → `cannot parse <file>: <key> is not an object`, exit 2, unchanged.
+**Where**: `src/spinagram/mcp_server/install.py`
+**Depends on**: T11
+**Requirement**: INST-09
+
+**Done when**:
+
+- [ ] Test: non-object key → ValueError, file unchanged; CLI exit 2
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `fix(mcp): refuse configs whose server key is not an object`
+
+---
+
+### T13: Error result shape in the spec (gap 6) [ ]
+
+**What**: MCP-10 states the result: `isError: true` and one text content equal to the message, without the SDK's "Error executing tool" prefix.
+**Where**: `.specs/features/mcp-server/spec.md`
+**Depends on**: T12
+**Requirement**: MCP-10
+
+**Done when**:
+
+- [ ] `validate_spec.py` clean; build gate passes
+
+**Tests**: none
+**Gate**: build
+**Commit**: `docs(specs): define the mcp error result`

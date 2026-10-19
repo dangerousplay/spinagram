@@ -90,7 +90,7 @@ produce diagrams without a shell.
 8. WHEN `icons_search` is called with `query` (optional `pack`, `limit` default 40) THEN the system SHALL return `["pack:name", …]` as `spinagram icons search` finds them. <!-- MCP-08 -->
 9. IF a path argument resolves outside the root THEN the tool SHALL return an error result `path outside root: <path>` and touch no file. <!-- MCP-09 -->
 10. IF a tool raises (unknown diagram id, bad spec, missing engine) THEN the server SHALL return an error result with the message the CLI prints after `spinagram: error: ` and keep serving. <!-- MCP-10 -->
-11. WHEN the server starts with `-t THEME`, `--layout ENGINE` or `--formats LIST` THEN the system SHALL use them as the defaults of every tool call that does not pass its own. <!-- MCP-11 -->
+11. WHEN the server starts with `-t THEME`, `--layout ENGINE` or `--formats LIST` THEN the system SHALL use them as the defaults of every tool call (`render`, `check`, `layout`, `styles`) that does not pass its own; a `-t` path SHALL resolve against the server's working directory at start and is not subject to the root rule (MCP-09 applies to tool arguments only). <!-- MCP-11 -->
 12. IF the `mcp` extra is missing THEN `spinagram mcp` SHALL print `spinagram: mcp needs the mcp extra: pip install 'spinagram[mcp]'` to stderr and exit 2. <!-- MCP-12 -->
 13. The server SHALL log one line per tool call to stderr, `spinagram-mcp: <tool> <ms>ms ok` or `… error`, and write nothing else to stdout. <!-- MCP-13 -->
 14. WHILE a `render` call runs the server SHALL hold later writing calls until it finishes. <!-- MCP-14 -->
@@ -123,7 +123,7 @@ without me hand-writing JSON.
 1. WHEN `spinagram mcp install -a AGENT` runs THEN the system SHALL add the stdio entry of the AGENT table under the server name in the project file, creating file and folders when missing, and print `installed <name> in <file>`. <!-- INST-01 -->
 2. WHEN `--user` is given THEN the system SHALL write the user file of the AGENT table instead. <!-- INST-02 -->
 3. WHEN `-a` is repeated THEN the system SHALL write one entry per agent. <!-- INST-03 -->
-4. WHEN `-t`, `--root`, `--formats` or `--layout` is given THEN the system SHALL append them to the entry's `args` after `mcp`, `--root` as an absolute path. <!-- INST-04 -->
+4. WHEN `-t`, `--root`, `--formats` or `--layout` is given THEN the system SHALL append them to the entry's `args` after `mcp`, `--root` as an absolute path and `-t` as an absolute path when it names an existing folder (a built-in theme name stays as given). <!-- INST-04 -->
 5. The stdio entry SHALL launch `[sys.executable, "-m", "spinagram", "mcp", …]`; WHERE `--uvx` is given it SHALL launch `uvx --from spinagram[mcp]==<version> spinagram mcp …`. <!-- INST-05 -->
 6. WHEN `--url URL` is given THEN the system SHALL write the HTTP entry of the AGENT table with that URL instead of a stdio entry. <!-- INST-06 -->
 7. The system SHALL keep every other key and server in the file unchanged (JSON: same parsed values; TOML: same text outside the server's table). <!-- INST-07 -->
