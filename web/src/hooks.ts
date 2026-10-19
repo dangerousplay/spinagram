@@ -182,11 +182,17 @@ export function usePanZoom(size: { w: number; h: number } | null) {
 }
 
 /** Keyboard shortcut, ignored while typing in a field. */
+type Target = { isContentEditable: boolean; closest: (selector: string) => unknown };
+
+/** Whether a key pressed on `t` is text being typed: form fields and contenteditable (the code editor). */
+export function typingIn(t: Target | null): boolean {
+  return !!t && (t.isContentEditable || !!t.closest("input, textarea, select"));
+}
+
 export function useKey(key: string, fn: () => void) {
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (e.metaKey || e.ctrlKey || e.altKey || t.closest("input, textarea, select")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
       if (e.key === key) {
         e.preventDefault();
         fn();

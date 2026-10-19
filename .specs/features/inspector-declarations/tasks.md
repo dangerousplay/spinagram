@@ -46,7 +46,7 @@ T1 → T2 → T3
 ### Phase 2: UI
 
 ```
-T4 → T5 → T6 → T7 → T8 → T9
+T4 → T5 → T6 → T7 → T8 → T10 → T9
 ```
 
 ---
@@ -195,7 +195,7 @@ T4 → T5 → T6 → T7 → T8 → T9
 
 **What**: `Recents` folds to a 32 px rail via `«`, the rail or `[`; state in `localStorage["spinagram.sidebar"]`.
 **Where**: `web/src/App.tsx`
-**Depends on**: T8
+**Depends on**: T10
 **Requirement**: SIDE-01, SIDE-02, SIDE-03
 
 **Done when**:
@@ -205,3 +205,21 @@ T4 → T5 → T6 → T7 → T8 → T9
 **Tests**: none
 **Gate**: build
 **Commit**: `feat(ui): let the recent sidebar collapse to a rail`
+
+---
+
+### T10: Single-key shortcuts ignore editable targets [x]
+
+**What**: `typingIn(target)` (input, textarea, select or contenteditable) guards `useKey`.
+**Where**: `web/src/hooks.ts`
+**Depends on**: T8
+**Requirement**: KEY-01
+
+**Done when**:
+
+- [ ] Unit: contenteditable, input and textarea targets count as typing; a plain div does not
+- [ ] Browser: typing `e` in the code editor inserts it; the panel stays open
+
+**Tests**: unit
+**Gate**: quick-web
+**Commit**: `fix(ui): keep single-key shortcuts out of the code editor`

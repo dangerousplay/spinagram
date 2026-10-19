@@ -126,6 +126,18 @@ the room. (Added 2026-10-19 during execution.)
 
 **Independent Test**: click `«`, sidebar becomes a rail; reload, still a rail; press `[`, sidebar returns.
 
+### P1: Shortcuts stay out of the editor ⭐ MVP
+
+**User Story**: As a diagram author, I want to type `e`, `i`, `f` or `[` in the code editor without toggling
+panels. (Found 2026-10-19 during execution: typing `e` in the editor collapsed the code panel and dropped the
+letter, because the shortcut guard skipped inputs and textareas but not CodeMirror's contenteditable.)
+
+**Acceptance Criteria**:
+
+1. IF a key is pressed while focus is in an input, textarea, select or contenteditable element THEN the UI SHALL run no single-key shortcut and SHALL let the key reach the element. <!-- KEY-01 -->
+
+**Independent Test**: focus the code editor, type `e`: the letter appears and the panel stays open.
+
 ---
 
 ## Edge Cases
@@ -163,11 +175,12 @@ additions to an existing local endpoint.
 | DECL-08 | P1: Declarations | Tasks | Implemented |
 | DECL-09 | P1: Declarations | Tasks | Implemented |
 | DECL-10 | P1: Declarations | Tasks | Implemented |
+| KEY-01 | P1: Shortcuts stay out of the editor | Tasks | Implemented |
 | SIDE-01 | P2: Hide sidebar | Tasks | Pending |
 | SIDE-02 | P2: Hide sidebar | Tasks | Pending |
 | SIDE-03 | P2: Hide sidebar | Tasks | Pending |
 
-**Coverage:** 23 total, 23 mapped to tasks, 0 unmapped
+**Coverage:** 24 total, 24 mapped to tasks, 0 unmapped
 
 ---
 
