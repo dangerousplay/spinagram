@@ -208,9 +208,9 @@ T9 → T10 → T11 → T12 → T13
 
 ---
 
-### T10: Layout default on every tool (gap 2) [ ]
+### T10: Layout default on every tool (gap 2) [x]
 
-**What**: Tests that `check`, `layout` and `styles` use the server `--layout` and a per-call value wins (kills M5).
+**What**: Tests that `check` and `layout` use the server `--layout` (`styles` takes no layout) and a per-call value wins (kills M5).
 **Where**: `tests/test_mcp_tools.py`
 **Depends on**: T9
 **Requirement**: MCP-11

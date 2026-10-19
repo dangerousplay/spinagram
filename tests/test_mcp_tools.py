@@ -169,3 +169,26 @@ def test_install_makes_an_existing_theme_absolute(tmp_path, monkeypatch):  # INS
     monkeypatch.chdir(tmp_path)
     assert server_args(theme="brand") == ["-t", str((tmp_path / "brand").resolve())]
     assert server_args(theme="default") == ["-t", "default"]                 # a built-in name stays
+
+
+# T10 (validation.md, iteration 1) --------------------------------------------------------------------
+def test_layout_default_on_every_tool(root, monkeypatch):  # MCP-11: check, layout, styles too
+    import spinagram.autolayout as al
+
+    seen = []
+    real = al.apply_layout
+
+    def spy(d, theme, engine=None):
+        if engine is not None:                                              # build_scene calls it again without one
+            seen.append(engine)
+        return real(d, theme, None)
+
+    monkeypatch.setattr(al, "apply_layout", spy)
+    t = Tools(root, layout="flex")
+    t.check(["specs/quickstart.yaml"])
+    t.layout_yaml(["specs/quickstart.yaml"])
+    assert seen == ["flex", "flex"]
+    seen.clear()
+    t.check(["specs/quickstart.yaml"], layout="dot")
+    t.layout_yaml(["specs/quickstart.yaml"], layout="elk")
+    assert seen == ["dot", "elk"]
