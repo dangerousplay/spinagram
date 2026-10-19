@@ -242,7 +242,7 @@ T9 → T10 → T11 → T12 → T13
 
 ---
 
-### T12: Server key that is not an object (gap 5) [ ]
+### T12: Server key that is not an object (gap 5) [x]
 
 **What**: `{"mcpServers": []}` (or any non-object under the key) → `cannot parse <file>: <key> is not an object`, exit 2, unchanged.
 **Where**: `src/spinagram/mcp_server/install.py`

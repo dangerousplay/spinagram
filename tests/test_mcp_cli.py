@@ -200,3 +200,11 @@ def test_install_unknown_or_missing_agent_exit_2(proj, capsys):  # INST-10
     assert not (base / ".mcp.json").exists()                                 # nothing written when one agent is wrong
     assert main(["mcp", "install"]) == 2
     assert capsys.readouterr().err.strip() == f"spinagram: error: pass -a AGENT (known: {KNOWN})"
+
+
+def test_install_server_key_not_an_object_exit_2(proj, capsys):  # INST-09 through the CLI
+    base, _ = proj
+    (base / ".mcp.json").write_text('{"mcpServers": []}', encoding="utf-8")
+    assert main(["mcp", "install", "-a", "claude"]) == 2
+    assert capsys.readouterr().err.strip() == (f"spinagram: error: cannot parse {base / '.mcp.json'}: "
+                                               "mcpServers is not an object")

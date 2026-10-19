@@ -236,3 +236,25 @@ def test_codex_force_keeps_the_comment_above_the_next_table(dirs):  # INST-07
     ins.install("codex", url=URL, force=True, base=base, home=home)
     assert path.read_text(encoding="utf-8") == (f'[mcp_servers.spinagram]\nurl = "{URL}"\n\n# profiles below\n'
                                                 '[profiles.fast]\nmodel = "m"\n')
+
+
+# T12 (validation.md, iteration 1) --------------------------------------------------------------------
+@pytest.mark.parametrize("value", ["[]", '"x"', "3"])
+def test_server_key_not_an_object(value, dirs):  # INST-09
+    base, home = dirs
+    path = base / ".mcp.json"
+    text = '{"mcpServers": ' + value + "}"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match=rf"^cannot parse {path}: mcpServers is not an object$"):
+        ins.install("claude", command=CMD, base=base, home=home)
+    assert path.read_text(encoding="utf-8") == text
+
+
+def test_codex_mcp_servers_not_a_table(dirs):  # INST-09 (codex)
+    base, home = dirs
+    path = base / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text('mcp_servers = "spinagram"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match=rf"^cannot parse {path}: mcp_servers is not a table$"):
+        ins.install("codex", command=CMD, base=base, home=home)
+    assert path.read_text(encoding="utf-8") == 'mcp_servers = "spinagram"\n'

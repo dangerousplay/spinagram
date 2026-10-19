@@ -88,7 +88,10 @@ def install(agent: str, *, command: list[str] | None = None, url: str | None = N
             raise ValueError("not a JSON object")
     except ValueError as exc:
         raise ValueError(f"cannot parse {path}: {exc}") from None
-    servers = data.setdefault(_key(agent, user), {})
+    key = _key(agent, user)
+    servers = data.setdefault(key, {})
+    if not isinstance(servers, dict):
+        raise ValueError(f"cannot parse {path}: {key} is not an object")
     if name in servers and not force:
         raise FileExistsError(f"already installed: {name} in {path} (use --force to replace)")
     servers[name] = new
@@ -111,6 +114,8 @@ def _toml(path: Path, text: str, name: str, new: dict, force: bool) -> str:
         raise ValueError(f"cannot parse {path}: {exc}") from None
     table = f"[mcp_servers.{_toml_key(name)}]\n" + "".join(f"{k} = {json.dumps(v, ensure_ascii=False)}\n"
                                                            for k, v in new.items())
+    if not isinstance(data.get("mcp_servers", {}), dict):
+        raise ValueError(f"cannot parse {path}: mcp_servers is not a table")
     if name not in data.get("mcp_servers", {}):
         return text + ("\n" if text and not text.endswith("\n") else "") + ("\n" if text else "") + table
     if not force:
