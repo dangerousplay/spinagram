@@ -452,8 +452,10 @@ class Workspace:
     def styles(self, key: str, layout: str | None = None) -> dict:
         """The CSS inspector payload of one diagram: :func:`spinagram.css.inspect` plus ``geometry`` (scene
         coordinates per element key: ``box`` [x, y, w, h], or ``points`` and ``route`` for edges) and the
-        scene ``size``. Raises like :meth:`render`."""
+        scene ``size``. Every element, styled or not, carries ``declaration``: ``{file, line, text}`` of the spec
+        line declaring it (:func:`spinagram.ui.declare.locate`) or None. Raises like :meth:`render`."""
         from .. import css
+        from .declare import locate
 
         with self._lock:
             self.render(key, layout)
@@ -461,9 +463,17 @@ class Workspace:
             engine = (layout or self.layout) if d.auto else None
             geom = self._geom[(key, self.theme_gen, engine)]
             try:
-                report = css.inspect(d, self.theme)
+                report = css.inspect(d, self.theme, all_elements=True)
             except Exception as exc:  # noqa: BLE001
                 raise RenderError(_message(exc), sf.rel) from exc
+            try:
+                text = sf.path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                text = ""
+            lines = text.splitlines()
+            for el in report["elements"]:
+                line = locate(text, sf.path.suffix, el)
+                el["declaration"] = {"file": sf.rel, "line": line, "text": lines[line - 1].strip()} if line else None
             return {**report, **geom}
 
     def clear_cache(self) -> None:

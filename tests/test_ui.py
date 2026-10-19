@@ -363,6 +363,49 @@ def test_styles_endpoint_errors(env):  # INS-12
         assert c.get("/api/diagrams/auto.yaml%23AU.styles").json()["styled"] is False
 
 
+def test_styles_report_lists_unstyled_elements(env):  # ELI-03
+    specs = env / "specs"
+    (specs / "styled.yaml").write_text(STYLED)
+    (specs / "brand.css").write_text(".critical { fill: #FEE2E2 }")
+    (specs / "plain.yaml").write_text(STYLED.replace("id: ST", "id: PL").replace("stylesheets: [brand.css]\n", "")
+                                      .replace(", class: critical", ""))
+    ws = Workspace([specs])
+    styled, plain = ws.styles("styled.yaml#ST"), ws.styles("plain.yaml#PL")
+    assert plain["styled"] is False and styled["styled"] is True
+    assert [e["key"] for e in plain["elements"]] == [e["key"] for e in styled["elements"]]
+
+
+def test_styles_report_declarations(env):  # DECL-06
+    specs = env / "specs"
+    (specs / "styled.yaml").write_text(STYLED)
+    (specs / "brand.css").write_text(".critical { fill: #FEE2E2 }")
+    (specs / "web.py").write_text('from spinagram import Diagram\n\nd = Diagram("PY", "Py")\nu = d.box("Users")\n'
+                                  'v = d.box("API")\nu >> v\n')
+    ws = Workspace([specs])
+    with client(ws) as c:
+        body = c.get("/api/diagrams/styled.yaml%23ST.styles").json()
+    decl = {e["key"]: e["declaration"] for e in body["elements"]}
+    assert decl["diagram"] == {"file": "styled.yaml", "line": 1, "text": "id: ST"}
+    assert decl["group:zone"] == {"file": "styled.yaml", "line": 6, "text": "- {id: zone, label: Zone, children: [a, b]}"}
+    assert decl["node:a"] == {"file": "styled.yaml", "line": 8, "text": "- {id: a, title: A, class: critical}"}
+    assert decl["edge:0"] == {"file": "styled.yaml", "line": 12, "text": "- {from: a, to: b, label: go}"}
+    py = {e["key"]: e["declaration"] for e in ws.styles("web.py#PY")["elements"]}
+    assert py["node:users"] == {"file": "web.py", "line": 4, "text": 'u = d.box("Users")'}
+    assert py["diagram"]["line"] == 3
+    assert py["edge:0"] is None                                          # no label: not found
+
+
+def test_styles_report_unreadable_spec(env):  # edge case: spec file cannot be read
+    specs = env / "specs"
+    (specs / "styled.yaml").write_text(STYLED)
+    (specs / "brand.css").write_text(".critical { fill: #FEE2E2 }")
+    ws = Workspace([specs])
+    ws.styles("styled.yaml#ST")
+    (specs / "styled.yaml").unlink()
+    report = ws.styles("styled.yaml#ST")
+    assert report["elements"] and all(e["declaration"] is None for e in report["elements"])
+
+
 def test_saving_a_stylesheet_rerenders_only_its_users(env):  # INS-09
     specs = env / "specs"
     (specs / "styled.yaml").write_text(STYLED)

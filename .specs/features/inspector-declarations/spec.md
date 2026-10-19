@@ -133,7 +133,7 @@ additions to an existing local endpoint.
 | LAYOUT-02 | P1: Code panel column | Tasks | Pending |
 | ELI-01 | P1: Inspect any diagram | Tasks | Implemented |
 | ELI-02 | P1: Inspect any diagram | Tasks | Implemented |
-| ELI-03 | P1: Inspect any diagram | Tasks | Pending |
+| ELI-03 | P1: Inspect any diagram | Tasks | Implemented |
 | ELI-04 | P1: Inspect any diagram | Tasks | Pending |
 | HIL-01 | P1: Highlight | Tasks | Pending |
 | HIL-02 | P1: Highlight | Tasks | Pending |
@@ -144,7 +144,7 @@ additions to an existing local endpoint.
 | DECL-03 | P1: Declarations | Tasks | Implemented |
 | DECL-04 | P1: Declarations | Tasks | Implemented |
 | DECL-05 | P1: Declarations | Tasks | Implemented |
-| DECL-06 | P1: Declarations | Tasks | Pending |
+| DECL-06 | P1: Declarations | Tasks | Implemented |
 | DECL-07 | P1: Declarations | Tasks | Pending |
 | DECL-08 | P1: Declarations | Tasks | Pending |
 | DECL-09 | P1: Declarations | Tasks | Pending |

@@ -88,7 +88,7 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T3: Styles endpoint carries `declaration` and the full tree [ ]
+### T3: Styles endpoint carries `declaration` and the full tree [x]
 
 **What**: `Workspace.styles` calls `inspect(all_elements=True)` and adds `declaration` per element from the spec text.
 **Where**: `src/spinagram/ui/workspace.py`
