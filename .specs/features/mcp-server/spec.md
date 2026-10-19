@@ -198,7 +198,7 @@ without me hand-writing JSON.
 | INST-10 | P1: Install per agent | Tasks | Implementing |
 | HTTP-01 | P2: Streamable HTTP | Tasks | Implementing |
 | HTTP-02 | P2: Streamable HTTP | Tasks | Implementing |
-| DOC-01 | P2: Skill docs | Tasks | Pending |
+| DOC-01 | P2: Skill docs | Tasks | Implementing |
 
 **Coverage:** 29 total, 0 mapped to tasks, 29 unmapped ⚠️
 
