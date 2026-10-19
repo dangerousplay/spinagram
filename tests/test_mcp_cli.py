@@ -29,7 +29,10 @@ EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
 
 def test_missing_extra_message(monkeypatch, capsys):  # MCP-12
+    import spinagram.mcp_server as pkg
+
     monkeypatch.setitem(sys.modules, "spinagram.mcp_server.server", None)   # import fails like a missing extra
+    monkeypatch.delattr(pkg, "server", raising=False)                       # even after an earlier test imported it
     assert main(["mcp"]) == 2
     assert capsys.readouterr().err.strip() == "spinagram: mcp needs the mcp extra: pip install 'spinagram[mcp]'"
 
