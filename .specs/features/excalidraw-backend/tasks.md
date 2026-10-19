@@ -265,7 +265,7 @@ T13 → T14
 
 ---
 
-### T13: Bindings on a composed shape (gaps 1, 2) [ ]
+### T13: Bindings on a composed shape (gaps 1, 2) [x]
 
 **What**: A shape with a one-block label and an icon: the arrow binds to the shape's own element and the shape keeps its bound text next to the arrow in `boundElements` (kills N13, N05).
 **Where**: `tests/test_excalidraw.py`

@@ -500,3 +500,29 @@ def test_render_help_lists_excalidraw(capsys):  # EXC-01: listed by render --hel
     with pytest.raises(SystemExit):
         main(["render", "--help"])
     assert "excalidraw" in capsys.readouterr().out
+
+
+# T13 (validation.md, iteration 2) --------------------------------------------------------------------
+def test_binding_on_a_labelled_shape_with_an_icon(tmp_path):  # EXC-06 + EXC-09 on a composed shape
+    from spinagram.scene import Binding, Icon, Label
+
+    (tmp_path / "dot.svg").write_bytes(SVG_DOT)
+    a = box("a", label=Label([block(["API"])], (110, 210, 280, 100), align="center"),
+            icon=Icon(tmp_path / "dot.svg", 120, 220, 32))
+    doc = to_excalidraw(scene(a, conn(src=Binding("a", "right"))))
+    (text,) = els(doc, "text")
+    assert by_id(doc, "e")["startBinding"]["elementId"] == "a"              # the shape, not its icon or text
+    assert by_id(doc, "a")["boundElements"] == [{"type": "text", "id": text["id"]}, {"type": "arrow", "id": "e"}]
+
+
+# T14 (validation.md, iteration 2) --------------------------------------------------------------------
+def test_swatch_draws_in_front():  # EXC-17: pill and swatch shapes last
+    doc = to_excalidraw(scene(box("sw", role="swatch"), box("n"), box("z", role="zone")))
+    assert [e["id"] for e in doc["elements"][1:]] == ["z", "n", "sw"]
+
+
+def test_monospace_from_the_fallback():  # EXC-15: family or fallback
+    from spinagram.scene import Text
+
+    t = by_id(to_excalidraw(scene(Text("c", 0, 30, block(["x"], family="Courier New", fallback="monospace")))), "c")
+    assert t["fontFamily"] == 3
