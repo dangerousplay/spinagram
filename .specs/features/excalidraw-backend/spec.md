@@ -111,16 +111,16 @@ in Excalidraw.
 | EXC-03 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-04 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-05 | P1: Render native Excalidraw | Tasks | Implementing |
-| EXC-06 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-07 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-06 | P1: Render native Excalidraw | Tasks | Implementing |
+| EXC-07 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-08 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-09 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-10 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-11 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-12 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-13 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-13 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-14 | P1: Render native Excalidraw | Tasks | Implementing |
-| EXC-15 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-15 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-16 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-17 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-18 | P2: Docs | Tasks | Pending |

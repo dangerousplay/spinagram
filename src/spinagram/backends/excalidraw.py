@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Sequence
 
 from .. import shapes as _shapes
-from ..scene import Scene, Shape
+from ..scene import Label, Scene, Shape, Text, TextBlock
+from ..text import measure
 
 SOURCE = "https://github.com/dangerousplay/spinagram"
 _BACK, _FRONT = ("zone", "chrome"), ("pill", "swatch")
@@ -44,6 +45,11 @@ def _flatten(sp: _shapes.Subpath) -> list[tuple[float, float]]:
     if sp.closed and out[-1] != out[0]:
         out.append(out[0])  # an Excalidraw polygon ends on its first point
     return out
+
+
+def _family(block: TextBlock) -> int:
+    f = block.font
+    return 3 if "mono" in f"{f.family} {f.fallback}".lower() else 2  # Cascadia, else Helvetica
 
 
 def _style(dashed: bool, dash: list[float] | None) -> str:
@@ -83,7 +89,41 @@ class _Doc:
         return self.add(key, fields.pop("type", "line"), x0, y0, max(xs) - min(xs), max(ys) - min(ys),
                         points=[[_n(x - x0), _n(y - y0)] for x, y in pts], **fields)
 
+    def text(self, key: str, block: TextBlock, x: float, top: float, w: float, align: str = "left",
+             valign: str = "top", container: str | None = None) -> dict:
+        content = "\n".join(block.lines)
+        return self.add(key, "text", x, top, w, block.height, strokeColor=block.color, text=content,
+                        originalText=content, fontSize=_n(block.font.size), fontFamily=_family(block),
+                        textAlign=align, verticalAlign=valign, containerId=container,
+                        lineHeight=_n(block.leading / block.font.size), autoResize=False)
+
+    def label(self, owner: dict, label: Label) -> None:
+        x, _, w, _ = label.box
+        placed = label.place()
+        if len(placed) == 1:
+            b, _, top = placed[0]
+            t = self.text(f"{owner['id']}:text", b, x, top, w, label.align, label.valign, owner["id"])
+            owner["boundElements"] = [{"type": "text", "id": t["id"]}]
+            return
+        for i, (b, bx, top) in enumerate(placed):
+            self.text(f"{owner['id']}:text{i}", b, bx - w / 2 if label.align == "center" else bx, top, w, label.align)
+
+    def free_text(self, it: Text) -> None:
+        w = it.width or max((measure(line, it.block.font) for line in it.block.lines), default=0)
+        x = {"middle": it.x - w / 2, "end": it.x - w}.get(it.anchor, it.x)
+        self.text(it.id, it.block, x, it.top, w, {"middle": "center", "end": "right"}.get(it.anchor, "left"))
+
     def shape(self, s: Shape) -> None:
+        first = len(self.elements)
+        self._outline(s)
+        if s.label:
+            self.label(self.elements[first], s.label)
+        own = self.elements[first:]
+        if len(own) > 1:
+            for el in own:
+                el["groupIds"] = [f"g:{s.id}"]
+
+    def _outline(self, s: Shape) -> None:
         paint = {"backgroundColor": s.fill or "transparent", "strokeStyle": _style(s.dashed, s.dash),
                  "opacity": round(s.opacity * s.fill_opacity * 100)}
         if s.stroke and s.stroke_width:
@@ -118,6 +158,8 @@ class _Doc:
         for it in sorted(sc.items, key=layer):
             if isinstance(it, Shape):
                 self.shape(it)
+            elif isinstance(it, Text):
+                self.free_text(it)
         for el in self.elements[1:]:
             el["frameId"] = frame["id"]
         return {"type": "excalidraw", "version": 2, "source": SOURCE, "elements": self.elements,

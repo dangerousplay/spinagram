@@ -158,3 +158,72 @@ def test_part_paints():  # Kinds row: solid fills with the stroke colour, stroke
     assert (dot["backgroundColor"], dot["strokeColor"]) == ("#222222", "transparent")
     assert by_id(to_excalidraw(scene(box("p", parts=[shapes.Part("M 0 0 L 10 0 L 10 10 Z")]))), "p")[
         "backgroundColor"] == "#112233"                              # paint "shape": the shape's fill
+
+
+# T3 -------------------------------------------------------------------------------------------------
+def block(lines, size=20, color="#202020", family="Arial", fallback="sans-serif", leading=26):
+    from spinagram.scene import TextBlock
+    from spinagram.theme import FontRef
+
+    return TextBlock(list(lines), [" ".join(lines)], FontRef(family, size=size, fallback=fallback), color, leading)
+
+
+def test_one_block_label_binds_into_the_shape():  # EXC-06
+    from spinagram.scene import Label
+
+    s = box("a", label=Label([block(["Load", "balancer"])], (110, 210, 280, 100), align="center"))
+    doc = to_excalidraw(scene(s))
+    (t,) = els(doc, "text")
+    assert t["containerId"] == "a"
+    assert by_id(doc, "a")["boundElements"] == [{"type": "text", "id": t["id"]}]
+    assert (t["text"], t["originalText"]) == ("Load\nbalancer", "Load\nbalancer")
+    assert (t["textAlign"], t["verticalAlign"]) == ("center", "middle")
+    top = 210 + (100 - 52) / 2
+    assert (t["x"], t["y"], t["width"], t["height"]) == (110, top, 280, 52)
+
+
+def test_label_alignment_follows_the_label():  # EXC-06
+    from spinagram.scene import Label
+
+    s = box("a", label=Label([block(["x"])], (110, 210, 280, 100), align="left", valign="top"))
+    (t,) = els(to_excalidraw(scene(s)), "text")
+    assert (t["textAlign"], t["verticalAlign"]) == ("left", "top")
+
+
+def test_multi_block_label_is_grouped_free_text():  # EXC-07
+    from spinagram.scene import Label
+
+    lab = Label([block(["Title"], size=24, color="#000000"), block(["body", "text"], size=16, color="#555555")],
+                (110, 210, 280, 100), align="left")
+    doc = to_excalidraw(scene(box("a", label=lab)))
+    texts = els(doc, "text")
+    assert len(texts) == 2 and all(t["containerId"] is None for t in texts)
+    assert by_id(doc, "a")["boundElements"] is None
+    for t, (b, x, top) in zip(texts, lab.place()):
+        assert (t["x"], t["y"], t["fontSize"], t["strokeColor"]) == (x, top, b.font.size, b.color)
+        assert t["text"] == "\n".join(b.lines)
+    group = by_id(doc, "a")["groupIds"]
+    assert group and all(t["groupIds"] == group for t in texts)
+
+
+def test_free_text_anchor_alignment():  # EXC-13 (Text)
+    from spinagram.scene import Text
+
+    b = block(["Header"])
+    doc = to_excalidraw(scene(Text("s", 100, 50, b, "start", width=200), Text("m", 100, 50, b, "middle", width=200),
+                              Text("e", 100, 50, b, "end", width=200)))
+    s, m, e = (by_id(doc, i) for i in "sme")
+    assert [s["textAlign"], m["textAlign"], e["textAlign"]] == ["left", "center", "right"]
+    assert [s["x"], m["x"], e["x"]] == [100, 0, -100]
+    assert s["y"] == round(50 - b.baseline_offset(), 2) and s["width"] == 200
+
+
+def test_fonts():  # EXC-15
+    from spinagram.scene import Text
+
+    doc = to_excalidraw(scene(Text("sans", 0, 30, block(["a"], size=18)),
+                              Text("mono", 0, 90, block(["b"], family="JetBrains Mono", fallback="monospace"))))
+    sans, mono = by_id(doc, "sans"), by_id(doc, "mono")
+    assert (sans["fontFamily"], sans["fontSize"]) == (2, 18)
+    assert mono["fontFamily"] == 3
+    assert sans["lineHeight"] == round(26 / 18, 2) and sans["autoResize"] is False

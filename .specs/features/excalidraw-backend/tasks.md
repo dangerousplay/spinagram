@@ -81,7 +81,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T3: Labels, free text and fonts [ ]
+### T3: Labels, free text and fonts [x]
 
 **What**: One-block labels bind into the shape; multi-block labels become grouped free texts at `Label.place()`; `Text` items with anchor → `textAlign`; font family 2 / 3 (monospace), size, line height.
 **Where**: `src/spinagram/backends/excalidraw.py`
