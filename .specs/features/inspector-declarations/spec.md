@@ -176,9 +176,9 @@ additions to an existing local endpoint.
 | DECL-09 | P1: Declarations | Tasks | Implemented |
 | DECL-10 | P1: Declarations | Tasks | Implemented |
 | KEY-01 | P1: Shortcuts stay out of the editor | Tasks | Implemented |
-| SIDE-01 | P2: Hide sidebar | Tasks | Pending |
-| SIDE-02 | P2: Hide sidebar | Tasks | Pending |
-| SIDE-03 | P2: Hide sidebar | Tasks | Pending |
+| SIDE-01 | P2: Hide sidebar | Tasks | Implemented |
+| SIDE-02 | P2: Hide sidebar | Tasks | Implemented |
+| SIDE-03 | P2: Hide sidebar | Tasks | Implemented |
 
 **Coverage:** 24 total, 24 mapped to tasks, 0 unmapped
 

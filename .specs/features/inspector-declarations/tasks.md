@@ -191,7 +191,7 @@ T4 → T5 → T6 → T7 → T8 → T10 → T9
 
 ---
 
-### T9: Collapsible Recent sidebar [ ]
+### T9: Collapsible Recent sidebar [x]
 
 **What**: `Recents` folds to a 32 px rail via `«`, the rail or `[`; state in `localStorage["spinagram.sidebar"]`.
 **Where**: `web/src/App.tsx`
