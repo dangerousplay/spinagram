@@ -29,11 +29,13 @@ All notable changes to spinagram are listed here. The format follows
 - **mcp:** Keep comments above the next codex table on replace ([90d7dcf](https://github.com/dangerousplay/spinagram/commit/90d7dcf33b80b7fd462651a7ec9105dea5513269))
 - **mcp:** Refuse configs whose server key is not an object ([7c0e1af](https://github.com/dangerousplay/spinagram/commit/7c0e1af94c92efeaed6077c7d9136d8b238151a8))
 - **mcp:** Refuse codex configs the new table would break ([652f75d](https://github.com/dangerousplay/spinagram/commit/652f75d74bb7c0173b327fdf3ca2e627f9a57e0c))
+- **excalidraw:** Keep labels of symbol shapes unbound so outlines stay whole ([6059e46](https://github.com/dangerousplay/spinagram/commit/6059e46ae41e089ddc7e2a86c752983e8568aacb))
 
 ### Documentation
 
 - **skills:** Describe the excalidraw output ([8e98b59](https://github.com/dangerousplay/spinagram/commit/8e98b594a195e907b3d7308298254ff50cad0f4d))
 - **skills:** Document the spinagram mcp server ([4e22dc1](https://github.com/dangerousplay/spinagram/commit/4e22dc1ef04ee2b22b4f8898b6975e917e1f6ced))
+- Add what's new in 0.3 with an Excalidraw and MCP showcase ([95f5c5c](https://github.com/dangerousplay/spinagram/commit/95f5c5c08a8ea4fd6e200b6bed3ed4c28b4744c3))
 
 ### Tests
 
