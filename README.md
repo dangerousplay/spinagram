@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Diagrams as code, delivered editable everywhere.</b><br>
-  Write a few lines of Python. Get SVG, PNG, PowerPoint with native shapes, and Figma or FigJam nodes you can keep editing.
+  Write a few lines of Python. Get SVG, PNG, PowerPoint with native shapes, and Figma, FigJam or Excalidraw scenes you can keep editing.
 </p>
 
 <p align="center">
@@ -145,6 +145,7 @@ reference architectures styled only with CSS.
 | `pptx` | One slide per diagram with native shapes, bound connectors and native tables |
 | `figma` | Figma Plugin-API scripts that build native, editable nodes |
 | `figjam` | A FigJam board with connectors bound to the boxes |
+| `excalidraw` | An editable Excalidraw scene: native shapes, arrows bound to the boxes, embedded icons |
 
 ## Learn more
 
@@ -154,9 +155,11 @@ The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable
 - [Icon packs](https://dangerousplay.github.io/spinagram/docs/customize/icons/) (AWS, Google Cloud, Azure, Kubernetes, CNCF projects, AI, about 2,000 technology logos, languages, self-hosted and network gear) and [themes](https://dangerousplay.github.io/spinagram/docs/customize/themes/)
 - [Annotations](https://dangerousplay.github.io/spinagram/docs/customize/annotations/): legends, numbered steps, callouts and designed notes
 - [Facts](https://dangerousplay.github.io/spinagram/docs/customize/facts/): numbers with traceable sources
-- [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/share/figma/) hand-off
+- [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/share/figma/) hand-off, and [Excalidraw](https://dangerousplay.github.io/spinagram/docs/share/excalidraw/) scenes
 - [CLI](https://dangerousplay.github.io/spinagram/docs/tools/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/tools/live-ui/)
 - [AI agent skills](https://dangerousplay.github.io/spinagram/docs/tools/ai-skills/): `spinagram skills install --agent claude|codex|cursor|gemini|copilot|…` teaches your coding agent to write and style diagrams
+- [MCP server](https://dangerousplay.github.io/spinagram/docs/tools/mcp/): `spinagram mcp install -a claude|codex|cursor|gemini|copilot|opencode` lets any MCP agent render, check and preview diagrams without a shell
+- [What's new in 0.3](https://dangerousplay.github.io/spinagram/docs/whats-new/)
 - [Extending](https://dangerousplay.github.io/spinagram/docs/reference/extending/) with your own backends and layout engines
 
 ## Development

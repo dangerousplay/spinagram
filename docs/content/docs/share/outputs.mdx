@@ -1,6 +1,6 @@
 ---
 title: Outputs
-description: SVG, PNG, PowerPoint, Figma and FigJam.
+description: SVG, PNG, PowerPoint, Figma, FigJam and Excalidraw.
 ---
 
 Pick outputs with `-f` on `spinagram render` (or `formats=` in Python):
@@ -12,12 +12,13 @@ Pick outputs with `-f` on `spinagram render` (or `formats=` in Python):
 | `pptx` | One slide per diagram. Native shapes with the text inside, connectors bound to their shapes (move a box and the arrows follow), native tables. SVG icons stay vectors (PowerPoint 365 `svgBlip`) with a PNG fallback for other readers (`SPINAGRAM_PPTX_SVG=raster` turns this off) |
 | `figma` | Figma Plugin-API JavaScript, run through the Figma MCP `use_figma` tool to build native, editable nodes |
 | `figjam` | FigJam board hand-off: one section per diagram, edges as native connectors bound to the boxes, icons cloned from an uploaded icon library |
+| `excalidraw` | One `.excalidraw` scene per diagram: native shapes, arrows bound to their boxes, embedded icons, clean style ([details](/docs/share/excalidraw)) |
 
 ```bash
-spinagram render specs/ -f svg,png,pptx,figma -o out/
+spinagram render specs/ -f svg,png,pptx,figma,excalidraw -o out/
 ```
 
-`render` writes `<id>-<slug>.{svg,png}`, one `diagrams.pptx` containing all slides,
+`render` writes `<id>-<slug>.{svg,png,excalidraw}`, one `diagrams.pptx` containing all slides,
 `figma/<id>.js` chunks and an `index.html` gallery (`--no-gallery` skips it).
 
 See [Figma and FigJam](/docs/share/figma) for running the Figma scripts.
