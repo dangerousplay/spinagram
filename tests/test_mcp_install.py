@@ -258,3 +258,15 @@ def test_codex_mcp_servers_not_a_table(dirs):  # INST-09 (codex)
     with pytest.raises(ValueError, match=rf"^cannot parse {path}: mcp_servers is not a table$"):
         ins.install("codex", command=CMD, base=base, home=home)
     assert path.read_text(encoding="utf-8") == 'mcp_servers = "spinagram"\n'
+
+
+# T14 (validation.md, iteration 2) --------------------------------------------------------------------
+def test_codex_inline_mcp_servers_left_alone(dirs):  # INST-07/INST-09: never write a file Codex cannot read
+    base, home = dirs
+    path = base / ".codex/config.toml"
+    path.parent.mkdir()
+    text = 'mcp_servers = { github = { url = "x" } }\n'
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match=rf"^cannot parse {path}: .*edit it by hand$"):
+        ins.install("codex", command=CMD, base=base, home=home)
+    assert path.read_text(encoding="utf-8") == text

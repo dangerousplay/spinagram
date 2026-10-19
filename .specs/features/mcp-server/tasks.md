@@ -282,7 +282,7 @@ T14 → T15 → T16
 
 ---
 
-### T14: Codex output must parse (gap 1, bug) [ ]
+### T14: Codex output must parse (gap 1, bug) [x]
 
 **What**: The written TOML is parsed before writing; if the entry cannot be added as a table (e.g. `mcp_servers` is an inline table) → `cannot parse <file>: … edit it by hand`, exit 2, unchanged.
 **Where**: `src/spinagram/mcp_server/install.py`

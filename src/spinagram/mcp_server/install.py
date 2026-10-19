@@ -79,6 +79,16 @@ def install(agent: str, *, command: list[str] | None = None, url: str | None = N
     text = path.read_text(encoding="utf-8") if path.exists() else None
     if agent == "codex":
         out = _toml(path, text or "", name, new, force)
+        import tomllib
+
+        try:  # the text edit must leave a file Codex can read, with our entry in it
+            ok = tomllib.loads(out)["mcp_servers"][name] == new
+        except (tomllib.TOMLDecodeError, KeyError, TypeError) as exc:
+            ok, why = False, str(exc)
+        else:
+            why = "the entry did not land as written"
+        if not ok:
+            raise ValueError(f"cannot parse {path}: cannot add [mcp_servers.{name}] ({why}); edit it by hand")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(out, encoding="utf-8")
         return path
