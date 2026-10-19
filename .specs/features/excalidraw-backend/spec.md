@@ -1,6 +1,6 @@
 # Feature: Excalidraw backend
 
-**Status:** Draft (2026-10-19) · **Size:** Large · **Owner:** spinagram
+**Status:** Accepted by the user without a passing verification (2026-10-19; see validation.md) · **Size:** Large · **Owner:** spinagram
 
 ## Problem Statement
 

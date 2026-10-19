@@ -67,6 +67,10 @@
   (`spinagram.ui.declare.locate`), which also drives the code panel's click-to-line. Hover chip in screen px; Recent
   sidebar and code panel both fold to rails. See `features/inspector-declarations/`.
 
+- 2026-10-19 · Excalidraw backend accepted by the user after 4 Verifier passes found only test gaps (no
+  behaviour bug); the last gaps got tests (T16) but no 5th pass. Clean style, native shapes, bound arrows.
+  See `features/excalidraw-backend/validation.md`.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).

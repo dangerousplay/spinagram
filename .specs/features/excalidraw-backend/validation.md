@@ -171,3 +171,12 @@ All fixes go in `tests/test_excalidraw.py`; the code already behaves as the spec
 **Lessons recorded** (`scripts/lessons.py add`): L-045 (Q01, Q04–Q07: cross-cutting style rules on every element kind), L-046 (Q02: null mapping entry at every position), L-047 (Q09: order with children), L-048 (Q03: override rule against a conflicting input).
 
 **Next steps**: the user decides between a 5th round (about 6 short tests, no code change) and accepting the 8 minor gaps, since the code is correct in each probed case.
+
+---
+
+## Acceptance (2026-10-19, user decision)
+
+Pass 4 failed on 8 test-only gaps (Q01-Q07, Q09); the probes showed the code correct in every case. The user chose
+to add the tests and accept the feature without a 5th pass. T16 adds them; each of Q01, Q02, Q03, Q04/Q05, Q06,
+Q07 and Q09 was re-applied in a scratch worktree and now fails `tests/test_excalidraw.py` (54 tests). The verdict
+above stays FAIL because no independent pass ran after T16: the feature is accepted by the user, not verified.
