@@ -396,3 +396,33 @@ def test_render_examples_with_the_cli(tmp_path, capsys):  # EXC-01, EXC-02 over 
         doc = json.loads(p.read_text(encoding="utf-8"))
         assert doc["type"] == "excalidraw" and doc["elements"][0]["type"] == "frame"
     assert "excalidraw" in capsys.readouterr().out
+
+
+# T9 (validation.md, iteration 1) ---------------------------------------------------------------------
+def _outline(doc, s):
+    """Absolute points of each line element drawn for ``s``, in order."""
+    return [[(ln["x"] + px, ln["y"] + py) for px, py in ln["points"]] for ln in els(doc, "line")
+            if "g:" + s.id in ln["groupIds"]]
+
+
+def test_every_subpath_of_a_part_is_drawn():  # EXC-05: one line per subpath
+    from spinagram import shapes
+
+    for kind in ("predefined", "flow_final"):                       # body + two open strokes in one part
+        s = box(kind, kind=kind, parts=shapes.parts(kind, 100, 200, 300, 120), stroke="#333333", stroke_width=2)
+        lines = _outline(to_excalidraw(scene(s)), s)
+        subs = [sp for p in s.parts for sp in shapes.parse(p.d)]
+        assert len(lines) == len(subs) == 3
+        for got, sp in zip(lines, subs):
+            assert abs(got[0][0] - sp.start[0]) <= 1 and abs(got[0][1] - sp.start[1]) <= 1
+
+
+def test_closed_subpath_ends_on_its_start():  # EXC-05: polygon closes on its first point
+    from spinagram import shapes
+
+    for kind in ("document", "decision"):                           # the path data does not repeat its start
+        s = box(kind, kind=kind, parts=shapes.parts(kind, 100, 200, 300, 120))
+        sp = shapes.parse(s.parts[0].d)[0]
+        assert sp.closed and (sp.segments[-1][1][-1] != sp.start)
+        (pts,) = _outline(to_excalidraw(scene(s)), s)
+        assert pts[-1] == pts[0]

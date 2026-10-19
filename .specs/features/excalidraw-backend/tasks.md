@@ -190,11 +190,11 @@ T9 → T10 → T11 → T12
 
 ---
 
-### T9: Multi-subpath parts and polygon closing (gaps 1, 2) [ ]
+### T9: Multi-subpath parts and polygon closing (gaps 1, 2) [x]
 
 **What**: Tests with `predefined` and `flow_final` (two open subpaths in one part) and `document`/`decision` (closed subpaths that do not end on their start) kill M16 and M08.
 **Where**: `tests/test_excalidraw.py`
-**Depends on**: T8
+**Depends on**: None (Phase 1 done)
 **Requirement**: EXC-05
 
 **Done when**:
