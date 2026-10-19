@@ -89,7 +89,7 @@ produce diagrams without a shell.
 7. WHEN `styles` is called with `paths` (optional `select`) THEN the system SHALL return the same JSON as `spinagram check --json` (one report or a list). <!-- MCP-07 -->
 8. WHEN `icons_search` is called with `query` (optional `pack`, `limit` default 40) THEN the system SHALL return `["pack:name", …]` as `spinagram icons search` finds them. <!-- MCP-08 -->
 9. IF a path argument resolves outside the root THEN the tool SHALL return an error result `path outside root: <path>` and touch no file. <!-- MCP-09 -->
-10. IF a tool raises (unknown diagram id, bad spec, missing engine) THEN the server SHALL return an error result with the message the CLI prints after `spinagram: error: ` and keep serving. <!-- MCP-10 -->
+10. IF a tool raises (unknown diagram id, bad spec, missing engine) THEN the server SHALL return a result with `isError: true` and one text content equal to the message the CLI prints after `spinagram: error: ` (no "Error executing tool" prefix), and keep serving. <!-- MCP-10 -->
 11. WHEN the server starts with `-t THEME`, `--layout ENGINE` or `--formats LIST` THEN the system SHALL use them as the defaults of every tool call (`render`, `check`, `layout`, `styles`) that does not pass its own; a `-t` path SHALL resolve against the server's working directory at start and is not subject to the root rule (MCP-09 applies to tool arguments only). <!-- MCP-11 -->
 12. IF the `mcp` extra is missing THEN `spinagram mcp` SHALL print `spinagram: mcp needs the mcp extra: pip install 'spinagram[mcp]'` to stderr and exit 2. <!-- MCP-12 -->
 13. The server SHALL log one line per tool call to stderr, `spinagram-mcp: <tool> <ms>ms ok` or `… error`, and write nothing else to stdout. <!-- MCP-13 -->
@@ -200,7 +200,7 @@ without me hand-writing JSON.
 | HTTP-02 | P2: Streamable HTTP | Tasks | Implementing |
 | DOC-01 | P2: Skill docs | Tasks | Implementing |
 
-**Coverage:** 29 total, 0 mapped to tasks, 29 unmapped ⚠️
+**Coverage:** 29 total, 29 mapped to tasks (T1–T13), 0 unmapped
 
 ---
 

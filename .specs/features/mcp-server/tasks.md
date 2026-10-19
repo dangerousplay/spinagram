@@ -259,7 +259,7 @@ T9 → T10 → T11 → T12 → T13
 
 ---
 
-### T13: Error result shape in the spec (gap 6) [ ]
+### T13: Error result shape in the spec (gap 6) [x]
 
 **What**: MCP-10 states the result: `isError: true` and one text content equal to the message, without the SDK's "Error executing tool" prefix.
 **Where**: `.specs/features/mcp-server/spec.md`
