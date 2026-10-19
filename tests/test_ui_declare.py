@@ -118,3 +118,7 @@ def test_ids_are_matched_literally():  # DECL-01 edge case: regex characters
 
 def test_yaml_edge_is_word_bounded_on_the_left():  # DECL-03: word-bounded
     assert locate('- "xa -> b"\n- "a -> b"\n', ".yaml", edge("a", "b")) == 2
+
+
+def test_yaml_key_needs_its_colon():  # DECL-01: `title:` entry, not the word title (validation.md, iteration 2)
+    assert locate("- {text: about title Applications, id: x}\n", ".yaml", node("zz", "Applications")) is None

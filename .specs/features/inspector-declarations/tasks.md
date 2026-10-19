@@ -29,9 +29,9 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 | Gate Level | When to Use | Command |
 |---|---|---|
-| Quick | Python tasks | `uv run --extra ui pytest -q tests/test_css.py tests/test_ui_declare.py tests/test_ui.py` |
+| Quick | Python tasks | `uv run --all-extras pytest -q tests/test_css.py tests/test_ui_declare.py tests/test_ui.py` |
 | Quick-web | `inspect.ts` | `cd web && bun test` |
-| Build | UI components, phase ends | `uv run ruff check src tests examples && uv run --extra ui pytest -q && (cd web && bun test && bunx bun@1.4.2 run build)` |
+| Build | UI components, phase ends | `uv run ruff check src tests examples && uv run --all-extras pytest -q && (cd web && bun test && bunx bun@1.4.2 run build)` |
 
 ---
 
@@ -52,7 +52,7 @@ T4 → T5 → T6 → T7 → T8 → T10 → T9
 ### Phase 3: Verifier fixes (validation.md, iteration 1)
 
 ```
-T11 → T12 → T13
+T11 → T12 → T13 → T14
 ```
 
 ---
@@ -281,3 +281,20 @@ T11 → T12 → T13
 **Tests**: none
 **Gate**: build
 **Commit**: `docs(specs): align DECL-01 with the locator and log its limits`
+
+---
+
+### T14: Keys need their colon (validation.md, iteration 2) [x]
+
+**What**: A near-miss line (`text: about title Applications`) is not a `title:` declaration (kills N5); gates run with `--all-extras` so the PowerPoint example test does not fail in a fresh environment.
+**Where**: `tests/test_ui_declare.py`
+**Depends on**: T13
+**Requirement**: DECL-01
+
+**Done when**:
+
+- [ ] Making the colon optional fails a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(ui): require the colon after a YAML key in declarations`
