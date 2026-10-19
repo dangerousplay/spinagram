@@ -58,6 +58,12 @@ T13 → T14
 T15
 ```
 
+### Phase 5: Pass-4 gaps (user: add the tests and accept without a 5th pass)
+
+```
+T16
+```
+
 ---
 
 ## Task Breakdown
@@ -315,9 +321,27 @@ T15
 
 **Done when**:
 
-- [ ] Each of N13b, P10, P16, P17 fails a test
-- [ ] Build gate passes
+- [x] Each of N13b, P10, P16, P17 fails a test
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
 **Commit**: `test(excalidraw): cover symbol bindings, fractional font sizes and zero-width strokes`
+
+---
+
+### T16: Cross-cutting style rules on every element kind (pass-4 gaps Q01-Q07, Q09) [x]
+
+**What**: Arrow dash pattern → dotted (Q01); `marker_end="none"` → `null` (Q02); symbol polygons keep opacity and dash (Q04, Q05); text roughness 0 and polygon `fillStyle` solid (Q06, Q07); a labelled shape's text follows it in layer order (Q09); a pill ignores its own radius (Q03).
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: None (Phase 4 done)
+**Requirement**: EXC-03, EXC-04, EXC-08, EXC-17
+
+**Done when**:
+
+- [ ] Each of Q01-Q07, Q09 fails a test
+- [ ] Build gate passes
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `test(excalidraw): check style and order rules on every element kind`

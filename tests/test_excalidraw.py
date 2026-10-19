@@ -555,3 +555,43 @@ def test_monospace_from_the_family():  # EXC-15: a mono family with a sans fallb
 def test_zero_width_stroke_is_transparent():  # Transparent row: width 0 is no stroke (as in SVG)
     r = by_id(to_excalidraw(scene(box("a", stroke="#333333", stroke_width=0))), "a")
     assert (r["strokeColor"], r["strokeWidth"]) == ("transparent", 1)
+
+
+# T16 (validation.md, pass 4) -------------------------------------------------------------------------
+def test_arrow_dash_pattern_and_end_none():  # EXC-08 + Dashes row (Q01); Arrowheads row at the end (Q02)
+    a = by_id(to_excalidraw(scene(conn(dash=[2, 3], marker_end="none"))), "e")
+    assert a["strokeStyle"] == "dotted"
+    assert a["endArrowhead"] is None
+
+
+def test_symbol_polygons_keep_opacity_and_dash():  # Opacity + Dashes rows on parts (Q04, Q05)
+    from spinagram import shapes
+
+    s = box("db", kind="data", parts=shapes.parts("data", 0, 0, 100, 60), stroke="#333333", stroke_width=2,
+            opacity=0.5, dashed=True)
+    lines = els(to_excalidraw(scene(s)), "line")
+    assert lines and all((ln["opacity"], ln["strokeStyle"]) == (50, "dashed") for ln in lines)
+
+
+def test_clean_style_on_text_and_polygons():  # EXC-03 on every element kind (Q06, Q07)
+    from spinagram import shapes
+    from spinagram.scene import Label, Text
+
+    doc = to_excalidraw(scene(box("db", kind="data", parts=shapes.parts("data", 0, 0, 100, 60)),
+                              box("a", label=Label([block(["x"])], (110, 210, 280, 100))),
+                              Text("t", 0, 30, block(["y"])), conn()))
+    assert {e["type"] for e in doc["elements"]} >= {"line", "text", "arrow", "rectangle"}
+    assert all(e["roughness"] == 0 for e in doc["elements"])
+    assert all(e["fillStyle"] == "solid" for e in els(doc, "line"))
+
+
+def test_label_text_follows_its_shape_in_order():  # EXC-17: each item's texts right after it (Q09)
+    from spinagram.scene import Label
+
+    doc = to_excalidraw(scene(box("a", label=Label([block(["A"])], (110, 210, 280, 100))), box("b", x=600)))
+    assert [e["id"] for e in doc["elements"][1:]] == ["a", "a:text", "b"]
+
+
+def test_pill_ignores_its_own_radius():  # Kinds row: pill → h/2 even with a radius set (Q03)
+    p = by_id(to_excalidraw(scene(box("p", kind="pill", h=40, radius=6))), "p")
+    assert p["roundness"] == {"type": 3, "value": 20}
