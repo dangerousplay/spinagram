@@ -107,13 +107,14 @@ class _Doc:
     def label(self, owner: dict, label: Label) -> None:
         x, _, w, _ = label.box
         placed = label.place()
-        if len(placed) == 1:
+        if len(placed) == 1 and owner["type"] != "line":  # Excalidraw masks a line's outline under bound text
             b, _, top = placed[0]
             t = self.text(f"{owner['id']}:text", b, x, top, w, label.align, label.valign, owner["id"])
             owner["boundElements"] = [{"type": "text", "id": t["id"]}]
             return
         for i, (b, bx, top) in enumerate(placed):
-            self.text(f"{owner['id']}:text{i}", b, bx - w / 2 if label.align == "center" else bx, top, w, label.align)
+            self.text(f"{owner['id']}:text{i}", b, bx - w / 2 if label.align == "center" else bx, top, w, label.align,
+                      label.valign if len(placed) == 1 else "top")
 
     def free_text(self, it: Text) -> None:
         w = it.width or max((measure(line, it.block.font) for line in it.block.lines), default=0)

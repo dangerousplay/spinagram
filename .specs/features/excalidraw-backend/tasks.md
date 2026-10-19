@@ -64,6 +64,12 @@ T15
 T16
 ```
 
+### Phase 6: Manual check in Excalidraw (docs showcase)
+
+```
+T17
+```
+
 ---
 
 ## Task Breakdown
@@ -345,3 +351,22 @@ T16
 **Tests**: unit
 **Gate**: build
 **Commit**: `test(excalidraw): check style and order rules on every element kind`
+
+---
+
+### T17: No bound text on symbol polygons (found exporting the examples) [x]
+
+**What**: Exporting `examples/behavior/flowchart.py` through Excalidraw 0.18.1 `exportToSvg` cut off part of every symbol outline (terminator, io, process, decision): Excalidraw treats a `line` holding bound text as a labelled line and masks it. Symbol shapes now get free, grouped text; native shapes keep bound text.
+**Where**: `src/spinagram/backends/excalidraw.py`
+**Depends on**: None (Phase 5 done)
+**Requirement**: EXC-06
+
+**Done when**:
+
+- [ ] Test: a `parts` shape with a one-block label → text with `containerId` null, grouped with the shape, shape `boundElements` without text
+- [ ] Re-export of the flowchart shows whole outlines
+- [ ] Build gate passes
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `fix(excalidraw): keep labels of symbol shapes unbound so outlines stay whole`

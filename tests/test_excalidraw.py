@@ -595,3 +595,18 @@ def test_label_text_follows_its_shape_in_order():  # EXC-17: each item's texts r
 def test_pill_ignores_its_own_radius():  # Kinds row: pill → h/2 even with a radius set (Q03)
     p = by_id(to_excalidraw(scene(box("p", kind="pill", h=40, radius=6))), "p")
     assert p["roundness"] == {"type": 3, "value": 20}
+
+
+# T17 (manual export through Excalidraw) --------------------------------------------------------------
+def test_symbol_shape_label_is_free_grouped_text():  # EXC-06: no bound text on a line element
+    from spinagram import shapes
+    from spinagram.scene import Label
+
+    s = box("p", kind="process", parts=shapes.parts("process", 100, 200, 300, 120),
+            label=Label([block(["Charge card"])], (110, 210, 280, 100), align="center"))
+    doc = to_excalidraw(scene(s))
+    (t,) = els(doc, "text")
+    assert t["containerId"] is None
+    assert by_id(doc, "p")["type"] == "line" and by_id(doc, "p")["boundElements"] is None
+    assert t["groupIds"] == by_id(doc, "p")["groupIds"] != []
+    assert (t["x"], t["width"], t["textAlign"], t["verticalAlign"]) == (110, 280, "center", "middle")
