@@ -115,3 +115,85 @@ def test_non_loopback_host_warns(monkeypatch, capsys):  # HTTP-02
     for host in ("127.0.0.1", "localhost", "::1"):
         assert main(["mcp", "--http", "8900", "--host", host]) == 0
         assert "warning" not in capsys.readouterr().err
+
+
+# T7: spinagram mcp install ---------------------------------------------------------------------------
+KNOWN = "claude, codex, copilot, cursor, gemini, opencode"
+
+
+@pytest.fixture
+def proj(tmp_path, monkeypatch):
+    base, home = tmp_path / "proj", tmp_path / "home"
+    base.mkdir()
+    home.mkdir()
+    monkeypatch.chdir(base)
+    monkeypatch.setenv("HOME", str(home))
+    return base, home
+
+
+def test_install_prints_the_file(proj, capsys):  # INST-01
+    base, _ = proj
+    assert main(["mcp", "install", "-a", "cursor"]) == 0
+    path = base / ".cursor/mcp.json"
+    assert capsys.readouterr().out.strip() == f"installed spinagram in {path}"
+    assert json.loads(path.read_text())["mcpServers"]["spinagram"] == {"command": sys.executable,
+                                                                       "args": ["-m", "spinagram", "mcp"]}
+
+
+def test_install_user_scope(proj, capsys):  # INST-02 through the CLI
+    _, home = proj
+    assert main(["mcp", "install", "-a", "claude", "--user"]) == 0
+    assert "spinagram" in json.loads((home / ".claude.json").read_text())["mcpServers"]
+
+
+def test_install_several_agents(proj, capsys):  # INST-03
+    base, _ = proj
+    assert main(["mcp", "install", "-a", "claude", "-a", "codex", "--name", "diagrams"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out == [f"installed diagrams in {base / '.mcp.json'}", f"installed diagrams in {base / '.codex/config.toml'}"]
+
+
+def test_install_flags_become_args(proj, capsys):  # INST-04, INST-05 (--uvx), INST-06 (--url)
+    base, _ = proj
+    (base / "specs").mkdir()
+    assert main(["mcp", "install", "-a", "gemini", "-t", "brand", "--root", "specs", "--formats", "svg",
+                 "--layout", "elk"]) == 0
+    e = json.loads((base / ".gemini/settings.json").read_text())["mcpServers"]["spinagram"]
+    assert e["args"] == ["-m", "spinagram", "mcp", "-t", "brand", "--root", str((base / "specs").resolve()),
+                         "--formats", "svg", "--layout", "elk"]
+    assert main(["mcp", "install", "-a", "opencode", "--uvx"]) == 0
+    e = json.loads((base / "opencode.json").read_text())["mcp"]["spinagram"]
+    assert e["command"] == ["uvx", "--from", f"spinagram[mcp]=={__version__}", "spinagram", "mcp"]
+    assert main(["mcp", "install", "-a", "claude", "--url", "http://127.0.0.1:8766/mcp"]) == 0
+    assert json.loads((base / ".mcp.json").read_text())["mcpServers"]["spinagram"] == {
+        "type": "http", "url": "http://127.0.0.1:8766/mcp"}
+
+
+def test_install_duplicate_exit_1(proj, capsys):  # INST-08
+    base, _ = proj
+    assert main(["mcp", "install", "-a", "cursor"]) == 0
+    before = (base / ".cursor/mcp.json").read_bytes()
+    capsys.readouterr()
+    assert main(["mcp", "install", "-a", "cursor", "--url", "http://x/mcp"]) == 1
+    assert capsys.readouterr().err.strip() == (f"spinagram: already installed: spinagram in {base / '.cursor/mcp.json'} "
+                                               "(use --force to replace)")
+    assert (base / ".cursor/mcp.json").read_bytes() == before
+    assert main(["mcp", "install", "-a", "cursor", "--url", "http://x/mcp", "--force"]) == 0
+    assert json.loads((base / ".cursor/mcp.json").read_text())["mcpServers"]["spinagram"] == {"url": "http://x/mcp"}
+
+
+def test_install_unparseable_exit_2(proj, capsys):  # INST-09
+    base, _ = proj
+    (base / ".mcp.json").write_text("{oops", encoding="utf-8")
+    assert main(["mcp", "install", "-a", "claude"]) == 2
+    assert capsys.readouterr().err.startswith(f"spinagram: error: cannot parse {base / '.mcp.json'}: ")
+    assert (base / ".mcp.json").read_text() == "{oops"
+
+
+def test_install_unknown_or_missing_agent_exit_2(proj, capsys):  # INST-10
+    base, _ = proj
+    assert main(["mcp", "install", "-a", "claude", "-a", "vim"]) == 2
+    assert capsys.readouterr().err.strip() == f"spinagram: error: unknown agent 'vim'; known: {KNOWN}"
+    assert not (base / ".mcp.json").exists()                                 # nothing written when one agent is wrong
+    assert main(["mcp", "install"]) == 2
+    assert capsys.readouterr().err.strip() == f"spinagram: error: pass -a AGENT (known: {KNOWN})"

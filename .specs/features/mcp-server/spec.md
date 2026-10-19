@@ -188,14 +188,14 @@ without me hand-writing JSON.
 | MCP-16 | P1: Skills as resources | Tasks | Implementing |
 | INST-01 | P1: Install per agent | Tasks | Implementing |
 | INST-02 | P1: Install per agent | Tasks | Implementing |
-| INST-03 | P1: Install per agent | Tasks | Pending |
+| INST-03 | P1: Install per agent | Tasks | Implementing |
 | INST-04 | P1: Install per agent | Tasks | Implementing |
 | INST-05 | P1: Install per agent | Tasks | Implementing |
 | INST-06 | P1: Install per agent | Tasks | Implementing |
 | INST-07 | P1: Install per agent | Tasks | Implementing |
 | INST-08 | P1: Install per agent | Tasks | Implementing |
 | INST-09 | P1: Install per agent | Tasks | Implementing |
-| INST-10 | P1: Install per agent | Tasks | Pending |
+| INST-10 | P1: Install per agent | Tasks | Implementing |
 | HTTP-01 | P2: Streamable HTTP | Tasks | Implementing |
 | HTTP-02 | P2: Streamable HTTP | Tasks | Implementing |
 | DOC-01 | P2: Skill docs | Tasks | Pending |

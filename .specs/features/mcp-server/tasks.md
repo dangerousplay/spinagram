@@ -151,7 +151,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T7: `spinagram mcp install` command [ ]
+### T7: `spinagram mcp install` command [x]
 
 **What**: CLI: `-a` (repeatable, required), `--user`, `--name`, `--force`, `--uvx`, `--url`, `-t`, `--root`, `--formats`, `--layout`; messages and exit codes.
 **Where**: `src/spinagram/cli.py`
