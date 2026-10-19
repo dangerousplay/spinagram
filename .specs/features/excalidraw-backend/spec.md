@@ -79,7 +79,7 @@ in Excalidraw.
 14. The system SHALL emit a `frame` named `spinagram:<id>` at 0,0 with the scene size, every other element's `frameId` set to it, and `appState.viewBackgroundColor` = the scene background. <!-- EXC-14 -->
 15. The system SHALL use `fontFamily` 2, or 3 for a monospace theme family, and `fontSize` = the block's font size. <!-- EXC-15 -->
 16. The system SHALL give every element a unique `id`, and rendering the same scene twice SHALL write byte-identical files. <!-- EXC-16 -->
-17. The system SHALL draw elements in scene item order (back to front), the frame first. <!-- EXC-17 -->
+17. The system SHALL order elements like the SVG backend's layers: the frame, then `zone`/`chrome` shapes, then the other items, then `pill`/`swatch` shapes, scene order within each layer, each item's texts and icons right after it. <!-- EXC-17 -->
 
 **Independent Test**: Render `examples/` with `-f excalidraw`; parse each file; check element counts, a bound arrow, an icon file and determinism. Open one file in Excalidraw (UAT).
 
@@ -107,9 +107,9 @@ in Excalidraw.
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
 | EXC-01 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-02 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-03 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-04 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-02 | P1: Render native Excalidraw | Tasks | Implementing |
+| EXC-03 | P1: Render native Excalidraw | Tasks | Implementing |
+| EXC-04 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-05 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-06 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-07 | P1: Render native Excalidraw | Tasks | Pending |
@@ -119,10 +119,10 @@ in Excalidraw.
 | EXC-11 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-12 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-13 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-14 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-14 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-15 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-16 | P1: Render native Excalidraw | Tasks | Pending |
-| EXC-17 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-16 | P1: Render native Excalidraw | Tasks | Implementing |
+| EXC-17 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-18 | P2: Docs | Tasks | Pending |
 
 **Coverage:** 18 total, 0 mapped to tasks, 18 unmapped ⚠️

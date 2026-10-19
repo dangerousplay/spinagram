@@ -44,7 +44,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ## Task Breakdown
 
-### T1: Document skeleton, frame and shapes [ ]
+### T1: Document skeleton, frame and shapes [x]
 
 **What**: `to_excalidraw(scene) -> dict` with the top-level keys, the frame, rectangles/diamonds/pills (roundness, colours, transparent paints, dashes, opacity), deterministic ids/seeds, item order; `ExcalidrawBackend.render` writes `<slug>.excalidraw`.
 **Where**: `src/spinagram/backends/excalidraw.py`
