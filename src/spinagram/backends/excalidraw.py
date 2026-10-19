@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .. import shapes as _shapes
 from ..scene import Scene, Shape
 
 SOURCE = "https://github.com/dangerousplay/spinagram"
@@ -24,6 +25,25 @@ def _n(v: float) -> float:
 
 def _seed(key: str) -> int:
     return int.from_bytes(hashlib.sha1(key.encode()).digest()[:4], "big") % 2_000_000_000
+
+
+def _flatten(sp: _shapes.Subpath) -> list[tuple[float, float]]:
+    """A subpath as points: line ends, and 8 points per cubic Bézier."""
+    cur, out = sp.start, [sp.start]
+    for cmd, pts in sp.segments:
+        if cmd == "L":
+            cur = pts[0]
+            out.append(cur)
+            continue
+        (x1, y1), (x2, y2), (x3, y3) = pts
+        for i in range(1, 9):
+            t = i / 8
+            a, b, c, d = (1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t * t, t ** 3
+            out.append((a * cur[0] + b * x1 + c * x2 + d * x3, a * cur[1] + b * y1 + c * y2 + d * y3))
+        cur = (x3, y3)
+    if sp.closed and out[-1] != out[0]:
+        out.append(out[0])  # an Excalidraw polygon ends on its first point
+    return out
 
 
 def _style(dashed: bool, dash: list[float] | None) -> str:
@@ -57,11 +77,29 @@ class _Doc:
         self.elements.append(el)
         return el
 
+    def polyline(self, key: str, pts: list[tuple[float, float]], **fields) -> dict:
+        x0, y0 = pts[0]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return self.add(key, fields.pop("type", "line"), x0, y0, max(xs) - min(xs), max(ys) - min(ys),
+                        points=[[_n(x - x0), _n(y - y0)] for x, y in pts], **fields)
+
     def shape(self, s: Shape) -> None:
         paint = {"backgroundColor": s.fill or "transparent", "strokeStyle": _style(s.dashed, s.dash),
                  "opacity": round(s.opacity * s.fill_opacity * 100)}
         if s.stroke and s.stroke_width:
             paint |= {"strokeColor": s.stroke, "strokeWidth": _n(s.stroke_width)}
+        if s.parts:
+            group = [f"g:{s.id}"]
+            for part in s.parts:
+                p = dict(paint)
+                if part.paint == "solid":
+                    p |= {"backgroundColor": s.stroke or s.fill or "transparent", "strokeColor": "transparent",
+                          "strokeWidth": 1}
+                elif part.paint == "stroke":
+                    p["backgroundColor"] = "transparent"
+                for sp in _shapes.parse(part.d):
+                    self.polyline(s.id, _flatten(sp), polygon=sp.closed, groupIds=group, **p)
+            return
         if s.kind == "diamond":
             self.add(s.id, "diamond", s.x, s.y, s.w, s.h, **paint)
             return

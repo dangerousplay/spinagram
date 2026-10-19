@@ -102,3 +102,59 @@ def test_unique_ids_and_deterministic(tmp_path):  # EXC-16
 def test_layer_order():  # EXC-17
     doc = to_excalidraw(scene(box("n"), box("pill", role="pill"), box("z", role="zone"), box("c", role="chrome")))
     assert [e["id"] for e in doc["elements"][1:]] == ["z", "c", "n", "pill"]
+
+
+# T2 -------------------------------------------------------------------------------------------------
+def _flat(d: str) -> list[tuple[float, float]]:
+    """Points along the path: line ends and 8 samples per cubic."""
+    from spinagram.shapes import parse
+
+    out = []
+    for sp in parse(d):
+        cur = sp.start
+        out.append(cur)
+        for cmd, pts in sp.segments:
+            if cmd == "L":
+                cur = pts[0]
+                out.append(cur)
+            else:
+                (x1, y1), (x2, y2), (x3, y3) = pts
+                for i in range(1, 9):
+                    t = i / 8
+                    a, b, c, e = (1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t * t, t ** 3
+                    out.append((a * cur[0] + b * x1 + c * x2 + e * x3, a * cur[1] + b * y1 + c * y2 + e * y3))
+                cur = (x3, y3)
+    return out
+
+
+def test_symbol_parts_become_grouped_polygons():  # EXC-05
+    from spinagram import shapes
+
+    s = box("db", kind="data", parts=shapes.parts("data", 100, 200, 300, 120), stroke="#333333", stroke_width=2)
+    doc = to_excalidraw(scene(s))
+    lines = els(doc, "line")
+    assert len(lines) == 2                                         # body (closed) + lip (open)
+    assert [ln["polygon"] for ln in lines] == [True, False]
+    assert lines[0]["id"] == "db"                                   # the shape's id stays on its first element
+    group = lines[0]["groupIds"]
+    assert group and all(ln["groupIds"] == group for ln in lines)
+    expected = [_flat(p.d) for p in s.parts]
+    for ln, want in zip(lines, expected):
+        got = [(ln["x"] + px, ln["y"] + py) for px, py in ln["points"]]
+        if ln["polygon"]:                                           # Excalidraw closes a polygon on its first point
+            assert got[-1] == got[0]
+            got = got[:-1] if want[-1] != want[0] else got
+        assert len(got) == len(want)
+        assert all(abs(gx - wx) <= 1 and abs(gy - wy) <= 1 for (gx, gy), (wx, wy) in zip(got, want))
+
+
+def test_part_paints():  # Kinds row: solid fills with the stroke colour, stroke has no fill
+    from spinagram import shapes
+
+    s = box("f", kind="final", parts=shapes.parts("final", 0, 0, 40, 40), fill="#FFFFFF", stroke="#222222",
+            stroke_width=2)
+    ring, dot = els(to_excalidraw(scene(s)), "line")
+    assert (ring["backgroundColor"], ring["strokeColor"]) == ("transparent", "#222222")
+    assert (dot["backgroundColor"], dot["strokeColor"]) == ("#222222", "transparent")
+    assert by_id(to_excalidraw(scene(box("p", parts=[shapes.Part("M 0 0 L 10 0 L 10 10 Z")]))), "p")[
+        "backgroundColor"] == "#112233"                              # paint "shape": the shape's fill

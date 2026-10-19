@@ -35,7 +35,7 @@ theme colours.
 | Fonts | `fontFamily` 2 (Helvetica) for every text; 3 (Cascadia) when the theme family is monospace | Closest neutral sans/mono in Excalidraw's fixed set | n |
 | Text | Lines as wrapped by the scene joined with `\n`, `autoResize: false`, `width` = box width, `lineHeight` = leading / font size | Keeps spinagram's wrapping; Excalidraw measures with its own font so widths may differ slightly | n |
 | Shape labels | A label with one block → text bound to the shape (`containerId`, `boundElements`); several blocks (title + body) → one free text per block, grouped with the shape | Excalidraw binds one text per container | n |
-| Kinds | `rect` → rectangle; `pill` → rectangle with `roundness {type:3, value:h/2}`; `diamond` → diamond; radius > 0 → `roundness {type:3, value:radius}`; kinds with `parts` (cylinder, document, …) → one `line` per part with `polygon: true` (curves flattened to 8 segments per Bézier), grouped | Native where Excalidraw has the shape, faithful polygons otherwise | n |
+| Kinds | `rect` → rectangle; `pill` → rectangle with `roundness {type:3, value:h/2}`; `diamond` → diamond; radius > 0 → `roundness {type:3, value:radius}`; kinds with `parts` (cylinder, document, …) → one `line` per subpath (`polygon: true` when closed; curves flattened to 8 segments per Bézier), grouped; part paint `solid` fills with the stroke colour, `stroke` has no fill | Native where Excalidraw has the shape, faithful polygons otherwise | n |
 | Edges | Connector → `arrow` with relative `points`; `curve` → 3 points with `roundness {type:2}`; others `roundness: null`, `elbowed: false` | Keeps spinagram's exact route | n |
 | Bindings | `src`/`dst` → `startBinding`/`endBinding` `{elementId, focus: 0, gap: 1, fixedPoint: [fx, fy], mode: "orbit"}` (fixed point = anchor relative to the shape) and the arrow in the shape's `boundElements` | `fixedPoint`/`mode` is current; `focus`/`gap` lets older releases restore it | n |
 | Arrowheads | `arrow` → `triangle`, `open-arrow` → `arrow`, `diamond` → `diamond`, `open-diamond` → `diamond_outline`, `circle` → `circle`, `bar` → `bar`, `none`/no arrow → `null` | spinagram's `arrow` is a filled triangle; Excalidraw's `arrow` is the open chevron | n |
@@ -67,7 +67,7 @@ in Excalidraw.
 2. WHEN a diagram renders with `excalidraw` THEN the system SHALL write `<out>/<slug>.excalidraw` as UTF-8 JSON with the top-level keys `type`, `version`, `source`, `elements`, `appState`, `files`. <!-- EXC-02 -->
 3. The system SHALL give every element `roughness` 0 and every filled shape `fillStyle` `"solid"`. <!-- EXC-03 -->
 4. WHEN the scene has a `Shape` THEN the system SHALL emit one element with its `x`, `y`, `width`, `height`, fill as `backgroundColor`, stroke as `strokeColor` and `strokeWidth`, with the type and roundness of the Kinds row. <!-- EXC-04 -->
-5. WHEN a shape kind has `parts` THEN the system SHALL emit one `line` element per part with `polygon` true whose absolute points lie on the part's outline (within 1 px of the flattened path), grouped with the shape's other elements. <!-- EXC-05 -->
+5. WHEN a shape kind has `parts` THEN the system SHALL emit one `line` element per subpath of each part, `polygon` true when the subpath is closed, whose absolute points lie on the outline (within 1 px of the path flattened to 8 segments per Bézier), all grouped with the shape. <!-- EXC-05 -->
 6. WHEN a shape label has one block THEN the system SHALL emit a text with `containerId` = the shape's id, listed in the shape's `boundElements`, `textAlign`/`verticalAlign` from the label. <!-- EXC-06 -->
 7. WHEN a shape label has several blocks THEN the system SHALL emit one text per block at the position `Label.place()` gives, with that block's font size and colour, grouped with the shape. <!-- EXC-07 -->
 8. WHEN the scene has a `Connector` THEN the system SHALL emit an `arrow` whose `x + points[i]` equal the connector's points (curve: start, control, end), with the arrowheads of the Arrowheads row and `strokeStyle` from its dash. <!-- EXC-08 -->
@@ -110,7 +110,7 @@ in Excalidraw.
 | EXC-02 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-03 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-04 | P1: Render native Excalidraw | Tasks | Implementing |
-| EXC-05 | P1: Render native Excalidraw | Tasks | Pending |
+| EXC-05 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-06 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-07 | P1: Render native Excalidraw | Tasks | Pending |
 | EXC-08 | P1: Render native Excalidraw | Tasks | Pending |

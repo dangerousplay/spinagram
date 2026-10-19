@@ -63,7 +63,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T2: Symbol parts as polygons [ ]
+### T2: Symbol parts as polygons [x]
 
 **What**: Shapes with `parts` emit one `line` per part (`polygon: true`, Béziers flattened to 8 segments), grouped with the shape.
 **Where**: `src/spinagram/backends/excalidraw.py`
