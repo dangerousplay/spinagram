@@ -426,3 +426,43 @@ def test_closed_subpath_ends_on_its_start():  # EXC-05: polygon closes on its fi
         assert sp.closed and (sp.segments[-1][1][-1] != sp.start)
         (pts,) = _outline(to_excalidraw(scene(s)), s)
         assert pts[-1] == pts[0]
+
+
+# T10 (validation.md, iteration 1) --------------------------------------------------------------------
+def test_same_bytes_across_interpreter_runs(tmp_path):  # EXC-16: no salted hash() in ids or seeds
+    import os
+    import subprocess
+    import sys
+
+    code = ("import sys; from spinagram.backends.excalidraw import to_excalidraw; from spinagram.scene import *; "
+            "import json; sc = Scene('D1', 'T', 'd1', 100, 100, '#FFFFFF', [Shape('a', 'rect', 0, 0, 10, 10, '#000000')]); "
+            "sys.stdout.write(json.dumps(to_excalidraw(sc)))")
+    out = [subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
+                          env={**os.environ, "PYTHONHASHSEED": seed}).stdout for seed in ("1", "2")]
+    assert out[0] == out[1]
+
+
+def test_fixed_version_fields():  # Determinism row: version 1, updated 1
+    doc = to_excalidraw(scene(box("a")))
+    assert all((e["version"], e["updated"]) == (1, 1) for e in doc["elements"])
+
+
+def test_binding_fields():  # Bindings row: focus 0, gap 1, mode "orbit"
+    from spinagram.scene import Binding
+
+    doc = to_excalidraw(scene(box("a"), conn(src=Binding("a", "right"))))
+    b = by_id(doc, "e")["startBinding"]
+    assert (b["focus"], b["gap"], b["mode"]) == (0, 1, "orbit")
+
+
+def test_opacity_is_rounded():  # Opacity row: × 100, rounded
+    doc = to_excalidraw(scene(box("a", opacity=0.336), box("b", opacity=0.333), conn(opacity=0.336)))
+    assert (by_id(doc, "a")["opacity"], by_id(doc, "b")["opacity"], by_id(doc, "e")["opacity"]) == (34, 33, 34)
+
+
+def test_file_created_is_zero(tmp_path):  # Icons row: created 0
+    from spinagram.scene import Image
+
+    (tmp_path / "dot.svg").write_bytes(SVG_DOT)
+    doc = to_excalidraw(scene(Image("img", tmp_path / "dot.svg", 0, 0, 8, 8)))
+    assert [f["created"] for f in doc["files"].values()] == [0]

@@ -207,7 +207,7 @@ T9 → T10 → T11 → T12
 
 ---
 
-### T10: Pin payload fields (gaps 3, 4, 6, 7) [ ]
+### T10: Pin payload fields (gaps 3, 4, 6, 7) [x]
 
 **What**: Determinism across interpreter runs (`PYTHONHASHSEED` 1 vs 2); `version`/`updated` 1; binding `focus` 0, `gap` 1, `mode` "orbit"; opacity rounding (0.333 → 33, 0.336 → 34); file `created` 0.
 **Where**: `tests/test_excalidraw.py`
