@@ -288,6 +288,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md probe 1, INST-01 (install.py:117-120) (config-writers)
 - last seen: 2026-10-19T18:32:47Z
 
+### L-047 - When a result must equal a reference output, compare it exactly to the reference on a fixture where it is non-empty, not only check it is a subset
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: mcp-server
+- evidence: validation.md N24 (MCP-07) (tests)
+- last seen: 2026-10-19T19:31:29Z
+
+### L-048 - Test text-appending config writers on an existing file that lacks a trailing newline
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `config-writers` · harmful: 0
+- features: mcp-server
+- evidence: validation.md N17 (INST-01) (config-writers)
+- last seen: 2026-10-19T19:31:29Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

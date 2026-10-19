@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 47,
+  "next_id": 49,
   "lessons": [
     {
       "id": "L-001",
@@ -838,6 +838,42 @@
       ],
       "created": "2026-10-19T18:32:47Z",
       "last_seen": "2026-10-19T18:32:47Z"
+    },
+    {
+      "id": "L-047",
+      "key": "surviving_mutant::when a result must equal a reference output compare it exactly to the reference on a fixture where it is non empty not only check it is a subset",
+      "text": "When a result must equal a reference output, compare it exactly to the reference on a fixture where it is non-empty, not only check it is a subset",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N24 (MCP-07) (tests)"
+      ],
+      "created": "2026-10-19T19:31:29Z",
+      "last_seen": "2026-10-19T19:31:29Z"
+    },
+    {
+      "id": "L-048",
+      "key": "surviving_mutant::test text appending config writers on an existing file that lacks a trailing newline",
+      "text": "Test text-appending config writers on an existing file that lacks a trailing newline",
+      "signal": "surviving_mutant",
+      "scope": "config-writers",
+      "status": "candidate",
+      "features": [
+        "mcp-server"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N17 (INST-01) (config-writers)"
+      ],
+      "created": "2026-10-19T19:31:29Z",
+      "last_seen": "2026-10-19T19:31:29Z"
     }
   ]
 }
