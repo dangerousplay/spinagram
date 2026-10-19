@@ -1,6 +1,6 @@
 [project]
 name = "spinagram"
-version = "0.2.0"
+version = "0.3.0"
 description = "Diagrams as code rendered to editable SVG, PNG, PowerPoint and Figma, with pluggable themes and backends."
 readme = "README.md"
 license = "MIT"
