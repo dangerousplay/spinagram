@@ -267,7 +267,7 @@ T11 → T12 → T13
 
 ---
 
-### T13: Spec wording and gates [ ]
+### T13: Spec wording and gates [x]
 
 **What**: DECL-01 terminators match the code (`,`, `}`, `#` or end of line); the list-title limit for Python is logged; gates run with the `ui` extra.
 **Where**: `.specs/features/inspector-declarations/spec.md`

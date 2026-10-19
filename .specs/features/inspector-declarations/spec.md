@@ -41,6 +41,7 @@ declared in the source.
 | Python node / group match | A line with `id="<id>"`/`id='<id>'`; else the label as a quoted string (`"Users"`) | `d.box("Users")` derives the id from the title | n |
 | YAML edge match | A line with `<from> -> <to>` (the string form), else a line holding both `from: <from>` and `to: <to>` | The two edge forms of the YAML loader | n |
 | Python edge match | The edge label as a quoted string; no label → not found | Variable names in `a.to(b)` are not ids | n |
+| Python list titles | `d.box(["Order", "API"])` searches the joined label `"Order API"`, which a list never contains: not found unless `id=` is given | Searching one item would match unrelated strings; known limit (validation.md, iteration 1) | n |
 | Declaration payload | Each element of the styles report gets `declaration: {file, line, text}` or `null`; `file` is the spec's path relative to the workspace (same as `SpecFile.rel`) | Same keys the code panel already uses | n |
 | Unstyled diagrams | `css.inspect(..., all_elements=True)` lists the element tree with empty `styles`/`trace`; the CLI keeps calling it without the flag, so `check --styles --json` is unchanged | Inspector needs the tree; CLI output stays stable | n |
 | Hover label | A chip above the box (below when no room) with `elementLabel` and `W × H` in scene px, rounded | Mirrors the devtools tooltip | n |
@@ -100,7 +101,7 @@ so that I can go and change it.
 
 **Acceptance Criteria**:
 
-1. WHEN `locate` searches a YAML spec for a node or group THEN it SHALL return the 1-based line of the first `id: <id>` entry (quoted or bare, ended by `,`, `}`, `#`, space or end of line); without one, the first `title:`/`label:` entry equal to the label. <!-- DECL-01 -->
+1. WHEN `locate` searches a YAML spec for a node or group THEN it SHALL return the 1-based line of the first `id: <id>` entry (quoted or bare, then optional spaces and `,`, `}`, `#` or end of line); without one, the first `title:`/`label:` entry equal to the label. <!-- DECL-01 -->
 2. WHEN `locate` searches a Python spec for a node or group THEN it SHALL return the first line holding `id="<id>"` or `id='<id>'`; without one, the first line holding the label as a quoted string. <!-- DECL-02 -->
 3. WHEN `locate` searches a YAML spec for an edge THEN it SHALL return the first line matching `<from>\s*->\s*<to>` (word-bounded), else the first line holding both `from: <from>` and `to: <to>`. <!-- DECL-03 -->
 4. WHEN `locate` searches a Python spec for an edge with a label THEN it SHALL return the first line holding the label as a quoted string. <!-- DECL-04 -->
