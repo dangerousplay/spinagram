@@ -52,7 +52,7 @@ T4 → T5 → T6 → T7 → T8 → T10 → T9
 ### Phase 3: Verifier fixes (validation.md, iteration 1)
 
 ```
-T11 → T12 → T13 → T14
+T11 → T12 → T13 → T14 → T15
 ```
 
 ---
@@ -298,3 +298,20 @@ T11 → T12 → T13 → T14
 **Tests**: unit
 **Gate**: quick
 **Commit**: `test(ui): require the colon after a YAML key in declarations`
+
+---
+
+### T15: Quotes must pair (validation.md, iteration 3) [x]
+
+**What**: An apostrophe inside another string is not a closing quote: `"A's box"` does not declare `A` (kills N3).
+**Where**: `tests/test_ui_declare.py`
+**Depends on**: T14
+**Requirement**: DECL-02
+
+**Done when**:
+
+- [ ] Accepting mismatched quotes fails a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(ui): require paired quotes around a declared label`

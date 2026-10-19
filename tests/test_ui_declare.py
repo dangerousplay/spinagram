@@ -122,3 +122,7 @@ def test_yaml_edge_is_word_bounded_on_the_left():  # DECL-03: word-bounded
 
 def test_yaml_key_needs_its_colon():  # DECL-01: `title:` entry, not the word title (validation.md, iteration 2)
     assert locate("- {text: about title Applications, id: x}\n", ".yaml", node("zz", "Applications")) is None
+
+
+def test_quotes_must_pair():  # DECL-02: label "as a quoted string" (validation.md, iteration 3)
+    assert locate('x = d.box("A\'s box")\ny = d.box("A")\n', ".py", node("a", "A")) == 2
