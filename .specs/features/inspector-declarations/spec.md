@@ -129,8 +129,8 @@ additions to an existing local endpoint.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| LAYOUT-01 | P1: Code panel column | Tasks | Pending |
-| LAYOUT-02 | P1: Code panel column | Tasks | Pending |
+| LAYOUT-01 | P1: Code panel column | Tasks | Implemented |
+| LAYOUT-02 | P1: Code panel column | Tasks | Implemented |
 | ELI-01 | P1: Inspect any diagram | Tasks | Implemented |
 | ELI-02 | P1: Inspect any diagram | Tasks | Implemented |
 | ELI-03 | P1: Inspect any diagram | Tasks | Implemented |

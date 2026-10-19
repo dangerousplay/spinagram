@@ -106,7 +106,7 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T4: Code panel fills its column [ ]
+### T4: Code panel fills its column [x]
 
 **What**: The wrapper in `DiagramView` carries the column width; the `aside` fills it.
 **Where**: `web/src/DiagramView.tsx`, `web/src/CodePanel.tsx`

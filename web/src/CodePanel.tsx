@@ -149,7 +149,7 @@ export default function CodePanel({ diagramKey, rev, jump, onCollapse, onDirty }
 
   const current = tabs?.[active];
   return (
-    <aside className="flex w-[44%] min-w-[420px] flex-col border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" aria-label="Code">
+    <aside className="flex min-w-0 flex-1 flex-col border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" aria-label="Code">
       <div className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 px-2 dark:border-slate-800" role="tablist">
         {tabs?.map((t, i) => (
           <button

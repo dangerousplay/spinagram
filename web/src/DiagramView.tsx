@@ -243,7 +243,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       </div>
     </div>
     {codeMounted && (
-      <div className={code ? "flex" : "hidden"}>
+      <div className={code ? "flex w-[44%] min-w-[420px] shrink-0" : "hidden"}>
         <CodePanel diagramKey={diagramKey} rev={rev} jump={jump} onCollapse={toggleCode} onDirty={setCodeDirty} />
       </div>
     )}
