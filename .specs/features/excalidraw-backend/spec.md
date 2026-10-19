@@ -125,7 +125,7 @@ in Excalidraw.
 | EXC-17 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-18 | P2: Docs | Tasks | Implementing |
 
-**Coverage:** 18 total, 0 mapped to tasks, 18 unmapped ⚠️
+**Coverage:** 18 total, 18 mapped to tasks (T1–T12), 0 unmapped
 
 ---
 

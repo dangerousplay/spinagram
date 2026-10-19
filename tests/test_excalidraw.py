@@ -477,3 +477,26 @@ def test_centred_multi_block_label_uses_the_left_edge():  # EXC-07: Excalidraw x
     for t, (b, x, top) in zip(texts, lab.place()):
         assert x == 110 + 280 / 2                                   # place() gives the centre for centred labels
         assert (t["x"], t["y"], t["width"], t["textAlign"]) == (110, top, 280, "center")
+
+
+# T12 (validation.md, iteration 1) --------------------------------------------------------------------
+def test_entry_point_and_builtin():  # EXC-01: built-in and the spinagram.backends entry point
+    import tomllib
+    from pathlib import Path
+
+    from spinagram.backends import _BUILTIN
+
+    target = "spinagram.backends.excalidraw:ExcalidrawBackend"
+    assert _BUILTIN["excalidraw"] == target
+    meta = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+    assert meta["project"]["entry-points"]["spinagram.backends"]["excalidraw"] == target
+
+
+def test_render_help_lists_excalidraw(capsys):  # EXC-01: listed by render --help
+    import pytest
+
+    from spinagram.cli import main
+
+    with pytest.raises(SystemExit):
+        main(["render", "--help"])
+    assert "excalidraw" in capsys.readouterr().out

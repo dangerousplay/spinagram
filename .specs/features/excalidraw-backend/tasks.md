@@ -241,7 +241,7 @@ T9 → T10 → T11 → T12
 
 ---
 
-### T12: Entry point and help (gap 8) [ ]
+### T12: Entry point and help (gap 8) [x]
 
 **What**: The installed `spinagram.backends` entry points include `excalidraw`; `render --help` lists it.
 **Where**: `tests/test_excalidraw.py`
