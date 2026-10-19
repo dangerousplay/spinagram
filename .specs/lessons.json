@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 40,
+  "next_id": 42,
   "lessons": [
     {
       "id": "L-001",
@@ -359,17 +359,19 @@
       "text": "When new enum values are added, cover each one in every consumer that branches on it, including qa checks",
       "signal": "surviving_mutant",
       "scope": "tests",
-      "status": "candidate",
+      "status": "confirmed",
       "features": [
-        "legend-css"
+        "legend-css",
+        "excalidraw-backend"
       ],
-      "recurrence": 1,
+      "recurrence": 2,
       "harmful": 0,
       "evidence": [
-        "validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests)"
+        "validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests)",
+        "validation.md N04 (EXC-17 swatch) (tests)"
       ],
       "created": "2026-10-12T20:03:34Z",
-      "last_seen": "2026-10-12T20:03:34Z"
+      "last_seen": "2026-10-19T18:20:26Z"
     },
     {
       "id": "L-021",
@@ -712,6 +714,42 @@
       ],
       "created": "2026-10-19T18:02:51Z",
       "last_seen": "2026-10-19T18:02:51Z"
+    },
+    {
+      "id": "L-040",
+      "key": "surviving_mutant::test bindings and references on a fully composed element label icon and links together not on a bare one",
+      "text": "Test bindings and references on a fully composed element (label, icon and links together), not on a bare one",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N05, N13 (EXC-06/EXC-09) (tests)"
+      ],
+      "created": "2026-10-19T18:20:26Z",
+      "last_seen": "2026-10-19T18:20:26Z"
+    },
+    {
+      "id": "L-041",
+      "key": "surviving_mutant::test a detection rule once per input field it reads with only that field triggering it",
+      "text": "Test a detection rule once per input field it reads, with only that field triggering it",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N01 (EXC-15) (tests)"
+      ],
+      "created": "2026-10-19T18:20:26Z",
+      "last_seen": "2026-10-19T18:20:26Z"
     }
   ]
 }

@@ -46,6 +46,12 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 T9 → T10 → T11 → T12
 ```
 
+### Phase 3: Verifier fixes (validation.md, iteration 2)
+
+```
+T13 → T14
+```
+
 ---
 
 ## Task Breakdown
@@ -60,8 +66,8 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Tests: top-level keys; frame first at 0,0 with scene size and `frameId` on the rest; rect/pill/diamond/radius mapping; transparent fill/stroke edge case; dashed/dotted; opacity; unique ids; byte-identical re-render; empty scene → only the frame
-- [ ] Quick gate passes
+- [x] Tests: top-level keys; frame first at 0,0 with scene size and `frameId` on the rest; rect/pill/diamond/radius mapping; transparent fill/stroke edge case; dashed/dotted; opacity; unique ids; byte-identical re-render; empty scene → only the frame
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick
@@ -79,7 +85,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: a cylinder's lines' absolute points lie within 1 px of the flattened outline; all share the shape's group id
+- [x] Test: a cylinder's lines' absolute points lie within 1 px of the flattened outline; all share the shape's group id
 
 **Tests**: unit
 **Gate**: quick
@@ -96,7 +102,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Tests: bound text (`containerId` + `boundElements`), multi-block positions/sizes/colours, Text anchors start/middle/end, monospace → 3, size
+- [x] Tests: bound text (`containerId` + `boundElements`), multi-block positions/sizes/colours, Text anchors start/middle/end, monospace → 3, size
 
 **Tests**: unit
 **Gate**: quick
@@ -113,7 +119,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Tests: points round-trip; every marker mapping; arrow none/both ends; binding fixed point; unbound end → `null`; shape lists the arrow; label grouped
+- [x] Tests: points round-trip; every marker mapping; arrow none/both ends; binding fixed point; unbound end → `null`; shape lists the arrow; label grouped
 
 **Tests**: unit
 **Gate**: quick
@@ -130,7 +136,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Tests: image box, dataURL decodes to the bytes, mime type, two icons one file, missing file → `FileNotFoundError`
+- [x] Tests: image box, dataURL decodes to the bytes, mime type, two icons one file, missing file → `FileNotFoundError`
 
 **Tests**: unit
 **Gate**: quick
@@ -147,7 +153,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Tests: line endpoints; table cell count, positions, header fill, one group
+- [x] Tests: line endpoints; table cell count, positions, header fill, one group
 
 **Tests**: unit
 **Gate**: quick
@@ -164,8 +170,8 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Tests: `available()` has it; CLI render of every example → one `.excalidraw` per diagram that parses
-- [ ] Build gate passes
+- [x] Tests: `available()` has it; CLI render of every example → one `.excalidraw` per diagram that parses
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
@@ -182,7 +188,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Build gate passes
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
@@ -199,7 +205,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Dropping later subpaths or the closing point fails a test
+- [x] Dropping later subpaths or the closing point fails a test
 
 **Tests**: unit
 **Gate**: quick
@@ -216,7 +222,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Salted `hash()` seeds, `int()` opacity and each dropped field fail a test
+- [x] Salted `hash()` seeds, `int()` opacity and each dropped field fail a test
 
 **Tests**: unit
 **Gate**: quick
@@ -233,7 +239,7 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Using the centre x as `x` fails a test; `validate_spec.py` clean
+- [x] Using the centre x as `x` fails a test; `validate_spec.py` clean
 
 **Tests**: unit
 **Gate**: quick
@@ -250,9 +256,44 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Deleting the entry point or the built-in fails a test
-- [ ] Build gate passes
+- [x] Deleting the entry point or the built-in fails a test
+- [x] Build gate passes
 
 **Tests**: unit
 **Gate**: build
 **Commit**: `test(excalidraw): require the backend entry point and help listing`
+
+---
+
+### T13: Bindings on a composed shape (gaps 1, 2) [ ]
+
+**What**: A shape with a one-block label and an icon: the arrow binds to the shape's own element and the shape keeps its bound text next to the arrow in `boundElements` (kills N13, N05).
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: None (Phase 2 done)
+**Requirement**: EXC-06, EXC-09
+
+**Done when**:
+
+- [ ] Binding to the shape's last element, or overwriting `boundElements`, fails a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(excalidraw): bind arrows to labelled shapes with icons`
+
+---
+
+### T14: Swatch layer and monospace fallback (gaps 3, 4) [ ]
+
+**What**: `swatch` shapes draw in the front layer; a family whose fallback is `monospace` maps to font 3 (kills N04, N01).
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: T13
+**Requirement**: EXC-15, EXC-17
+
+**Done when**:
+
+- [ ] Dropping `swatch` from the front layer, or reading only the family name, fails a test
+- [ ] Build gate passes
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `test(excalidraw): cover swatch layering and monospace fallbacks`

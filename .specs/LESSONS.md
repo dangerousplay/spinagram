@@ -26,6 +26,12 @@ Corroborated across multiple features. Safe to apply as guidance.
 - evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests) (+1 more)
 - last seen: 2026-10-19T18:02:51Z
 
+### L-020 - When new enum values are added, cover each one in every consumer that branches on it, including qa checks
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css, excalidraw-backend
+- evidence: validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests) (+1 more)
+- last seen: 2026-10-19T18:20:26Z
+
 ## Candidates (under observation - do NOT load as guidance yet)
 
 Seen once or not yet corroborated. Tracked, not trusted.
@@ -124,12 +130,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `yaml-loaders` · harmful: 0
 - features: legend-css
 - evidence: validation.md M30 src/spinagram/yaml_io.py:140 (LCSS-04) (yaml-loaders)
-- last seen: 2026-10-12T20:03:34Z
-
-### L-020 - When new enum values are added, cover each one in every consumer that branches on it, including qa checks
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: legend-css
-- evidence: validation.md M20/M21 src/spinagram/annotate.py:525-526 (ANN-12 for left/top) (tests)
 - last seen: 2026-10-12T20:03:34Z
 
 ### L-021 - Give every clause of a multi-clause acceptance criterion its own assertion
@@ -245,6 +245,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: excalidraw-backend
 - evidence: EXC-07 spec.md (Label.place() x is the centre for align=center) (spec)
 - last seen: 2026-10-19T18:02:51Z
+
+### L-040 - Test bindings and references on a fully composed element (label, icon and links together), not on a bare one
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md N05, N13 (EXC-06/EXC-09) (tests)
+- last seen: 2026-10-19T18:20:26Z
+
+### L-041 - Test a detection rule once per input field it reads, with only that field triggering it
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md N01 (EXC-15) (tests)
+- last seen: 2026-10-19T18:20:26Z
 
 ## Quarantined (failed when applied - ignore)
 
