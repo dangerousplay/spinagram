@@ -47,7 +47,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ## Task Breakdown
 
-### T1: `python -m spinagram` and the `mcp` extra [ ]
+### T1: `python -m spinagram` and the `mcp` extra [x]
 
 **What**: `spinagram/__main__.py` runs `cli.main`; `pyproject.toml` gains `mcp = ["mcp>=2.3,<3"]`, added to `all`; `uv.lock` updated.
 **Where**: `src/spinagram/__main__.py`

@@ -190,7 +190,7 @@ without me hand-writing JSON.
 | INST-02 | P1: Install per agent | Tasks | Pending |
 | INST-03 | P1: Install per agent | Tasks | Pending |
 | INST-04 | P1: Install per agent | Tasks | Pending |
-| INST-05 | P1: Install per agent | Tasks | Pending |
+| INST-05 | P1: Install per agent | Tasks | Implementing |
 | INST-06 | P1: Install per agent | Tasks | Pending |
 | INST-07 | P1: Install per agent | Tasks | Pending |
 | INST-08 | P1: Install per agent | Tasks | Pending |
