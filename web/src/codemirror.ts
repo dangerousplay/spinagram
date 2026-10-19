@@ -62,7 +62,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       const doc = view.state.doc;
       if (line < 1 || line > doc.lines) return;
       const l = doc.line(line);
-      view.dispatch({ selection: EditorSelection.range(l.from, l.to), scrollIntoView: true });
+      // scroll to the line start: scrolling the selection's end into view hides the start of long lines
+      view.dispatch({ selection: EditorSelection.range(l.to, l.from), effects: EditorView.scrollIntoView(l.from, { y: "center", x: "start" }) });
       view.focus();
     },
     focus: () => view.focus(),

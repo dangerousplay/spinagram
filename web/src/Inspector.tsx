@@ -202,14 +202,19 @@ function Computed({ values }: { values: Record<string, unknown> }) {
   );
 }
 
-function Declaration({ el, specPath }: { el: CssElement; specPath: string | undefined }) {
+function Declaration({ el, specPath, onShow }: { el: CssElement; specPath: string | undefined; onShow: (line: number) => void }) {
   const d = el.declaration;
   if (!d) return <p className="text-xs text-slate-500">Declaration not found in {specPath ?? "the spec"}</p>;
   return (
     <div className="rounded-md border border-slate-200 dark:border-slate-800">
-      <p className="border-b border-slate-100 px-2 py-1 font-mono text-[10px] text-slate-400 dark:border-slate-800">
-        {d.file}:{d.line}
-      </p>
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-2 py-1 dark:border-slate-800">
+        <span className="font-mono text-[10px] text-slate-400">
+          {d.file}:{d.line}
+        </span>
+        <button className="text-xs text-blue-600 hover:underline" onClick={() => onShow(d.line)} title="Open the code panel on this line">
+          Show in code
+        </button>
+      </div>
       <pre className="overflow-x-auto px-2 py-1 font-mono text-xs leading-5">{d.text}</pre>
     </div>
   );
@@ -222,6 +227,7 @@ function H({ children }: { children: React.ReactNode }) {
 type PanelProps = {
   report: StyleReport | null;
   specPath: string | undefined; // named when an element's declaration is not found
+  onShow: (line: number) => void; // open the code panel on this spec line
   error: string | null;
   selected: string | null;
   onSelect: (key: string | null) => void;
@@ -229,7 +235,7 @@ type PanelProps = {
   onClose: () => void;
 };
 
-export function InspectorPanel({ report, specPath, error, selected, onSelect, onHover, onClose }: PanelProps) {
+export function InspectorPanel({ report, specPath, onShow, error, selected, onSelect, onHover, onClose }: PanelProps) {
   const el = report?.elements.find((e) => e.key === selected);
   const labels = Object.fromEntries((report?.elements ?? []).map((e) => [e.key, elementLabel(e)]));
   return (
@@ -321,7 +327,7 @@ export function InspectorPanel({ report, specPath, error, selected, onSelect, on
                 ))}
             </div>
             <H>Declaration</H>
-            <Declaration el={el} specPath={specPath} />
+            <Declaration el={el} specPath={specPath} onShow={onShow} />
             <H>Computed</H>
             <Computed values={el.styles[""] ?? {}} />
             <H>Rules</H>

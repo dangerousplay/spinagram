@@ -161,8 +161,8 @@ additions to an existing local endpoint.
 | DECL-06 | P1: Declarations | Tasks | Implemented |
 | DECL-07 | P1: Declarations | Tasks | Implemented |
 | DECL-08 | P1: Declarations | Tasks | Implemented |
-| DECL-09 | P1: Declarations | Tasks | Pending |
-| DECL-10 | P1: Declarations | Tasks | Pending |
+| DECL-09 | P1: Declarations | Tasks | Implemented |
+| DECL-10 | P1: Declarations | Tasks | Implemented |
 | SIDE-01 | P2: Hide sidebar | Tasks | Pending |
 | SIDE-02 | P2: Hide sidebar | Tasks | Pending |
 | SIDE-03 | P2: Hide sidebar | Tasks | Pending |

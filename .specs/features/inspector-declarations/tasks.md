@@ -174,7 +174,7 @@ T4 → T5 → T6 → T7 → T8 → T9
 
 ---
 
-### T8: Jump to the declaration line [ ]
+### T8: Jump to the declaration line [x]
 
 **What**: `jump` carries a line; Show in code opens the panel and selects it; click-to-line in code mode uses the declaration; `jumpLine` removed with its test; bundle rebuilt.
 **Where**: `web/src/DiagramView.tsx`
