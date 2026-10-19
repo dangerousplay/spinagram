@@ -57,4 +57,10 @@ describe("HIL-04 below when no room above", () => {
     expect(c.below).toBe(true);
     expect(c.y).toBe(10 + 40 + CHIP_GAP);
   });
+  test("the gap counts: below as soon as chip and gap do not fit above, above when they exactly fit", () => {
+    const at = (top: number) =>
+      chip({ ...report, geometry: { ...report.geometry, "node:top": { box: [50, top, 80, 40] } } }, "node:top", 1)!.below;
+    expect(at(CHIP_H + CHIP_GAP - 1)).toBe(true); // the chip alone would fit; with the gap it does not
+    expect(at(CHIP_H + CHIP_GAP)).toBe(false);
+  });
 });

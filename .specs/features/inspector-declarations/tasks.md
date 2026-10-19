@@ -250,7 +250,7 @@ T11 → T12 → T13
 
 ---
 
-### T12: HIL-04 boundary test [ ]
+### T12: HIL-04 boundary test [x]
 
 **What**: A box whose top is within chip height + gap of the scene top gets the chip below; exactly at the threshold it stays above (kills M14).
 **Where**: `web/src/inspect.test.ts`
