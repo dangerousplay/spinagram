@@ -276,6 +276,30 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md P17 (Transparent row) (tests)
 - last seen: 2026-10-19T18:26:47Z
 
+### L-045 - Test each cross-cutting style rule on every element kind that applies it, not only the plainest native shape
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q01,Q04,Q05,Q06,Q07 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-046 - Test the null entry of a value mapping at every position that uses the mapping
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q02 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-047 - Test ordering rules with items that have children, asserting each child follows its owner
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q09 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
+### L-048 - Test a rule that overrides an input field with a fixture where that field holds a conflicting value
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: validation.md Q03 (tests)
+- last seen: 2026-10-19T19:27:53Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

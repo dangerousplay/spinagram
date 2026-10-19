@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 45,
+  "next_id": 49,
   "lessons": [
     {
       "id": "L-001",
@@ -805,6 +805,78 @@
       ],
       "created": "2026-10-19T18:26:47Z",
       "last_seen": "2026-10-19T18:26:47Z"
+    },
+    {
+      "id": "L-045",
+      "key": "surviving_mutant::test each cross cutting style rule on every element kind that applies it not only the plainest native shape",
+      "text": "Test each cross-cutting style rule on every element kind that applies it, not only the plainest native shape",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Q01,Q04,Q05,Q06,Q07 (tests)"
+      ],
+      "created": "2026-10-19T19:27:53Z",
+      "last_seen": "2026-10-19T19:27:53Z"
+    },
+    {
+      "id": "L-046",
+      "key": "surviving_mutant::test the null entry of a value mapping at every position that uses the mapping",
+      "text": "Test the null entry of a value mapping at every position that uses the mapping",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Q02 (tests)"
+      ],
+      "created": "2026-10-19T19:27:53Z",
+      "last_seen": "2026-10-19T19:27:53Z"
+    },
+    {
+      "id": "L-047",
+      "key": "surviving_mutant::test ordering rules with items that have children asserting each child follows its owner",
+      "text": "Test ordering rules with items that have children, asserting each child follows its owner",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Q09 (tests)"
+      ],
+      "created": "2026-10-19T19:27:53Z",
+      "last_seen": "2026-10-19T19:27:53Z"
+    },
+    {
+      "id": "L-048",
+      "key": "surviving_mutant::test a rule that overrides an input field with a fixture where that field holds a conflicting value",
+      "text": "Test a rule that overrides an input field with a fixture where that field holds a conflicting value",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Q03 (tests)"
+      ],
+      "created": "2026-10-19T19:27:53Z",
+      "last_seen": "2026-10-19T19:27:53Z"
     }
   ]
 }
