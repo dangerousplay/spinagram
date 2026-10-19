@@ -161,7 +161,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, width: size?.w, height: size?.h }}
           >
             <div dangerouslySetInnerHTML={{ __html: svg }} />
-            {inspect && report && <Overlay report={report} hover={hover} selected={selected} />}
+            {inspect && report && <Overlay report={report} hover={hover} selected={selected} scale={view.scale} />}
           </div>
         )}
       </div>

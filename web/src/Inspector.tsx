@@ -1,6 +1,6 @@
 // CSS inspector: hit-testing in scene coordinates, the highlight overlay and the styles panel.
 import type { CssDecl, CssElement, CssTrace, Geometry, StyleReport } from "./api";
-import { elementLabel } from "./inspect";
+import { chip, elementLabel } from "./inspect";
 
 type Box = [number, number, number, number];
 
@@ -50,7 +50,7 @@ export function hitTest(report: StyleReport, x: number, y: number, tol: number):
   return smallest("group:") ?? (g.diagram ? "diagram" : null);
 }
 
-export function Overlay({ report, hover, selected }: { report: StyleReport; hover: string | null; selected: string | null }) {
+export function Overlay({ report, hover, selected, scale }: { report: StyleReport; hover: string | null; selected: string | null; scale: number }) {
   const [w, h] = report.size;
   const shape = (key: string, cls: string) => {
     const g = report.geometry[key];
@@ -69,10 +69,20 @@ export function Overlay({ report, hover, selected }: { report: StyleReport; hove
       </g>
     );
   };
+  const c = hover ? chip(report, hover, scale) : null;
+  const px = 1 / scale; // one screen pixel in scene units: the chip keeps its size at any zoom
   return (
-    <svg className="pointer-events-none absolute inset-0" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      {hover && hover !== selected && shape(hover, "fill-blue-500/5 stroke-blue-500 [stroke-dasharray:6_4] [stroke-width:2]")}
+    <svg className="pointer-events-none absolute inset-0 overflow-visible" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
       {selected && shape(selected, "fill-blue-500/10 stroke-blue-600 [stroke-width:3]")}
+      {hover && hover !== selected && shape(hover, "fill-sky-400/25 stroke-sky-500 [stroke-width:2]")}
+      {c && (
+        <g>
+          <rect x={c.x} y={c.y} width={(c.text.length * 7.2 + 16) * px} height={c.h} rx={4 * px} className="fill-slate-900/90" />
+          <text x={c.x + 8 * px} y={c.y + c.h / 2} dominantBaseline="central" fontSize={12 * px} className="fill-white font-mono">
+            {c.text}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }

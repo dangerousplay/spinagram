@@ -140,7 +140,7 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T6: Overlay draws the tinted highlight and chip [ ]
+### T6: Overlay draws the tinted highlight and chip [x]
 
 **What**: `Overlay` fills the hovered box, solid outline, renders the chip from T5; `elementLabel` moves to `inspect.ts`.
 **Where**: `web/src/Inspector.tsx`
