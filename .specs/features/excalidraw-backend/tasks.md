@@ -40,6 +40,12 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 ```
 
+### Phase 2: Verifier fixes (validation.md, iteration 1)
+
+```
+T9 → T10 → T11 → T12
+```
+
 ---
 
 ## Task Breakdown
@@ -181,3 +187,72 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 **Tests**: none
 **Gate**: build
 **Commit**: `docs(skills): describe the excalidraw output`
+
+---
+
+### T9: Multi-subpath parts and polygon closing (gaps 1, 2) [ ]
+
+**What**: Tests with `predefined` and `flow_final` (two open subpaths in one part) and `document`/`decision` (closed subpaths that do not end on their start) kill M16 and M08.
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: T8
+**Requirement**: EXC-05
+
+**Done when**:
+
+- [ ] Dropping later subpaths or the closing point fails a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(excalidraw): cover multi-subpath parts and polygon closing`
+
+---
+
+### T10: Pin payload fields (gaps 3, 4, 6, 7) [ ]
+
+**What**: Determinism across interpreter runs (`PYTHONHASHSEED` 1 vs 2); `version`/`updated` 1; binding `focus` 0, `gap` 1, `mode` "orbit"; opacity rounding (0.333 → 33, 0.336 → 34); file `created` 0.
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: T9
+**Requirement**: EXC-09, EXC-11, EXC-16
+
+**Done when**:
+
+- [ ] Salted `hash()` seeds, `int()` opacity and each dropped field fail a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(excalidraw): pin binding, file and determinism fields`
+
+---
+
+### T11: Centred multi-block labels (gap 5) [ ]
+
+**What**: EXC-07 states the reference point (Excalidraw `x` is the left edge: centre x − width / 2); test a centred multi-block label.
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: T10
+**Requirement**: EXC-07
+
+**Done when**:
+
+- [ ] Using the centre x as `x` fails a test; `validate_spec.py` clean
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(excalidraw): place centred multi-block labels by their left edge`
+
+---
+
+### T12: Entry point and help (gap 8) [ ]
+
+**What**: The installed `spinagram.backends` entry points include `excalidraw`; `render --help` lists it.
+**Where**: `tests/test_excalidraw.py`
+**Depends on**: T11
+**Requirement**: EXC-01
+
+**Done when**:
+
+- [ ] Deleting the entry point or the built-in fails a test
+- [ ] Build gate passes
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `test(excalidraw): require the backend entry point and help listing`

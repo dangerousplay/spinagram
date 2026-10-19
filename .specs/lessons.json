@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 37,
+  "next_id": 40,
   "lessons": [
     {
       "id": "L-001",
@@ -11,17 +11,19 @@
       "text": "Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.",
       "signal": "surviving_mutant",
       "scope": "tests",
-      "status": "candidate",
+      "status": "confirmed",
       "features": [
-        "layered-layout"
+        "layered-layout",
+        "excalidraw-backend"
       ],
-      "recurrence": 1,
+      "recurrence": 2,
       "harmful": 0,
       "evidence": [
-        "M9b (hash tie-break) (tests)"
+        "M9b (hash tie-break) (tests)",
+        "M14 src/spinagram/backends/excalidraw.py:32 (tests/test_excalidraw.py:93-99) (tests)"
       ],
       "created": "2026-10-12T04:39:39Z",
-      "last_seen": "2026-10-12T04:39:39Z"
+      "last_seen": "2026-10-19T18:02:51Z"
     },
     {
       "id": "L-002",
@@ -245,17 +247,19 @@
       "text": "Give every clause of a multi-clause acceptance criterion its own assertion",
       "signal": "surviving_mutant",
       "scope": "tests",
-      "status": "candidate",
+      "status": "confirmed",
       "features": [
-        "annotations"
+        "annotations",
+        "excalidraw-backend"
       ],
-      "recurrence": 1,
+      "recurrence": 2,
       "harmful": 0,
       "evidence": [
-        "validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests)"
+        "validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests)",
+        "M12,M13,M22,M23 src/spinagram/backends/excalidraw.py:175-176,127,87 (tests)"
       ],
       "created": "2026-10-12T18:18:23Z",
-      "last_seen": "2026-10-12T18:18:23Z"
+      "last_seen": "2026-10-19T18:02:51Z"
     },
     {
       "id": "L-015",
@@ -299,17 +303,19 @@
       "text": "Test each layout property on every band side or branch it applies to, not only the default side",
       "signal": "surviving_mutant",
       "scope": "tests",
-      "status": "candidate",
+      "status": "confirmed",
       "features": [
-        "legend-css"
+        "legend-css",
+        "excalidraw-backend"
       ],
-      "recurrence": 1,
+      "recurrence": 2,
       "harmful": 0,
       "evidence": [
-        "validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests)"
+        "validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests)",
+        "M17 src/spinagram/backends/excalidraw.py:116 (EXC-07) (tests)"
       ],
       "created": "2026-10-12T20:03:34Z",
-      "last_seen": "2026-10-12T20:03:34Z"
+      "last_seen": "2026-10-19T18:02:51Z"
     },
     {
       "id": "L-018",
@@ -652,6 +658,60 @@
       ],
       "created": "2026-10-19T05:16:52Z",
       "last_seen": "2026-10-19T05:16:52Z"
+    },
+    {
+      "id": "L-037",
+      "key": "surviving_mutant::pick geometry fixtures that hit every structural branch the real inputs have such as multiple subpaths and closed paths that do not end on their start",
+      "text": "Pick geometry fixtures that hit every structural branch the real inputs have, such as multiple subpaths and closed paths that do not end on their start.",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M08,M16 src/spinagram/backends/excalidraw.py:49-50,207 (EXC-05) (tests)"
+      ],
+      "created": "2026-10-19T18:02:51Z",
+      "last_seen": "2026-10-19T18:02:51Z"
+    },
+    {
+      "id": "L-038",
+      "key": "surviving_mutant::test a rounding rule with a value where rounding and truncation give different results",
+      "text": "Test a rounding rule with a value where rounding and truncation give different results.",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M15 src/spinagram/backends/excalidraw.py:195 (Opacity row) (tests)"
+      ],
+      "created": "2026-10-19T18:02:51Z",
+      "last_seen": "2026-10-19T18:02:51Z"
+    },
+    {
+      "id": "L-039",
+      "key": "spec_precision_gap::when an ac reuses a helper s coordinates in another format state which reference point the output uses such as left edge or centre",
+      "text": "When an AC reuses a helper's coordinates in another format, state which reference point the output uses, such as left edge or centre.",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "excalidraw-backend"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "EXC-07 spec.md (Label.place() x is the centre for align=center) (spec)"
+      ],
+      "created": "2026-10-19T18:02:51Z",
+      "last_seen": "2026-10-19T18:02:51Z"
     }
   ]
 }

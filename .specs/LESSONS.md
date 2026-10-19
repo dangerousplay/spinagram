@@ -8,17 +8,27 @@
 
 Corroborated across multiple features. Safe to apply as guidance.
 
-_none_
+### L-001 - Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: layered-layout, excalidraw-backend
+- evidence: M9b (hash tie-break) (tests) (+1 more)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-014 - Give every clause of a multi-clause acceptance criterion its own assertion
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: annotations, excalidraw-backend
+- evidence: validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests) (+1 more)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-017 - Test each layout property on every band side or branch it applies to, not only the default side
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `tests` · harmful: 0
+- features: legend-css, excalidraw-backend
+- evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests) (+1 more)
+- last seen: 2026-10-19T18:02:51Z
 
 ## Candidates (under observation - do NOT load as guidance yet)
 
 Seen once or not yet corroborated. Tracked, not trusted.
-
-### L-001 - Pin determinism with a golden output hash checked across many PYTHONHASHSEED values, not a few in-process runs.
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: layered-layout
-- evidence: M9b (hash tie-break) (tests)
-- last seen: 2026-10-12T04:39:39Z
 
 ### L-002 - Give placement ACs a measurable bound (e.g. pill within 6 px of its segment) before writing the test.
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
@@ -92,12 +102,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md M38 src/spinagram/model.py:492 (tests)
 - last seen: 2026-10-12T18:18:23Z
 
-### L-014 - Give every clause of a multi-clause acceptance criterion its own assertion
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: annotations
-- evidence: validation.md M21/M39/M40 ANN-03 ANN-10 ANN-22 (tests)
-- last seen: 2026-10-12T18:18:23Z
-
 ### L-015 - When a spec says first-use order over mixed element types, state the order across types
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
 - features: annotations
@@ -109,12 +113,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: selfhosted-icons
 - evidence: validation.md M02 src/spinagram/icon_packs/network.yaml:13 tests/test_icon_packs.py:51 (ICON-09) (tests)
 - last seen: 2026-10-12T19:04:51Z
-
-### L-017 - Test each layout property on every band side or branch it applies to, not only the default side
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
-- features: legend-css
-- evidence: validation.md M12/M13 src/spinagram/annotate.py:187,370 (LCSS-08) (tests)
-- last seen: 2026-10-12T20:03:34Z
 
 ### L-018 - When an explicit setting overrides an automatic rule, test it under the condition that triggers the rule
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
@@ -229,6 +227,24 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: inspector-declarations
 - evidence: validation.md iteration 3 N3 (src/spinagram/ui/declare.py:14) (tests)
 - last seen: 2026-10-19T05:16:52Z
+
+### L-037 - Pick geometry fixtures that hit every structural branch the real inputs have, such as multiple subpaths and closed paths that do not end on their start.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: M08,M16 src/spinagram/backends/excalidraw.py:49-50,207 (EXC-05) (tests)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-038 - Test a rounding rule with a value where rounding and truncation give different results.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: excalidraw-backend
+- evidence: M15 src/spinagram/backends/excalidraw.py:195 (Opacity row) (tests)
+- last seen: 2026-10-19T18:02:51Z
+
+### L-039 - When an AC reuses a helper's coordinates in another format, state which reference point the output uses, such as left edge or centre.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: excalidraw-backend
+- evidence: EXC-07 spec.md (Label.place() x is the centre for align=center) (spec)
+- last seen: 2026-10-19T18:02:51Z
 
 ## Quarantined (failed when applied - ignore)
 
