@@ -83,7 +83,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T3: MCP server binding [ ]
+### T3: MCP server binding [x]
 
 **What**: `build(tools) -> MCPServer` registering the five tools, PNG previews (≤4, `Image`), the preview notes, `ToolError` for failures, skill resources, stderr log line per call, one write lock.
 **Where**: `src/spinagram/mcp_server/server.py`

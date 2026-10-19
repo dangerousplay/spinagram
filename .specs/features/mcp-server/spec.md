@@ -170,22 +170,22 @@ without me hand-writing JSON.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| MCP-01 | P1: Run the server | Tasks | Pending |
+| MCP-01 | P1: Run the server | Tasks | Implementing |
 | MCP-02 | P1: Run the server | Tasks | Implementing |
-| MCP-03 | P1: Run the server | Tasks | Pending |
-| MCP-04 | P1: Run the server | Tasks | Pending |
+| MCP-03 | P1: Run the server | Tasks | Implementing |
+| MCP-04 | P1: Run the server | Tasks | Implementing |
 | MCP-05 | P1: Run the server | Tasks | Implementing |
 | MCP-06 | P1: Run the server | Tasks | Implementing |
 | MCP-07 | P1: Run the server | Tasks | Implementing |
 | MCP-08 | P1: Run the server | Tasks | Implementing |
 | MCP-09 | P1: Run the server | Tasks | Implementing |
-| MCP-10 | P1: Run the server | Tasks | Pending |
+| MCP-10 | P1: Run the server | Tasks | Implementing |
 | MCP-11 | P1: Run the server | Tasks | Implementing |
 | MCP-12 | P1: Run the server | Tasks | Pending |
-| MCP-13 | P1: Run the server | Tasks | Pending |
-| MCP-14 | P1: Run the server | Tasks | Pending |
-| MCP-15 | P1: Skills as resources | Tasks | Pending |
-| MCP-16 | P1: Skills as resources | Tasks | Pending |
+| MCP-13 | P1: Run the server | Tasks | Implementing |
+| MCP-14 | P1: Run the server | Tasks | Implementing |
+| MCP-15 | P1: Skills as resources | Tasks | Implementing |
+| MCP-16 | P1: Skills as resources | Tasks | Implementing |
 | INST-01 | P1: Install per agent | Tasks | Pending |
 | INST-02 | P1: Install per agent | Tasks | Pending |
 | INST-03 | P1: Install per agent | Tasks | Pending |
