@@ -167,7 +167,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T8: Document the output in the skill [ ]
+### T8: Document the output in the skill [x]
 
 **What**: `## Outputs` gains an Excalidraw item.
 **Where**: `src/spinagram/agent_skills/spinagram/SKILL.md`

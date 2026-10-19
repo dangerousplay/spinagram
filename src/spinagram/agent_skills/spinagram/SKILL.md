@@ -234,6 +234,10 @@ are not loaded as specs.
     - POST each file listed in `assets.json` to its URL.
   - **Edges (Design/Slides):** drawn as vectors, because the connector node is FigJam-only.
 - **SVG** is self-contained (fonts and images embedded). **PNG** is rendered at 2x (3840×2160) for slides.
+- **Excalidraw:** `-f excalidraw` writes `<slug>.excalidraw` (open it in Excalidraw: File → Open, or drop it on the canvas).
+  - Native, editable elements in a clean style (no hand-drawn roughness, theme colours): boxes, diamonds and pills are Excalidraw shapes; symbols (cylinder, document, …) are grouped polygons; arrows are bound to their boxes and follow them when moved.
+  - Text keeps spinagram's line breaks in Excalidraw's fonts (Helvetica, or Cascadia for monospace themes), so widths can differ slightly. A one-paragraph label is bound into its box; a title + body label is grouped text.
+  - Icons are embedded images; a frame `spinagram:<id>` holds the slide. Drop shadows are not drawn.
 
 ## CSS styling
 

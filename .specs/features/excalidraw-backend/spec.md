@@ -123,7 +123,7 @@ in Excalidraw.
 | EXC-15 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-16 | P1: Render native Excalidraw | Tasks | Implementing |
 | EXC-17 | P1: Render native Excalidraw | Tasks | Implementing |
-| EXC-18 | P2: Docs | Tasks | Pending |
+| EXC-18 | P2: Docs | Tasks | Implementing |
 
 **Coverage:** 18 total, 0 mapped to tasks, 18 unmapped ⚠️
 
