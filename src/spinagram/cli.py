@@ -121,6 +121,13 @@ def _main(argv: list[str] | None = None) -> int:
     p.add_argument("--user", action="store_true", help="install for the user (home folder), not this project")
     p.add_argument("--link", action="store_true", help="symlink instead of copying (follows spinagram upgrades)")
     p.add_argument("--force", action="store_true", help="replace skills that are already installed")
+    p = sub.add_parser("mcp", help="MCP server for coding agents (stdio, or --http); `mcp install` configures agents")
+    p.add_argument("-t", "--theme", help="default theme for tool calls (directory or built-in name)")
+    p.add_argument("--layout", metavar="ENGINE", help="default layout engine for specs with `layout:`")
+    p.add_argument("--formats", help="default render formats, comma list (default: svg,png)")
+    p.add_argument("--root", help="folder every tool path must stay inside (default: current folder)")
+    p.add_argument("--http", type=int, metavar="PORT", help="serve streamable HTTP at http://HOST:PORT/mcp")
+    p.add_argument("--host", default="127.0.0.1", help="with --http: address to bind (default 127.0.0.1)")
     p = sub.add_parser("serve", help="live-reload UI: diagrams, theme token sheets, icon packs")
     p.add_argument("paths", nargs="*", default=["."], help="spec files or folders (default: .)")
     p.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
@@ -130,6 +137,8 @@ def _main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     if args.cmd == "serve":
         return _serve(args)
+    if args.cmd == "mcp":
+        return _mcp(args)
     if args.cmd == "icons":
         return _icons(args)
     if args.cmd == "skills":
@@ -343,3 +352,28 @@ def _serve(args) -> int:
               file=sys.stderr)
         return 2
     return run(args.paths, theme=args.theme, layout=args.layout, port=args.port, open_browser=not args.no_open)
+
+
+def _mcp(args) -> int:
+    import ipaddress
+
+    try:
+        from .mcp_server import server
+    except ImportError:
+        print("spinagram: mcp needs the mcp extra: pip install 'spinagram[mcp]'", file=sys.stderr)
+        return 2
+    from .mcp_server.tools import Tools
+
+    formats = [f.strip() for f in args.formats.split(",") if f.strip()] if args.formats else None
+    app = server.build(Tools(args.root, args.theme, args.layout, formats))
+    if args.http is None:
+        app.run()
+        return 0
+    try:
+        loopback = args.host == "localhost" or ipaddress.ip_address(args.host).is_loopback
+    except ValueError:
+        loopback = False
+    if not loopback:
+        print(f"warning: no authentication on {args.host}:{args.http}", file=sys.stderr)
+    app.run("streamable-http", host=args.host, port=args.http)
+    return 0

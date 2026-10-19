@@ -181,7 +181,7 @@ without me hand-writing JSON.
 | MCP-09 | P1: Run the server | Tasks | Implementing |
 | MCP-10 | P1: Run the server | Tasks | Implementing |
 | MCP-11 | P1: Run the server | Tasks | Implementing |
-| MCP-12 | P1: Run the server | Tasks | Pending |
+| MCP-12 | P1: Run the server | Tasks | Implementing |
 | MCP-13 | P1: Run the server | Tasks | Implementing |
 | MCP-14 | P1: Run the server | Tasks | Implementing |
 | MCP-15 | P1: Skills as resources | Tasks | Implementing |
@@ -196,8 +196,8 @@ without me hand-writing JSON.
 | INST-08 | P1: Install per agent | Tasks | Pending |
 | INST-09 | P1: Install per agent | Tasks | Pending |
 | INST-10 | P1: Install per agent | Tasks | Pending |
-| HTTP-01 | P2: Streamable HTTP | Tasks | Pending |
-| HTTP-02 | P2: Streamable HTTP | Tasks | Pending |
+| HTTP-01 | P2: Streamable HTTP | Tasks | Implementing |
+| HTTP-02 | P2: Streamable HTTP | Tasks | Implementing |
 | DOC-01 | P2: Skill docs | Tasks | Pending |
 
 **Coverage:** 29 total, 0 mapped to tasks, 29 unmapped ⚠️

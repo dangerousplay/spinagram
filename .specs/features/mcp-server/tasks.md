@@ -100,7 +100,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T4: `spinagram mcp` command [ ]
+### T4: `spinagram mcp` command [x]
 
 **What**: CLI subcommand: `-t`, `--layout`, `--formats`, `--root`, `--http PORT`, `--host`; missing extra message; non-loopback warning.
 **Where**: `src/spinagram/cli.py`
