@@ -71,7 +71,7 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T2: `spinagram.ui.declare.locate` [ ]
+### T2: `spinagram.ui.declare.locate` [x]
 
 **What**: Pure function `locate(text, suffix, element) -> int | None` implementing DECL-01..05 and the diagram element of DECL-06.
 **Where**: `src/spinagram/ui/declare.py`
