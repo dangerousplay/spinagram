@@ -192,3 +192,15 @@ def test_layout_default_on_every_tool(root, monkeypatch):  # MCP-11: check, layo
     t.check(["specs/quickstart.yaml"], layout="dot")
     t.layout_yaml(["specs/quickstart.yaml"], layout="elk")
     assert seen == ["dot", "elk"]
+
+
+# T15 (validation.md, iteration 2) --------------------------------------------------------------------
+def test_server_theme_is_the_one_tools_use(root, tmp_path):  # MCP-11: -t reaches the tools
+    theme = tmp_path / "brand"
+    theme.mkdir()
+    (theme / "theme.yaml").write_text("extends: default\ncolors: {brand: '#123456', primary: brand}\n",
+                                      encoding="utf-8")
+    branded = Tools(root, theme=str(theme)).render(["specs/decision.yaml"], formats=["svg"], out="a")
+    plain = Tools(root).render(["specs/decision.yaml"], formats=["svg"], out="b")
+    svg = lambda res: next((root / p).read_text(encoding="utf-8") for p in res["written"] if p.endswith(".svg"))  # noqa: E731
+    assert "#123456" in svg(branded).upper() and "#123456" not in svg(plain).upper()

@@ -299,7 +299,7 @@ T14 → T15 → T16
 
 ---
 
-### T15: Server theme reaches the tools (gap 2) [ ]
+### T15: Server theme reaches the tools (gap 2) [x]
 
 **What**: A brand theme (outside the root) changes the rendered SVG colours; kills F1.
 **Where**: `tests/test_mcp_tools.py`
