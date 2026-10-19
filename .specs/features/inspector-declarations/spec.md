@@ -137,8 +137,8 @@ additions to an existing local endpoint.
 | ELI-04 | P1: Inspect any diagram | Tasks | Pending |
 | HIL-01 | P1: Highlight | Tasks | Pending |
 | HIL-02 | P1: Highlight | Tasks | Pending |
-| HIL-03 | P1: Highlight | Tasks | Pending |
-| HIL-04 | P1: Highlight | Tasks | Pending |
+| HIL-03 | P1: Highlight | Tasks | Implemented |
+| HIL-04 | P1: Highlight | Tasks | Implemented |
 | DECL-01 | P1: Declarations | Tasks | Implemented |
 | DECL-02 | P1: Declarations | Tasks | Implemented |
 | DECL-03 | P1: Declarations | Tasks | Implemented |

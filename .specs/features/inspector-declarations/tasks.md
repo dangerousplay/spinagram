@@ -123,7 +123,7 @@ T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T5: Hover chip logic [ ]
+### T5: Hover chip logic [x]
 
 **What**: Pure `chip(report, key)` → `{text, x, y, below}` for the overlay label.
 **Where**: `web/src/inspect.ts`

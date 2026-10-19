@@ -1,5 +1,6 @@
 // CSS inspector: hit-testing in scene coordinates, the highlight overlay and the styles panel.
 import type { CssDecl, CssElement, CssTrace, Geometry, StyleReport } from "./api";
+import { elementLabel } from "./inspect";
 
 type Box = [number, number, number, number];
 
@@ -77,12 +78,6 @@ export function Overlay({ report, hover, selected }: { report: StyleReport; hove
 }
 
 // panel ------------------------------------------------------------------------------------------
-export function elementLabel(e: CssElement): string {
-  const cls = e.classes.map((c) => `.${c}`).join("");
-  if (e.type === "edge") return `edge${cls} ${e.attrs.from} → ${e.attrs.to}`;
-  return `${e.type}${e.id ? `#${e.id}` : ""}${cls}`;
-}
-
 const HEX = /#[0-9a-fA-F]{6}\b/g;
 
 function Value({ v }: { v: string }) {
