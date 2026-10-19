@@ -1,0 +1,190 @@
+# Inspector declarations — Tasks
+
+## Execution Protocol (MANDATORY -- do not skip)
+
+Implement these tasks with the `tlc-spec-driven` skill: **activate it by name and follow its Execute flow and Critical Rules.** Do not search for skill files by filesystem path. The skill is the source of truth for the full flow (per-task cycle, sub-agent delegation, adequacy review, Verifier, discrimination sensor).
+
+**If the skill cannot be activated, STOP and tell the user - do not proceed without it.**
+
+---
+
+**Design**: inline (no new patterns; extends `features/css-inspector/` and `features/live-editor/`)
+**Status**: In Progress
+
+---
+
+## Test Coverage Matrix
+
+> Generated from codebase and project guidelines: `pyproject.toml` (pytest, ruff), `tests/test_web_unit.py` (runs `bun test`), `.specs/features/live-editor/tasks.md` (same layers). No coverage thresholds documented — strong defaults applied.
+
+| Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
+|---|---|---|---|---|
+| `spinagram.css.inspect` | unit | ELI-01/02 1:1 | `tests/test_css.py` | `uv run pytest -q tests/test_css.py` |
+| `spinagram.ui.declare` | unit | DECL-01..05 1:1 + listed edge cases | `tests/test_ui_declare.py` | `uv run pytest -q tests/test_ui_declare.py` |
+| Styles endpoint (`workspace.py`, `server.py`) | integration (Starlette `TestClient`) | ELI-03, DECL-06, unreadable-file edge case | `tests/test_ui.py` | `uv run pytest -q tests/test_ui.py` |
+| SPA pure logic (`web/src/inspect.ts`) | unit (`bun test`) | HIL-02..04 1:1 | `web/src/*.test.ts` | `cd web && bun test` |
+| SPA components (`*.tsx`) | none | Build gate (typecheck + bundle) + browser check of the AC | - | `cd web && bunx bun@1.4.2 run build` |
+
+## Gate Check Commands
+
+| Gate Level | When to Use | Command |
+|---|---|---|
+| Quick | Python tasks | `uv run pytest -q tests/test_css.py tests/test_ui_declare.py tests/test_ui.py` |
+| Quick-web | `inspect.ts` | `cd web && bun test` |
+| Build | UI components, phase ends | `uv run ruff check src tests examples && uv run pytest -q && (cd web && bun test && bunx bun@1.4.2 run build)` |
+
+---
+
+## Execution Plan
+
+### Phase 1: Report (Python)
+
+```
+T1 → T2 → T3
+```
+
+### Phase 2: UI
+
+```
+T4 → T5 → T6 → T7 → T8
+```
+
+---
+
+## Task Breakdown
+
+### T1: `css.inspect(all_elements=True)` lists the tree of unstyled diagrams [x]
+
+**What**: Keyword flag on `inspect` that skips the unstyled early return and emits elements with empty `styles`/`trace`.
+**Where**: `src/spinagram/css.py`
+**Depends on**: None
+**Requirement**: ELI-01, ELI-02
+
+**Done when**:
+
+- [ ] Unstyled + flag → elements for diagram, groups, nodes, edges; `styled` false; empty styles/trace
+- [ ] Unstyled without flag → `elements == []`
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `feat(css): list elements of unstyled diagrams on request`
+
+---
+
+### T2: `spinagram.ui.declare.locate` [ ]
+
+**What**: Pure function `locate(text, suffix, element) -> int | None` implementing DECL-01..05 and the diagram element of DECL-06.
+**Where**: `src/spinagram/ui/declare.py`
+**Depends on**: T1
+**Requirement**: DECL-01, DECL-02, DECL-03, DECL-04, DECL-05
+
+**Done when**:
+
+- [ ] Every DECL-01..05 AC and the regex/list-title edge cases have a test
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `feat(ui): locate element declarations in spec source`
+
+---
+
+### T3: Styles endpoint carries `declaration` and the full tree [ ]
+
+**What**: `Workspace.styles` calls `inspect(all_elements=True)` and adds `declaration` per element from the spec text.
+**Where**: `src/spinagram/ui/workspace.py`
+**Depends on**: T2
+**Requirement**: ELI-03, DECL-06
+
+**Done when**:
+
+- [ ] Unstyled report keys equal the styled copy's keys
+- [ ] Declarations `{file, line, text}` for YAML and Python specs; `null` when not found; unreadable file → all `null`, 200
+
+**Tests**: integration
+**Gate**: build
+**Commit**: `feat(ui): add declarations and unstyled elements to the styles report`
+
+---
+
+### T4: Code panel fills its column [ ]
+
+**What**: The wrapper in `DiagramView` carries the column width; the `aside` fills it.
+**Where**: `web/src/DiagramView.tsx`, `web/src/CodePanel.tsx`
+**Depends on**: None
+**Requirement**: LAYOUT-01, LAYOUT-02
+
+**Done when**:
+
+- [ ] Browser: `aside[aria-label=Code]` width == wrapper width; wrapper == max(44 % of row, 420 px)
+
+**Tests**: none
+**Gate**: build
+**Commit**: `fix(ui): let the code panel fill its column`
+
+---
+
+### T5: Hover chip logic [ ]
+
+**What**: Pure `chip(report, key)` → `{text, x, y, below}` for the overlay label.
+**Where**: `web/src/inspect.ts`
+**Depends on**: T4
+**Requirement**: HIL-02, HIL-03, HIL-04
+
+**Done when**:
+
+- [ ] Node/group text `label W × H`, edge text without size, `below` when above the top edge
+
+**Tests**: unit
+**Gate**: quick-web
+**Commit**: `feat(ui): compute the inspector hover label`
+
+---
+
+### T6: Overlay draws the tinted highlight and chip [ ]
+
+**What**: `Overlay` fills the hovered box, solid outline, renders the chip from T5; `elementLabel` moves to `inspect.ts`.
+**Where**: `web/src/Inspector.tsx`
+**Depends on**: T5
+**Requirement**: HIL-01, HIL-02
+
+**Done when**:
+
+- [ ] Browser: hover shows tint + chip
+
+**Tests**: none
+**Gate**: build
+**Commit**: `feat(ui): highlight the element under the pointer like devtools`
+
+---
+
+### T7: Panel shows details and the declaration for any diagram [ ]
+
+**What**: `InspectorPanel` lists elements for unstyled diagrams, shows a Declaration section (`file:line`, source line, Show in code) or the not-found message; `api.ts` gains the type.
+**Where**: `web/src/Inspector.tsx`
+**Depends on**: T6
+**Requirement**: ELI-04, DECL-07, DECL-08
+
+**Done when**:
+
+- [ ] Browser: unstyled diagram → list + details + `aws_layout.yaml:22`
+
+**Tests**: none
+**Gate**: build
+**Commit**: `feat(ui): show element declarations in the inspector`
+
+---
+
+### T8: Jump to the declaration line [ ]
+
+**What**: `jump` carries a line; Show in code opens the panel and selects it; click-to-line in code mode uses the declaration; `jumpLine` removed with its test; bundle rebuilt.
+**Where**: `web/src/DiagramView.tsx`
+**Depends on**: T7
+**Requirement**: DECL-09, DECL-10
+
+**Done when**:
+
+- [ ] Browser: Show in code selects line 22 of `aws_layout.yaml`; code-mode click on "ALB" selects line 23
+
+**Tests**: none
+**Gate**: build
+**Commit**: `feat(ui): jump from an element to its declaration line`

@@ -641,3 +641,19 @@ def test_defined_var_with_function_fallback_resolves_cleanly():  # CSS-14 (kills
 def test_not_with_nested_selector_list():  # CSS-02 (bracket counting in :not)
     root, vpc, api, db, edge = _tree()
     assert _m("node:not(:not(.critical))", api) is True and _m("node:not(:not(.critical))", db) is False
+
+
+# inspector on unstyled diagrams (features/inspector-declarations) -------------------------------
+def test_inspect_all_elements_lists_unstyled_tree():  # ELI-01
+    r = css.inspect(_golden_diagram(), None, all_elements=True)
+    assert r["styled"] is False
+    assert [e["key"] for e in r["elements"]] == [
+        "diagram", "group:zone", "node:gateway", "node:valid", "node:paid", "node:done",
+        "edge:0", "edge:1", "edge:2", "edge:3"]
+    assert all(e["styles"] == {} and e["trace"] == {} for e in r["elements"])
+    gw = next(e for e in r["elements"] if e["key"] == "node:gateway")
+    assert gw["parent"] == "group:zone" and gw["attrs"]["label"] == "Gateway"
+
+
+def test_inspect_unstyled_without_flag_lists_nothing():  # ELI-02
+    assert css.inspect(_golden_diagram(), None)["elements"] == []

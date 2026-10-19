@@ -646,19 +646,30 @@ def select(d, selector: str) -> list[str]:
     return [el.key for el in _walk(root) if any(matches(s, el) for s in sels)]
 
 
-def inspect(d, theme) -> dict:
+def _element(el, styles: dict, trace: dict) -> dict:
+    return {"key": el.key, "type": el.type, "kinds": list(el.kinds), "id": el.id, "classes": list(el.classes),
+            "attrs": dict(el.attrs), "parent": el.parent.key if el.parent is not None else None,
+            "styles": {pe: {k: _jsonable(v) for k, v in st.items()} for pe, st in styles.items() if st},
+            "trace": {pe: t for pe, t in trace.items() if t["decls"] or t["inherited"]}}
+
+
+def inspect(d, theme, all_elements: bool = False) -> dict:
     """Why every element of ``d`` looks the way it does (JSON-ready; the CLI and the live UI share it).
 
     ``styled``: whether any stylesheet or inline css applies; ``sheets``: origins in cascade order with
     ``theme`` set for theme sheets; ``elements``: tree order, each with ``key``, ``type``, ``kinds``, ``id``,
     ``classes``, ``attrs``, ``parent``, computed ``styles`` and the ``trace`` per pseudo-element (see
-    :func:`compute`); ``unused``: selectors of the diagram's own sheets matching nothing; ``warnings``."""
+    :func:`compute`); ``unused``: selectors of the diagram's own sheets matching nothing; ``warnings``.
+    An unstyled diagram lists no elements unless ``all_elements`` (then with empty ``styles`` and ``trace``)."""
     sheets = sheets_for(d, theme)
     n_theme = len(getattr(theme, "stylesheets", lambda: [])())
     inline = any(x.css for x in (*d.nodes, *d.edges, *d.groups, *d.annotations.callouts))
     report: dict = {"diagram": d.id, "title": d.title, "styled": bool(sheets or inline), "sheets": [],
                     "elements": [], "unused": [], "warnings": []}
     if not report["styled"]:
+        if all_elements:
+            root, _ = tree(d)
+            report["elements"] = [_element(el, {}, {}) for el in _walk(root)]
         return report
     rules: list[Rule] = []
     own: list[Rule] = []
@@ -673,12 +684,7 @@ def inspect(d, theme) -> dict:
     trace: dict = {}
     comp = compute(root, rules, theme, report["warnings"], trace)
     els = list(_walk(root))
-    for el in els:
-        report["elements"].append({
-            "key": el.key, "type": el.type, "kinds": list(el.kinds), "id": el.id, "classes": list(el.classes),
-            "attrs": dict(el.attrs), "parent": el.parent.key if el.parent is not None else None,
-            "styles": {pe: {k: _jsonable(v) for k, v in st.items()} for pe, st in comp[el].items() if st},
-            "trace": {pe: t for pe, t in trace[el].items() if t["decls"] or t["inherited"]}})
+    report["elements"] = [_element(el, comp[el], trace[el]) for el in els]
     for r in own:
         for sel in r.selectors:
             if not any(matches(sel, el) for el in els):
