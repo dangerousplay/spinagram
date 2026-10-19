@@ -171,16 +171,16 @@ without me hand-writing JSON.
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
 | MCP-01 | P1: Run the server | Tasks | Pending |
-| MCP-02 | P1: Run the server | Tasks | Pending |
+| MCP-02 | P1: Run the server | Tasks | Implementing |
 | MCP-03 | P1: Run the server | Tasks | Pending |
 | MCP-04 | P1: Run the server | Tasks | Pending |
-| MCP-05 | P1: Run the server | Tasks | Pending |
-| MCP-06 | P1: Run the server | Tasks | Pending |
-| MCP-07 | P1: Run the server | Tasks | Pending |
-| MCP-08 | P1: Run the server | Tasks | Pending |
-| MCP-09 | P1: Run the server | Tasks | Pending |
+| MCP-05 | P1: Run the server | Tasks | Implementing |
+| MCP-06 | P1: Run the server | Tasks | Implementing |
+| MCP-07 | P1: Run the server | Tasks | Implementing |
+| MCP-08 | P1: Run the server | Tasks | Implementing |
+| MCP-09 | P1: Run the server | Tasks | Implementing |
 | MCP-10 | P1: Run the server | Tasks | Pending |
-| MCP-11 | P1: Run the server | Tasks | Pending |
+| MCP-11 | P1: Run the server | Tasks | Implementing |
 | MCP-12 | P1: Run the server | Tasks | Pending |
 | MCP-13 | P1: Run the server | Tasks | Pending |
 | MCP-14 | P1: Run the server | Tasks | Pending |

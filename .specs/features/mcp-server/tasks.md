@@ -65,7 +65,7 @@ T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
 
 ---
 
-### T2: Tool functions [ ]
+### T2: Tool functions [x]
 
 **What**: `Tools(root, theme, layout, formats)` with `render`, `check`, `layout`, `styles`, `icons_search`, `previews`; root confinement; errors as `ValueError`/`KeyError` with the CLI messages.
 **Where**: `src/spinagram/mcp_server/tools.py`
