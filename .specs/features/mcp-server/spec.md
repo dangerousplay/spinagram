@@ -159,6 +159,7 @@ without me hand-writing JSON.
 ## Edge Cases
 
 - IF `paths` is empty or finds no diagram THEN the tool SHALL return the error `no diagrams found` (CLI message).
+- IF the PNG preview fails for another reason (e.g. Chromium not installed) THEN `render` SHALL succeed with `"preview": "preview failed: <first line of the error>"`.
 - WHEN `out` is relative THEN it SHALL resolve under the root; IF absolute outside the root THEN MCP-09 applies.
 - WHEN a symlink inside the root points outside it THEN MCP-09 SHALL apply (resolve before checking).
 - IF `~/.claude.json` is large THEN install SHALL rewrite it with the same values (indent 2), nothing else changed.
