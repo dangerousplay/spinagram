@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: inline (no new patterns; extends `features/css-inspector/` and `features/live-editor/`)
-**Status**: In Progress
+**Status**: Done
 
 ---
 

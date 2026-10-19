@@ -176,6 +176,60 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: EDIT-05 (tests)
 - last seen: 2026-10-17T17:49:20Z
 
+### L-028 - When a spec says first match, include a fixture with two matches and assert the first one is returned
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md M4 (src/spinagram/ui/declare.py:50) (tests)
+- last seen: 2026-10-19T05:07:41Z
+
+### L-029 - Test literal matching of regex metacharacters with a pattern that holds the metacharacter against text that only matches it as a wildcard
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md M2 (src/spinagram/ui/declare.py:17) (tests)
+- last seen: 2026-10-19T05:07:41Z
+
+### L-030 - Test every word boundary a matcher claims, on both sides, with a near-miss prefix and suffix
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md M3 (src/spinagram/ui/declare.py:30) (tests)
+- last seen: 2026-10-19T05:07:41Z
+
+### L-031 - Test placement thresholds with a value between the boundaries each term of the formula sets
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md M14 (web/src/inspect.ts:32) (tests)
+- last seen: 2026-10-19T05:07:41Z
+
+### L-032 - Do not compose regex fragments that use numbered backreferences; use named groups unique per fragment
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `regex` · harmful: 0
+- features: inspector-declarations
+- evidence: DECL-03 D1 (src/spinagram/ui/declare.py:31) (regex)
+- last seen: 2026-10-19T05:07:41Z
+
+### L-033 - State token terminators in matching ACs as an exact pattern, not a prose list
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: inspector-declarations
+- evidence: DECL-01 (validation.md) (spec)
+- last seen: 2026-10-19T05:07:41Z
+
+### L-034 - Test that a matcher enforces its required delimiters with a near-miss line that omits each one
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md iteration 2 N5 (src/spinagram/ui/declare.py:18) (tests)
+- last seen: 2026-10-19T05:13:32Z
+
+### L-035 - Gate commands must install every optional extra the full test suite needs, or those tests must skip without it
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `gates` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md iteration 2 Gate Check (tests/test_engine.py::test_examples_render_all_backends) (gates)
+- last seen: 2026-10-19T05:13:32Z
+
+### L-036 - Test quoted-string matching with a near-miss where the value is followed by the other quote character inside a longer string
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: inspector-declarations
+- evidence: validation.md iteration 3 N3 (src/spinagram/ui/declare.py:14) (tests)
+- last seen: 2026-10-19T05:16:52Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

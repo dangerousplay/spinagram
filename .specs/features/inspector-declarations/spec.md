@@ -1,6 +1,6 @@
 # Feature: Code panel width fix and element inspector with declarations
 
-**Status:** Implementing (2026-10-19) · **Size:** Large · **Owner:** spinagram
+**Status:** Done (2026-10-19) · **Size:** Large · **Owner:** spinagram
 
 ## Problem Statement
 
@@ -156,30 +156,30 @@ additions to an existing local endpoint.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| LAYOUT-01 | P1: Code panel column | Tasks | Implemented |
-| LAYOUT-02 | P1: Code panel column | Tasks | Implemented |
-| ELI-01 | P1: Inspect any diagram | Tasks | Implemented |
-| ELI-02 | P1: Inspect any diagram | Tasks | Implemented |
-| ELI-03 | P1: Inspect any diagram | Tasks | Implemented |
-| ELI-04 | P1: Inspect any diagram | Tasks | Implemented |
-| HIL-01 | P1: Highlight | Tasks | Implemented |
-| HIL-02 | P1: Highlight | Tasks | Implemented |
-| HIL-03 | P1: Highlight | Tasks | Implemented |
-| HIL-04 | P1: Highlight | Tasks | Implemented |
-| DECL-01 | P1: Declarations | Tasks | Implemented |
-| DECL-02 | P1: Declarations | Tasks | Implemented |
-| DECL-03 | P1: Declarations | Tasks | Implemented |
-| DECL-04 | P1: Declarations | Tasks | Implemented |
-| DECL-05 | P1: Declarations | Tasks | Implemented |
-| DECL-06 | P1: Declarations | Tasks | Implemented |
-| DECL-07 | P1: Declarations | Tasks | Implemented |
-| DECL-08 | P1: Declarations | Tasks | Implemented |
-| DECL-09 | P1: Declarations | Tasks | Implemented |
-| DECL-10 | P1: Declarations | Tasks | Implemented |
-| KEY-01 | P1: Shortcuts stay out of the editor | Tasks | Implemented |
-| SIDE-01 | P2: Hide sidebar | Tasks | Implemented |
-| SIDE-02 | P2: Hide sidebar | Tasks | Implemented |
-| SIDE-03 | P2: Hide sidebar | Tasks | Implemented |
+| LAYOUT-01 | P1: Code panel column | Tasks | Verified |
+| LAYOUT-02 | P1: Code panel column | Tasks | Verified |
+| ELI-01 | P1: Inspect any diagram | Tasks | Verified |
+| ELI-02 | P1: Inspect any diagram | Tasks | Verified |
+| ELI-03 | P1: Inspect any diagram | Tasks | Verified |
+| ELI-04 | P1: Inspect any diagram | Tasks | Verified |
+| HIL-01 | P1: Highlight | Tasks | Verified |
+| HIL-02 | P1: Highlight | Tasks | Verified |
+| HIL-03 | P1: Highlight | Tasks | Verified |
+| HIL-04 | P1: Highlight | Tasks | Verified |
+| DECL-01 | P1: Declarations | Tasks | Verified |
+| DECL-02 | P1: Declarations | Tasks | Verified |
+| DECL-03 | P1: Declarations | Tasks | Verified |
+| DECL-04 | P1: Declarations | Tasks | Verified |
+| DECL-05 | P1: Declarations | Tasks | Verified |
+| DECL-06 | P1: Declarations | Tasks | Verified |
+| DECL-07 | P1: Declarations | Tasks | Verified |
+| DECL-08 | P1: Declarations | Tasks | Verified |
+| DECL-09 | P1: Declarations | Tasks | Verified |
+| DECL-10 | P1: Declarations | Tasks | Verified |
+| KEY-01 | P1: Shortcuts stay out of the editor | Tasks | Verified |
+| SIDE-01 | P2: Hide sidebar | Tasks | Verified |
+| SIDE-02 | P2: Hide sidebar | Tasks | Verified |
+| SIDE-03 | P2: Hide sidebar | Tasks | Verified |
 
 **Coverage:** 24 total, 24 mapped to tasks, 0 unmapped
 

@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 28,
+  "next_id": 37,
   "lessons": [
     {
       "id": "L-001",
@@ -490,6 +490,168 @@
       ],
       "created": "2026-10-17T17:49:20Z",
       "last_seen": "2026-10-17T17:49:20Z"
+    },
+    {
+      "id": "L-028",
+      "key": "surviving_mutant::when a spec says first match include a fixture with two matches and assert the first one is returned",
+      "text": "When a spec says first match, include a fixture with two matches and assert the first one is returned",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M4 (src/spinagram/ui/declare.py:50) (tests)"
+      ],
+      "created": "2026-10-19T05:07:41Z",
+      "last_seen": "2026-10-19T05:07:41Z"
+    },
+    {
+      "id": "L-029",
+      "key": "surviving_mutant::test literal matching of regex metacharacters with a pattern that holds the metacharacter against text that only matches it as a wildcard",
+      "text": "Test literal matching of regex metacharacters with a pattern that holds the metacharacter against text that only matches it as a wildcard",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M2 (src/spinagram/ui/declare.py:17) (tests)"
+      ],
+      "created": "2026-10-19T05:07:41Z",
+      "last_seen": "2026-10-19T05:07:41Z"
+    },
+    {
+      "id": "L-030",
+      "key": "surviving_mutant::test every word boundary a matcher claims on both sides with a near miss prefix and suffix",
+      "text": "Test every word boundary a matcher claims, on both sides, with a near-miss prefix and suffix",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M3 (src/spinagram/ui/declare.py:30) (tests)"
+      ],
+      "created": "2026-10-19T05:07:41Z",
+      "last_seen": "2026-10-19T05:07:41Z"
+    },
+    {
+      "id": "L-031",
+      "key": "surviving_mutant::test placement thresholds with a value between the boundaries each term of the formula sets",
+      "text": "Test placement thresholds with a value between the boundaries each term of the formula sets",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M14 (web/src/inspect.ts:32) (tests)"
+      ],
+      "created": "2026-10-19T05:07:41Z",
+      "last_seen": "2026-10-19T05:07:41Z"
+    },
+    {
+      "id": "L-032",
+      "key": "ac_gap::do not compose regex fragments that use numbered backreferences use named groups unique per fragment",
+      "text": "Do not compose regex fragments that use numbered backreferences; use named groups unique per fragment",
+      "signal": "ac_gap",
+      "scope": "regex",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "DECL-03 D1 (src/spinagram/ui/declare.py:31) (regex)"
+      ],
+      "created": "2026-10-19T05:07:41Z",
+      "last_seen": "2026-10-19T05:07:41Z"
+    },
+    {
+      "id": "L-033",
+      "key": "spec_precision_gap::state token terminators in matching acs as an exact pattern not a prose list",
+      "text": "State token terminators in matching ACs as an exact pattern, not a prose list",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "DECL-01 (validation.md) (spec)"
+      ],
+      "created": "2026-10-19T05:07:41Z",
+      "last_seen": "2026-10-19T05:07:41Z"
+    },
+    {
+      "id": "L-034",
+      "key": "surviving_mutant::test that a matcher enforces its required delimiters with a near miss line that omits each one",
+      "text": "Test that a matcher enforces its required delimiters with a near-miss line that omits each one",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md iteration 2 N5 (src/spinagram/ui/declare.py:18) (tests)"
+      ],
+      "created": "2026-10-19T05:13:32Z",
+      "last_seen": "2026-10-19T05:13:32Z"
+    },
+    {
+      "id": "L-035",
+      "key": "gate_fail::gate commands must install every optional extra the full test suite needs or those tests must skip without it",
+      "text": "Gate commands must install every optional extra the full test suite needs, or those tests must skip without it",
+      "signal": "gate_fail",
+      "scope": "gates",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md iteration 2 Gate Check (tests/test_engine.py::test_examples_render_all_backends) (gates)"
+      ],
+      "created": "2026-10-19T05:13:32Z",
+      "last_seen": "2026-10-19T05:13:32Z"
+    },
+    {
+      "id": "L-036",
+      "key": "surviving_mutant::test quoted string matching with a near miss where the value is followed by the other quote character inside a longer string",
+      "text": "Test quoted-string matching with a near-miss where the value is followed by the other quote character inside a longer string",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "inspector-declarations"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md iteration 3 N3 (src/spinagram/ui/declare.py:14) (tests)"
+      ],
+      "created": "2026-10-19T05:16:52Z",
+      "last_seen": "2026-10-19T05:16:52Z"
     }
   ]
 }

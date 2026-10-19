@@ -62,6 +62,11 @@
   endpoint requires `X-Spinagram: 1` (no CORS, so other origins cannot send it); writes go only to files listed by
   loaded diagrams, are version-checked (SHA-256) and atomic. See `features/live-editor/`.
 
+- 2026-10-19 · Inspector declarations: the styles report lists unstyled diagrams' elements (`css.inspect(all_elements=True)`;
+  the CLI keeps the old call) and gives each element a `declaration` found by a text search of its spec
+  (`spinagram.ui.declare.locate`), which also drives the code panel's click-to-line. Hover chip in screen px; Recent
+  sidebar and code panel both fold to rails. See `features/inspector-declarations/`.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).
