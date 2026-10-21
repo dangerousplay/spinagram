@@ -140,8 +140,10 @@ def test_fit_blocks_modes(mode, title, body, w, h):
             assert not bigger.ok or bigger.blocks[0].font.size > sizes[0]
     else:
         assert sizes == [24, 18]                         # grow alone never shrinks
-    if res.strategy == "grow":                           # TXT-05: box grows to the text height
-        assert res.ok and res.height > h and all(measure(ln, b.font) <= w + 0.5 for b in res.blocks for ln in b.lines)
+    if res.strategy == "grow" and res.ok:                # TXT-05: box grows to the text height
+        assert res.height > h and all(measure(ln, b.font) <= w + 0.5 for b in res.blocks for ln in b.lines)
+    if res.strategy == "grow" and not res.ok:            # TXT-07: grow tried last, but no size fits the width
+        assert any(measure(ln, b.font) > w + 0.5 for b in res.blocks for ln in b.lines)
     if not res.ok and "shrink" in mode:
         assert sizes == [24 - math.floor(24 - 24 * 0.85), 18 - math.floor(18 - 18 * 0.85)]  # exhausted: 21, 16
 
@@ -252,3 +254,30 @@ def test_grow_makes_the_box_taller():  # TXT-05 on a node
                     "cloud with autoscaling", w=230, h=80, fit="grow")
     assert s.h > 80
     assert sum(b.height for b in s.label.blocks) + 10 <= s.label.box[3] + 0.5
+
+
+OVERFLOW_SCENARIOS = [
+    # id, fit, w, h, title, expected kind, expected detail suffix
+    ("shrink-x", "shrink", 90, 200, "averyveryverylongunbreakabletokenname", "overflow-x", " after shrink to 21px"),
+    ("none-x", "none", 90, 200, "averyveryverylongunbreakabletokenname", "overflow-x", " after wrap to 24px"),
+    ("shrink-y", "shrink", 230, 40, "one two three four five six seven eight", "overflow-y", " after shrink to 21px"),
+    ("grow-x", "grow", 90, 40, "averyveryverylongunbreakabletokenname", "overflow-x", " after grow to 24px"),
+]
+
+
+@pytest.mark.parametrize("fit,w,h,title,kind,suffix", [s[1:] for s in OVERFLOW_SCENARIOS],
+                         ids=[s[0] for s in OVERFLOW_SCENARIOS])
+def test_overflow_detail_names_strategy(fit, w, h, title, kind, suffix):  # TXT-07
+    from spinagram.qa import check
+    d = Diagram("F", "Fit")
+    d.box(title, id="n", x=0, y=0, w=w, h=h, fit=fit)
+    got = [i for i in check(build_scene(d, THEME)) if i.item == "n" and i.kind == kind]
+    assert got and all(i.detail.endswith(suffix) for i in got)
+
+
+@pytest.mark.parametrize("fit", ["shrink", "grow", "shrink-then-grow"])
+def test_no_overflow_when_fitting_succeeds(fit):  # TXT-07: nothing reported when a strategy fits
+    from spinagram.qa import check
+    d = Diagram("F", "Fit")
+    d.box("lb-pool-https-8081", id="n", x=0, y=0, w=166, h=150, text="8 members · nginx :8081", fit=fit)
+    assert [i for i in check(build_scene(d, THEME)) if i.item == "n"] == []

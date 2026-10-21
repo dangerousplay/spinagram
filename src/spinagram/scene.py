@@ -211,6 +211,7 @@ class Scene:
     model_issues: list[tuple[str, str]] = field(default_factory=list)  # (item, message) from model rules
     style_warnings: list[str] = field(default_factory=list)            # stylesheet diagnostics
     annotation_issues: list[tuple[str, str, str]] = field(default_factory=list)  # (item, kind, detail)
+    fits: dict[str, tuple[str, float]] = field(default_factory=dict)  # node id → (fitting strategy, final size)
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}

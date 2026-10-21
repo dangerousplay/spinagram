@@ -42,6 +42,7 @@ class _Builder:
         self.styles = diagram.meta.get("css") or {}
         self.annotation_issues: list[tuple[str, str, str]] = []
         self.extras: dict[str, list] = {}  # items drawn right after a node (note accent bar, quote mark)
+        self.fits: dict[str, tuple[str, float]] = {}  # node id → (last fitting strategy, final first-block size)
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -85,10 +86,12 @@ class _Builder:
         """Fit a node's text blocks with its ``fit``/``min_scale``/``break_on`` (node, else theme defaults)."""
         nd = self.t.defaults("node")
         opt = {k: n.extra.get(k, nd.get(k)) for k in ("fit", "min_scale", "break_on")}
-        return textfit.fit_blocks(specs, width, height, mode=opt["fit"] or "shrink",
-                                  min_scale=opt["min_scale"] or textfit.MIN_SCALE,
-                                  break_on=opt["break_on"] if opt["break_on"] is not None else textfit.BREAK_ON,
-                                  gap=gap)
+        res = textfit.fit_blocks(specs, width, height, mode=opt["fit"] or "shrink",
+                                 min_scale=opt["min_scale"] or textfit.MIN_SCALE,
+                                 break_on=opt["break_on"] if opt["break_on"] is not None else textfit.BREAK_ON,
+                                 gap=gap)
+        self.fits[n.id] = (res.strategy, res.size)
+        return res
 
     def text(self, id: str, x: float, y: float, s: str, font: FontRef, color: str, anchor: str = "start",
              leading: float | None = None, letter_spacing: float = 0) -> Text:
@@ -480,6 +483,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene = builder.build()
     scene.style_warnings = list(diagram.meta.get("css_warnings") or []) + builder.warnings
     scene.annotation_issues = builder.annotation_issues
+    scene.fits = builder.fits
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

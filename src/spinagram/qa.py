@@ -71,14 +71,17 @@ def check(scene: Scene) -> list[Issue]:
     for it in scene.items:
         if isinstance(it, Shape) and it.label and it.role == "node":
             x, y, w, h = it.label.box
+            how = scene.fits.get(it.id)
+            after = f" after {how[0]} to {how[1]:g}px" if how else ""
             for b in it.label.blocks:
                 for line in b.lines:
                     lw = measure(line, b.font)
                     if lw > w + 1:
-                        issues.append(Issue(scene.id, it.id, "overflow-x", f"{line!r} is {lw:.0f}px > {w:.0f}px"))
+                        issues.append(Issue(scene.id, it.id, "overflow-x",
+                                            f"{line!r} is {lw:.0f}px > {w:.0f}px{after}"))
             total = sum(b.height for b in it.label.blocks) + it.label.gap * (len(it.label.blocks) - 1)
             if total > h + 1:
-                issues.append(Issue(scene.id, it.id, "overflow-y", f"text {total:.0f}px > box {h:.0f}px"))
+                issues.append(Issue(scene.id, it.id, "overflow-y", f"text {total:.0f}px > box {h:.0f}px{after}"))
         elif isinstance(it, TableGrid):
             for r, (rh, row) in enumerate(zip(it.row_heights, it.cells)):
                 for c, (cw, cell) in enumerate(zip(it.col_widths, row)):

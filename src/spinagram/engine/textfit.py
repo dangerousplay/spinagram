@@ -137,6 +137,9 @@ def fit_blocks(specs: list[BlockSpec], width: float, height: float, mode: str = 
                 first_width_fit = blocks
             if _fits_width(blocks, width) and _height(blocks, gap) <= height + 0.5:
                 return FitResult(blocks, _height(blocks, gap), strategy, True, blocks[0].font.size)
-    if "grow" in mode and first_width_fit is not None:  # the largest size whose lines fit, taller box
-        return FitResult(first_width_fit, _height(first_width_fit, gap), "grow", True, first_width_fit[0].font.size)
+    if "grow" in mode:
+        if first_width_fit is not None:  # the largest size whose lines fit, taller box
+            return FitResult(first_width_fit, _height(first_width_fit, gap), "grow", True,
+                             first_width_fit[0].font.size)
+        strategy = "grow"  # tried last: no size makes the lines fit the width, so height cannot help
     return FitResult(blocks, _height(blocks, gap), strategy, False, blocks[0].font.size)
