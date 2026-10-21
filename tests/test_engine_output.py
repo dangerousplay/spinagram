@@ -42,3 +42,47 @@ def test_unknown_name_from_raises():
     from spinagram.api import scenes
     with pytest.raises(ValueError, match="name_from 'title'"):
         scenes([Diagram("A", "B")], name_from="title")
+
+
+# requires (OUT-03) ------------------------------------------------------------------------------------------
+from spinagram.engine.version import satisfies  # noqa: E402
+
+SPECS = [
+    ("0.4.2", ">=0.4,<0.5", True), ("0.5.0", ">=0.4,<0.5", False), ("0.3.9", ">=0.4", False),
+    ("0.4.0", "==0.4.*", True), ("0.5.1", "==0.4.*", False), ("0.4.7", "~=0.4.1", True),
+    ("0.5.0", "~=0.4.1", False), ("1.0.0", "!=1.0.0", False), ("0.1.0", "<=0.1", True),
+]
+
+
+@pytest.mark.parametrize("version,spec,ok", SPECS, ids=[f"{v}-{s}" for v, s, _ in SPECS])
+def test_version_specifiers(version, spec, ok):
+    assert satisfies(version, spec) is ok
+
+
+def test_bad_clause_raises():
+    with pytest.raises(ValueError, match="clause '0.4'"):
+        satisfies("0.4.0", "0.4")
+
+
+@pytest.mark.parametrize("front", ["python", "yaml"])
+@pytest.mark.parametrize("requires,flagged", [(">=0.0.1", False), (">=99", True)], ids=["met", "unmet"])
+def test_requires_warns_and_reports(front, requires, flagged):
+    import warnings
+
+    from spinagram import Theme, build_scene
+    from spinagram.engine.version import installed
+    from spinagram.qa import check
+    from spinagram.yaml_io import from_dict
+    if front == "python":
+        d = Diagram("V", "Version", requires=requires)
+    else:
+        d = from_dict({"id": "V", "title": "Version", "requires": requires})
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        sc = build_scene(d, Theme.load("default"))
+    issues = [i for i in check(sc) if i.kind == "version-mismatch"]
+    if flagged:
+        assert any(f"written for spinagram {requires}" in str(x.message) for x in w)
+        assert [i.detail for i in issues] == [f"spec requires spinagram {requires}; installed {installed()}"]
+    else:
+        assert issues == [] and not w

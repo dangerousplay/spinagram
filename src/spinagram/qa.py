@@ -385,6 +385,10 @@ def check(scene: Scene) -> list[Issue]:
             issues.append(Issue(scene.id, "edges", "edge-crossings",
                                 f"{n} crossing(s); try route: ortho or swap anchor sides"))
     issues += contrast_issues(scene)
+    if scene.version_mismatch:
+        req, have = scene.version_mismatch
+        issues.append(Issue(scene.id, "requires", "version-mismatch", f"spec requires spinagram {req}; "
+                            f"installed {have}"))
     issues += [Issue(scene.id, cid, "not-straight", "the boxes share no span on either axis; move one or drop "
                      "straight") for cid in scene.not_straight]
     shapes = scene.shapes()

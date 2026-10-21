@@ -467,7 +467,7 @@ defects. The author should declare content and intent; the engine should own fit
 | STY-04 | P3: backend golden parity (S2) | Execute | Implementing |
 | OUT-01 | P3: output= names | Execute | Implementing |
 | OUT-02 | P3: --name-from | Execute | Implementing |
-| OUT-03 | P3: requires warning | Tasks | In Tasks |
+| OUT-03 | P3: requires warning | Execute | Implementing |
 | OUT-04 | P3: SVG metadata hash | Tasks | In Tasks |
 
 **Coverage:** 102 total, 102 mapped to tasks (T1–T60), 0 unmapped

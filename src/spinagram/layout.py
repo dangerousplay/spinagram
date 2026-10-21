@@ -628,6 +628,13 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     finally:
         trace, theme.icon_trace = theme.icon_trace, None
     scene.icon_sources = trace
+    if diagram.requires:
+        from .engine import version
+
+        have = version.installed()
+        if not version.satisfies(have, diagram.requires):
+            scene.version_mismatch = (diagram.requires, have)
+            warnings.warn(f"{diagram.id}: written for spinagram {diagram.requires}, running {have}", stacklevel=2)
     scene.style_warnings = list(diagram.meta.get("css_warnings") or []) + builder.warnings
     scene.annotation_issues = builder.annotation_issues
     scene.fits = builder.fits
