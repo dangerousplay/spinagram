@@ -147,6 +147,7 @@ class Edge:
     css: str | None = None
     fan: str | None = None      # "bus": into a zone through a bar spanning the zone's children
     route: str | None = None    # "ortho": routed around boxes, avoiding crossings; None: straight (or defaults)
+    fan_in: bool = False        # edges into the same target with fan_in share one trunk and one arrowhead
 
     def step(self, text: str, n: int | None = None) -> "Step":
         """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""
@@ -227,6 +228,13 @@ class Group:
     region: str | None = None      # flowchart | state_machine | activity (set by the builders)
     cls: str | None = None
     css: str | None = None
+
+
+@dataclass
+class Bundle:
+    """Edges into one target that share an orthogonal trunk on the ``trunk`` side of their sources."""
+    edges: list[int]               # indexes into ``Diagram.edges``
+    trunk: str | None = None       # right | left | top | bottom; None: the side facing the target
 
 
 @dataclass
@@ -377,6 +385,7 @@ class Diagram:
     tags: list[str] = field(default_factory=list)  # catalog tags, normalised: trimmed, lower-case, unique, sorted
     node_size: tuple[float, float] | None = None  # (w, h) for every node created without a size
     containers: list[Container] = field(default_factory=list)  # ``with d.row(...)`` / ``with d.column(...)``
+    bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
@@ -501,6 +510,18 @@ class Diagram:
             raise ValueError(f"final node {src} cannot have outgoing edges")
         if kinds.get(dst) == "initial":
             raise ValueError(f"initial node {dst} cannot have incoming edges")
+
+    def bundle(self, edges: Sequence[Any], trunk: str | None = None) -> Bundle:
+        """Route ``edges`` (Edge objects or indexes) into their common target through one shared trunk."""
+        idx = [e if isinstance(e, int) else next(i for i, o in enumerate(self.edges) if o is e) for e in edges]
+        targets = {str(self.edges[i].dst).partition(".")[0] for i in idx}
+        if len(targets) != 1:
+            raise ValueError(f"{self.id}: bundled edges must share one target, got {sorted(targets)}")
+        if trunk not in (None, "right", "left", "top", "bottom"):
+            raise ValueError(f"{self.id}: bundle trunk {trunk!r}; use right, left, top or bottom")
+        b = Bundle(idx, trunk)
+        self.bundles.append(b)
+        return b
 
     def chain(self, *nodes: Any, **kw: Any) -> list[Edge]:
         """Connect consecutive nodes: ``d.chain(a, b, c)``."""

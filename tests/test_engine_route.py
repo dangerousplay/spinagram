@@ -163,3 +163,66 @@ def test_edge_crossings_reported_with_count(n_h, n_v, n):
         assert len(got) == 1 and got[0].detail.startswith(f"{n} crossing(s)") and got[0].severity == "P2"
     else:
         assert got == []
+
+
+# bundles (EDG-13..16) -----------------------------------------------------------------------------------------
+def _sources_left(d, n):
+    return [d.box(f"S{k}", id=f"s{k}", x=200, y=250 + 150 * k, w=200, h=80) for k in range(n)]
+
+
+def _sources_top(d, n):
+    return [d.box(f"S{k}", id=f"s{k}", x=200 + 300 * k, y=200, w=200, h=80) for k in range(n)]
+
+
+TRUNKS = [
+    # id, source layout, target rect, trunk, expected trunk coordinate (x for left/right, y for top/bottom)
+    ("right", _sources_left, (1000, 400, 240, 100), "right", (400 + 1000) / 2),
+    ("auto-right", _sources_left, (1000, 400, 240, 100), None, (400 + 1000) / 2),
+    ("bottom", _sources_top, (500, 700, 240, 100), "bottom", (280 + 700) / 2),
+]
+
+
+BUNDLE_SCENARIOS = [pytest.param(n, *x[1:], how, id=f"{how}-{x[0]}-{n}sources")
+                    for how in ("bundle", "fan_in") for x in TRUNKS for n in (2, 3)
+                    if how == "bundle" or x[3] is None]   # fan_in picks the trunk side itself
+
+
+@pytest.mark.parametrize("n,layout,target,trunk,t,how", BUNDLE_SCENARIOS)
+def test_bundle_shares_one_trunk_and_one_arrowhead(n, layout, target, trunk, t, how):  # EDG-13, 14, 15
+    d = Diagram("R", "Route")
+    srcs = layout(d, n)
+    x, y, w, h = target
+    tgt = d.box("obs", id="obs", x=x, y=y, w=w, h=h)
+    es = [d.edge(s, tgt, fan_in=how == "fan_in") for s in srcs]
+    if how == "bundle":
+        d.bundle(es, trunk=trunk)
+    cs = _conns(build_scene(d, THEME))
+    vertical = layout is _sources_left
+    for c in cs:
+        assert _axis_aligned(c.points)
+        on_trunk = [p for p in c.points if (p[0] if vertical else p[1]) == pytest.approx(t)]
+        assert len(on_trunk) >= 2                                            # every edge runs along the trunk
+    assert [c.arrow_end for c in cs] == [False] * (n - 1) + [True]             # one arrowhead
+    end = cs[-1].points[-1]
+    assert end == pytest.approx((x, y + h / 2) if vertical else (x + w / 2, y))  # at the target's facing side
+    junction = cs[-1].points[-2]
+    assert all(c.points[-1] == junction for c in cs[:-1])                     # the others stop at the junction
+
+
+def test_bundle_with_two_targets_raises():  # EDG-16
+    d = Diagram("R", "Route")
+    a, b, c = (d.box(t, id=t, x=100 + 300 * k, y=300, w=200, h=80) for k, t in enumerate("abc"))
+    e1, e2 = d.edge(a, b), d.edge(a, c)
+    with pytest.raises(ValueError, match="share one target"):
+        d.bundle([e1, e2])
+
+
+def test_bundle_from_yaml():  # EDG-13 YAML parity
+    from spinagram.yaml_io import from_dict
+    d = from_dict({"id": "R", "title": "R",
+                   "nodes": [{"id": "s0", "title": "S0", "x": 200, "y": 250, "w": 200, "h": 80},
+                             {"id": "s1", "title": "S1", "x": 200, "y": 400, "w": 200, "h": 80},
+                             {"id": "obs", "title": "O", "x": 1000, "y": 400, "w": 240, "h": 100}],
+                   "edges": ["s0 -> obs", "s1 -> obs"], "bundles": [{"edges": [0, 1], "trunk": "right"}]})
+    cs = _conns(build_scene(d, THEME))
+    assert [c.arrow_end for c in cs] == [False, True] and all(any(p[0] == 700 for p in c.points) for c in cs)

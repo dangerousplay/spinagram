@@ -368,9 +368,19 @@ class _Builder:
         default = self.t.defaults("edge").get("route")
         todo = [i for i, e in enumerate(self.d.edges)
                 if (e.route or default) == "ortho" and not e.via and not e.curve]
+        targets = {**self.shapes, **{s.id: s for s in self.zone_shapes.values()}}
+        bundles = [(list(b.edges), b.trunk) for b in self.d.bundles]
+        fan: dict[str, list[int]] = {}
+        for i, e in enumerate(self.d.edges):  # fan_in edges into one target form an implicit bundle
+            if e.fan_in:
+                fan.setdefault(str(e.dst).partition(".")[0], []).append(i)
+        bundles += [(idx, None) for idx in fan.values() if len(idx) > 1]
+        bundled = {i for idx, _ in bundles for i in idx}
+        todo = [i for i in todo if i not in bundled]
         if todo:
-            targets = {**self.shapes, **{s.id: s for s in self.zone_shapes.values()}}
             router.route_ortho(edges, todo, self.shapes, targets)
+        for idx, trunk in bundles:
+            router.route_bundle(edges, idx, trunk, targets)
 
     def place_labels(self, edges: list[Connector]) -> None:
         """Move edge labels clear of nodes, zone headers, arrowheads, other labels and the canvas margin."""

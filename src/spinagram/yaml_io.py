@@ -117,6 +117,8 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
             e["cls"] = e.pop("class")
         src, dst = e.pop("from"), e.pop("to")
         d.edge(src, dst, **e)
+    for b in data.get("bundles") or []:  # bundles: [{edges: [0, 1], trunk: right}] (edge indexes)
+        d.bundle(list(b["edges"]), b.get("trunk"))
     for t in data.get("tables") or []:
         d.tables.append(Table(**t))
     _annotations(d, data.get("annotations") or {})

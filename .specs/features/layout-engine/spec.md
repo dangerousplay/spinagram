@@ -436,10 +436,10 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-16 | P2: equalize siblings | Execute | Implementing |
 | ZON-17 | P2: clips/underused checks | Execute | Implementing |
 | ZON-18 | P2: zone context manager | Execute | Implementing |
-| EDG-13 | P2: Bundle API | Tasks | In Tasks |
-| EDG-14 | P2: Bundle trunk routing | Tasks | In Tasks |
-| EDG-15 | P2: Bundle single arrowhead | Tasks | In Tasks |
-| EDG-16 | P2: Bundle target mismatch | Tasks | In Tasks |
+| EDG-13 | P2: Bundle API | Execute | Implementing |
+| EDG-14 | P2: Bundle trunk routing | Execute | Implementing |
+| EDG-15 | P2: Bundle single arrowhead | Execute | Implementing |
+| EDG-16 | P2: Bundle target mismatch | Execute | Implementing |
 | EDG-17 | P2: Ortho routing | Execute | Implementing |
 | EDG-18 | P2: Crossing penalty | Execute | Implementing |
 | EDG-19 | P2: Ortho determinism | Execute | Implementing |

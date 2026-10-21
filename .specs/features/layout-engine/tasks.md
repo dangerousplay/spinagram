@@ -1308,10 +1308,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `d.bundle([...], trunk=)` and `fan_in=True`; shared trunk line; one arrowhead; ValueError on mixed targets; YAML; DDT trunk side × source count
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_route.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `d.bundle([...], trunk=)` and `fan_in=True`; shared trunk line; one arrowhead; ValueError on mixed targets; YAML; DDT trunk side × source count
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_route.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

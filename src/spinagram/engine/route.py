@@ -63,3 +63,49 @@ def route_ortho(connectors: list[Connector], todo: list[int], shapes: dict[str, 
         c.src = Binding(c.src.shape_id, _side(pts[0], pts[1]), 0.5, c.src.target)
         c.dst = Binding(c.dst.shape_id, _side(pts[-1], pts[-2]), 0.5, c.dst.target)
         placed.append(segments(c))
+
+
+def _trunk_side(srcs: list[Shape], tgt: Shape) -> str:
+    """The side of the sources facing the target."""
+    cx = sum(s.x + s.w / 2 for s in srcs) / len(srcs)
+    cy = sum(s.y + s.h / 2 for s in srcs) / len(srcs)
+    dx, dy = tgt.x + tgt.w / 2 - cx, tgt.y + tgt.h / 2 - cy
+    return ("right" if dx > 0 else "left") if abs(dx) >= abs(dy) else ("bottom" if dy > 0 else "top")
+
+
+_OPPOSITE = {"right": "left", "left": "right", "top": "bottom", "bottom": "top"}
+
+
+def route_bundle(connectors: list[Connector], idx: list[int], trunk: str | None, targets: dict[str, Shape]) -> None:
+    """Edges ``idx`` leave their sources on the ``trunk`` side, join one trunk line midway between the sources
+    and the target, and reach the target together: only the last keeps its arrowhead; the others end at the
+    junction."""
+    cs = [connectors[i] for i in idx if connectors[i].src is not None and connectors[i].dst is not None]
+    if not cs:
+        return
+    srcs = [targets[c.src.shape_id] for c in cs]
+    tgt = targets[cs[0].dst.shape_id]
+    side = trunk or _trunk_side(srcs, tgt)
+    vertical = side in ("left", "right")  # the trunk line itself is vertical for left/right
+    if side == "right":
+        t = (max(s.x + s.w for s in srcs) + tgt.x) / 2
+    elif side == "left":
+        t = (min(s.x for s in srcs) + tgt.x + tgt.w) / 2
+    elif side == "bottom":
+        t = (max(s.y + s.h for s in srcs) + tgt.y) / 2
+    else:
+        t = (min(s.y for s in srcs) + tgt.y + tgt.h) / 2
+    tside = _OPPOSITE[side]
+    end = tgt.anchor(tside, 0.5)
+    join = (t, end[1]) if vertical else (end[0], t)
+    for k, (c, s) in enumerate(zip(cs, srcs)):
+        start = s.anchor(side, 0.5)
+        bend = (t, start[1]) if vertical else (start[0], t)
+        last = k == len(cs) - 1
+        c.points = [start, bend, join] + ([end] if last else [])
+        c.route = "poly"
+        c.src = Binding(c.src.shape_id, side, 0.5, c.src.target)
+        if last:
+            c.dst = Binding(c.dst.shape_id, tside, 0.5, c.dst.target)
+        else:
+            c.dst, c.arrow_end, c.marker_end = None, False, "none"
