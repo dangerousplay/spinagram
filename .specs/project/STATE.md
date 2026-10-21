@@ -76,6 +76,14 @@
   confined to `--root`; the server `-t` is not. Accepted by the user after 4 Verifier passes found only test gaps
   after iteration 2; see `features/mcp-server/validation.md`.
 
+- 2026-10-21 · Layout engine (`features/layout-engine/`): staged passes in `spinagram.engine` (model passes →
+  builder helpers → route → labels → annotations → legend). New behaviour is default-on only where 0.3 output was
+  broken (text fitting, label avoidance, inset zone headers, glyph fallback); everything else is opt-in. Fixed-layout
+  checks (label-collision, edge-through-box, safe area, icon/zone checks) skip engine-laid-out diagrams. Glyph
+  coverage only from a font's cmap; bundled Noto Sans Symbols 2 + Noto Sans Math (OFL subsets). `check --fix` never
+  writes the source (`<stem>.fixed.yaml`, suggestions for `.py`). low-contrast defaults: text < 2.0, icon < 1.5
+  (user choice; theme raises to WCAG). Auto legend is `add_legend(items="auto")` (`Diagram.legend` is taken).
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).

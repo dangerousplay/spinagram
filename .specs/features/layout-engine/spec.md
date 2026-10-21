@@ -369,108 +369,108 @@ defects. The author should declare content and intent; the engine should own fit
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| TXT-01 | P1: Text fits (wrap spaces) | Execute | Implementing |
-| TXT-02 | P1: Text fits (break tokens) | Execute | Implementing |
-| TXT-03 | P1: Text fits (CIDR intact) | Execute | Implementing |
-| TXT-04 | P1: Text fits (shrink) | Execute | Implementing |
-| TXT-05 | P1: Text fits (grow) | Execute | Implementing |
-| TXT-06 | P1: Text fits (fit=none) | Execute | Implementing |
-| TXT-07 | P1: Text fits (overflow detail) | Execute | Implementing |
-| TXT-08 | P1: Text fits (options/defaults) | Execute | Implementing |
-| TXT-09 | P1: Text fits (letter spacing) | Execute | Implementing |
-| ZON-01 | P1: Zone header (padding) | Execute | Implementing |
-| ZON-02 | P1: Zone header (icon size) | Execute | Implementing |
-| ZON-03 | P1: Zone header (label centre) | Execute | Implementing |
-| ZON-04 | P1: Zone header (chips) | Execute | Implementing |
-| ZON-05 | P1: Zone header (strip) | Execute | Implementing |
-| ZON-06 | P1: Zone header (content_top) | Execute | Implementing |
-| ZON-07 | P1: Zone header (flush opt-out) | Execute | Implementing |
-| ZON-08 | P1: Zone header (upper) | Execute | Implementing |
-| ZON-09 | P1: Zone outlines (dash values) | Execute | Implementing |
-| ZON-10 | P1: Zone outlines (stroke/fill) | Execute | Implementing |
-| ZON-11 | P1: Zone outlines (id/class CSS) | Execute | Implementing |
-| ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Execute | Implementing |
-| ZON-13 | P1: Zone outlines (fill none CSS) | Execute | Implementing |
-| EDG-01 | P1: Edge labels (candidates) | Execute | Implementing |
-| EDG-02 | P1: Edge labels (rejection) | Execute | Implementing |
-| EDG-03 | P1: Edge labels (first free) | Execute | Implementing |
-| EDG-04 | P1: Edge labels (fallback + report) | Execute | Implementing |
-| EDG-05 | P1: Edge labels (label_at) | Execute | Implementing |
-| EDG-06 | P1: Edge labels (deterministic) | Execute | Implementing |
-| EDG-07 | P1: Zone targets (endpoint forms) | Execute | Implementing |
-| EDG-08 | P1: Zone targets (side/point) | Execute | Implementing |
-| EDG-09 | P1: Zone targets (bus) | Execute | Implementing |
-| EDG-10 | P1: Zone targets (check exclusion) | Execute | Implementing |
-| EDG-11 | P1: Zone targets (PPTX binding) | Execute | Implementing |
-| EDG-12 | P1: Zone targets (unknown id) | Execute | Implementing |
-| CHK-01 | P1: Diagnostics (new kinds) | Execute | Implementing |
-| CHK-02 | P1: Diagnostics (fix dicts) | Execute | Implementing |
-| CHK-03 | P1: Diagnostics (--json) | Execute | Implementing |
-| CHK-04 | P1: Fix (YAML) | Execute | Implementing |
-| CHK-05 | P1: Fix (Python) | Execute | Implementing |
-| CHK-06 | P1: Fix (render --relayout) | Execute | Implementing |
-| CHK-07 | P1: Fix (convergence) | Execute | Implementing |
-| CHK-08 | P1: Fix (safe-area guard) | Execute | Implementing |
-| ICN-01 | P2: Icon aspect (intrinsic ratio) | Execute | Implementing |
-| ICN-02 | P2: Icon aspect (fit by height) | Execute | Implementing |
-| ICN-03 | P2: Icon aspect (wordmark ≥24px) | Execute | Implementing |
-| ICN-04 | P2: Icon aspect (variant) | Execute | Implementing |
-| ICN-05 | P2: Icon aspect (centred icon-only) | Execute | Implementing |
-| ICN-06 | P2: Badges (API) | Execute | Implementing |
-| ICN-07 | P2: Badges (size/halo) | Execute | Implementing |
-| ICN-08 | P2: Badges (placement) | Execute | Implementing |
-| ICN-09 | P2: Badges (text clearance) | Execute | Implementing |
-| ICN-10 | P2: Badges (cap) | Execute | Implementing |
-| TXT-10 | P2: Glyph fallback (cmap) | Execute | Implementing |
-| TXT-11 | P2: Glyph fallback (chain) | Execute | Implementing |
-| TXT-12 | P2: Glyph fallback (SVG) | Execute | Implementing |
-| TXT-13 | P2: Glyph fallback (PPTX) | Execute | Implementing |
-| TXT-14 | P2: Glyph fallback (check) | Execute | Implementing |
-| TXT-15 | P2: Glyph fallback (metrics) | Execute | Implementing |
-| BOX-01 | P2: Content-sized boxes | Execute | Implementing |
-| BOX-02 | P2: Row/column context managers | Execute | Implementing |
-| BOX-03 | P2: same_size | Execute | Implementing |
-| BOX-04 | P2: max_width failure | Execute | Implementing |
-| BOX-05 | P2: Legacy row/column | Execute | Implementing |
-| BOX-06 | P2: same_icon_size (I4) | Execute | Implementing |
-| ZON-14 | P2: Zones fit children | Execute | Implementing |
-| ZON-15 | P2: Nested resolution order | Execute | Implementing |
-| ZON-16 | P2: equalize siblings | Execute | Implementing |
-| ZON-17 | P2: clips/underused checks | Execute | Implementing |
-| ZON-18 | P2: zone context manager | Execute | Implementing |
-| EDG-13 | P2: Bundle API | Execute | Implementing |
-| EDG-14 | P2: Bundle trunk routing | Execute | Implementing |
-| EDG-15 | P2: Bundle single arrowhead | Execute | Implementing |
-| EDG-16 | P2: Bundle target mismatch | Execute | Implementing |
-| EDG-17 | P2: Ortho routing | Execute | Implementing |
-| EDG-18 | P2: Crossing penalty | Execute | Implementing |
-| EDG-19 | P2: Ortho determinism | Execute | Implementing |
-| EDG-20 | P2: edge-crossings check | Execute | Implementing |
-| EDG-21 | P2: explicit route kept | Execute | Implementing |
-| LEG-01 | P2: meaning= | Execute | Implementing |
-| LEG-02 | P2: auto rows | Execute | Implementing |
-| LEG-03 | P2: row removal | Execute | Implementing |
-| LEG-04 | P2: row swatches | Execute | Implementing |
-| LEG-05 | P2: placement | Execute | Implementing |
-| GRD-01 | P3: grid cells | Execute | Implementing |
-| GRD-02 | P3: align helpers | Execute | Implementing |
-| GRD-03 | P3: straight edges | Execute | Implementing |
-| GRD-04 | P3: not-straight check | Execute | Implementing |
-| GRD-05 | P3: anchor methods (E5) | Execute | Implementing |
-| ICN-11 | P3: fallback chain | Execute | Implementing |
-| ICN-12 | P3: icon source record | Execute | Implementing |
-| ICN-13 | P3: icons report CLI | Execute | Implementing |
-| TXT-16 | P3: label size= | Execute | Implementing |
-| TXT-17 | P3: label roles | Execute | Implementing |
-| TXT-18 | P3: label max_width | Execute | Implementing |
-| STY-01 | P3: CSS none colours | Execute | Implementing |
-| STY-02 | P3: CSS element types | Execute | Implementing |
-| STY-03 | P3: icon-only box defaults | Execute | Implementing |
-| STY-04 | P3: backend golden parity (S2) | Execute | Implementing |
-| OUT-01 | P3: output= names | Execute | Implementing |
-| OUT-02 | P3: --name-from | Execute | Implementing |
-| OUT-03 | P3: requires warning | Execute | Implementing |
-| OUT-04 | P3: SVG metadata hash | Execute | Implementing |
+| TXT-01 | P1: Text fits (wrap spaces) | Verified | Verified |
+| TXT-02 | P1: Text fits (break tokens) | Verified | Verified |
+| TXT-03 | P1: Text fits (CIDR intact) | Verified | Verified |
+| TXT-04 | P1: Text fits (shrink) | Verified | Verified |
+| TXT-05 | P1: Text fits (grow) | Verified | Verified |
+| TXT-06 | P1: Text fits (fit=none) | Verified | Verified |
+| TXT-07 | P1: Text fits (overflow detail) | Verified | Verified |
+| TXT-08 | P1: Text fits (options/defaults) | Verified | Verified |
+| TXT-09 | P1: Text fits (letter spacing) | Verified | Verified |
+| ZON-01 | P1: Zone header (padding) | Verified | Verified |
+| ZON-02 | P1: Zone header (icon size) | Verified | Verified |
+| ZON-03 | P1: Zone header (label centre) | Verified | Verified |
+| ZON-04 | P1: Zone header (chips) | Verified | Verified |
+| ZON-05 | P1: Zone header (strip) | Verified | Verified |
+| ZON-06 | P1: Zone header (content_top) | Verified | Verified |
+| ZON-07 | P1: Zone header (flush opt-out) | Verified | Verified |
+| ZON-08 | P1: Zone header (upper) | Verified | Verified |
+| ZON-09 | P1: Zone outlines (dash values) | Verified | Verified |
+| ZON-10 | P1: Zone outlines (stroke/fill) | Verified | Verified |
+| ZON-11 | P1: Zone outlines (id/class CSS) | Verified | Verified |
+| ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Verified | Verified |
+| ZON-13 | P1: Zone outlines (fill none CSS) | Verified | Verified |
+| EDG-01 | P1: Edge labels (candidates) | Verified | Verified |
+| EDG-02 | P1: Edge labels (rejection) | Verified | Verified |
+| EDG-03 | P1: Edge labels (first free) | Verified | Verified |
+| EDG-04 | P1: Edge labels (fallback + report) | Verified | Verified |
+| EDG-05 | P1: Edge labels (label_at) | Verified | Verified |
+| EDG-06 | P1: Edge labels (deterministic) | Verified | Verified |
+| EDG-07 | P1: Zone targets (endpoint forms) | Verified | Verified |
+| EDG-08 | P1: Zone targets (side/point) | Verified | Verified |
+| EDG-09 | P1: Zone targets (bus) | Verified | Verified |
+| EDG-10 | P1: Zone targets (check exclusion) | Verified | Verified |
+| EDG-11 | P1: Zone targets (PPTX binding) | Verified | Verified |
+| EDG-12 | P1: Zone targets (unknown id) | Verified | Verified |
+| CHK-01 | P1: Diagnostics (new kinds) | Verified | Verified |
+| CHK-02 | P1: Diagnostics (fix dicts) | Verified | Verified |
+| CHK-03 | P1: Diagnostics (--json) | Verified | Verified |
+| CHK-04 | P1: Fix (YAML) | Verified | Verified |
+| CHK-05 | P1: Fix (Python) | Verified | Verified |
+| CHK-06 | P1: Fix (render --relayout) | Verified | Verified |
+| CHK-07 | P1: Fix (convergence) | Verified | Verified |
+| CHK-08 | P1: Fix (safe-area guard) | Verified | Verified |
+| ICN-01 | P2: Icon aspect (intrinsic ratio) | Verified | Verified |
+| ICN-02 | P2: Icon aspect (fit by height) | Verified | Verified |
+| ICN-03 | P2: Icon aspect (wordmark ≥24px) | Verified | Verified |
+| ICN-04 | P2: Icon aspect (variant) | Verified | Verified |
+| ICN-05 | P2: Icon aspect (centred icon-only) | Verified | Verified |
+| ICN-06 | P2: Badges (API) | Verified | Verified |
+| ICN-07 | P2: Badges (size/halo) | Verified | Verified |
+| ICN-08 | P2: Badges (placement) | Verified | Verified |
+| ICN-09 | P2: Badges (text clearance) | Verified | Verified |
+| ICN-10 | P2: Badges (cap) | Verified | Verified |
+| TXT-10 | P2: Glyph fallback (cmap) | Verified | Verified |
+| TXT-11 | P2: Glyph fallback (chain) | Verified | Verified |
+| TXT-12 | P2: Glyph fallback (SVG) | Verified | Verified |
+| TXT-13 | P2: Glyph fallback (PPTX) | Verified | Verified |
+| TXT-14 | P2: Glyph fallback (check) | Verified | Verified |
+| TXT-15 | P2: Glyph fallback (metrics) | Verified | Verified |
+| BOX-01 | P2: Content-sized boxes | Verified | Verified |
+| BOX-02 | P2: Row/column context managers | Verified | Verified |
+| BOX-03 | P2: same_size | Verified | Verified |
+| BOX-04 | P2: max_width failure | Verified | Verified |
+| BOX-05 | P2: Legacy row/column | Verified | Verified |
+| BOX-06 | P2: same_icon_size (I4) | Verified | Verified |
+| ZON-14 | P2: Zones fit children | Verified | Verified |
+| ZON-15 | P2: Nested resolution order | Verified | Verified |
+| ZON-16 | P2: equalize siblings | Verified | Verified |
+| ZON-17 | P2: clips/underused checks | Verified | Verified |
+| ZON-18 | P2: zone context manager | Verified | Verified |
+| EDG-13 | P2: Bundle API | Verified | Verified |
+| EDG-14 | P2: Bundle trunk routing | Verified | Verified |
+| EDG-15 | P2: Bundle single arrowhead | Verified | Verified |
+| EDG-16 | P2: Bundle target mismatch | Verified | Verified |
+| EDG-17 | P2: Ortho routing | Verified | Verified |
+| EDG-18 | P2: Crossing penalty | Verified | Verified |
+| EDG-19 | P2: Ortho determinism | Verified | Verified |
+| EDG-20 | P2: edge-crossings check | Verified | Verified |
+| EDG-21 | P2: explicit route kept | Verified | Verified |
+| LEG-01 | P2: meaning= | Verified | Verified |
+| LEG-02 | P2: auto rows | Verified | Verified |
+| LEG-03 | P2: row removal | Verified | Verified |
+| LEG-04 | P2: row swatches | Verified | Verified |
+| LEG-05 | P2: placement | Verified | Verified |
+| GRD-01 | P3: grid cells | Verified | Verified |
+| GRD-02 | P3: align helpers | Verified | Verified |
+| GRD-03 | P3: straight edges | Verified | Verified |
+| GRD-04 | P3: not-straight check | Verified | Verified |
+| GRD-05 | P3: anchor methods (E5) | Verified | Verified |
+| ICN-11 | P3: fallback chain | Verified | Verified |
+| ICN-12 | P3: icon source record | Verified | Verified |
+| ICN-13 | P3: icons report CLI | Verified | Verified |
+| TXT-16 | P3: label size= | Verified | Verified |
+| TXT-17 | P3: label roles | Verified | Verified |
+| TXT-18 | P3: label max_width | Verified | Verified |
+| STY-01 | P3: CSS none colours | Verified | Verified |
+| STY-02 | P3: CSS element types | Verified | Verified |
+| STY-03 | P3: icon-only box defaults | Verified | Verified |
+| STY-04 | P3: backend golden parity (S2) | Verified | Verified |
+| OUT-01 | P3: output= names | Verified | Verified |
+| OUT-02 | P3: --name-from | Verified | Verified |
+| OUT-03 | P3: requires warning | Verified | Verified |
+| OUT-04 | P3: SVG metadata hash | Verified | Verified |
 
 **Coverage:** 102 total, 102 mapped to tasks (T1–T60), 0 unmapped
 
