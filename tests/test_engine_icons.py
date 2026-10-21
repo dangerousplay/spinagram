@@ -94,3 +94,43 @@ def test_svg_backend_draws_icon_at_its_width(tmp_path):
     d = Diagram("I", "Icons")
     d.box("T", id="n", x=100, y=100, w=500, h=120, icon=str(p), icon_size=40)
     assert 'width="160" height="40"' in to_svg(build_scene(d, THEME))
+
+
+# variants (ICN-04) --------------------------------------------------------------------------------------------
+def _variant_theme(tmp_path, aliases):
+    import yaml
+    for name in ("plain", "wide", "mark"):
+        _svg(tmp_path, name, 'viewBox="0 0 400 100"' if name == "wide" else 'viewBox="0 0 10 10"')
+    (tmp_path / "theme.yaml").write_text("extends: default\n" + yaml.safe_dump({"icons": {"alias": aliases}}))
+    return Theme.load(tmp_path)
+
+
+VARIANTS = [
+    # id, aliases, variant, expected file stem
+    ("wordmark-alias", {"vmware": "plain.svg", "vmware-wordmark": "wide.svg"}, "wordmark", "wide"),
+    ("symbol-alias", {"vmware": "plain.svg", "vmware-symbol": "mark.svg"}, "symbol", "mark"),
+    ("no-alias-falls-back", {"vmware": "plain.svg"}, "wordmark", "plain"),
+    ("no-variant", {"vmware": "plain.svg", "vmware-wordmark": "wide.svg"}, None, "plain"),
+]
+
+
+@pytest.mark.parametrize("aliases,variant,stem", [v[1:] for v in VARIANTS], ids=[v[0] for v in VARIANTS])
+@pytest.mark.parametrize("where", ["box", "zone"])
+def test_icon_variant_resolves_theme_alias(tmp_path, aliases, variant, stem, where):
+    th = _variant_theme(tmp_path, {k: str(tmp_path / v) for k, v in aliases.items()})
+    d = Diagram("I", "Icons")
+    if where == "box":
+        kw = {"variant": variant} if variant else {}
+        d.box("T", id="n", x=100, y=100, w=500, h=120, icon="vmware", **kw)
+        ic = next(i for i in build_scene(d, th).items if isinstance(i, Shape) and i.id == "n").icon
+    else:
+        d.zone("Z", x=100, y=100, w=800, h=400, icon="vmware", header={"variant": variant})
+        ic = next(i for i in build_scene(d, th).items if isinstance(i, Shape) and i.id == "z0-icon").icon
+    assert ic.path.stem == stem
+
+
+def test_note_variant_is_not_an_icon_variant(tmp_path):
+    th = _variant_theme(tmp_path, {"vmware": str(tmp_path / "plain.svg"), "vmware-card": str(tmp_path / "wide.svg")})
+    d = Diagram("I", "Icons")
+    d.note("N", id="n", x=100, y=100, w=500, h=120, icon="vmware", variant="card")
+    assert next(i for i in build_scene(d, th).items if isinstance(i, Shape) and i.id == "n").icon.path.stem == "plain"

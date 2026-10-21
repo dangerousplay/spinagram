@@ -50,3 +50,15 @@ def place(path: Path, x: float, slot_y: float, slot_h: float, height: float, max
     w, h = fit(path, height, max_width)
     ix = center_x - w / 2 if center_x is not None else x
     return Icon(path, ix, slot_y + (slot_h - h) / 2, h, w=w)
+
+
+ICON_VARIANTS = ("wordmark", "symbol")
+
+
+def variant_name(theme, name: str | None, variant: str | None) -> str | None:
+    """``name`` swapped for the theme alias ``<name>-<variant>`` when the theme defines one."""
+    if not name or variant not in ICON_VARIANTS:
+        return name
+    alias = ((theme.data.get("icons") or {}).get("alias") or {})
+    key = f"{name}-{variant}"
+    return key if key in alias else name

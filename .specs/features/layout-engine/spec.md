@@ -412,7 +412,7 @@ defects. The author should declare content and intent; the engine should own fit
 | ICN-01 | P2: Icon aspect (intrinsic ratio) | Execute | Implementing |
 | ICN-02 | P2: Icon aspect (fit by height) | Execute | Implementing |
 | ICN-03 | P2: Icon aspect (wordmark ≥24px) | Execute | Implementing |
-| ICN-04 | P2: Icon aspect (variant) | Tasks | In Tasks |
+| ICN-04 | P2: Icon aspect (variant) | Execute | Implementing |
 | ICN-05 | P2: Icon aspect (centred icon-only) | Execute | Implementing |
 | ICN-06 | P2: Badges (API) | Tasks | In Tasks |
 | ICN-07 | P2: Badges (size/halo) | Tasks | In Tasks |

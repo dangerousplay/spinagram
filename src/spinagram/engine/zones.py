@@ -40,7 +40,7 @@ def outline(z: Zone, zs: dict, theme: Theme) -> dict:
 
 
 HEADER = {"inset": True, "padding": 14, "icon_size": 28, "gap": 12, "chip_gap": 8, "label_gap": 10,
-          "strip": None, "upper": None}
+          "strip": None, "upper": None, "variant": None}
 
 
 def header_options(z: Zone, zs: dict | None, theme: Theme | None) -> dict:

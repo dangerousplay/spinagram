@@ -156,7 +156,8 @@ class _Builder:
         pad = nd.get("padding", 22)
         ts, bs = n.title_size or nd.get("title_size", 24), n.body_size or nd.get("body_size", 18)
         center = n.align == "center"
-        icon_path = self.t.icon(n.icon, st["tone"], self.d.base_dir)
+        icon_name = n.icon if n.kind == "note" else icon_fit.variant_name(self.t, n.icon, n.extra.get("variant"))
+        icon_path = self.t.icon(icon_name, st["tone"], self.d.base_dir)
         if n.icon and icon_path is None:
             warnings.warn(f"{self.d.id}: icon {n.icon!r} not found in theme {self.t.data.get('name')}", stacklevel=2)
         icon, offset, top = None, 0.0, 0.0
@@ -217,6 +218,7 @@ class _Builder:
         opts = zones.header_options(z, zs, t)
         names = z.icon or zs["icon"]
         names = [names] if isinstance(names, str) else list(names or [])
+        names = [icon_fit.variant_name(t, nm, opts.get("variant")) for nm in names]
         paths = [p for p in (t.icon(n, "light", self.d.base_dir) for n in names) if p is not None]
         size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
         isz_hdr = opts["icon_size"] if opts["inset"] else zd.get("icon_size", 32)
