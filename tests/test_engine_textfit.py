@@ -352,3 +352,34 @@ def test_label_options_from_yaml():
                                                        "y": 100, "size": 22, "role": "caption", "max_width": 300}]})
     assert {k: d.nodes[0].extra[k] for k in ("size", "role", "max_width")} == {"size": 22, "role": "caption",
                                                                               "max_width": 300}
+
+
+# TXT-08 behaviour (fix after verification): break_on and theme defaults change the result -----------------------
+@pytest.mark.parametrize("break_on,lines_have_dot_breaks", [("-./:·", True), ("-", False)], ids=["default", "dash-only"])
+def test_break_on_changes_where_tokens_break(break_on, lines_have_dot_breaks):
+    d = Diagram("F", "Fit")
+    d.box("gitlab.node-a.example.internal", id="n", x=200, y=200, w=200, h=200, break_on=break_on)
+    s = next(i for i in build_scene(d, THEME).items if isinstance(i, Shape) and i.id == "n")
+    ends = [ln[-1] for ln in s.label.blocks[0].lines[:-1]]
+    assert ("." in ends) == lines_have_dot_breaks and all(e in break_on for e in ends)
+
+
+@pytest.mark.parametrize("theme_node,size", [({"min_scale": 0.5}, 12), ({"min_scale": 0.95}, 23)],
+                         ids=["min_scale-0.5", "min_scale-0.95"])
+def test_theme_defaults_drive_fitting(tmp_path, theme_node, size):
+    import yaml
+    (tmp_path / "theme.yaml").write_text("extends: default\n" + yaml.safe_dump({"defaults": {"node": theme_node}}))
+    d = Diagram("F", "Fit")
+    d.box("averyveryverylongunbreakable-token", id="n", x=200, y=200, w=120, h=200)
+    s = next(i for i in build_scene(d, Theme.load(tmp_path)).items if isinstance(i, Shape) and i.id == "n")
+    assert s.label.blocks[0].font.size == size
+
+
+@pytest.mark.parametrize("break_on,dot_breaks", [("-./:·", True), ("-", False)], ids=["default", "theme-dash-only"])
+def test_theme_break_on_changes_breaks(tmp_path, break_on, dot_breaks):
+    import yaml
+    (tmp_path / "theme.yaml").write_text("extends: default\n" + yaml.safe_dump({"defaults": {"node": {"break_on": break_on}}}))
+    d = Diagram("F", "Fit")
+    d.box("gitlab.node-a.example.internal", id="n", x=200, y=200, w=200, h=200)
+    s = next(i for i in build_scene(d, Theme.load(tmp_path)).items if isinstance(i, Shape) and i.id == "n")
+    assert ("." in [ln[-1] for ln in s.label.blocks[0].lines[:-1]]) == dot_breaks

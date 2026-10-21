@@ -85,6 +85,7 @@ def test_rows_draw_their_style(place):  # LEG-04
     net, az = by["legend-2-swatch"], by["legend-3-swatch"]
     assert isinstance(net, Shape) and (net.dash, net.cap) == (by["z0"].dash, None)
     assert (az.dash, az.cap) == (by["z1"].dash, "round") and az.stroke == by["z1"].stroke
+    assert (net.fill, az.fill) == (by["z0"].fill, by["z1"].fill) and net.fill is not None   # zone fill shown
 
 
 def test_band_placement_uses_the_annotation_band():  # LEG-05 band

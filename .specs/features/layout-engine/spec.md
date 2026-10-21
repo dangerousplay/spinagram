@@ -56,6 +56,8 @@ defects. The author should declare content and intent; the engine should own fit
 | `low-contrast` threshold | Near-invisible only: text < 2.0:1, icons < 1.5:1; theme `defaults.check.contrast` raises to WCAG (3 / 4.5 / 3) | Strict WCAG flags the default theme and brand icons in every example (asked 2026-10-20) | y |
 | Safe area | theme `canvas.margin` (default 80) | Existing token | n (roadmap/agent default) |
 | Output naming | `Diagram(output=...)` / YAML `output:` → `<output>.<ext>`; `render --name-from id\|file\|slug` (default `slug`, current behaviour) | Stable names without breaking current ones | y |
+| Bus span (EDG-09) | All direct children of the zone, projected onto the facing side | Verifier flagged "children on that side" as ambiguous; projection of every child is what readers expect (2026-10-21) | n (agent default) |
+| SVG hash input (OUT-04) | sha256 of the SVG text without the hash element | Verifiable from the file alone; "scene" had no serialisation (2026-10-21) | n (agent default) |
 | Badge cap | 3 badges per box; more → `ValueError` | Roadmap I2 | n (roadmap/agent default) |
 
 **Open questions:** none - all resolved or logged above.
@@ -154,7 +156,7 @@ defects. The author should declare content and intent; the engine should own fit
 
 1. The engine SHALL accept a `Zone` object or the string `zone:<id>` (optionally `zone:<id>.<side>[@frac]`) as an edge endpoint.
 2. WHEN a zone endpoint has no side THEN the engine SHALL pick the zone side facing the other endpoint and the point on it closest to the other endpoint's centre, clamped 24 px from corners.
-3. WHERE `fan="bus"` is set the engine SHALL draw a bus bar inside the zone, 10 px from that side, spanning the zone's direct children on that side, with the arrowhead at the border.
+3. WHERE `fan="bus"` is set the engine SHALL draw a bus bar inside the zone, 10 px from that side, spanning the centres of all the zone's direct children projected onto that side (the side minus 24 px corners when it has none), with the arrowhead at the border.
 4. The engine SHALL exclude edges ending on a zone border from the "edge passes through box" check for that zone.
 5. WHEN a PPTX connector targets a zone THEN the connector SHALL be bound to the zone shape.
 6. IF `zone:<id>` names no zone THEN the engine SHALL raise `KeyError` naming the id.
@@ -348,7 +350,7 @@ defects. The author should declare content and intent; the engine should own fit
 1. WHERE `output="name"` is set on a diagram the renderer SHALL write `<name>.<ext>` for each format.
 2. WHERE `render --name-from id|file|slug` is given the renderer SHALL derive file names from that source (default `slug`).
 3. WHERE a spec declares `requires` the CLI SHALL warn `version-mismatch` when the installed version does not satisfy it.
-4. The SVG backend SHALL write a `<metadata>` content hash (sha256 of the scene) that is identical for identical input.
+4. The SVG backend SHALL write a `<metadata>` content hash (sha256 of the SVG text without that element) that is identical for identical input.
 
 ---
 

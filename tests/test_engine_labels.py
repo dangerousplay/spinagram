@@ -100,6 +100,17 @@ def test_first_free_candidate_wins(build, index):  # EDG-02, EDG-03
     else:  # EDG-04: nothing free → least overlap, reported with the number of candidates
         issues = [a for a in sc.annotation_issues if a[0] == "e0" and a[1] == "label-collision"]
         assert not free and issues and "15 candidates tried" in issues[0][2]
+        from spinagram.engine.labels import arrowheads, outside
+        from spinagram.qa import polyline
+        conns = [i for i in sc.items if isinstance(i, Connector)]
+        obs = nodes + list(sc.zone_headers.values()) + arrowheads(conns)
+        bounds = (80, 80, sc.width - 160, sc.height - 160)
+
+        def cost(cx, cy):
+            r = (cx - lab.w / 2, cy - lab.h / 2, lab.w, lab.h)
+            return sum(overlap(r, o) for o in obs) + outside(r, bounds)
+        least = min(cost(*p) for p in candidates(polyline(c), lab.h))
+        assert cost(lab.x + lab.w / 2, lab.y + lab.h / 2) == pytest.approx(least)   # EDG-04: least overlap
 
 
 OBSTACLE_SCENARIOS = [

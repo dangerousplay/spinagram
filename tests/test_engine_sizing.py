@@ -249,3 +249,13 @@ def test_zone_underused(tmp_path, equalize, threshold, flagged):  # roadmap D1: 
     assert [i.item for i in got] == (["z1"] if flagged else [])
     if flagged:
         assert got[0].severity == "P2" and got[0].detail.startswith("content fills 28%")
+
+
+@pytest.mark.parametrize("axis", ["row", "column"])
+def test_same_size_is_the_largest_member(axis):  # BOX-03: the largest member wins (fix after verification)
+    texts = ["gitlab", "gitlab 17 · gitaly with a longer body text", None]
+    _, shapes = _container_scene(axis, texts=texts)
+    d = Diagram("S", "Size")
+    natural = [auto_size(d.box(t, text=b), THEME) for t, b in zip(TITLES, texts)]
+    assert shapes[0].w == pytest.approx(max(w for w, _ in natural))
+    assert shapes[0].h >= max(h for _, h in natural) - 0.5
