@@ -7,9 +7,9 @@ zones:
 nodes:
   - {id: start, at: [100, 280, 320, 180], style: dark, title: Change registered}
   - {id: known, kind: diamond, at: [520, 260, 300, 220], title: [Executed, "before?"]}
-  - {id: std, at: [900, 220, 360, 130], title: Standard path, text: No manual step}
-  - {id: tg, at: [900, 400, 360, 130], style: warning, title: Technical review, text: "Asks rollback, window, owner"}
-  - {id: cab, at: [1460, 400, 360, 130], style: alert, title: Change board, text: Business impact on critical service}
+  - {id: std, at: [960, 220, 380, 130], title: Standard path, text: No manual step}
+  - {id: tg, at: [960, 400, 380, 130], style: warning, title: Technical review, text: "Asks rollback, window, owner"}
+  - {id: cab, at: [1540, 400, 300, 130], style: alert, title: Change board, text: Business impact on critical service}
 edges:
   - start -> known
   - "known.right -> std.left: yes"

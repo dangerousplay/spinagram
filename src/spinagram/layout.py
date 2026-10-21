@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import shapes
-from .engine import endpoints, textfit, zones
+from .engine import endpoints, labels, textfit, zones
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
@@ -47,6 +47,8 @@ class _Builder:
         self.content_tops: dict[str, float] = {}  # zone id → first free y below its header
         self.zone_shapes: dict[str, Shape] = {}  # zone model id → its outline shape (edge targets)
         self.edge_extras: list = []  # bus bars, drawn right after the edges
+        self.fixed_labels: set[str] = set()  # connector ids whose label has an explicit label_at
+        self.label_issues: list[tuple[str, str, str]] = []
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -321,6 +323,8 @@ class _Builder:
             pts, route = [p1, p2], "straight"
         label = None
         if e.label:
+            if e.label_at:
+                self.fixed_labels.add(f"e{i}")
             lx, ly = e.label_at or ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 - 8)
             lst = cs.get("label") or {}
             size = lst.get("font-size") or e.label_size or ed.get("label_size", 17)
@@ -336,6 +340,16 @@ class _Builder:
                          dashed=bool(dash) if dash is not None else e.dashed, arrow_start=m_start != "none",
                          arrow_end=m_end != "none", src=b1, dst=b2, label=label, dash=dash or None,
                          marker_start=m_start, marker_end=m_end, opacity=est.get("opacity", 1.0))
+
+    def place_labels(self, edges: list[Connector]) -> None:
+        """Move edge labels clear of nodes, zone headers, arrowheads, other labels and the canvas margin."""
+        from .qa import polyline
+
+        m = (self.t.get("canvas") or {}).get("margin", 80)
+        obstacles = [(s.x, s.y, s.w, s.h) for s in self.shapes.values() if s.role == "node"]
+        obstacles += list(self.headers.values())
+        self.label_issues = labels.place(edges, self.fixed_labels, obstacles, (m, m, self.W - 2 * m, self.H - 2 * m),
+                                         path=polyline)
 
     def _bus(self, i: int, e: Edge, b: Binding, end, color: str, width: float) -> Line:
         """The bus bar of a ``fan="bus"`` edge inside its target zone."""
@@ -413,6 +427,7 @@ class _Builder:
             items.extend(self.extras.pop(n.id, []))
         items.extend(self.table(i, tb) for i, tb in enumerate(d.tables))
         edges = [self.edge(i, e) for i, e in enumerate(d.edges)]
+        self.place_labels(edges)
         items.extend(edges)
         items.extend(self.edge_extras)
         if d.annotations:  # badges over edges, then the band's panels, then callouts placed around everything
@@ -535,6 +550,8 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.zone_headers = builder.headers
     scene.zone_content_tops = builder.content_tops
     scene.laid_out = bool(diagram.meta.get("laid_out"))
+    if not scene.laid_out:  # engines size gaps themselves; collisions are reported for hand-placed diagrams
+        scene.annotation_issues = scene.annotation_issues + builder.label_issues
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

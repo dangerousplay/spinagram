@@ -390,10 +390,10 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Execute | Implementing |
 | ZON-13 | P1: Zone outlines (fill none CSS) | Execute | Implementing |
 | EDG-01 | P1: Edge labels (candidates) | Execute | Implementing |
-| EDG-02 | P1: Edge labels (rejection) | Tasks | In Tasks |
-| EDG-03 | P1: Edge labels (first free) | Tasks | In Tasks |
-| EDG-04 | P1: Edge labels (fallback + report) | Tasks | In Tasks |
-| EDG-05 | P1: Edge labels (label_at) | Tasks | In Tasks |
+| EDG-02 | P1: Edge labels (rejection) | Execute | Implementing |
+| EDG-03 | P1: Edge labels (first free) | Execute | Implementing |
+| EDG-04 | P1: Edge labels (fallback + report) | Execute | Implementing |
+| EDG-05 | P1: Edge labels (label_at) | Execute | Implementing |
 | EDG-06 | P1: Edge labels (deterministic) | Tasks | In Tasks |
 | EDG-07 | P1: Zone targets (endpoint forms) | Execute | Implementing |
 | EDG-08 | P1: Zone targets (side/point) | Execute | Implementing |

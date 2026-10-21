@@ -32,3 +32,79 @@ def candidates(points: list[Point], label_h: float) -> list[Point]:
         nx, ny = dy, -dx  # normal: up for a rightward edge, right for a downward one
         out += [(x + nx * off, y + ny * off), (x - nx * off, y - ny * off)]
     return out
+
+
+Rect = tuple[float, float, float, float]
+ARROWHEAD = 14.0  # the last px of an edge belong to its arrowhead
+FREE = 0.5        # px² of overlap that count as none (float noise)
+
+
+def overlap(a: Rect, b: Rect) -> float:
+    """Intersection area of two rectangles (x, y, w, h)."""
+    w = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    h = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return w * h if w > 0 and h > 0 else 0.0
+
+
+def outside(r: Rect, bounds: Rect) -> float:
+    """Area of ``r`` outside ``bounds``."""
+    return r[2] * r[3] - overlap(r, bounds)
+
+
+def arrowheads(connectors) -> list[Rect]:
+    """A square around the last ``ARROWHEAD`` px of every arrow end (and start)."""
+    out = []
+    for c in connectors:
+        pts = list(c.points)
+        for on, a, b in ((c.arrow_end, pts[-2], pts[-1]), (c.arrow_start, pts[1], pts[0])):
+            n = math.dist(a, b)
+            if not on or not n:
+                continue
+            k = min(1.0, ARROWHEAD / n)
+            bx, by = b[0] - (b[0] - a[0]) * k, b[1] - (b[1] - a[1]) * k
+            pad = max(6.0, c.width * 1.5)
+            x0, x1, y0, y1 = min(b[0], bx) - pad, max(b[0], bx) + pad, min(b[1], by) - pad, max(b[1], by) + pad
+            out.append((x0, y0, x1 - x0, y1 - y0))
+    return out
+
+
+def _rect(s) -> Rect:
+    return (s.x, s.y, s.w, s.h)
+
+
+def move(pill, cx: float, cy: float) -> None:
+    """Centre a label pill on (cx, cy), text box included."""
+    dx, dy = cx - (pill.x + pill.w / 2), cy - (pill.y + pill.h / 2)
+    pill.x += dx
+    pill.y += dy
+    if pill.label is not None:
+        x, y, w, h = pill.label.box
+        pill.label.box = (x + dx, y + dy, w, h)
+
+
+def place(connectors, fixed: set[str], obstacles: list[Rect], bounds: Rect, path=lambda c: c.points
+          ) -> list[tuple[str, str, str]]:
+    """Move each free label (not in ``fixed``) to its first candidate clear of ``obstacles``, the arrowheads,
+    labels placed so far and ``bounds``; with none clear, to the least-overlapping one and report it."""
+    issues = []
+    heads = arrowheads(connectors)
+    placed = [_rect(c.label) for c in connectors if c.label is not None and c.id in fixed]
+    for c in connectors:
+        if c.label is None or c.id in fixed:
+            continue
+        lab = c.label
+        best, best_cost = None, None
+        cands = candidates(path(c), lab.h)
+        for cx, cy in cands:
+            r = (cx - lab.w / 2, cy - lab.h / 2, lab.w, lab.h)
+            cost = sum(overlap(r, o) for o in (*obstacles, *heads, *placed)) + outside(r, bounds)
+            if best_cost is None or cost < best_cost - 1e-9:
+                best, best_cost = (cx, cy), cost
+            if cost < FREE:
+                break
+        move(lab, *best)
+        placed.append(_rect(lab))
+        if best_cost >= FREE:
+            issues.append((c.id, "label-collision", f"label {lab.label.blocks[0].lines[0]!r} overlaps "
+                           f"{best_cost:.0f}px² at its best position ({len(cands)} candidates tried)"))
+    return issues

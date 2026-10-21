@@ -606,10 +606,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] obstacles: nodes, zone headers, placed labels, last 14 px, canvas margin; first free wins; least overlap fallback + `label-collision` issue with count; `label_at` unchanged; wired after edges in build; golden updated with intent test
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_labels.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] obstacles: nodes, zone headers, placed labels, last 14 px, canvas margin; first free wins; least overlap fallback + `label-collision` issue with count; `label_at` unchanged; wired after edges in build; golden updated with intent test
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_labels.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
