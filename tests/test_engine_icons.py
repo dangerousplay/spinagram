@@ -238,3 +238,24 @@ def test_icon_sources_recorded_per_scene(tmp_path):
     sc = build_scene(d, th)
     assert sc.icon_sources == {"lb-alias": (str(good), "theme")}
     assert th.icon_trace is None                                   # tracing ends with the scene
+
+
+# icons report (ICN-13) ----------------------------------------------------------------------------------------
+@pytest.mark.parametrize("chain,line", [(["GOOD"], "R1\tconcept:load-balancer\t{good}\ttheme"),
+                                        (["missing-pack:x", "OTHER"], "R1\tconcept:load-balancer\t{other}\tfallback:1")],
+                         ids=["theme", "fallback"])
+def test_icons_report_lists_each_icon_and_source(tmp_path, monkeypatch, capsys, chain, line):
+    import warnings
+
+    from spinagram.cli import main
+    th, good, other = _chain_theme(tmp_path, chain)
+    (tmp_path / "s.yaml").write_text(
+        "id: R1\ntitle: R\nnodes:\n  - {id: a, title: A, x: 100, y: 100, w: 300, h: 100, icon: 'concept:load-balancer'}\n"
+        "  - {id: b, title: B, x: 500, y: 100, w: 300, h: 100, icon: lb-alias}\n")
+    monkeypatch.chdir(tmp_path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert main(["icons", "report", "-t", str(tmp_path), "s.yaml"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert line.format(good=good, other=other) in out
+    assert f"R1\tlb-alias\t{good}\ttheme" in out and out[-1] == "1 diagram(s), 2 icon(s)"

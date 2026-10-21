@@ -98,6 +98,10 @@ def _main(argv: list[str] | None = None) -> int:
     im = isub.add_parser("import", help="register every pack of a descriptor YAML (e.g. a package's spinagram-icons.yaml)")
     im.add_argument("file")
     im.add_argument("--project", action="store_true")
+    rp = isub.add_parser("report", help="every icon the diagrams use: resolved reference and source "
+                                        "(official, theme, fallback:<n>, missing)")
+    rp.add_argument("paths", nargs="+", help="spec files or directories")
+    rp.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
     r = isub.add_parser("remove", help="unregister a user or project pack")
     r.add_argument("name")
     r.add_argument("--project", action="store_true")
@@ -334,6 +338,16 @@ def _icons(args) -> int:
 
     from . import icons
 
+    if args.icmd == "report":
+        theme = Theme.load(args.theme)
+        diagrams = [d for p in args.paths for d in load(p)]
+        rows = 0
+        for sc in api.scenes(diagrams, theme):
+            for name, (ref, source) in sorted(sc.icon_sources.items()):
+                print(f"{sc.id}\t{name}\t{ref or '-'}\t{source}")
+                rows += 1
+        print(f"{len(diagrams)} diagram(s), {rows} icon(s)")
+        return 0
     packs = icons.registry()
     if args.icmd == "list":
         for p in packs.values():

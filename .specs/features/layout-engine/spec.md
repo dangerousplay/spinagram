@@ -457,7 +457,7 @@ defects. The author should declare content and intent; the engine should own fit
 | GRD-05 | P3: anchor methods (E5) | Execute | Implementing |
 | ICN-11 | P3: fallback chain | Execute | Implementing |
 | ICN-12 | P3: icon source record | Execute | Implementing |
-| ICN-13 | P3: icons report CLI | Tasks | In Tasks |
+| ICN-13 | P3: icons report CLI | Execute | Implementing |
 | TXT-16 | P3: label size= | Tasks | In Tasks |
 | TXT-17 | P3: label roles | Tasks | In Tasks |
 | TXT-18 | P3: label max_width | Tasks | In Tasks |
