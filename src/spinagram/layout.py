@@ -51,6 +51,7 @@ class _Builder:
         self.fixed_labels: set[str] = set()  # connector ids whose label has an explicit label_at
         self.label_issues: list[tuple[str, str, str]] = []
         self.flush: set[str] = set()  # zones with a flush corner icon (AWS style)
+        self.not_straight: list[str] = []  # straight=True edges whose boxes share no span
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -330,6 +331,14 @@ class _Builder:
 
     def edge(self, i: int, e: Edge) -> Connector:
         ed = self.t.defaults("edge")
+        if e.straight and not e.via and isinstance(e.src, str) and isinstance(e.dst, str):
+            a, b = self.shapes.get(e.src.partition(".")[0]), self.shapes.get(e.dst.partition(".")[0])
+            refs = endpoints.straight_refs(a, b) if a is not None and b is not None else None
+            if refs is None:
+                self.not_straight.append(f"e{i}")
+            else:
+                e = copy.copy(e)
+                e.src, e.dst = refs
         p1, b1 = self.endpoint(e.src, e.via[0] if e.via else e.dst)
         p2, b2 = self.endpoint(e.dst, e.via[-1] if e.via else e.src)
         cs = self._css(f"edge:{i}")
@@ -596,6 +605,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.zone_content_tops = builder.content_tops
     scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.flush_headers = builder.flush
+    scene.not_straight = builder.not_straight
     scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80)}
     glyphs.apply(scene, theme)
     scene.rows = [(f"{c.axis}{k}", list(c.children), c.same_icon_size) for k, c in enumerate(diagram.containers)]

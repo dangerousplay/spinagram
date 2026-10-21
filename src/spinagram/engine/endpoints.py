@@ -104,3 +104,21 @@ def bus(z: Shape, side: str, children: list[Shape], end: Point) -> tuple[Point, 
     off = {"top": z.y + BUS_INSET, "bottom": z.y + z.h - BUS_INSET, "left": z.x + BUS_INSET,
            "right": z.x + z.w - BUS_INSET}[side]
     return ((lo, off), (hi, off)) if horizontal else ((off, lo), (off, hi))
+
+
+def straight_refs(a: Shape, b: Shape) -> tuple[str, str] | None:
+    """Anchors (``a.side@f``, ``b.side@f``) that make an edge from ``a`` to ``b`` vertical or horizontal: the
+    middle of the span the boxes share on one axis. None when they share no span."""
+    x0, x1 = max(a.x, b.x), min(a.x + a.w, b.x + b.w)
+    y0, y1 = max(a.y, b.y), min(a.y + a.h, b.y + b.h)
+    if x1 - x0 > 0.5 and (a.y + a.h <= b.y or b.y + b.h <= a.y):  # stacked: vertical edge
+        mx = (x0 + x1) / 2
+        down = a.y < b.y
+        return (f"{a.id}.{'bottom' if down else 'top'}@{(mx - a.x) / a.w:.6g}",
+                f"{b.id}.{'top' if down else 'bottom'}@{(mx - b.x) / b.w:.6g}")
+    if y1 - y0 > 0.5 and (a.x + a.w <= b.x or b.x + b.w <= a.x):  # side by side: horizontal edge
+        my = (y0 + y1) / 2
+        right = a.x < b.x
+        return (f"{a.id}.{'right' if right else 'left'}@{(my - a.y) / a.h:.6g}",
+                f"{b.id}.{'left' if right else 'right'}@{(my - b.y) / b.h:.6g}")
+    return None

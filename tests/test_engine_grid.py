@@ -90,3 +90,38 @@ def test_alignment_from_yaml():
                    "align": [{"x": ["a", "b"]}]})
     s = _shapes(d)
     assert s["a"].x + 150 == s["b"].x + 100
+
+
+# straight edges (GRD-03, GRD-04) ------------------------------------------------------------------------------
+from spinagram.qa import check  # noqa: E402
+from spinagram.scene import Connector  # noqa: E402
+
+STRAIGHT = [
+    # id, a rect, b rect, expected points
+    ("down", (100, 100, 300, 80), (250, 400, 200, 80), [(325, 180), (325, 400)]),
+    ("up", (250, 400, 200, 80), (100, 100, 300, 80), [(325, 400), (325, 180)]),
+    ("right", (100, 100, 200, 100), (600, 150, 200, 100), [(300, 175), (600, 175)]),
+    ("left", (600, 150, 200, 100), (100, 100, 200, 100), [(600, 175), (300, 175)]),
+    ("narrow-overlap", (100, 100, 200, 80), (290, 400, 200, 80), [(295, 180), (295, 400)]),
+]
+
+
+@pytest.mark.parametrize("ra,rb,points", [s[1:] for s in STRAIGHT], ids=[s[0] for s in STRAIGHT])
+def test_straight_edge_is_axis_aligned(ra, rb, points):  # GRD-03
+    d = Diagram("G", "Grid")
+    a = d.box("A", id="a", x=ra[0], y=ra[1], w=ra[2], h=ra[3])
+    b = d.box("B", id="b", x=rb[0], y=rb[1], w=rb[2], h=rb[3])
+    d.edge(a, b, straight=True)
+    sc = build_scene(d, THEME)
+    c = next(i for i in sc.items if isinstance(i, Connector))
+    assert [tuple(p) for p in c.points] == [pytest.approx(p) for p in points]
+    assert [i for i in check(sc) if i.kind == "not-straight"] == []
+
+
+def test_no_shared_span_reports_not_straight():  # GRD-04
+    d = Diagram("G", "Grid")
+    a = d.box("A", id="a", x=100, y=100, w=200, h=80)
+    b = d.box("B", id="b", x=600, y=500, w=200, h=80)
+    d.edge(a, b, straight=True)
+    got = [i for i in check(build_scene(d, THEME)) if i.kind == "not-straight"]
+    assert [(i.item, i.severity) for i in got] == [("e0", "P2")]

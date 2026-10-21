@@ -385,6 +385,8 @@ def check(scene: Scene) -> list[Issue]:
             issues.append(Issue(scene.id, "edges", "edge-crossings",
                                 f"{n} crossing(s); try route: ortho or swap anchor sides"))
     issues += contrast_issues(scene)
+    issues += [Issue(scene.id, cid, "not-straight", "the boxes share no span on either axis; move one or drop "
+                     "straight") for cid in scene.not_straight]
     shapes = scene.shapes()
     for name, ids, uniform in scene.rows:  # explicit rows/columns should show one icon size
         sizes = {round(shapes[i].icon.size, 1) for i in ids if i in shapes and shapes[i].icon is not None}
