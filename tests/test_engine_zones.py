@@ -118,3 +118,27 @@ def test_zone_stroke_and_fill(kw, expected):
 def test_unknown_dash_word_raises():
     with pytest.raises(ValueError, match="zone dash 'wavy'"):
         _zone_shape(dash="wavy")
+
+
+# PPTX parity (ZON-12) ------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("value,dash,cap", [d[1:] for d in DASH_VALUES], ids=[d[0] for d in DASH_VALUES])
+def test_zone_dash_pptx_matches_svg(tmp_path, value, dash, cap):
+    pptx = pytest.importorskip("pptx")
+    from pptx.oxml.ns import qn
+
+    from spinagram import render
+    d = Diagram("Z", "Zones")
+    d.zone("Net", x=10, y=20, w=300, h=200, dash=value, stroke="primary", stroke_width=2)
+    render([d], tmp_path, formats=["pptx", "svg"])
+    sh = next(s for s in pptx.Presentation(str(tmp_path / "diagrams.pptx")).slides[0].shapes if s.name == "z0")
+    ln = sh._element.spPr.find(qn("a:ln"))
+    cust = ln.find(qn("a:custDash"))
+    if dash is None:
+        assert cust is None
+    else:
+        pat = dash + (dash if len(dash) % 2 else [])
+        got = [(int(ds.get("d")), int(ds.get("sp"))) for ds in cust.findall(qn("a:ds"))]
+        assert got == [(round(a / 2 * 100000), round(b / 2 * 100000)) for a, b in zip(pat[0::2], pat[1::2])]
+        svg = next(tmp_path.glob("*.svg")).read_text()
+        assert f'stroke-dasharray="{" ".join(f"{v:g}" for v in dash)}"' in svg
+    assert ln.get("cap") == ("rnd" if cap == "round" else None)

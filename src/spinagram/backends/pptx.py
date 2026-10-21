@@ -117,7 +117,8 @@ class _Slide:
 
     # styling helpers ----------------------------------------------------------
     @staticmethod
-    def _line(shape, color: str | None, width: float, dashed: bool = False, dash: list[float] | None = None) -> None:
+    def _line(shape, color: str | None, width: float, dashed: bool = False, dash: list[float] | None = None,
+              cap: str | None = None) -> None:
         from lxml import etree
         from pptx.enum.dml import MSO_LINE_DASH_STYLE
         from pptx.oxml.ns import qn
@@ -144,6 +145,8 @@ class _Slide:
                     ln.append(el)
         elif dashed:
             shape.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+        if cap == "round":  # dotted outlines: round dots
+            shape.line._get_or_add_ln().set("cap", "rnd")
 
     @staticmethod
     def _shadow(shape, sh: tuple | None) -> None:
@@ -314,7 +317,7 @@ class _Slide:
             self._fill_alpha(sh, s.fill_opacity)
         else:
             sh.fill.background()
-        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
+        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash, s.cap)
         self._no_shadow(sh)
         self._shadow(sh, s.shadow)
         if s.label:

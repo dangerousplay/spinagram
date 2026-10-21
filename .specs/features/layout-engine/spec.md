@@ -387,7 +387,7 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-09 | P1: Zone outlines (dash values) | Execute | Implementing |
 | ZON-10 | P1: Zone outlines (stroke/fill) | Execute | Implementing |
 | ZON-11 | P1: Zone outlines (id/class CSS) | Tasks | In Tasks |
-| ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Tasks | In Tasks |
+| ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Execute | Implementing |
 | ZON-13 | P1: Zone outlines (fill none CSS) | Tasks | In Tasks |
 | EDG-01 | P1: Edge labels (candidates) | Tasks | In Tasks |
 | EDG-02 | P1: Edge labels (rejection) | Tasks | In Tasks |
