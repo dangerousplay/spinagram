@@ -431,9 +431,9 @@ defects. The author should declare content and intent; the engine should own fit
 | BOX-04 | P2: max_width failure | Execute | Implementing |
 | BOX-05 | P2: Legacy row/column | Execute | Implementing |
 | BOX-06 | P2: same_icon_size (I4) | Execute | Implementing |
-| ZON-14 | P2: Zones fit children | Tasks | In Tasks |
-| ZON-15 | P2: Nested resolution order | Tasks | In Tasks |
-| ZON-16 | P2: equalize siblings | Tasks | In Tasks |
+| ZON-14 | P2: Zones fit children | Execute | Implementing |
+| ZON-15 | P2: Nested resolution order | Execute | Implementing |
+| ZON-16 | P2: equalize siblings | Execute | Implementing |
 | ZON-17 | P2: clips/underused checks | Tasks | In Tasks |
 | ZON-18 | P2: zone context manager | Execute | Implementing |
 | EDG-13 | P2: Bundle API | Tasks | In Tasks |

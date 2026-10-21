@@ -158,3 +158,51 @@ def test_zone_children_from_yaml():
                                                        "children": ["a", "b"]}],
                    "nodes": [{"id": "a", "title": "A"}, {"id": "b", "title": "B"}]})
     assert d.zones[0].children == ["a", "b"]
+
+
+# zones fitted to their children (ZON-14..16) ----------------------------------------------------------------
+NO_ICON_HEAD = 36 + 16 * 0.3 + 12      # label-only header + gap
+ICON_HEAD = 14 + 28 + 12               # inset icon header + gap
+
+
+@pytest.mark.parametrize("padding,expect_pad", [(None, 24), (40, 40)], ids=["default-pad", "pad-40"])
+@pytest.mark.parametrize("with_icon,head", [(False, NO_ICON_HEAD), (True, ICON_HEAD)], ids=["label", "icon"])
+def test_zone_fits_its_children(icon, padding, expect_pad, with_icon, head):  # ZON-14
+    d = Diagram("S", "Size")
+    kw = {"padding": padding} if padding is not None else {}
+    with d.zone("Net", id="net", fit="children", icon=icon if with_icon else None, **kw):
+        d.box("A", id="a", x=300, y=300, w=200, h=100)
+        d.box("B", id="b", x=600, y=420, w=200, h=100)
+    z = next(i for i in build_scene(d, THEME).items if isinstance(i, Shape) and i.id == "z0")
+    assert (z.x, z.y, z.w, z.h) == pytest.approx((300 - expect_pad, 300 - head, 500 + 2 * expect_pad,
+                                                   220 + head + expect_pad))
+
+
+@pytest.mark.parametrize("depth", [2, 3], ids=["2-levels", "3-levels"])
+def test_nested_fit_resolves_innermost_first(depth):  # ZON-15
+    from contextlib import ExitStack
+    d = Diagram("S", "Size")
+    with ExitStack() as st:
+        for k in range(depth):
+            st.enter_context(d.zone(f"Z{k}", id=f"z{k}", fit="children"))
+        d.box("Leaf", id="leaf", x=500, y=500, w=200, h=100)
+    sc = build_scene(d, THEME)
+    rects = [next(i for i in sc.items if isinstance(i, Shape) and i.id == f"z{k}") for k in range(depth)]
+    for outer, inner in zip(rects, rects[1:]):  # each zone contains the next one with its own padding/header
+        assert outer.x == pytest.approx(inner.x - 24) and outer.y == pytest.approx(inner.y - NO_ICON_HEAD)
+        assert outer.x + outer.w == pytest.approx(inner.x + inner.w + 24)
+    assert [i for i in check(sc) if i.kind == "zone-clips-child"] == []
+
+
+@pytest.mark.parametrize("equalize", [True, False], ids=["equalize", "independent"])
+def test_equalize_siblings(equalize):  # ZON-16 (opt-in: blank space never a default)
+    d = Diagram("S", "Size")
+    kw = {"equalize": "siblings"} if equalize else {}
+    with d.zone("Project A", id="pa", fit="children", **kw):
+        d.box("A1", id="a1", x=200, y=300, w=200, h=100)
+        d.box("A2", id="a2", x=200, y=450, w=200, h=100)
+    with d.zone("Project B", id="pb", fit="children", **kw):
+        d.box("B1", id="b1", x=600, y=300, w=200, h=100)
+    sc = build_scene(d, THEME)
+    a, b = (next(i for i in sc.items if isinstance(i, Shape) and i.id == z) for z in ("z0", "z1"))
+    assert (a.h == b.h) == equalize and max(a.h, b.h) == pytest.approx(250 + NO_ICON_HEAD + 24)

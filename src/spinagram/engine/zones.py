@@ -85,3 +85,48 @@ def content_top(z: Zone, icons: int, label_size: float = 16, opts: dict | None =
     """First free y below the header: header bottom + ``gap`` (12 px)."""
     opts = opts or header_options(z, None, None)
     return header_layout(z, opts, icons, label_size, flush_icon)["bottom"] + opts["gap"]
+
+
+FIT_PADDING = 24.0
+
+
+def _parents(zones: list[Zone]) -> dict[str, str]:
+    return {c: z.id for z in zones for c in z.children if any(o.id == c for o in zones)}
+
+
+def _depth(zid: str, parents: dict[str, str]) -> int:
+    n = 0
+    while zid in parents:
+        zid, n = parents[zid], n + 1
+    return n
+
+
+def fit_children(d, theme: Theme) -> None:
+    """Zones with ``fit="children"`` wrap their children (padding on three sides, the header on top), innermost
+    first; then sibling zones with ``equalize="siblings"`` take the tallest sibling's height."""
+    zones = [z for z in d.zones if z.id is not None]
+    parents = _parents(zones)
+    nodes = {n.id: n for n in d.nodes}
+    by_id = {z.id: z for z in zones}
+    label_size = theme.defaults("zone").get("label_size", 16)
+    for z in sorted(zones, key=lambda z: -_depth(z.id, parents)):
+        if z.fit != "children":
+            continue
+        rects = [(c.x, c.y, c.w, c.h) for c in (nodes.get(i) or by_id.get(i) for i in z.children) if c is not None]
+        if not rects:
+            continue
+        x0, y0 = min(r[0] for r in rects), min(r[1] for r in rects)
+        x1, y1 = max(r[0] + r[2] for r in rects), max(r[1] + r[3] for r in rects)
+        pad = z.padding if z.padding is not None else FIT_PADDING
+        icons = len(z.icon) if isinstance(z.icon, list) else int(bool(z.icon or theme.zone_style(z.color)["icon"]))
+        probe = Zone(x=0, y=0, w=0, h=0, label=z.label, icon=z.icon, header=z.header, color=z.color)
+        head = content_top(probe, icons, label_size, header_options(probe, theme.zone_style(z.color), theme))
+        z.x, z.y, z.w, z.h = x0 - pad, y0 - head, x1 - x0 + 2 * pad, y1 - y0 + head + pad
+    groups: dict[str | None, list[Zone]] = {}
+    for z in zones:
+        if z.equalize == "siblings":
+            groups.setdefault(parents.get(z.id), []).append(z)
+    for sibs in groups.values():
+        tallest = max(z.h for z in sibs)
+        for z in sibs:
+            z.h = tallest
