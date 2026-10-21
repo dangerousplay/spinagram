@@ -386,9 +386,9 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-08 | P1: Zone header (upper) | Tasks | In Tasks |
 | ZON-09 | P1: Zone outlines (dash values) | Execute | Implementing |
 | ZON-10 | P1: Zone outlines (stroke/fill) | Execute | Implementing |
-| ZON-11 | P1: Zone outlines (id/class CSS) | Tasks | In Tasks |
+| ZON-11 | P1: Zone outlines (id/class CSS) | Execute | Implementing |
 | ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Execute | Implementing |
-| ZON-13 | P1: Zone outlines (fill none CSS) | Tasks | In Tasks |
+| ZON-13 | P1: Zone outlines (fill none CSS) | Execute | Implementing |
 | EDG-01 | P1: Edge labels (candidates) | Tasks | In Tasks |
 | EDG-02 | P1: Edge labels (rejection) | Tasks | In Tasks |
 | EDG-03 | P1: Edge labels (first free) | Tasks | In Tasks |
@@ -461,7 +461,7 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-16 | P3: label size= | Tasks | In Tasks |
 | TXT-17 | P3: label roles | Tasks | In Tasks |
 | TXT-18 | P3: label max_width | Tasks | In Tasks |
-| STY-01 | P3: CSS none colours | Tasks | In Tasks |
+| STY-01 | P3: CSS none colours | Execute | Implementing |
 | STY-02 | P3: CSS element types | Tasks | In Tasks |
 | STY-03 | P3: icon-only box defaults | Tasks | In Tasks |
 | STY-04 | P3: backend golden parity (S2) | Tasks | In Tasks |

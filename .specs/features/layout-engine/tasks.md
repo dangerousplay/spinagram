@@ -417,10 +417,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] zones in CSS tree as `zone` keyed `zone:<id>` with style class; `fill|stroke|color: none` accepted → None; DDT selectors `zone#id`, `zone.az`, `#id`, `group:<gid>` still works
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] zones in CSS tree as `zone` keyed `zone:<id>` with style class; `fill|stroke|color: none` accepted → None; DDT selectors `zone#id`, `zone.az`, `#id`, `group:<gid>` still works
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

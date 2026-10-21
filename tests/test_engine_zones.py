@@ -142,3 +142,49 @@ def test_zone_dash_pptx_matches_svg(tmp_path, value, dash, cap):
         svg = next(tmp_path.glob("*.svg")).read_text()
         assert f'stroke-dasharray="{" ".join(f"{v:g}" for v in dash)}"' in svg
     assert ln.get("cap") == ("rnd" if cap == "round" else None)
+
+
+# CSS on zones (ZON-11, ZON-13, STY-01) ------------------------------------------------------------------------
+CSS_SELECTORS = [
+    ("type-id", "zone#net-a"),
+    ("type-class", "zone.az"),
+    ("type-style", "zone.soft"),
+    ("bare-id", "#net-a"),
+    ("bare-class", ".az"),
+    ("type", "zone"),
+]
+
+
+@pytest.mark.parametrize("selector", [s for _, s in CSS_SELECTORS], ids=[i for i, _ in CSS_SELECTORS])
+def test_css_reaches_zones_without_gid(selector):
+    d = Diagram("Z", "Zones", css=f"{selector} {{ stroke: #112233; stroke-width: 3; stroke-dasharray: 2 6 }}")
+    d.zone("Net", x=10, y=20, w=300, h=200, id="net-a", class_="az")
+    d.zone("Other", x=400, y=20, w=300, h=200, id="other", color="warning")
+    sc = build_scene(d, THEME)
+    shapes = {i.id: i for i in sc.items if isinstance(i, Shape)}
+    assert (shapes["z0"].stroke, shapes["z0"].stroke_width, shapes["z0"].dash) == ("#112233", 3, [2, 6])
+    assert (shapes["z1"].stroke == "#112233") == (selector == "zone")
+
+
+NONE_PAINT = [
+    ("fill", "fill: none", "fill", None),
+    ("stroke", "stroke: none", "stroke", None),
+]
+
+
+@pytest.mark.parametrize("decl,attr,expected", [s[1:] for s in NONE_PAINT], ids=[s[0] for s in NONE_PAINT])
+def test_css_none_paint_on_zones(decl, attr, expected):
+    d = Diagram("Z", "Zones", css=f"zone {{ {decl} }}")
+    d.zone("Net", x=10, y=20, w=300, h=200, stroke="primary")
+    s = next(i for i in build_scene(d, THEME).items if isinstance(i, Shape) and i.id == "z0")
+    assert getattr(s, attr) is expected
+
+
+def test_css_none_on_text_colour_warns_and_keeps_colour():
+    from spinagram.qa import check
+    d = Diagram("Z", "Zones", css="node { color: none }")
+    d.box("A", id="a", x=0, y=0, w=200, h=100)
+    sc = build_scene(d, THEME)
+    a = next(i for i in sc.items if isinstance(i, Shape) and i.id == "a")
+    assert a.label.blocks[0].color.startswith("#")
+    assert any("color: none" in i.detail for i in check(sc))

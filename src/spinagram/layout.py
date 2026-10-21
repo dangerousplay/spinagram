@@ -56,6 +56,13 @@ class _Builder:
             msg = f"font-family {fam!r} is not embedded in the theme; using the theme font"
             if msg not in self.warnings:
                 self.warnings.append(msg)
+        if "color" in st and st["color"] is None:
+            # SPEC_DEVIATION: STY-01 accepts `color: none`; text has no transparent paint in every backend,
+            # so the text keeps its colour and a warning says so.
+            msg = "color: none is not supported on text; using the default colour"
+            if msg not in self.warnings:
+                self.warnings.append(msg)
+            st = {k: v for k, v in st.items() if k != "color"}
         return st.get("color", color), int(st.get("font-weight", weight)), st.get("font-style") == "italic"
 
     @staticmethod
@@ -342,7 +349,7 @@ class _Builder:
             radius = zs["radius"] if zs["radius"] is not None else zd.get("radius", 26)
             ol = zones.outline(z, zs, t)
             opacity = zs["opacity"] if zs["opacity"] is not None else (zd.get("opacity", 0.6) if ol["fill"] else 1.0)
-            zcs = self._css(f"group:{z.gid}") if z.gid else {}
+            zcs = self._css(f"group:{z.gid}") if z.gid else self._css(f"zone:{z.id or f'z{i}'}")
             items.append(self._decorate(Shape(id=f"z{i}", kind="rect", x=z.x, y=z.y, w=z.w, h=z.h, fill=ol["fill"],
                                               stroke=ol["stroke"], stroke_width=ol["stroke_width"],
                                               dashed=ol["dashed"], dash=ol["dash"], cap=ol["cap"], radius=radius,
@@ -360,7 +367,7 @@ class _Builder:
             if z.label:
                 lab = z.label.upper() if zs["upper"] else z.label
                 ly = z.y + (22 if icon_name else 36)
-                col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color", zs["label"]), 700)
+                col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color") or zs["label"], 700)
                 size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
                 track = zd.get("label_tracking", 0) * size if zs["upper"] else 0  # em → px, uppercase labels only
                 items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col,

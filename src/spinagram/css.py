@@ -371,10 +371,15 @@ def _count(v: str, theme=None) -> int:
     return int(x)
 
 
+def _paint(v: str, theme) -> str | None:
+    """A colour, or ``none`` (no paint) → None."""
+    return None if v.strip().lower() == "none" else _colour(v, theme)[0]
+
+
 PROPS = {
-    "fill": lambda v, t: _colour(v, t)[0],
-    "stroke": lambda v, t: _colour(v, t)[0],
-    "color": lambda v, t: _colour(v, t)[0],
+    "fill": _paint,
+    "stroke": _paint,
+    "color": _paint,
     "stroke-width": _length,
     "border-radius": _length,
     "font-size": _length,
@@ -569,6 +574,11 @@ def tree(d) -> tuple[El, dict[str, El]]:
     for n in d.nodes:
         if n.id not in child_of:
             add(n.id, root)
+    for i, z in enumerate(d.zones):
+        if z.gid is None:  # zones laid out from groups are styled through their group element
+            zid = z.id or f"z{i}"
+            attrs = {k: v for k, v in (("label", z.label), ("style", z.color)) if v}
+            keys[f"zone:{zid}"] = El("zone", [], zid, _classes(z.cls, z.color), attrs, root, None, key=f"zone:{zid}")
     for i, e in enumerate(d.edges):
         attrs = {"from": str(e.src).partition(".")[0], "to": str(e.dst).partition(".")[0]}
         if e.label:
