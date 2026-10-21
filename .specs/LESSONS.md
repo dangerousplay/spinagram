@@ -426,6 +426,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: src/spinagram/layout.py:78 SPEC_DEVIATION (STY-01 color none) (spec)
 - last seen: 2026-10-21T03:14:57Z
 
+### L-070 - Test a cost or penalty through its production caller with a scenario where the default value changes the outcome, not only by passing a penalty into the helper
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: layout-engine
+- evidence: N1 src/spinagram/engine/route.py:58 (EDG-18) (tests)
+- last seen: 2026-10-21T03:22:25Z
+
+### L-071 - Give every operator a parser accepts a boundary row in the scenario table
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: layout-engine
+- evidence: N11 src/spinagram/engine/version.py:43 (OUT-03) (tests)
+- last seen: 2026-10-21T03:22:25Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

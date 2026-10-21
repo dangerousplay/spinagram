@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 70,
+  "next_id": 72,
   "lessons": [
     {
       "id": "L-001",
@@ -1256,6 +1256,42 @@
       ],
       "created": "2026-10-21T03:14:57Z",
       "last_seen": "2026-10-21T03:14:57Z"
+    },
+    {
+      "id": "L-070",
+      "key": "surviving_mutant::test a cost or penalty through its production caller with a scenario where the default value changes the outcome not only by passing a penalty into the helper",
+      "text": "Test a cost or penalty through its production caller with a scenario where the default value changes the outcome, not only by passing a penalty into the helper",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "layout-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N1 src/spinagram/engine/route.py:58 (EDG-18) (tests)"
+      ],
+      "created": "2026-10-21T03:22:25Z",
+      "last_seen": "2026-10-21T03:22:25Z"
+    },
+    {
+      "id": "L-071",
+      "key": "surviving_mutant::give every operator a parser accepts a boundary row in the scenario table",
+      "text": "Give every operator a parser accepts a boundary row in the scenario table",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "layout-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N11 src/spinagram/engine/version.py:43 (OUT-03) (tests)"
+      ],
+      "created": "2026-10-21T03:22:25Z",
+      "last_seen": "2026-10-21T03:22:25Z"
     }
   ]
 }
