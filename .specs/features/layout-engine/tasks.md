@@ -1227,10 +1227,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] optional `penalty_fn` (default None = identical routes, layered golden unchanged); DDT crossing vs detour
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_route.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_route.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] optional `penalty_fn` (default None = identical routes, layered golden unchanged); DDT crossing vs detour
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_route.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_route.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
