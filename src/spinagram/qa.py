@@ -378,6 +378,12 @@ def check(scene: Scene) -> list[Issue]:
         issues += icon_issues(scene)
         issues += safe_area_issues(scene, scene.check_options.get("margin", 80))
         issues += zone_issues(scene)
+        from .engine.route import crossings
+
+        n = crossings([c for c in scene.items if isinstance(c, Connector)])
+        if n:
+            issues.append(Issue(scene.id, "edges", "edge-crossings",
+                                f"{n} crossing(s); try route: ortho or swap anchor sides"))
     issues += contrast_issues(scene)
     shapes = scene.shapes()
     for name, ids, uniform in scene.rows:  # explicit rows/columns should show one icon size

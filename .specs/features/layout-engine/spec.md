@@ -401,7 +401,7 @@ defects. The author should declare content and intent; the engine should own fit
 | EDG-10 | P1: Zone targets (check exclusion) | Execute | Implementing |
 | EDG-11 | P1: Zone targets (PPTX binding) | Execute | Implementing |
 | EDG-12 | P1: Zone targets (unknown id) | Execute | Implementing |
-| CHK-01 | P1: Diagnostics (new kinds) | Tasks | In Tasks |
+| CHK-01 | P1: Diagnostics (new kinds) | Execute | Implementing |
 | CHK-02 | P1: Diagnostics (fix dicts) | Execute | Implementing |
 | CHK-03 | P1: Diagnostics (--json) | Execute | Implementing |
 | CHK-04 | P1: Fix (YAML) | Execute | Implementing |
@@ -443,7 +443,7 @@ defects. The author should declare content and intent; the engine should own fit
 | EDG-17 | P2: Ortho routing | Execute | Implementing |
 | EDG-18 | P2: Crossing penalty | Execute | Implementing |
 | EDG-19 | P2: Ortho determinism | Execute | Implementing |
-| EDG-20 | P2: edge-crossings check | Tasks | In Tasks |
+| EDG-20 | P2: edge-crossings check | Execute | Implementing |
 | EDG-21 | P2: explicit route kept | Execute | Implementing |
 | LEG-01 | P2: meaning= | Tasks | In Tasks |
 | LEG-02 | P2: auto rows | Tasks | In Tasks |

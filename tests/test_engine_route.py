@@ -141,3 +141,25 @@ def test_ortho_routes_identical_across_hash_seeds():  # EDG-19
     out = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
                           env={**os.environ, "PYTHONHASHSEED": str(s)}).stdout.strip() for s in range(4)}
     assert len(out) == 1
+
+
+# edge-crossings diagnostic (EDG-20) ----------------------------------------------------------------------------
+from spinagram.qa import check  # noqa: E402
+
+
+def _lines(d, n_h, n_v):
+    for k in range(n_h):
+        d.edge((300, 300 + 100 * k), (900, 300 + 100 * k))
+    for k in range(n_v):
+        d.edge((450 + 200 * k, 200), (450 + 200 * k, 700))
+
+
+@pytest.mark.parametrize("n_h,n_v,n", [(1, 0, 0), (1, 1, 1), (2, 2, 4)], ids=["0", "1", "4"])
+def test_edge_crossings_reported_with_count(n_h, n_v, n):
+    d = Diagram("R", "Route")
+    _lines(d, n_h, n_v)
+    got = [i for i in check(build_scene(d, THEME)) if i.kind == "edge-crossings"]
+    if n:
+        assert len(got) == 1 and got[0].detail.startswith(f"{n} crossing(s)") and got[0].severity == "P2"
+    else:
+        assert got == []
