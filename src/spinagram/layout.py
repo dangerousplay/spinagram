@@ -516,6 +516,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.fits = builder.fits
     scene.zone_headers = builder.headers
     scene.zone_content_tops = builder.content_tops
+    scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

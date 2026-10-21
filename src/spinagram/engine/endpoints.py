@@ -71,7 +71,7 @@ def resolve(ref, other, shapes: dict[str, Shape], diagram_id: str = "",
         ox, oy = center(other, shapes, zones)
         side = side or _zone_side(z, ox, oy)
         f = float(frac) if frac else _clamped_frac(z, side, ox, oy)
-        return z.anchor(side, f), Binding(z.id, side, f)
+        return z.anchor(side, f), Binding(z.id, side, f, "zone")
     if name not in shapes:
         raise KeyError(f"{diagram_id}: edge refers to unknown node {name!r}")
     s = shapes[name]

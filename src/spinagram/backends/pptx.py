@@ -390,16 +390,24 @@ class _Slide:
     def connector(self, c: Connector) -> None:
         from pptx.enum.shapes import MSO_CONNECTOR
 
-        bound = c.route == "straight" and any(
-            b is not None and b.frac == 0.5 and b.side in CXN_IDX and b.shape_id in self.shapes
-            for b in (c.src, c.dst))
+        def bindable(b) -> bool:  # zone borders bind at any fraction; nodes at side midpoints (connection sites)
+            return (b is not None and (b.frac == 0.5 or b.target == "zone") and b.side in CXN_IDX
+                    and b.shape_id in self.shapes)
+
+        bound = c.route == "straight" and any(bindable(b) for b in (c.src, c.dst))
         if bound or c.route == "straight":
             (x1, y1), (x2, y2) = c.points[0], c.points[-1]
             cx = self.slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, _e(x1), _e(y1), _e(x2), _e(y2))
             for b, begin in ((c.src, True), (c.dst, False)):
-                if b is not None and b.frac == 0.5 and b.side in CXN_IDX and b.shape_id in self.shapes:
+                if bindable(b):
                     target = self.shapes[b.shape_id]
                     (cx.begin_connect if begin else cx.end_connect)(target, CXN_IDX[b.side])
+                    if b.target == "zone":  # binding snaps to the side midpoint; keep the exact border point
+                        px, py = (x1, y1) if begin else (x2, y2)
+                        if begin:
+                            cx.begin_x, cx.begin_y = _e(px), _e(py)
+                        else:
+                            cx.end_x, cx.end_y = _e(px), _e(py)
             shape = cx
         else:
             pts = c.points

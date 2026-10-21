@@ -103,3 +103,52 @@ def test_edge_shorthand_with_zone_refs(text, expected):
     from spinagram.model import parse_edge
     e = parse_edge(text)
     assert (e.src, e.dst, e.label) == expected
+
+
+# through-box exclusion and PPTX binding (EDG-10, EDG-11) ------------------------------------------------------
+def _through(edges):
+    from spinagram.qa import check
+    d = Diagram("TB", "Through")
+    d.box("Pool", id="pool", x=100, y=400, w=200, h=100)
+    z = d.zone("Net", id="net", x=600, y=300, w=700, h=300)
+    d.box("Node A", id="a", x=650, y=400, w=200, h=100)
+    d.box("Node B", id="b", x=1000, y=400, w=200, h=100)
+    for src, dst in edges:
+        d.edge(src, z if dst == "ZONE" else dst)
+    return sorted((i.item, i.detail) for i in check(build_scene(d, THEME)) if i.kind == "edge-through-box")
+
+
+THROUGH_SCENARIOS = [
+    ("to-zone-border", [("pool", "ZONE")], []),
+    ("to-zone-side", [("pool", "zone:net.left")], []),
+    ("to-first-node", [("pool", "a")], []),
+    ("through-sibling", [("pool", "b")], [("e0", "edge passes through 'a'")]),
+    ("absolute-through", [((50, 450), (1300, 450))], [("e0", "edge passes through 'a'"),
+                                                      ("e0", "edge passes through 'b'"),
+                                                      ("e0", "edge passes through 'pool'")]),
+]
+
+
+@pytest.mark.parametrize("edges,expected", [s[1:] for s in THROUGH_SCENARIOS], ids=[s[0] for s in THROUGH_SCENARIOS])
+def test_edge_through_box_excludes_zone_targets(edges, expected):
+    assert _through(edges) == expected
+
+
+@pytest.mark.parametrize("ref,point", [("ZONE", (600, 450)), ("zone:net.top@0.25", (775, 300))],
+                         ids=["auto", "side-frac"])
+def test_pptx_connector_bound_to_zone_at_exact_point(tmp_path, ref, point):
+    pptx = pytest.importorskip("pptx")
+    from pptx.oxml.ns import qn
+    from spinagram import render
+    from spinagram.backends.pptx import EMU
+    d = Diagram("PB", "Bind")
+    d.box("Pool", id="pool", x=100, y=400, w=200, h=100)
+    z = d.zone("Net", id="net", x=600, y=300, w=700, h=300)
+    d.edge("pool", z if ref == "ZONE" else ref)
+    render([d], tmp_path, formats=["pptx"])
+    shapes = {s.name: s for s in pptx.Presentation(str(tmp_path / "diagrams.pptx")).slides[0].shapes}
+    cx = next(s for s in shapes.values() if s.shape_type is not None and "Connector" in type(s).__name__)
+    end = cx._element.find(".//" + qn("a:endCxn"))
+    assert end is not None and end.get("id") == str(shapes["z0"].shape_id)
+    px = cx.end_x / EMU, cx.end_y / EMU
+    assert px == pytest.approx(point, abs=0.5)

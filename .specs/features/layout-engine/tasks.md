@@ -525,10 +525,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] connector bound to zone shape; Binding target kind recorded; edges ending on a zone border excluded from edge-through-box for that zone; DDT
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_endpoints.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] connector bound to zone shape; Binding target kind recorded; edges ending on a zone border excluded from edge-through-box for that zone; DDT
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_endpoints.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

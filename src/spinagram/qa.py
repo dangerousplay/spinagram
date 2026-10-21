@@ -12,7 +12,7 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "icon-touches-border": "P0", "header-overlap": "P0", "icon-overflows-box": "P0",
             "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
-            "version-mismatch": "P2", "style": "P2"}
+            "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1"}
 
 
 @dataclass
@@ -59,6 +59,55 @@ def behavior_issues(d) -> list[tuple[str, str]]:
     return out
 
 
+def segment_hits(p, q, rect, inset: float = 1.0) -> bool:
+    """Does segment p→q enter the interior of ``rect`` (x, y, w, h) shrunk by ``inset``? (Liang-Barsky)"""
+    x, y, w, h = rect
+    x0, y0, x1, y1 = x + inset, y + inset, x + w - inset, y + h - inset
+    if x1 <= x0 or y1 <= y0:
+        return False
+    (px, py), (qx, qy) = p, q
+    dx, dy = qx - px, qy - py
+    t0, t1 = 0.0, 1.0
+    for pk, qk in ((-dx, px - x0), (dx, x1 - px), (-dy, py - y0), (dy, y1 - py)):
+        if pk == 0:
+            if qk < 0:
+                return False
+            continue
+        t = qk / pk
+        if pk < 0:
+            t0 = max(t0, t)
+        else:
+            t1 = min(t1, t)
+        if t0 > t1:
+            return False
+    return t1 - t0 > 1e-9
+
+
+def polyline(c: Connector) -> list[tuple[float, float]]:
+    """A connector's path as points (a quadratic curve sampled in 24 steps)."""
+    if c.route != "curve":
+        return list(c.points)
+    (x0, y0), (qx, qy), (x2, y2) = c.points
+    return [((1 - t) ** 2 * x0 + 2 * (1 - t) * t * qx + t * t * x2, (1 - t) ** 2 * y0 + 2 * (1 - t) * t * qy + t * t * y2)
+            for t in (i / 24 for i in range(25))]
+
+
+def edges_through_boxes(scene: Scene) -> list[Issue]:
+    """Edges crossing a node they do not connect. Zones are never obstacles, so an edge that ends on a zone
+    border (a group target) is never reported for that zone."""
+    nodes = [s for s in scene.items if isinstance(s, Shape) and s.role == "node"]
+    out = []
+    for c in (i for i in scene.items if isinstance(i, Connector)):
+        ends = {b.shape_id for b in (c.src, c.dst) if b is not None}
+        pts = polyline(c)
+        for s in nodes:
+            if s.id in ends:
+                continue
+            if any(segment_hits(a, b, (s.x, s.y, s.w, s.h)) for a, b in zip(pts, pts[1:])):
+                out.append(Issue(scene.id, c.id, "edge-through-box", f"edge passes through {s.id!r}"))
+    return out
+
+
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
@@ -68,6 +117,8 @@ def check(scene: Scene) -> list[Issue]:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "
                             f"{over[1]}px tall — enlarge layout.area/canvas, shrink nodes or change direction"))
     issues += _hidden_heads(scene)
+    if not scene.laid_out:  # engines route their own edges; this checks hand-placed diagrams
+        issues += edges_through_boxes(scene)
     for it in scene.items:
         if isinstance(it, Shape) and it.label and it.role == "node":
             x, y, w, h = it.label.box
