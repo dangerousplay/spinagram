@@ -478,6 +478,8 @@ class _Builder:
             ann = Annotator(self)
             items.extend(ann.badges(edges))
             items.extend(ann.panels(edges))
+            if d.annotations.legend is not None and d.annotations.legend.place is not None:
+                items.extend(ann.cell_legend(edges))
             content = [s for s in items if isinstance(s, Shape) and s.role in ("node", "zone")]
             items.extend(ann.callouts(content))
             self.annotation_issues = ann.check(content)

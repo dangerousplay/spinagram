@@ -1362,10 +1362,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] edge rows = line with dash/colour; zone rows = mini rect; `place="band"|(x,y,w,h)`; card fitted; `d.legend(...)`; DDT
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_legend.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] edge rows = line with dash/colour; zone rows = mini rect; `place="band"|(x,y,w,h)`; card fitted; `d.legend(...)`; DDT
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_legend.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

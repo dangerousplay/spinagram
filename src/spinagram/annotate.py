@@ -67,6 +67,19 @@ def legend_entries(d: Diagram) -> list[Entry]:
     lg = d.annotations.legend
     if lg is None:
         return []
+    if lg.auto:  # one entry per edge / zone style that carries a meaning, first use wins
+        out, seen = [], set()
+        for i, e in enumerate(d.edges):
+            key = ("edge", e.color, e.dashed, e.width, e.cls)
+            if e.meaning and key not in seen:
+                seen.add(key)
+                out.append(Entry(f"meaning:edge:{i}", e.meaning, "edge", f"edge:{i}"))
+        for k, z in enumerate(d.zones):
+            key = ("zone", z.color, z.fill, z.stroke, str(z.dash), z.cls)
+            if z.meaning and key not in seen:
+                seen.add(key)
+                out.append(Entry(f"meaning:zone:{k}", z.meaning, "zone", f"zone:{k}"))
+        return out
     if lg.items is not None:
         out = []
         for key, label in lg.items.items():
@@ -174,7 +187,7 @@ def band(d: Diagram, theme: Theme, width: float) -> tuple[str, float] | None:
     the rows of a top or bottom band)."""
     ann = d.annotations
     ls = legend_style(d, theme)
-    shown = bool(ann.legend) and ls["display"] != "none"
+    shown = bool(ann.legend) and ls["display"] != "none" and ann.legend.place is None  # a cell legend: no band
     if not (shown or ann.steps):
         return None
     side = ls["side"]
@@ -265,6 +278,13 @@ class Annotator:
                           marker_start=ref.marker_start if ref else "none",
                           marker_end=ref.marker_end if ref else "arrow", opacity=ref.opacity if ref else 1.0)
             return [c]
+        if e.kind == "zone":  # a mini zone: its fill, outline and dash
+            z = next((s for s in self.b.zone_shapes.values() if s.id == f"z{e.ref.split(':')[1]}"), None)
+            s = Shape(id=f"legend-{j}-swatch", kind="rect", x=x, y=y, w=w, h=h, fill=z.fill if z else None,
+                      stroke=z.stroke if z else self.t.color("border"), stroke_width=min(2.0, z.stroke_width or 2)
+                      if z else 2, dashed=z.dashed if z else False, dash=z.dash if z else None,
+                      cap=z.cap if z else None, radius=6, opacity=z.opacity if z else 1.0, role="swatch")
+            return [s]
         if e.kind == "icon":
             p = self.t.icon(e.value, "light", self.d.base_dir)
             s = Shape(id=f"legend-{j}-swatch", kind="rect", x=x, y=y, w=w, h=h, fill=None, role="swatch",
@@ -306,6 +326,28 @@ class Annotator:
         self.rects.append((x, y, w, h))
         return out
 
+    def cell_legend(self, connectors: list) -> list:
+        """The legend card in its own cell (``place=(x, y, w, h)``), one entry per row, scaled down (to 60 %) until
+        it fits the cell's height."""
+        x, y, w, h = self.d.annotations.legend.place
+        entries = legend_entries(self.d)
+        base_ls, base_a = dict(self.ls), dict(self.a)
+        keys = ("label_size", "text_size", "title_size", "swatch_h", "row_gap", "padding")
+        scale = 1.0
+        while True:
+            for k in keys:
+                if k in self.ls:
+                    self.ls[k] = base_ls[k] * scale
+                if k in self.a:
+                    self.a[k] = base_a[k] * scale
+            rows = legend_rows(entries, w, self.t, columns=1, a=self.ls)
+            if legend_height(rows, self.t, self.ls) <= h or scale <= 0.6:
+                break
+            scale = round(scale - 0.05, 2)
+        out = self._legend(x, y, w, rows, connectors)
+        self.ls, self.a = base_ls, base_a
+        return out
+
     def _steps(self, x: float, y: float, w: float) -> list:
         a = self.a
         steps = sorted(enumerate(self.d.annotations.steps), key=lambda p: p[1].n)
@@ -343,7 +385,7 @@ class Annotator:
         ls = self.ls
         ax, ay, aw, ah = self.area
         side, thickness = b
-        shown = bool(ann.legend) and ls["display"] != "none"
+        shown = bool(ann.legend) and ls["display"] != "none" and ann.legend.place is None
         out: list = []
         entries = legend_entries(self.d) if shown else []
         if side in ("right", "left"):

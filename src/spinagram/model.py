@@ -285,6 +285,8 @@ class LegendSpec:
     title: str = "Legend"
     items: dict[str, str] | None = None
     position: str | None = None  # right | bottom | left | top; None: the stylesheet's `placement`, else right
+    auto: bool = False           # items="auto": one row per edge/zone style that carries a ``meaning``
+    place: tuple[float, float, float, float] | None = None  # a cell (x, y, w, h) instead of the band
 
 
 @dataclass
@@ -577,13 +579,22 @@ class Diagram:
             self._sizes.pop()
 
     # annotations ---------------------------------------------------------------------------------
-    def add_legend(self, items: dict[str, str] | None = None, *, title: str = "Legend",
-                   position: str | None = None) -> LegendSpec:
+    def add_legend(self, items: dict[str, str] | str | None = None, *, title: str = "Legend",
+                   position: str | None = None, place: Any = "band") -> LegendSpec:
         """A legend card in the annotation band: ``items`` maps ``.class``, ``edge.class``, ``style:name`` or
-        ``pack:icon`` to a label; without items it lists the classes and styles the diagram uses."""
+        ``pack:icon`` to a label; without items it lists the classes and styles the diagram uses; ``"auto"`` lists
+        one row per edge or zone style that carries a ``meaning``. ``place`` is ``"band"`` or a cell (x, y, w, h).
+
+        SPEC_DEVIATION: the roadmap's ``d.legend(...)`` is taken by the 0.1 fixed-legend field ``Diagram.legend``,
+        so the automatic legend is ``add_legend(items="auto", place=...)``."""
         if position is not None and position not in BAND_POSITIONS:
             raise ValueError(f"{self.id}: legend position {position!r}; use one of {', '.join(BAND_POSITIONS)}")
-        self.annotations.legend = LegendSpec(title, dict(items) if items is not None else None, position)
+        auto = items == "auto"
+        if place != "band" and (not isinstance(place, (list, tuple)) or len(place) != 4):
+            raise ValueError(f"{self.id}: legend place {place!r}; use 'band' or (x, y, w, h)")
+        cell = None if place == "band" else tuple(float(v) for v in place)
+        self.annotations.legend = LegendSpec(title, None if auto or items is None else dict(items), position, auto,
+                                             cell)
         return self.annotations.legend
 
     def _node_id(self, ref: Any) -> str:
