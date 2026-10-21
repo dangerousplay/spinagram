@@ -342,3 +342,27 @@ def test_check_fix_writes_fixed_yaml_copy(tmp_path, monkeypatch, capsys, name):
         assert len(diagrams) == len(load(tmp_path / "s.yaml"))
         for d in diagrams:
             assert [i for i in check(build_scene(d, THEME)) if i.kind in ("overflow-x", "outside-safe-area")] == []
+
+
+# check --fix on Python (CHK-05) -------------------------------------------------------------------------------
+PY_SPECS = [
+    ("nudge", 'd.box("M", id="m", x=1553, y=600, w=300, h=100)', ["m: move by dx=-13, dy=0"], 0),
+    ("resize", 'd.box("averyveryverylongunbreakabletoken", id="n", x=200, y=200, w=230, h=120, fit="none")',
+     ["n: w="], 0),
+    ("unfixable-p0", 'd.box("averyveryverylongunbreakabletoken", id="n", x=1600, y=200, w=230, h=120, fit="none")',
+     ["n: title_size=19"], 1),
+]
+
+
+@pytest.mark.parametrize("body,lines,rc", [s[1:] for s in PY_SPECS], ids=[s[0] for s in PY_SPECS])
+def test_check_fix_prints_python_suggestions(tmp_path, monkeypatch, capsys, body, lines, rc):
+    src = f"from spinagram import Diagram\nd = Diagram('P1', 'Py')\n{body}\ndiagram = d\n"
+    (tmp_path / "s.py").write_text(src)
+    monkeypatch.chdir(tmp_path)
+    before = sorted(p.name for p in tmp_path.iterdir())
+    assert main(["check", "--fix", "s.py"]) == rc
+    out = capsys.readouterr().out
+    assert sorted(p.name for p in tmp_path.iterdir() if p.name != "__pycache__") == before   # nothing written
+    assert (tmp_path / "s.py").read_text() == src
+    for ln in lines:
+        assert any(row.startswith(f"{tmp_path / 's.py'}: {ln}") or f"s.py: {ln}" in row for row in out.splitlines())
