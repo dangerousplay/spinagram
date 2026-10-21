@@ -13,7 +13,8 @@ _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style
               "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css", "cell"}
 _NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note variant
                "fit", "min_scale", "break_on",  # text fitting
-               "badges"}  # corner badge icons
+               "badges",  # corner badge icons
+               "size", "role", "max_width"}  # free labels
 _CONTAINER_KEYS = {"x", "y", "gap", "same_size", "max_width", "same_icon_size"}
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
                "class", "css"}

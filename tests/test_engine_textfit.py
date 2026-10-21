@@ -299,3 +299,56 @@ def test_zone_label_width_includes_letter_spacing(tmp_path, tracking, label):  #
     size = th.defaults("zone").get("label_size", 16)
     assert t.letter_spacing == pytest.approx(tracking * size)
     assert t.width == pytest.approx(measure(label.upper(), t.block.font) + tracking * size * len(label))
+
+
+# free labels: size, roles, wrapping (TXT-16..18) --------------------------------------------------------------
+from spinagram.scene import Text  # noqa: E402
+
+
+def _label(**kw):
+    d = Diagram("L", "Labels")
+    d.label(kw.pop("text", "subnet-a network"), x=200, y=300, **kw)
+    return next(i for i in build_scene(d, THEME).items if isinstance(i, Text) and i.id not in ("chrome-title",)
+                and not i.id.startswith("chrome"))
+
+
+@pytest.mark.parametrize("size", [12, 20, 28])
+def test_label_size(size):  # TXT-16
+    assert _label(size=size).block.font.size == size
+
+
+ROLES = [
+    # id, role, expected (upper text, size, weight, letter spacing, colour)
+    ("zone-label", "zone-label", ("SUBNET-A NETWORK", 16, 700, 16 * 0.06, THEME.zone_style(None)["label"])),
+    ("caption", "caption", ("subnet-a network", 15, 400, 0, THEME.color("text-muted"))),
+    ("footnote", "footnote", ("subnet-a network", 13, 400, 0, THEME.color("text-muted"))),
+]
+
+
+@pytest.mark.parametrize("role,expected", [r[1:] for r in ROLES], ids=[r[0] for r in ROLES])
+def test_label_roles(role, expected):  # TXT-17
+    t = _label(role=role)
+    text, size, weight, tracking, colour = expected
+    assert (t.block.lines[0], t.block.font.size, t.block.font.weight, t.block.color) == (text, size, weight, colour)
+    assert t.letter_spacing == pytest.approx(tracking)
+
+
+def test_unknown_role_raises():
+    with pytest.raises(ValueError, match="label role 'banner'"):
+        Diagram("L", "L").label("x", x=0, y=0, role="banner")
+
+
+@pytest.mark.parametrize("max_width", [120, 200, 400])
+def test_label_max_width_wraps(max_width):  # TXT-18
+    text = "egress through NAT to the destinations group"
+    t = _label(text=text, max_width=max_width)
+    assert all(measure(ln, t.block.font) <= max_width for ln in t.block.lines)
+    assert " ".join(t.block.lines) == text and (len(t.block.lines) > 1) == (measure(text, t.block.font) > max_width)
+
+
+def test_label_options_from_yaml():
+    from spinagram.yaml_io import from_dict
+    d = from_dict({"id": "L", "title": "L", "nodes": [{"id": "l", "kind": "text", "title": "net", "x": 100,
+                                                       "y": 100, "size": 22, "role": "caption", "max_width": 300}]})
+    assert {k: d.nodes[0].extra[k] for k in ("size", "role", "max_width")} == {"size": 22, "role": "caption",
+                                                                              "max_width": 300}

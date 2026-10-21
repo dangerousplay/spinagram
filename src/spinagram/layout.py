@@ -22,6 +22,15 @@ from .text import measure, wrap_paragraphs
 from .theme import FontRef, Theme
 
 
+# free label roles: theme typography for labels used as headers, captions and footnotes (defaults.label.roles
+# overrides them per role)
+LABEL_ROLES = {
+    "zone-label": {"size": 16, "weight": 700, "upper": True, "tracking": 0.06},
+    "caption": {"size": 15, "weight": 400, "color": "text-muted"},
+    "footnote": {"size": 13, "weight": 400, "color": "text-muted"},
+}
+
+
 def slugify(text: str, max_len: int = 60) -> str:
     s = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:max_len].rstrip("-")
@@ -133,12 +142,25 @@ class _Builder:
             self.shapes[n.id] = s
             return s
         if n.kind == "text":
-            weight = int(n.extra.get("weight", 400))
-            size = n.title_size or n.body_size or 18
+            role = LABEL_ROLES.get(n.extra.get("role")) or {}
+            role = {**role, **((self.t.defaults("label").get("roles") or {}).get(n.extra.get("role")) or {})}
+            if n.extra.get("role") == "zone-label" and "color" not in role:
+                role["color"] = self.t.zone_style(None)["label"]
+            weight = int(n.extra.get("weight", role.get("weight", 400)))
+            size = n.title_size or n.extra.get("size") or n.body_size or role.get("size", 18)
             font = self.t.font(n.extra.get("font", "body"), weight, size)
-            color = self.t.color(n.color, self.t.color("text-muted"))
-            return self.text(n.id, n.x, n.y, " ".join(_as_list(n.title)), font, color,
-                             anchor={"center": "middle", "right": "end"}.get(n.align, "start"))
+            color = self.t.color(n.color or role.get("color"), self.t.color("text-muted"))
+            text = " ".join(_as_list(n.title))
+            if role.get("upper"):
+                text = text.upper()
+            anchor = {"center": "middle", "right": "end"}.get(n.align, "start")
+            tracking = role.get("tracking", 0) * size
+            t = self.text(n.id, n.x, n.y, text, font, color, anchor=anchor, letter_spacing=tracking)
+            if n.extra.get("max_width"):  # wrapped to max_width (spaces, then safe token breaks)
+                lines = textfit.wrap_fit([text], font, float(n.extra["max_width"]))
+                t.block.lines = lines
+                t.width = max(measure(ln, font) + tracking * len(ln) for ln in lines)
+            return t
         if n.kind == "diamond":
             return self.diamond(n)
         if n.kind in shapes.KINDS:

@@ -550,9 +550,14 @@ class Diagram:
         """A rounded tag centred on (x, y)."""
         return self.add("pill", title, x=x, y=y, **kw)
 
-    def label(self, text: str, *, x: float, y: float, **kw: Any) -> Node:
-        """Free text; (x, y) is the first baseline."""
-        return self.add("text", text, x=x, y=y, **kw)
+    def label(self, text: str, *, x: float, y: float, size: float | None = None, role: str | None = None,
+              max_width: float | None = None, **kw: Any) -> Node:
+        """Free text; (x, y) is the first baseline. ``role`` (zone-label, caption, footnote) applies that theme
+        typography; ``max_width`` wraps the text."""
+        if role is not None and role not in ("zone-label", "caption", "footnote"):
+            raise ValueError(f"{self.id}: label role {role!r}; use zone-label, caption or footnote")
+        extra = {k: v for k, v in (("size", size), ("role", role), ("max_width", max_width)) if v is not None}
+        return self.add("text", text, x=x, y=y, **extra, **kw)
 
     def edge(self, src: Any, dst: Any = None, label: str | None = None, **kw: Any) -> Edge:
         """``d.edge(a, b)``, ``d.edge(a, b, "label")``, ``d.edge(a.right, b.left@0.3)``, or

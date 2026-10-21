@@ -458,9 +458,9 @@ defects. The author should declare content and intent; the engine should own fit
 | ICN-11 | P3: fallback chain | Execute | Implementing |
 | ICN-12 | P3: icon source record | Execute | Implementing |
 | ICN-13 | P3: icons report CLI | Execute | Implementing |
-| TXT-16 | P3: label size= | Tasks | In Tasks |
-| TXT-17 | P3: label roles | Tasks | In Tasks |
-| TXT-18 | P3: label max_width | Tasks | In Tasks |
+| TXT-16 | P3: label size= | Execute | Implementing |
+| TXT-17 | P3: label roles | Execute | Implementing |
+| TXT-18 | P3: label max_width | Execute | Implementing |
 | STY-01 | P3: CSS none colours | Execute | Implementing |
 | STY-02 | P3: CSS element types | Tasks | In Tasks |
 | STY-03 | P3: icon-only box defaults | Tasks | In Tasks |
