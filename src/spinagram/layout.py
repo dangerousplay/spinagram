@@ -45,6 +45,7 @@ class _Builder:
         self.fits: dict[str, tuple[str, float]] = {}  # node id → (last fitting strategy, final first-block size)
         self.headers: dict[str, tuple[float, float, float, float]] = {}  # zone shape id → header rect
         self.content_tops: dict[str, float] = {}  # zone id → first free y below its header
+        self.zone_shapes: dict[str, Shape] = {}  # zone model id → its outline shape (edge targets)
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -302,7 +303,7 @@ class _Builder:
         return s
 
     def endpoint(self, ref, other) -> tuple[tuple[float, float], Binding | None]:
-        return endpoints.resolve(ref, other, self.shapes, self.d.id)
+        return endpoints.resolve(ref, other, self.shapes, self.d.id, self.zone_shapes)
 
     def edge(self, i: int, e: Edge) -> Connector:
         ed = self.t.defaults("edge")
@@ -388,6 +389,7 @@ class _Builder:
                                               dashed=ol["dashed"], dash=ol["dash"], cap=ol["cap"], radius=radius,
                                               opacity=opacity, role="zone"),
                                         zcs.get("")))
+            self.zone_shapes[z.id or f"z{i}"] = items[-1]
             items.extend(self.zone_header(i, z, zs, zcs))
         for n in d.nodes:
             items.append(self.node(n))

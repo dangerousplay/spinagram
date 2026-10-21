@@ -39,3 +39,67 @@ def test_node_anchor_resolution(ref, other, point, binding):
 def test_unknown_node_raises():
     with pytest.raises(KeyError, match="unknown node 'nope'"):
         _edge_scene("nope", (0, 0))
+
+
+# zone endpoints (EDG-07, EDG-08, EDG-12) ----------------------------------------------------------------------
+# zone "net" at (400, 400, 400, 300): centre (600, 550); points stay 24 px from corners
+ZONE_SCENARIOS = [
+    # id, source point, zone ref, expected end point, expected side
+    ("left", (100, 550), "zone:net", (400, 550), "left"),
+    ("right", (1100, 450), "zone:net", (800, 450), "right"),
+    ("above", (600, 100), "zone:net", (600, 400), "top"),
+    ("below", (600, 1000), "zone:net", (600, 700), "bottom"),
+    ("top-left-corner-clamped", (100, 100), "zone:net", (424, 400), "top"),
+    ("bottom-right-corner-clamped", (1100, 1000), "zone:net", (776, 700), "bottom"),
+    ("left-clamped-low", (100, 690), "zone:net", (400, 676), "left"),
+    ("inside-inner-face", (450, 600), "zone:net", (400, 600), "left"),
+    ("explicit-side-frac", (0, 0), "zone:net.top@0.25", (500, 400), "top"),
+]
+
+
+def _zone_edge(src, dst, **kw):
+    d = Diagram("EP", "Endpoints")
+    z = d.zone("Net", id="net", x=400, y=400, w=400, h=300)
+    d.edge(src, z if dst == "ZONE" else dst, **kw)
+    return [i for i in build_scene(d, THEME).items if isinstance(i, Connector)][0]
+
+
+@pytest.mark.parametrize("src,ref,point,side", [s[1:] for s in ZONE_SCENARIOS], ids=[s[0] for s in ZONE_SCENARIOS])
+def test_zone_endpoint_side_and_point(src, ref, point, side):
+    c = _zone_edge(src, ref)
+    assert c.points[-1] == pytest.approx(point)
+    assert (c.dst.shape_id, c.dst.side) == ("z0", side)
+
+
+def test_zone_object_and_node_source():
+    d = Diagram("EP", "Endpoints")
+    z = d.zone("Net", id="net", x=400, y=400, w=400, h=300)
+    pool = d.box("Pool", id="pool", x=1000, y=500, w=200, h=100)
+    d.edge(pool, z)
+    c = [i for i in build_scene(d, THEME).items if isinstance(i, Connector)][0]
+    assert c.points == [pytest.approx((1000, 550)), pytest.approx((800, 550))]
+    assert (c.src.shape_id, c.src.side, c.dst.shape_id, c.dst.side) == ("pool", "left", "z0", "right")
+
+
+def test_zone_endpoint_from_yaml():
+    from spinagram.yaml_io import from_dict
+    d = from_dict({"id": "EP", "title": "E", "zones": [{"id": "net", "x": 400, "y": 400, "w": 400, "h": 300}],
+                   "edges": ["zone:net.left -> zone:net.right"]})
+    c = [i for i in build_scene(d, THEME).items if isinstance(i, Connector)][0]
+    assert c.points == [pytest.approx((400, 550)), pytest.approx((800, 550))]
+
+
+def test_unknown_zone_raises():
+    with pytest.raises(KeyError, match="unknown zone 'nope'"):
+        _zone_edge((0, 0), "zone:nope")
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("pool -> zone:net", ("pool", "zone:net", None)),
+    ("pool -> zone:net.top@0.3: HTTPS", ("pool", "zone:net.top@0.3", "HTTPS")),
+    ("zone:a.right -> b: x", ("zone:a.right", "b", "x")),
+], ids=["zone-target", "zone-target-label", "zone-source"])
+def test_edge_shorthand_with_zone_refs(text, expected):
+    from spinagram.model import parse_edge
+    e = parse_edge(text)
+    assert (e.src, e.dst, e.label) == expected

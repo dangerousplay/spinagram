@@ -282,7 +282,7 @@ class Annotations:
         return bool(self.legend or self.steps or self.callouts)
 
 
-_EDGE_RE = re.compile(r"^\s*(?P<src>.+?)\s*(?P<op><->|->|<-|--)\s*(?P<dst>[^:]+?)\s*(?::\s*(?P<label>.*))?$")
+_EDGE_RE = re.compile(r"^\s*(?P<src>.+?)\s*(?P<op><->|->|<-|--)\s*(?P<dst>(?:zone:)?[^:]+?)\s*(?::\s*(?P<label>.*))?$")
 
 
 def parse_edge(text: str) -> Edge:
@@ -301,6 +301,10 @@ def parse_edge(text: str) -> Edge:
 def _endpoint(v: Any) -> str | Point:
     if isinstance(v, Node):
         return v.id
+    if isinstance(v, Zone):
+        if v.id is None:
+            raise ValueError("zone has no id: create it with d.zone(...) to use it as an edge endpoint")
+        return f"zone:{v.id}"
     if isinstance(v, str):
         return v
     return (float(v[0]), float(v[1]))

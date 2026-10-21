@@ -498,10 +498,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `Zone`, `zone:<id>`, `zone:<id>.<side>[@f]` endpoints; facing side; closest point clamped 24 px from corners; inner face when source inside; KeyError on unknown; DDT 8 source positions
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_endpoints.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `Zone`, `zone:<id>`, `zone:<id>.<side>[@f]` endpoints; facing side; closest point clamped 24 px from corners; inner face when source inside; KeyError on unknown; DDT 8 source positions
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_endpoints.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
