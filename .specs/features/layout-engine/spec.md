@@ -407,8 +407,8 @@ defects. The author should declare content and intent; the engine should own fit
 | CHK-04 | P1: Fix (YAML) | Tasks | In Tasks |
 | CHK-05 | P1: Fix (Python) | Tasks | In Tasks |
 | CHK-06 | P1: Fix (render --relayout) | Tasks | In Tasks |
-| CHK-07 | P1: Fix (convergence) | Tasks | In Tasks |
-| CHK-08 | P1: Fix (safe-area guard) | Tasks | In Tasks |
+| CHK-07 | P1: Fix (convergence) | Execute | Implementing |
+| CHK-08 | P1: Fix (safe-area guard) | Execute | Implementing |
 | ICN-01 | P2: Icon aspect (intrinsic ratio) | Tasks | In Tasks |
 | ICN-02 | P2: Icon aspect (fit by height) | Tasks | In Tasks |
 | ICN-03 | P2: Icon aspect (wordmark ≥24px) | Tasks | In Tasks |

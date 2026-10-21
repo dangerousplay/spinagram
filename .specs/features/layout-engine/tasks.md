@@ -741,10 +741,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `apply_to_diagram` applies safe fixes, skips ones leaving the safe area; re-check shows zero fixed kinds; DDT per op
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `apply_to_diagram` applies safe fixes, skips ones leaving the safe area; re-check shows zero fixed kinds; DDT per op
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

@@ -262,3 +262,53 @@ def test_fix_resize_clears_icon_overflow(icon):
     assert i.fix["op"] == "resize"
     n.w, n.h = i.fix["w"], i.fix["h"]
     assert _kinds_after(d, "icon-overflows-box") == []
+
+
+# applying fixes (CHK-07, CHK-08) ------------------------------------------------------------------------------
+from spinagram.engine.fix import apply_to_diagram, fix_until_clean  # noqa: E402
+from spinagram.qa import Issue as _I  # noqa: E402
+
+APPLY_SCENARIOS = [
+    ("resize", lambda d: d.box(LONG, id="n", x=200, y=200, w=230, h=120, fit="none"), "overflow-x"),
+    ("nudge", lambda d: d.box("A", id="n", x=1553, y=300, w=300, h=100), "outside-safe-area"),
+    ("shrink-font", lambda d: d.box(LONG, id="n", x=1600, y=200, w=230, h=120, fit="none"), "overflow-x"),
+    ("move-label", lambda d: d.edge(d.box("A", id="a", x=200, y=400, w=200, h=100),
+                                    d.box("B", id="b", x=460, y=400, w=200, h=100), "replication"),
+     "label-collision"),
+]
+
+
+@pytest.mark.parametrize("build,kind", [s[1:] for s in APPLY_SCENARIOS], ids=[s[0] for s in APPLY_SCENARIOS])
+def test_apply_fix_per_op(build, kind):
+    d = Diagram("F", "Fix")
+    build(d)
+    issues = [i for i in check(build_scene(d, THEME)) if i.kind == kind]
+    fixed, applied, skipped = apply_to_diagram(d, issues)
+    assert applied and not skipped
+    assert d.nodes[0].w in (230, 300, 200)                         # the source diagram is untouched
+    after = [i for i in check(build_scene(fixed, THEME)) if i.kind == kind]
+    if kind == "overflow-x" and applied[0].fix["op"] == "shrink-font":
+        assert fixed.nodes[0].title_size == applied[0].fix["title_size"]  # shrinking alone may not clear it
+    else:
+        assert after == []                                          # CHK-07
+
+
+@pytest.mark.parametrize("fix", [{"op": "nudge", "node": "n", "dx": 400, "dy": 0},
+                                 {"op": "resize", "node": "n", "w": 900}], ids=["nudge-out", "resize-out"])
+def test_fix_leaving_safe_area_is_skipped(fix):  # CHK-08
+    d = Diagram("F", "Fix")
+    d.box("A", id="n", x=1300, y=300, w=300, h=100)
+    fixed, applied, skipped = apply_to_diagram(d, [_I("F", "n", "test", "x", fix=fix)])
+    assert applied == [] and len(skipped) == 1 and (fixed.nodes[0].x, fixed.nodes[0].w) == (1300, 300)
+
+
+def test_fix_until_clean_converges_on_mixed_problems(icon):
+    d = Diagram("F", "Fix")
+    d.zone("Net", x=100, y=100, w=900, h=500, icon=icon)
+    d.box("A", id="a", x=110, y=110, w=200, h=60)                    # covers the header
+    d.box(LONG, id="b", x=400, y=300, w=230, h=120, fit="none")     # overflows
+    d.box("C", id="c", x=1553, y=700, w=300, h=100)                  # past the right margin
+    fixed, applied, remaining = fix_until_clean(d, THEME)
+    fixed_kinds = {i.kind for i in applied}
+    assert {"header-overlap", "overflow-x", "outside-safe-area"} <= fixed_kinds
+    assert not [i for i in remaining if i.kind in fixed_kinds]
