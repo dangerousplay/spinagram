@@ -226,3 +226,13 @@ def test_bundle_from_yaml():  # EDG-13 YAML parity
                    "edges": ["s0 -> obs", "s1 -> obs"], "bundles": [{"edges": [0, 1], "trunk": "right"}]})
     cs = _conns(build_scene(d, THEME))
     assert [c.arrow_end for c in cs] == [False, True] and all(any(p[0] == 700 for p in c.points) for c in cs)
+
+
+def test_engine_ortho_pays_the_crossing_penalty():  # EDG-18 through the engine (default CROSSING = 120)
+    d = Diagram("R", "Route")
+    d.box("A", id="a", x=200, y=300, w=200, h=60)
+    d.box("B", id="b", x=700, y=500, w=200, h=60)
+    d.edge((450, 480), (750, 480))          # an edge already drawn across the direct path
+    d.edge("a", "b", route="ortho")
+    cs = _conns(build_scene(d, THEME))
+    assert crossings(cs) == 0 and _axis_aligned(cs[1].points)
