@@ -138,3 +138,26 @@ def test_svg_without_fallback_is_unchanged():
     d = Diagram("G", "Glyphs")
     d.box("Plain", id="n", x=200, y=200, w=600, h=160, text="text only")
     assert "Noto Sans" not in to_svg(build_scene(d, THEME))
+
+
+# PPTX (TXT-13) ------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("body,char,family", [("ok ⚠ done", "⚠", "Noto Sans Symbols 2"),
+                                              ("a → b", "→", "Noto Sans Math"),
+                                              ("✓ checked", "✓", "Noto Sans Symbols 2")],
+                         ids=["warning", "arrow", "check"])
+def test_pptx_writes_fallback_runs(tmp_path, body, char, family):
+    pptx = pytest.importorskip("pptx")
+    from pptx.oxml.ns import qn
+
+    from spinagram import render
+    d = Diagram("G", "Glyphs")
+    d.box("Status", id="n", x=200, y=200, w=600, h=160, text=body)
+    render([d], tmp_path, formats=["pptx"])
+    sh = next(s for s in pptx.Presentation(str(tmp_path / "diagrams.pptx")).slides[0].shapes
+              if s.has_text_frame and body in s.text_frame.text)
+    runs = [r for p in sh.text_frame.paragraphs for r in p.runs]
+    fb = next(r for r in runs if char in r.text)
+    assert fb.text.strip() == char and fb.font.name == family
+    assert fb._r.get_or_add_rPr().find(qn("a:sym")).get("typeface") == family
+    assert all(r.font.name == "Arial" for r in runs if char not in r.text)
+    assert "".join(r.text for p in sh.text_frame.paragraphs[1:] for r in p.runs) == body

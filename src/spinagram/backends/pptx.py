@@ -96,6 +96,21 @@ def _fallback(svg: Path, data: bytes, w: float, h: float):
     return str(cache)
 
 
+def _segments(text: str, b: TextBlock) -> list[tuple[str, object]]:
+    """``text`` cut where the block's fallback runs change font (one run when there is no fallback)."""
+    if not b.runs:
+        return [(text, b.font)]
+    font_of = {ch: r.font for line in b.runs for r in line if r.font is not b.font for ch in r.text}
+    out: list[list] = []
+    for ch in text:
+        f = font_of.get(ch, b.font) if not ch.isspace() else (out[-1][1] if out else b.font)
+        if out and out[-1][1] is f:
+            out[-1][0] += ch
+        else:
+            out.append([ch, f])
+    return [(t, f) for t, f in out]
+
+
 class _Slide:
     def __init__(self, prs, scene: Scene, svg: str = "vector", svg_parts: dict | None = None):
         self.scene = scene
@@ -228,14 +243,25 @@ class _Slide:
                 p.line_spacing = round(b.leading / b.font.size, 2)
                 if bi > 0 and pi == 0:
                     p.space_before = Pt(gap * 0.5)
-                r = p.add_run()
-                r.text = text
-                f = r.font
-                f.name = b.font.family
-                f.size = Pt(b.font.size * 0.5)
-                f.bold = b.font.weight >= 600
-                f.italic = b.font.italic
-                f.color.rgb = _rgb(b.color)
+                for seg, font in _segments(text, b):
+                    r = p.add_run()
+                    r.text = seg
+                    f = r.font
+                    f.name = font.family
+                    f.size = Pt(b.font.size * 0.5)
+                    f.bold = b.font.weight >= 600
+                    f.italic = b.font.italic
+                    f.color.rgb = _rgb(b.color)
+                    if font is not b.font:  # glyph fallback: the symbol font for this run (a:latin + a:sym)
+                        from pptx.oxml.ns import qn
+
+                        rpr = r._r.get_or_add_rPr()
+                        sym = rpr.find(qn("a:sym"))
+                        if sym is None:
+                            sym = rpr.makeelement(qn("a:sym"), {})
+                            latin = rpr.find(qn("a:latin"))
+                            latin.addnext(sym) if latin is not None else rpr.append(sym)
+                        sym.set("typeface", font.family)
 
     def _text_frame(self, shape, s: Shape, label: Label, prewrapped: bool) -> None:
         from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE

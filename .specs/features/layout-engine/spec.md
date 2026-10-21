@@ -422,7 +422,7 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-10 | P2: Glyph fallback (cmap) | Execute | Implementing |
 | TXT-11 | P2: Glyph fallback (chain) | Execute | Implementing |
 | TXT-12 | P2: Glyph fallback (SVG) | Execute | Implementing |
-| TXT-13 | P2: Glyph fallback (PPTX) | Tasks | In Tasks |
+| TXT-13 | P2: Glyph fallback (PPTX) | Execute | Implementing |
 | TXT-14 | P2: Glyph fallback (check) | Tasks | In Tasks |
 | TXT-15 | P2: Glyph fallback (metrics) | Execute | Implementing |
 | BOX-01 | P2: Content-sized boxes | Tasks | In Tasks |
