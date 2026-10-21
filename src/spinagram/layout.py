@@ -360,7 +360,9 @@ class _Builder:
                 ly = z.y + (22 if icon_name else 36)
                 col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color", zs["label"]), 700)
                 size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
-                items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col))
+                track = zd.get("label_tracking", 0) * size if zs["upper"] else 0  # em → px, uppercase labels only
+                items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col,
+                                       letter_spacing=track))
         for n in d.nodes:
             items.append(self.node(n))
             items.extend(self.extras.pop(n.id, []))

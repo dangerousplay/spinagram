@@ -281,3 +281,21 @@ def test_no_overflow_when_fitting_succeeds(fit):  # TXT-07: nothing reported whe
     d = Diagram("F", "Fit")
     d.box("lb-pool-https-8081", id="n", x=0, y=0, w=166, h=150, text="8 members · nginx :8081", fit=fit)
     assert [i for i in check(build_scene(d, THEME)) if i.item == "n"] == []
+
+
+TRACKING_SCENARIOS = [
+    pytest.param(tr, label, id=f"track{tr}-{len(label)}ch")
+    for tr in (0, 0.06, 0.12) for label in ("AZ", "network-a · 10.0.0.0/24", "Availability zone site-a RHEL 9")]
+
+
+@pytest.mark.parametrize("tracking,label", TRACKING_SCENARIOS)
+def test_zone_label_width_includes_letter_spacing(tmp_path, tracking, label):  # TXT-09
+    from spinagram.scene import Text
+    (tmp_path / "theme.yaml").write_text(f"extends: default\ndefaults: {{zone: {{label_tracking: {tracking}}}}}\n")
+    th = Theme.load(tmp_path)
+    d = Diagram("Z", "Zone")
+    d.zone(label, x=0, y=0, w=900, h=300)
+    t = next(i for i in build_scene(d, th).items if isinstance(i, Text) and i.id == "z0-label")
+    size = th.defaults("zone").get("label_size", 16)
+    assert t.letter_spacing == pytest.approx(tracking * size)
+    assert t.width == pytest.approx(measure(label.upper(), t.block.font) + tracking * size * len(label))

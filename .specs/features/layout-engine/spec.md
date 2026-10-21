@@ -375,7 +375,7 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-06 | P1: Text fits (fit=none) | Execute | Implementing |
 | TXT-07 | P1: Text fits (overflow detail) | Execute | Implementing |
 | TXT-08 | P1: Text fits (options/defaults) | Execute | Implementing |
-| TXT-09 | P1: Text fits (letter spacing) | Tasks | In Tasks |
+| TXT-09 | P1: Text fits (letter spacing) | Execute | Implementing |
 | ZON-01 | P1: Zone header (padding) | Tasks | In Tasks |
 | ZON-02 | P1: Zone header (icon size) | Tasks | In Tasks |
 | ZON-03 | P1: Zone header (label centre) | Tasks | In Tasks |
