@@ -464,7 +464,7 @@ defects. The author should declare content and intent; the engine should own fit
 | STY-01 | P3: CSS none colours | Execute | Implementing |
 | STY-02 | P3: CSS element types | Execute | Implementing |
 | STY-03 | P3: icon-only box defaults | Execute | Implementing |
-| STY-04 | P3: backend golden parity (S2) | Tasks | In Tasks |
+| STY-04 | P3: backend golden parity (S2) | Execute | Implementing |
 | OUT-01 | P3: output= names | Tasks | In Tasks |
 | OUT-02 | P3: --name-from | Tasks | In Tasks |
 | OUT-03 | P3: requires warning | Tasks | In Tasks |
