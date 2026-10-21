@@ -378,6 +378,54 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: G5 install.py:134 (INST-08) (tests)
 - last seen: 2026-10-19T19:42:02Z
 
+### L-062 - Assert that a selection rule picks the exact expected element such as the largest or least-cost one, not only a property every candidate shares
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: layout-engine
+- evidence: M10 src/spinagram/engine/model_passes.py:60 (BOX-03) (tests)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-063 - When an element copies another element's style, assert every attribute the spec names, not a subset
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: layout-engine
+- evidence: M11 src/spinagram/annotate.py:283 (LEG-04) (tests)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-064 - Test each configurable option for its behavioural effect from every declared source, not just that it parses
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: layout-engine
+- evidence: TXT-08 tests/test_engine_textfit.py:248 (tests)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-065 - Assert that a selection rule picks the exact expected element such as the largest or least-cost one, not only a property every candidate shares
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: layout-engine
+- evidence: EDG-04 tests/test_engine_labels.py:102 (tests)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-066 - Name the exact input set of a derived value in the acceptance criterion, such as what is hashed or which elements are spanned
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: layout-engine
+- evidence: OUT-04, EDG-09 validation.md (spec)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-067 - Check proposed API names and CLI flags against existing fields and outputs before fixing them in the spec
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: layout-engine
+- evidence: src/spinagram/model.py:650 SPEC_DEVIATION (L1 d.legend) (spec) (+1 more)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-068 - Verify a bundled asset covers the spec's own acceptance examples before naming it in the spec
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: layout-engine
+- evidence: commit SPEC_DEVIATION Noto Sans Math (T2) (spec)
+- last seen: 2026-10-21T03:14:57Z
+
+### L-069 - Confirm every backend can express a value before the spec requires accepting it
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: layout-engine
+- evidence: src/spinagram/layout.py:78 SPEC_DEVIATION (STY-01 color none) (spec)
+- last seen: 2026-10-21T03:14:57Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
