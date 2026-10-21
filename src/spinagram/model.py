@@ -145,6 +145,7 @@ class Edge:
     label_size: float | None = None
     cls: str | None = None
     css: str | None = None
+    fan: str | None = None      # "bus": into a zone through a bar spanning the zone's children
 
     def step(self, text: str, n: int | None = None) -> "Step":
         """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""

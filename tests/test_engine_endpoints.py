@@ -152,3 +152,60 @@ def test_pptx_connector_bound_to_zone_at_exact_point(tmp_path, ref, point):
     assert end is not None and end.get("id") == str(shapes["z0"].shape_id)
     px = cx.end_x / EMU, cx.end_y / EMU
     assert px == pytest.approx(point, abs=0.5)
+
+
+# bus fan (EDG-09) ----------------------------------------------------------------------------------------------
+from spinagram.scene import Line  # noqa: E402
+
+# zone (600, 300, 600, 400); children are 100x60 boxes laid along the facing side
+BUS_SIDES = [
+    # id, source point, side, bar axis offset (10 px inside the side)
+    ("left", (100, 500), "left", 610),
+    ("top", (900, 50), "top", 310),
+    ("right", (1500, 500), "right", 1190),
+    ("bottom", (900, 900), "bottom", 690),
+]
+
+
+def _bus_scene(src, n_children):
+    d = Diagram("BUS", "Bus")
+    z = d.zone("Net", id="net", x=600, y=300, w=600, h=400)
+    kids = []
+    for k in range(n_children):  # a diagonal so that both axes spread
+        kids.append(d.box(f"N{k}", id=f"n{k}", x=700 + k * 150, y=380 + k * 100, w=100, h=60))
+    d.edge(src, z, fan="bus")
+    sc = build_scene(d, THEME)
+    c = [i for i in sc.items if isinstance(i, Connector)][0]
+    bars = [i for i in sc.items if isinstance(i, Line) and i.id == "e0-bus"]
+    return c, bars, kids
+
+
+@pytest.mark.parametrize("n", [0, 1, 3], ids=lambda n: f"{n}children")
+@pytest.mark.parametrize("src,side,offset", [s[1:] for s in BUS_SIDES], ids=[s[0] for s in BUS_SIDES])
+def test_bus_bar_inside_zone_spans_children(src, side, offset, n):
+    c, bars, kids = _bus_scene(src, n)
+    assert len(bars) == 1 and c.arrow_end and c.dst.side == side
+    bar, end = bars[0], c.points[-1]
+    horizontal = side in ("top", "bottom")
+    if horizontal:
+        assert bar.y1 == bar.y2 == offset
+        lo, hi = bar.x1, bar.x2
+        want = [k.x + k.w / 2 for k in kids] or [600 + 24, 1200 - 24]
+        v = end[0]
+    else:
+        assert bar.x1 == bar.x2 == offset
+        lo, hi = bar.y1, bar.y2
+        want = [k.y + k.h / 2 for k in kids] or [300 + 24, 700 - 24]
+        v = end[1]
+    assert (lo, hi) == (min(want + [v]), max(want + [v]))
+    assert end == pytest.approx({"left": (600, end[1]), "right": (1200, end[1]), "top": (end[0], 300),
+                                 "bottom": (end[0], 700)}[side])  # arrowhead stays at the border
+
+
+def test_no_bus_without_fan_or_zone_target():
+    d = Diagram("BUS", "Bus")
+    d.zone("Net", id="net", x=600, y=300, w=600, h=400)
+    d.box("A", id="a", x=700, y=400, w=100, h=60)
+    d.edge((100, 500), "zone:net")
+    d.edge((100, 500), "a", fan="bus")
+    assert not [i for i in build_scene(d, THEME).items if isinstance(i, Line) and i.id.endswith("-bus")]

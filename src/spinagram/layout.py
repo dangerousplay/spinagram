@@ -46,6 +46,7 @@ class _Builder:
         self.headers: dict[str, tuple[float, float, float, float]] = {}  # zone shape id → header rect
         self.content_tops: dict[str, float] = {}  # zone id → first free y below its header
         self.zone_shapes: dict[str, Shape] = {}  # zone model id → its outline shape (edge targets)
+        self.edge_extras: list = []  # bus bars, drawn right after the edges
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -324,6 +325,9 @@ class _Builder:
             lst = cs.get("label") or {}
             size = lst.get("font-size") or e.label_size or ed.get("label_size", 17)
             label = self.pill(f"e{i}-label", lx, ly, e.label, lst.get("color", color), size)
+        if e.fan == "bus" and b2 is not None and b2.target == "zone":
+            self.edge_extras.append(self._bus(i, e, b2, p2, color, est.get("stroke-width") or e.width or
+                                              ed.get("width", 3.5)))
         m_start = est.get("marker-start", "arrow" if e.arrow in ("start", "both") else "none")
         m_end = est.get("marker-end", "arrow" if e.arrow in ("end", "both") else "none")
         dash = est.get("stroke-dasharray")
@@ -332,6 +336,19 @@ class _Builder:
                          dashed=bool(dash) if dash is not None else e.dashed, arrow_start=m_start != "none",
                          arrow_end=m_end != "none", src=b1, dst=b2, label=label, dash=dash or None,
                          marker_start=m_start, marker_end=m_end, opacity=est.get("opacity", 1.0))
+
+    def _bus(self, i: int, e: Edge, b: Binding, end, color: str, width: float) -> Line:
+        """The bus bar of a ``fan="bus"`` edge inside its target zone."""
+        zid = e.dst.partition(".")[0][len(endpoints.ZONE):]
+        zm = next((z for z in self.d.zones if z.id == zid), None)
+        zs = self.zone_shapes[zid]
+        if zm is not None and zm.children:
+            kids = [self.shapes[c] for c in zm.children if c in self.shapes]
+        else:  # nodes inside the zone outline
+            kids = [s for s in self.shapes.values() if zs.x <= s.x and s.x + s.w <= zs.x + zs.w and
+                    zs.y <= s.y and s.y + s.h <= zs.y + zs.h]
+        (x1, y1), (x2, y2) = endpoints.bus(zs, b.side, kids, end)
+        return Line(f"e{i}-bus", x1, y1, x2, y2, color, width)
 
     def table(self, i: int, t: Table) -> TableGrid:
         td = self.t.defaults("table")
@@ -397,6 +414,7 @@ class _Builder:
         items.extend(self.table(i, tb) for i, tb in enumerate(d.tables))
         edges = [self.edge(i, e) for i, e in enumerate(d.edges)]
         items.extend(edges)
+        items.extend(self.edge_extras)
         if d.annotations:  # badges over edges, then the band's panels, then callouts placed around everything
             from .annotate import Annotator
 

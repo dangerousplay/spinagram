@@ -80,3 +80,22 @@ def resolve(ref, other, shapes: dict[str, Shape], diagram_id: str = "",
     f = float(frac) if frac else 0.5
     pt = s.anchor(side, f)
     return pt, (Binding(name, side, f) if side != "center" else None)
+
+
+BUS_INSET = 10.0
+
+
+def bus(z: Shape, side: str, children: list[Shape], end: Point) -> tuple[Point, Point]:
+    """A bar inside zone ``z``, ``BUS_INSET`` px from ``side``, spanning the children's centres projected on that
+    side (the whole side minus the corners without children); it always reaches the edge's border point."""
+    horizontal = side in ("top", "bottom")
+    if children:
+        cs = [c.x + c.w / 2 if horizontal else c.y + c.h / 2 for c in children]
+        lo, hi = min(cs), max(cs)
+    else:
+        lo, hi = (z.x + CORNER, z.x + z.w - CORNER) if horizontal else (z.y + CORNER, z.y + z.h - CORNER)
+    v = end[0] if horizontal else end[1]
+    lo, hi = min(lo, v), max(hi, v)
+    off = {"top": z.y + BUS_INSET, "bottom": z.y + z.h - BUS_INSET, "left": z.x + BUS_INSET,
+           "right": z.x + z.w - BUS_INSET}[side]
+    return ((lo, off), (hi, off)) if horizontal else ((off, lo), (off, hi))
