@@ -363,10 +363,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `solid|dashed(8 6)|dotted(2 6, round caps)|[list]` on styles and zones; `fill: none`; Shape gains `cap`; SVG emits `stroke-linecap=round` for dotted; DDT dash × source (style/zone/css)
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `solid|dashed(8 6)|dotted(2 6, round caps)|[list]` on styles and zones; `fill: none`; Shape gains `cap`; SVG emits `stroke-linecap=round` for dotted; DDT dash × source (style/zone/css)
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

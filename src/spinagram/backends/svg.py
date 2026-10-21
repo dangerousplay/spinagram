@@ -129,7 +129,7 @@ class _Svg:
         layer = self.back if s.role in ("zone", "chrome") else (self.front if s.role in ("pill", "swatch") else self.mid)
         stroke = (f' stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"' if s.stroke and s.stroke_width
                   else "")
-        dash = _dash(s.dashed, s.dash)
+        dash = _dash(s.dashed, s.dash) + (f' stroke-linecap="{s.cap}"' if s.cap and s.stroke else "")
         op = f' opacity="{s.opacity:g}"' if s.opacity < 1 else ""
         op += self.shadow(s.shadow)
         fill = s.fill or "none"

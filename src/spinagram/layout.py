@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import shapes
-from .engine import endpoints, textfit
+from .engine import endpoints, textfit, zones
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
@@ -340,11 +340,13 @@ class _Builder:
         for i, z in enumerate(d.zones):
             zs = t.zone_style(z.color)
             radius = zs["radius"] if zs["radius"] is not None else zd.get("radius", 26)
-            opacity = zs["opacity"] if zs["opacity"] is not None else (zd.get("opacity", 0.6) if zs["fill"] else 1.0)
+            ol = zones.outline(z, zs, t)
+            opacity = zs["opacity"] if zs["opacity"] is not None else (zd.get("opacity", 0.6) if ol["fill"] else 1.0)
             zcs = self._css(f"group:{z.gid}") if z.gid else {}
-            items.append(self._decorate(Shape(id=f"z{i}", kind="rect", x=z.x, y=z.y, w=z.w, h=z.h, fill=zs["fill"],
-                                              stroke=zs["stroke"], stroke_width=zs["stroke_width"],
-                                              dashed=zs["dashed"], radius=radius, opacity=opacity, role="zone"),
+            items.append(self._decorate(Shape(id=f"z{i}", kind="rect", x=z.x, y=z.y, w=z.w, h=z.h, fill=ol["fill"],
+                                              stroke=ol["stroke"], stroke_width=ol["stroke_width"],
+                                              dashed=ol["dashed"], dash=ol["dash"], cap=ol["cap"], radius=radius,
+                                              opacity=opacity, role="zone"),
                                         zcs.get("")))
             lx = z.x + 24
             icon_name = z.icon or zs["icon"]

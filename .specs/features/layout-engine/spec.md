@@ -384,8 +384,8 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-06 | P1: Zone header (content_top) | Tasks | In Tasks |
 | ZON-07 | P1: Zone header (flush opt-out) | Tasks | In Tasks |
 | ZON-08 | P1: Zone header (upper) | Tasks | In Tasks |
-| ZON-09 | P1: Zone outlines (dash values) | Tasks | In Tasks |
-| ZON-10 | P1: Zone outlines (stroke/fill) | Tasks | In Tasks |
+| ZON-09 | P1: Zone outlines (dash values) | Execute | Implementing |
+| ZON-10 | P1: Zone outlines (stroke/fill) | Execute | Implementing |
 | ZON-11 | P1: Zone outlines (id/class CSS) | Tasks | In Tasks |
 | ZON-12 | P1: Zone outlines (SVG/PPTX parity) | Tasks | In Tasks |
 | ZON-13 | P1: Zone outlines (fill none CSS) | Tasks | In Tasks |

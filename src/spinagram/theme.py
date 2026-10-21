@@ -190,6 +190,7 @@ class Theme:
         out["stroke"] = self.color(z["stroke"]) if z.get("stroke") else None
         out["stroke_width"] = z.get("stroke_width", 2 if z.get("stroke") else 0)
         out["dashed"] = bool(z.get("dashed", False))
+        out["dash"] = z.get("dash")  # solid | dashed | dotted | [pattern]
         out["icon"] = z.get("icon")
         out["radius"] = z.get("radius")
         out["opacity"] = z.get("opacity")
