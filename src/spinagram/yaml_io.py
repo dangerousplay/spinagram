@@ -123,6 +123,13 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
             e["cls"] = e.pop("class")
         src, dst = e.pop("from"), e.pop("to")
         d.edge(src, dst, **e)
+    for c in data.get("align") or []:  # align: [{x: [a, b]}, {y: [a, c]}, {center: [a, b], axis: x}]
+        if "x" in c:
+            d.align_x(*c["x"])
+        elif "y" in c:
+            d.align_y(*c["y"])
+        else:
+            d.center_on(*c["center"], axis=c.get("axis", "both"))
     for b in data.get("bundles") or []:  # bundles: [{edges: [0, 1], trunk: right}] (edge indexes)
         d.bundle(list(b["edges"]), b.get("trunk"))
     for t in data.get("tables") or []:

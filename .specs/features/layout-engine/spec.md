@@ -451,7 +451,7 @@ defects. The author should declare content and intent; the engine should own fit
 | LEG-04 | P2: row swatches | Execute | Implementing |
 | LEG-05 | P2: placement | Execute | Implementing |
 | GRD-01 | P3: grid cells | Execute | Implementing |
-| GRD-02 | P3: align helpers | Tasks | In Tasks |
+| GRD-02 | P3: align helpers | Execute | Implementing |
 | GRD-03 | P3: straight edges | Tasks | In Tasks |
 | GRD-04 | P3: not-straight check | Tasks | In Tasks |
 | GRD-05 | P3: anchor methods (E5) | Tasks | In Tasks |

@@ -418,6 +418,7 @@ class Diagram:
     containers: list[Container] = field(default_factory=list)  # ``with d.row(...)`` / ``with d.column(...)``
     bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
     grids: list[Grid] = field(default_factory=list)            # ``d.grid(cols=[...], rows=[...])``
+    constraints: list[tuple] = field(default_factory=list)     # (op, node ids...): align_x, align_y, center_on
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
@@ -456,6 +457,20 @@ class Diagram:
         g = Grid([float(c) for c in cols], [float(r) for r in rows], float(gutter))
         self.grids.append(g)
         return g
+
+    def align_x(self, *nodes: Any) -> None:
+        """Centre every node on the first one's vertical axis (same centre x), after sizing."""
+        self.constraints.append(("align_x", *[self._node_id(n) for n in nodes]))
+
+    def align_y(self, *nodes: Any) -> None:
+        """Centre every node on the first one's horizontal axis (same centre y), after sizing."""
+        self.constraints.append(("align_y", *[self._node_id(n) for n in nodes]))
+
+    def center_on(self, node: Any, other: Any, axis: str = "both") -> None:
+        """Centre ``node`` on ``other`` (``axis``: x, y or both), after sizing."""
+        if axis not in ("x", "y", "both"):
+            raise ValueError(f"{self.id}: center_on axis {axis!r}; use x, y or both")
+        self.constraints.append(("center_on", self._node_id(node), self._node_id(other), axis))
 
     def _cell(self, cell: Any) -> Cell:
         if isinstance(cell, Cell):

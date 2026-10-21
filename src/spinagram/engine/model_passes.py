@@ -101,6 +101,26 @@ def icon_size(n, nd: dict) -> float:
     return min(nd.get("icon_max", 88), max(base, n.h * nd.get("icon_scale", 0.26)))
 
 
+def constraints(d: Diagram) -> None:
+    """``align_x`` / ``align_y`` / ``center_on`` in declaration order, on final sizes."""
+    nodes = {n.id: n for n in d.nodes}
+    for op, *ids in d.constraints:
+        if op == "center_on":
+            a, b, axis = nodes[ids[0]], nodes[ids[1]], ids[2]
+            if axis in ("x", "both"):
+                a.x = b.x + b.w / 2 - a.w / 2
+            if axis in ("y", "both"):
+                a.y = b.y + b.h / 2 - a.h / 2
+            continue
+        first = nodes[ids[0]]
+        for i in ids[1:]:
+            n = nodes[i]
+            if op == "align_x":
+                n.x = first.x + first.w / 2 - n.w / 2
+            else:
+                n.y = first.y + first.h / 2 - n.h / 2
+
+
 def _with_h0(n):
     m = copy.copy(n)
     m.h = 0
@@ -113,12 +133,13 @@ def apply(d: Diagram, theme: Theme) -> Diagram:
         return d
     unsized = any(not (n.w and n.h) and n.kind not in SIZED_KINDS_SKIP for n in d.nodes)
     fitted = any(z.fit or z.equalize for z in d.zones)
-    if not unsized and not d.containers and not fitted:
+    if not unsized and not d.containers and not fitted and not d.constraints:
         return d
     from .zones import fit_children
 
     d = copy.deepcopy(d)
     containers(d, theme)
     content_size(d, theme)
+    constraints(d)
     fit_children(d, theme)
     return d

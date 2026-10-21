@@ -1,7 +1,8 @@
 """Grid, alignment, straight edges and anchor helpers (layout-engine GRD-01..05)."""
 import pytest
 
-from spinagram import Diagram, Theme
+from spinagram import Diagram, Theme, build_scene
+from spinagram.scene import Shape
 
 THEME = Theme.load("default")
 COLS, ROWS = [80, 280, 900, 1600], [175, 772]
@@ -53,3 +54,39 @@ def test_cell_outside_grid_raises(bad):
 def test_cell_without_grid_raises():
     with pytest.raises(ValueError, match="needs a grid"):
         Diagram("G", "Grid").box("N", cell=(0, 0))
+
+
+# alignment helpers (GRD-02) -----------------------------------------------------------------------------------
+def _shapes(d):
+    return {i.id: i for i in build_scene(d, THEME).items if isinstance(i, Shape)}
+
+
+ALIGN = [
+    ("align_x", lambda d, a, b, c: d.align_x(a, b, c), lambda s: {s[k].x + s[k].w / 2 for k in "abc"}),
+    ("align_y", lambda d, a, b, c: d.align_y(a, b, c), lambda s: {s[k].y + s[k].h / 2 for k in "abc"}),
+    ("center_on", lambda d, a, b, c: d.center_on(b, a), lambda s: {(s[k].x + s[k].w / 2, s[k].y + s[k].h / 2)
+                                                                  for k in "ab"}),
+    ("center_on_x", lambda d, a, b, c: d.center_on(b, a, axis="x"), lambda s: {s[k].x + s[k].w / 2 for k in "ab"}),
+]
+
+
+@pytest.mark.parametrize("apply,measure", [a[1:] for a in ALIGN], ids=[a[0] for a in ALIGN])
+@pytest.mark.parametrize("sized", [True, False], ids=["sized", "content-sized"])
+def test_alignment_helpers(apply, measure, sized):
+    d = Diagram("G", "Grid")
+    kw = (lambda w, h: {"w": w, "h": h}) if sized else (lambda w, h: {})
+    a = d.box("Alpha", id="a", x=300, y=200, **kw(300, 120))
+    b = d.box("Bravo with a longer title", id="b", x=900, y=500, **kw(200, 80))
+    c = d.box("C", id="c", x=600, y=800, **kw(120, 60))
+    apply(d, a, b, c)
+    assert len(measure(_shapes(d))) == 1
+
+
+def test_alignment_from_yaml():
+    from spinagram.yaml_io import from_dict
+    d = from_dict({"id": "G", "title": "G",
+                   "nodes": [{"id": "a", "title": "A", "x": 300, "y": 200, "w": 300, "h": 120},
+                             {"id": "b", "title": "B", "x": 900, "y": 500, "w": 200, "h": 80}],
+                   "align": [{"x": ["a", "b"]}]})
+    s = _shapes(d)
+    assert s["a"].x + 150 == s["b"].x + 100
