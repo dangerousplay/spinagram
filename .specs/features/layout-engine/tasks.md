@@ -147,10 +147,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `Issue` gains `fix: dict | None` and `severity`; `str(issue)` unchanged; `check --json` prints a JSON list of issues with `fix`; DDT over issue kinds asserts JSON keys
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `Issue` gains `fix: dict | None` and `severity`; `str(issue)` unchanged; `check --json` prints a JSON list of issues with `fix`; DDT over issue kinds asserts JSON keys
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

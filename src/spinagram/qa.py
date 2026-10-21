@@ -1,10 +1,18 @@
 """Layout checks on a resolved scene: text that does not fit its box."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from .scene import Connector, Scene, Shape, TableGrid
 from .text import measure
+
+
+# P0: the diagram renders wrong; P1: visibly degraded; P2: advisory. Unlisted kinds are P1.
+SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-collision": "P0",
+            "icon-touches-border": "P0", "header-overlap": "P0", "icon-overflows-box": "P0",
+            "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
+            "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
+            "version-mismatch": "P2", "style": "P2"}
 
 
 @dataclass
@@ -13,9 +21,18 @@ class Issue:
     item: str
     kind: str
     detail: str
+    fix: dict | None = None    # machine-readable fix: {"op": "move-label" | "resize" | "nudge" | "shrink-font", ...}
+    severity: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.severity is None:
+            self.severity = SEVERITY.get(self.kind, "P1")
 
     def __str__(self) -> str:
         return f"{self.scene}:{self.item}: {self.kind} — {self.detail}"
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 def behavior_issues(d) -> list[tuple[str, str]]:

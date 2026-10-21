@@ -201,9 +201,13 @@ def _check(args, diagrams, theme) -> int:
     reports = [css.inspect(d, theme) for d in diagrams]
     selected = [css.select(d, args.select) if args.select else None for d in diagrams]
     if args.json:
-        for r, keys in zip(reports, selected):
+        # SPEC_DEVIATION: CHK-03 asks for issues as JSON; --json already prints the style report, so the issues
+        # join each diagram's report under "issues" instead of replacing it (keeps the report contract).
+        scs = api.scenes(diagrams, theme, args.layout)
+        for r, keys, sc in zip(reports, selected, scs):
             if keys is not None:
                 r["elements"] = [e for e in r["elements"] if e["key"] in keys]
+            r["issues"] = [i.to_dict() for i in qa.check(sc)]
         print(json.dumps(reports if len(reports) > 1 else reports[0], indent=2, ensure_ascii=False))
         return 0
     color = inspect_fmt.use_color(args.color, sys.stdout)
