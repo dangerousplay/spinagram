@@ -579,10 +579,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] candidates in spec order for straight, poly and curve routes; DDT route kind × orientation asserts order and offsets
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_labels.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_labels.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] candidates in spec order for straight, poly and curve routes; DDT route kind × orientation asserts order and offsets
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_labels.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_labels.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
