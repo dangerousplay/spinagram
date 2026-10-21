@@ -153,3 +153,79 @@ def test_label_at_is_kept():  # EDG-05
     _, by = _label_scene(build)
     lab = by["e0"].label
     assert lab.x + lab.w / 2 == pytest.approx(300)
+
+
+# random short edges and determinism (EDG-06, roadmap E1 acceptance) -----------------------------------------
+import random  # noqa: E402
+
+from spinagram.engine.labels import arrowheads, outside  # noqa: E402
+from spinagram.qa import polyline  # noqa: E402
+
+WORDS = ["HTTPS", "NFS", "IP da VM", "replicação", "logs", "443", "gRPC stream", "IP NAT", "sync"]
+
+
+def _random_diagram(seed: int) -> Diagram:
+    rnd = random.Random(seed)
+    d = Diagram(f"R{seed}", "Random")
+    boxes = []
+    for r in range(4):
+        for c in range(5):
+            if rnd.random() < 0.8:
+                boxes.append(d.box(f"N{r}{c}", id=f"n{r}{c}", x=150 + c * 330 + rnd.randint(0, 40),
+                                   y=180 + r * 210 + rnd.randint(0, 30), w=200, h=90))
+    for _ in range(10):  # short edges between neighbours
+        a = rnd.choice(boxes)
+        near = sorted(boxes, key=lambda b: abs(b.x - a.x) + abs(b.y - a.y))[1:4]
+        d.edge(a, rnd.choice(near), rnd.choice(WORDS))
+    return d
+
+
+def _check_placement(sc):
+    """Whenever a candidate was free (against the same obstacle set, in edge order), the label is free."""
+    m = (THEME.get("canvas") or {}).get("margin", 80)
+    bounds = (m, m, sc.width - 2 * m, sc.height - 2 * m)
+    conns = [i for i in sc.items if isinstance(i, Connector)]
+    obstacles = [_rect(s) for s in sc.items if isinstance(s, Shape) and s.role == "node"]
+    obstacles += list(sc.zone_headers.values())
+    heads = arrowheads(conns)
+    placed = []
+    for c in conns:
+        lab = c.label
+
+        def cost(r):
+            return sum(overlap(r, o) for o in (*obstacles, *heads, *placed)) + outside(r, bounds)
+        any_free = any(cost((x - lab.w / 2, y - lab.h / 2, lab.w, lab.h)) < 0.5
+                       for x, y in candidates(polyline(c), lab.h))
+        if any_free:
+            assert cost(_rect(lab)) < 0.5, c.id
+        placed.append(_rect(lab))
+
+
+@pytest.mark.parametrize("seed", range(20), ids=lambda s: f"seed{s}")
+def test_random_short_edges_labels_never_hit_obstacles(seed):
+    _check_placement(build_scene(_random_diagram(seed), THEME))
+
+
+DETERMINISM = """
+import hashlib, json, sys
+sys.path.insert(0, {tests!r})
+from test_engine_labels import _random_diagram, THEME
+from spinagram import build_scene
+from spinagram.scene import Connector
+out = []
+for seed in range(5):
+    sc = build_scene(_random_diagram(seed), THEME)
+    out += [(c.id, round(c.label.x, 3), round(c.label.y, 3)) for c in sc.items if isinstance(c, Connector)]
+print(hashlib.sha256(json.dumps(out).encode()).hexdigest())
+"""
+
+
+def test_label_positions_identical_across_hash_seeds():  # EDG-06
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+    code = DETERMINISM.format(tests=str(Path(__file__).parent))
+    hashes = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
+                             env={**os.environ, "PYTHONHASHSEED": str(s)}).stdout.strip() for s in range(5)}
+    assert len(hashes) == 1 and len(hashes.pop()) == 64
