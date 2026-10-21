@@ -1470,10 +1470,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `at_left/at_right/at_top/at_bottom(frac)` return anchor strings; properties unchanged; DDT
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_grid.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_grid.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `at_left/at_right/at_top/at_bottom(frac)` return anchor strings; properties unchanged; DDT
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_grid.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_grid.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

@@ -69,6 +69,19 @@ class Node:
     def center(self) -> str:
         return self.at("center")
 
+    # fractional anchors without string building: ``d.edge(a.at_left(0.35), b)``
+    def at_left(self, frac: float = 0.5) -> str:
+        return self.at("left", frac)
+
+    def at_right(self, frac: float = 0.5) -> str:
+        return self.at("right", frac)
+
+    def at_top(self, frac: float = 0.5) -> str:
+        return self.at("top", frac)
+
+    def at_bottom(self, frac: float = 0.5) -> str:
+        return self.at("bottom", frac)
+
     # edges by operator ----------------------------------------------------------
     # ``a >> b`` draws a -> b, ``a << b`` draws b -> a, ``a - b`` a plain line. Each returns its right-hand
     # side, so ``a >> b >> c`` chains, and lists fan out or in: ``lb >> [web1, web2] >> db``.

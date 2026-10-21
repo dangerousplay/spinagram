@@ -125,3 +125,24 @@ def test_no_shared_span_reports_not_straight():  # GRD-04
     d.edge(a, b, straight=True)
     got = [i for i in check(build_scene(d, THEME)) if i.kind == "not-straight"]
     assert [(i.item, i.severity) for i in got] == [("e0", "P2")]
+
+
+# anchor helpers (GRD-05) --------------------------------------------------------------------------------------
+@pytest.mark.parametrize("method,frac,ref,point", [
+    ("at_left", 0.35, "n.left@0.35", (100, 135)),
+    ("at_right", 0.5, "n.right", (300, 150)),
+    ("at_top", 0.25, "n.top@0.25", (150, 100)),
+    ("at_bottom", 0.9, "n.bottom@0.9", (280, 200)),
+], ids=["left", "right-mid", "top", "bottom"])
+def test_anchor_methods(method, frac, ref, point):
+    d = Diagram("G", "Grid")
+    n = d.box("N", id="n", x=100, y=100, w=200, h=100)
+    assert getattr(n, method)(frac) == ref
+    d.edge(getattr(n, method)(frac), (900, 900))
+    c = next(i for i in build_scene(d, THEME).items if isinstance(i, Connector))
+    assert tuple(c.points[0]) == pytest.approx(point)
+
+
+def test_anchor_properties_unchanged():
+    n = Diagram("G", "Grid").box("N", id="n", x=0, y=0, w=10, h=10)
+    assert (n.left, n.right, n.top, n.bottom, n.center) == ("n.left", "n.right", "n.top", "n.bottom", "n.center")

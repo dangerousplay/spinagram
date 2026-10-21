@@ -454,7 +454,7 @@ defects. The author should declare content and intent; the engine should own fit
 | GRD-02 | P3: align helpers | Execute | Implementing |
 | GRD-03 | P3: straight edges | Execute | Implementing |
 | GRD-04 | P3: not-straight check | Execute | Implementing |
-| GRD-05 | P3: anchor methods (E5) | Tasks | In Tasks |
+| GRD-05 | P3: anchor methods (E5) | Execute | Implementing |
 | ICN-11 | P3: fallback chain | Tasks | In Tasks |
 | ICN-12 | P3: icon source record | Tasks | In Tasks |
 | ICN-13 | P3: icons report CLI | Tasks | In Tasks |
