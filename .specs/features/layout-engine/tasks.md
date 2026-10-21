@@ -1713,10 +1713,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] doc page per area; spinagram SKILL.md workarounds replaced by new APIs; examples/layout-engine showcase renders with `check` clean
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/n/a` asserting spec outcomes
-- [ ] Gate check passes: `uv run ruff check src tests && uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] doc page per area; spinagram SKILL.md workarounds replaced by new APIs; examples/layout-engine showcase renders with `check` clean
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/n/a` asserting spec outcomes
+- [x] Gate check passes: `uv run ruff check src tests && uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: none
 **Gate**: build

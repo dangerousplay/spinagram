@@ -52,13 +52,22 @@ Keep the real, implementable template (an e-mail HTML with inline CSS, or an Ada
 
 - **Canvas** is 1920×1080 with an 80 px side margin. Content goes in `y` 170–1000, between the header and the footer rule.
 - **Use a grid.** Gaps between boxes are 28–40 in dense rows, 60–100 between steps and 40 between rows. Equal sizes inside a row.
-- **Size boxes for text.** Allow at most 3 body lines. If `check` reports `overflow-y`, enlarge the box or cut text. Do not shrink the font below the theme default.
+- **Size boxes for text.** Allow at most 3 body lines. The engine wraps, breaks long tokens and shrinks to 85 % on its own; omit `w`/`h` to size a box to its content. If `check` still reports `overflow-*`, run `spinagram check --fix` or cut text.
 - **Icons** scale with box height (theme `icon_scale`, `icon_max`). Use `icon_size` only to make one emphasis node larger. Every box in a row has an icon, or none does.
 - **One reading direction:** left→right for flows, top→bottom for hierarchies. Return arrows go dashed.
 - **Layered landscape:** put the layer name in a left column (free `label`) and shift the boxes right. A zone label at the top collides with vertical arrows between layers.
-- **Short vertical gaps:** put the edge label beside the line (`label_at` offset in x), not on it. Otherwise the pill hides the arrowhead.
+- **Edge labels place themselves** clear of boxes, zone headers and arrowheads. If `check` reports `label-collision`, widen the gap or run `check --fix` (it writes a `label_at`).
 - **Don't let tall boxes float text:** a 590 px box holding 8 lines reads as empty. Split the content into several boxes (one per source or route), or shrink the box to fit its text.
 - **Leave white space.** If a zone is half empty, shrink it. Do not stretch cards to fill it.
+
+## Layout engine helpers (use these, not workarounds)
+
+- Zones: `d.zone(label, dash="dotted", stroke=..., icon=[...], fit="children", meaning=...)` used as `with`. The header insets its icons; never draw icon chips or header labels by hand, and never append empty `Group`s to style zones (CSS reaches `zone#id` / `zone.<style>`).
+- Rows: `with d.row(x=, y=, gap=, same_size=True):`; grids: `g = d.grid(cols=[...], rows=[...])` and `cell=g[c, r]`.
+- Icons: wordmarks keep their aspect ratio; `badges=[...]` puts up to 3 platform logos on a card; `icon="concept:<name>"` uses the theme's fallback chain.
+- Legend: `meaning=` on edges and zones, then `d.add_legend(items="auto", place=(x, y, w, h))`.
+- Outputs: `Diagram(..., output="name")` gives stable file names.
+- QA: `spinagram check --fix spec.yaml` writes `spec.fixed.yaml` (Python specs get suggested edits).
 
 ## Text rules
 
@@ -71,7 +80,7 @@ Keep the real, implementable template (an e-mail HTML with inline CSS, or an Ada
 
 - Prefer `"a -> b"` (sides auto-picked) or `"a.right -> b.left"`. Use `@0.3` to spread several edges leaving one side.
 - Side-centre anchors become **bound connectors in PowerPoint**: moving a box drags the arrow. Off-centre (`@frac`), `via` and `curve` edges are drawn exactly but stay unbound.
-- Route around boxes with `via: [[x, y], ...]`. Do not cross text. Place labels with `label_at` when the midpoint lands on a box.
+- Route around boxes with `route="ortho"` (or `via: [[x, y], ...]` by hand). Edges to a group target the zone: `d.edge(pool, net_zone, fan="bus")`. Many edges into one target share a trunk: `d.bundle([...], trunk="bottom")`. Use `straight=True` instead of hand-computed `@frac` anchors.
 - Colours are semantic: default = normal flow, alert/orange = risk path, gray = alternative or neutral.
 
 ## Styles (semantic, theme-mapped)

@@ -1,0 +1,104 @@
+---
+title: Layout engine
+description: Declare content and intent; spinagram fits text, lays out zone headers, places labels, routes edges and fixes what it can.
+---
+
+Hand-placed slides used to need many render → inspect → edit rounds. The engine now owns text fitting,
+zone headers, label placement and routing, and `spinagram check --fix` repairs the rest. The full example is
+`examples/layout-engine/git_two_sites.py`.
+
+## Text fits its box
+
+Long titles, hostnames and CIDR lists fit without hand-tuned widths. Fitting runs in order and stops at the
+first step that fits:
+
+1. wrap at spaces;
+2. break long tokens after `-`, `.`, `/`, `:` or `·` (no hyphen added; `10.0.8.0/21` never splits);
+3. shrink the font in 1 px steps to 85 % (`min_scale`);
+4. grow the box (only with `fit: grow` or `shrink-then-grow`).
+
+```python
+d.box("lb-pool-https-8081", text="8 members · nginx :8081", w=230, h=90)        # default: fit="shrink"
+d.box("subnet", text="10.0.0.0/22 · 10.0.8.0/21", fit="shrink-then-grow", min_scale=0.8, break_on="-./")
+```
+
+Set defaults in the theme: `defaults: {node: {fit: shrink, min_scale: 0.85, break_on: "-./:·"}}`.
+`fit: none` keeps the 0.3 behaviour. When every strategy fails, `check` says which one: `overflow-x — … after
+shrink to 21px`.
+
+Characters a font lacks fall back per character to the body font, then to the bundled Noto Sans Symbols 2 and
+Noto Sans Math (OFL). `check` lists each one: `glyph-missing — '×' (U+00D7) in heading font, fell back to Body`.
+
+## Boxes, rows and grids
+
+- Leave out `w`/`h` and a box takes the size of its icon, title and body.
+- `with d.row(x=, y=, gap=, same_size=True, max_width=):` places the boxes created inside, at one size;
+  `d.column(...)` stacks them. `same_icon_size=True` gives them one icon size. YAML: `rows:` / `columns:`.
+- `g = d.grid(cols=[80, 400, 1480], rows=[190, 760], gutter=40)` names grid lines; `cell=g[1, 0]` places a node
+  or zone there (and sizes it to the cell when it has no size). YAML: `grid:` and `cell: [1, 0]`.
+- `d.align_x(a, b)`, `d.align_y(a, b)`, `d.center_on(a, b)` align centres after sizing.
+- `d.edge(a, b, straight=True)` anchors both ends on the boxes' shared span, so the edge is vertical or
+  horizontal. `a.at_left(0.35)` returns the anchor `a.left@0.35`.
+
+## Zones
+
+```python
+with d.zone("AZ site-a", dash="dotted", stroke="primary", fit="children",
+            icon=["selfhosted:vmware", "logos:redhat"], header={"strip": "green"}, meaning="availability zone"):
+    d.box("node-a", ...)
+```
+
+- **Header**: icons sit 14 px inside the outline at one size (28 px), the label is centred on them, and a list
+  of icons becomes chips. `header: {padding, icon_size, strip, upper, variant, inset}` sets it per zone, per
+  zone style or in `defaults.zone.header`. AWS group styles keep the flush corner icon with `inset: false`.
+- **Outline**: `dash: solid | dashed | dotted | [4, 2]`, `stroke`, `stroke_width`, `fill` (`none` too), on the
+  zone or its style. SVG and PowerPoint draw the same pattern.
+- **CSS**: every zone has an `id` (`z<index>` by default) and its style name as class: `zone#net`, `zone.az`.
+- **Size**: `fit: children` wraps the children (padding on three sides, the header on top), innermost first;
+  `equalize: siblings` gives sibling zones one height (opt-in: blank space is never the default).
+- `zone.content_top` is the first free y below the header.
+
+## Icons
+
+Icons keep their aspect ratio (fitted by height, up to four heights wide), so wordmarks stay legible.
+`variant="wordmark"` picks the theme alias `<icon>-wordmark`. `badges=[...]` adds up to three corner badges at
+40 % of the icon size; the text column ends before them. A theme declares fallback chains,
+`icons: {fallback: {load-balancer: [logos:f5, network:loadbalancer]}}`, used as `icon="concept:load-balancer"`.
+`spinagram icons report specs/` lists every icon with its source (official, theme, fallback:n).
+
+## Edges
+
+- **Labels** take the first clear spot among 15 candidates (midpoint, along the edge, then beside it), clear of
+  boxes, zone headers, other labels, arrowheads and the margin. `label_at` still wins.
+- **Zones as targets**: `d.edge(pool, net_zone)` or `"pool -> zone:net"` ends on the facing side, at the point
+  nearest the source. `fan="bus"` adds a bar inside the zone. PowerPoint binds the connector to the zone.
+- **Routing**: `route="ortho"` (or `defaults.edge.route: ortho`) routes around boxes and avoids crossings.
+- **Trunks**: `d.bundle([e1, e2], trunk="bottom")` or `fan_in=True` joins edges into one target on a shared
+  trunk with a single arrowhead.
+
+## Legend
+
+`meaning=` on edges and zones, then `d.add_legend(items="auto")` lists one row per style: a line in its colour
+and dash, or a mini outline. `place=(x, y, w, h)` draws the card in a cell, scaled to fit.
+
+## check and --fix
+
+`spinagram check` also reports `icon-touches-border`, `header-overlap`, `icon-overflows-box`, `glyph-missing`,
+`zone-underused`, `zone-clips-child`, `outside-safe-area`, `low-contrast`, `edge-crossings`,
+`edge-through-box`, `label-collision`, `not-straight`, `icon-size-mismatch` and `version-mismatch`.
+Each issue has a severity (P0 to P2) and, when safe, a fix (`move-label`, `resize`, `nudge`, `shrink-font`):
+
+```bash
+spinagram check --json specs/             # issues with their fixes
+spinagram check --fix specs/runners.yaml  # writes runners.fixed.yaml; Python specs get suggested edits
+spinagram render --relayout specs/        # applies the safe fixes in memory
+```
+
+`low-contrast` flags near-invisible text and single-colour icons by default; raise it to WCAG AA with
+`defaults: {check: {contrast: {title: 3, body: 4.5, icon: 3}}}`.
+
+## Outputs
+
+`Diagram(..., output="runners-network")` (YAML `output:`) writes `runners-network.svg`; `render --name-from id|file`
+names the others. `requires=">=0.4,<0.5"` warns when the installed version does not match. Every SVG carries a
+`sha256` content hash in `<metadata id="spinagram-hash">` for CI drift checks.
