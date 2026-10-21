@@ -207,7 +207,10 @@ def load_yaml(path: Path) -> list[Diagram]:
             out["tags"] = _tag_list(base["tags"]) + _tag_list(doc["tags"])
         return out
 
-    return [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
+    out = [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
+    for d in out:
+        d.__dict__["_source"] = path  # the spec file (check --fix); not a dataclass field
+    return out
 
 
 def load_python(path: Path) -> list[Diagram]:
@@ -249,6 +252,7 @@ def load_python(path: Path) -> list[Diagram]:
         if base.get("stylesheets"):  # folder stylesheets come before the script's own
             d.stylesheets = [str(x) for x in base["stylesheets"]] + [x for x in d.stylesheets
                                                                      if x not in base["stylesheets"]]
+        d.__dict__["_source"] = path
     return list(items)
 
 

@@ -59,6 +59,9 @@ def _main(argv: list[str] | None = None) -> int:
             p.add_argument("--json", action="store_true", help="print the style report as JSON (implies --styles)")
             p.add_argument("--color", choices=("auto", "always", "never"), default="auto",
                            help="colour the style report (auto: when stdout is a terminal and NO_COLOR is unset)")
+            p.add_argument("--fix", action="store_true",
+                           help="apply safe fixes: YAML specs get a <name>.fixed.yaml copy, Python specs get "
+                                "suggested edits; sources are never modified")
         if name == "render":
             p.add_argument("-f", "--formats", default="svg,png",
                            help=f"comma list from: {', '.join(sorted(available()))}")
@@ -195,8 +198,43 @@ def _main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _fix(diagrams, theme) -> int:
+    """``check --fix``: fixed YAML copies next to YAML specs, suggestions for Python specs."""
+    import yaml
+
+    from .engine.fix import fix_until_clean, suggest_python
+    from .yaml_io import dump
+
+    by_source: dict = {}
+    for d in diagrams:
+        by_source.setdefault(d.__dict__.get("_source"), []).append(d)
+    remaining_p0 = 0
+    for src, ds in by_source.items():
+        results = [fix_until_clean(d, theme) for d in ds]
+        applied = [i for _, a, _ in results for i in a]
+        remaining = [i for _, _, r in results for i in r]
+        remaining_p0 += sum(1 for i in remaining if i.severity == "P0")
+        if src is not None and Path(src).suffix in (".yaml", ".yml"):
+            if applied:
+                docs = [dump(f) for f, _, _ in results]
+                out = Path(src).with_name(Path(src).stem + ".fixed.yaml")
+                out.write_text(yaml.safe_dump(docs if len(docs) > 1 else docs[0], sort_keys=False,
+                                              allow_unicode=True, width=120), encoding="utf-8")
+                print(f"{out}: {len(applied)} fix(es) applied")
+        else:
+            for line in suggest_python(applied):
+                print(f"{src}: {line}" if src else line)
+        for i in remaining:
+            print(i)
+    print(f"{len(diagrams)} diagram(s), {remaining_p0} P0 issue(s) left")
+    return 1 if remaining_p0 else 0
+
+
 def _check(args, diagrams, theme) -> int:
     from . import css, inspect_fmt
+
+    if args.fix:
+        return _fix(diagrams, theme)
 
     reports = [css.inspect(d, theme) for d in diagrams]
     selected = [css.select(d, args.select) if args.select else None for d in diagrams]

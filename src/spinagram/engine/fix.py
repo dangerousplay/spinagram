@@ -72,3 +72,19 @@ def fix_until_clean(d: Diagram, theme, rounds: int = 3) -> tuple[Diagram, list, 
         if not applied:
             break
     return cur, applied_all, check(build_scene(cur, theme))
+
+
+def suggest_python(issues) -> list[str]:
+    """One suggested edit per applied fix, for specs that cannot be rewritten (``node: w=240``)."""
+    out = []
+    for i in issues:
+        f = i.fix
+        if f["op"] == "move-label":
+            out.append(f"{f['edge']}: label_at=({f['to'][0]:g}, {f['to'][1]:g})")
+        elif f["op"] == "nudge":
+            out.append(f"{f['node']}: move by dx={f['dx']:g}, dy={f['dy']:g}")
+        elif f["op"] == "shrink-font":
+            out.append(f"{f['node']}: title_size={f['title_size']:g}")
+        else:
+            out.append(f"{f['node']}: " + ", ".join(f"{k}={f[k]:g}" for k in ("w", "h") if k in f))
+    return out

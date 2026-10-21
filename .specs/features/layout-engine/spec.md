@@ -404,7 +404,7 @@ defects. The author should declare content and intent; the engine should own fit
 | CHK-01 | P1: Diagnostics (new kinds) | Tasks | In Tasks |
 | CHK-02 | P1: Diagnostics (fix dicts) | Execute | Implementing |
 | CHK-03 | P1: Diagnostics (--json) | Execute | Implementing |
-| CHK-04 | P1: Fix (YAML) | Tasks | In Tasks |
+| CHK-04 | P1: Fix (YAML) | Execute | Implementing |
 | CHK-05 | P1: Fix (Python) | Tasks | In Tasks |
 | CHK-06 | P1: Fix (render --relayout) | Tasks | In Tasks |
 | CHK-07 | P1: Fix (convergence) | Execute | Implementing |

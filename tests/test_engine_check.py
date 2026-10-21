@@ -312,3 +312,33 @@ def test_fix_until_clean_converges_on_mixed_problems(icon):
     fixed_kinds = {i.kind for i in applied}
     assert {"header-overlap", "overflow-x", "outside-safe-area"} <= fixed_kinds
     assert not [i for i in remaining if i.kind in fixed_kinds]
+
+
+# check --fix on YAML (CHK-04) ---------------------------------------------------------------------------------
+FIX_YAML = {
+    "fixable": ("id: F1\ntitle: Fix\nnodes:\n"
+                "  - {id: n, title: averyveryverylongunbreakabletoken, x: 200, y: 200, w: 230, h: 120, fit: none}\n"
+                "  - {id: m, title: M, x: 1553, y: 600, w: 300, h: 100}\n", True),
+    "clean": ("id: F2\ntitle: Fine\nnodes:\n  - {id: n, title: Ok, x: 200, y: 200, w: 300, h: 120}\n", False),
+    "two-docs": ("- id: F3\n  title: A\n  nodes:\n  - {id: m, title: M, x: 1553, y: 600, w: 300, h: 100}\n"
+                 "- id: F4\n  title: B\n  nodes:\n  - {id: n, title: Ok, x: 200, y: 200, w: 300, h: 120}\n", True),
+}
+
+
+@pytest.mark.parametrize("name", list(FIX_YAML))
+def test_check_fix_writes_fixed_yaml_copy(tmp_path, monkeypatch, capsys, name):
+    from spinagram import load
+    text, fixable = FIX_YAML[name]
+    (tmp_path / "s.yaml").write_text(text)
+    monkeypatch.chdir(tmp_path)
+    rc = main(["check", "--fix", "s.yaml"])
+    out = capsys.readouterr().out
+    assert (tmp_path / "s.yaml").read_text() == text                      # source never modified
+    fixed = tmp_path / "s.fixed.yaml"
+    assert fixed.exists() == fixable                                       # no file when nothing is fixable
+    if fixable:
+        assert "s.fixed.yaml" in out and rc == 0
+        diagrams = load(fixed)
+        assert len(diagrams) == len(load(tmp_path / "s.yaml"))
+        for d in diagrams:
+            assert [i for i in check(build_scene(d, THEME)) if i.kind in ("overflow-x", "outside-safe-area")] == []
