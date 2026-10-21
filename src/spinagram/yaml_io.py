@@ -14,6 +14,7 @@ _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style
 _NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note variant
                "fit", "min_scale", "break_on",  # text fitting
                "badges"}  # corner badge icons
+_CONTAINER_KEYS = {"x", "y", "gap", "same_size", "max_width", "same_icon_size"}
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
                "class", "css"}
 
@@ -45,6 +46,33 @@ def _groups(d: Diagram, items: list, parent: Group | None) -> None:
         _groups(d, kids, grp)
 
 
+def _node(d: Diagram, n: dict, data: dict[str, Any]) -> None:
+    n = dict(n)
+    if "at" in n:  # shorthand: at: [x, y, w, h]
+        n["x"], n["y"], *wh = n.pop("at")
+        if wh:
+            n["w"], n["h"] = wh
+    if isinstance(n.get("id"), bool):
+        raise ValueError(f"{data['id']}: node id {n['id']!r} is a YAML boolean — "
+                         "yes/no/on/off must be quoted (id: \"no\") or renamed")
+    kind = n.pop("kind", "box")
+    title = n.pop("title", None)
+    unknown = [k for k in n if k not in _NODE_KEYS | _NODE_EXTRA and not str(k).startswith("x-")]
+    if unknown:
+        raise ValueError(f"{data['id']}: node {n.get('id', title)!r} has unknown keys {unknown} "
+                         "(unquoted commas in a flow mapping split the value — quote it)")
+    parent = n.pop("in", None)
+    if "class" in n:
+        n["cls"] = n.pop("class")
+    extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS | {"cls"}}
+    node = d.add(kind, title, **n, **extra)  # extras land in node.extra (and are validated there)
+    if parent is not None:
+        g = next((g for g in d.groups if g.id == parent), None)
+        if g is None:
+            raise ValueError(f"{data['id']}: node {node.id!r} is `in` unknown group {parent!r}")
+        g.children.append(node.id)
+
+
 def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
     for req in ("id", "title"):
         if req not in data:
@@ -66,30 +94,20 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
             z["cls"] = z.pop("class")
         d._add_zone(Zone(**z))
     for n in data.get("nodes") or []:
-        n = dict(n)
-        if "at" in n:  # shorthand: at: [x, y, w, h]
-            n["x"], n["y"], *wh = n.pop("at")
-            if wh:
-                n["w"], n["h"] = wh
-        if isinstance(n.get("id"), bool):
-            raise ValueError(f"{data['id']}: node id {n['id']!r} is a YAML boolean — "
-                             "yes/no/on/off must be quoted (id: \"no\") or renamed")
-        kind = n.pop("kind", "box")
-        title = n.pop("title", None)
-        unknown = [k for k in n if k not in _NODE_KEYS | _NODE_EXTRA and not str(k).startswith("x-")]
-        if unknown:
-            raise ValueError(f"{data['id']}: node {n.get('id', title)!r} has unknown keys {unknown} "
-                             "(unquoted commas in a flow mapping split the value — quote it)")
-        parent = n.pop("in", None)
-        if "class" in n:
-            n["cls"] = n.pop("class")
-        extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS | {"cls"}}
-        node = d.add(kind, title, **n, **extra)  # extras land in node.extra (and are validated there)
-        if parent is not None:
-            g = next((g for g in d.groups if g.id == parent), None)
-            if g is None:
-                raise ValueError(f"{data['id']}: node {node.id!r} is `in` unknown group {parent!r}")
-            g.children.append(node.id)
+        _node(d, n, data)
+    for axis in ("row", "column"):  # containers: rows: [{x, y, gap, same_size, max_width, nodes: [...]}]
+        for c in data.get(f"{axis}s") or []:
+            c = dict(c)
+            items = c.pop("nodes", None) or []
+            unknown = set(c) - _CONTAINER_KEYS
+            if unknown:
+                raise ValueError(f"{d.id}: {axis} has unknown keys {sorted(unknown)}")
+            with getattr(d, axis)(**c) as box:
+                for item in items:
+                    if isinstance(item, str):  # a node declared under nodes:
+                        box.children.append(item)
+                    else:
+                        _node(d, item, data)
     for e in data.get("edges") or []:
         if isinstance(e, str):
             d.edges.append(parse_edge(e))

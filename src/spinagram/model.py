@@ -219,6 +219,19 @@ class Group:
 
 
 @dataclass
+class Container:
+    """Nodes placed side by side (``row``) or stacked (``column``) from (x, y), sized by the model passes."""
+    axis: str                      # row | column
+    x: float
+    y: float
+    gap: float = 20
+    same_size: bool = False
+    max_width: float | None = None
+    same_icon_size: bool = False
+    children: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Table:
     x: float
     y: float
@@ -352,9 +365,11 @@ class Diagram:
     category: str | None = None   # catalog grouping (``group`` is taken by layout zones)
     tags: list[str] = field(default_factory=list)  # catalog tags, normalised: trimmed, lower-case, unique, sorted
     node_size: tuple[float, float] | None = None  # (w, h) for every node created without a size
+    containers: list[Container] = field(default_factory=list)  # ``with d.row(...)`` / ``with d.column(...)``
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
+    _open_containers: list[Container] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.category is not None and not isinstance(self.category, str):
@@ -364,7 +379,8 @@ class Diagram:
     @property
     def auto(self) -> bool:
         """Laid out automatically: ``layout`` is set, or no node has a position (a size alone is a hint)."""
-        return self.layout is not None or (bool(self.nodes) and not any(n.x or n.y for n in self.nodes))
+        return self.layout is not None or (bool(self.nodes) and not self.containers and
+                                           not any(n.x or n.y for n in self.nodes))
 
     # lookup -------------------------------------------------------------------
     def node(self, node_id: str) -> Node:
@@ -407,6 +423,8 @@ class Diagram:
         n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
             self._open[-1].children.append(n.id)
+        if self._open_containers:
+            self._open_containers[-1].children.append(n.id)
         return n
 
     def box(self, title: Any = None, **kw: Any) -> Node:
@@ -634,15 +652,40 @@ class Diagram:
             out.append(self.add(spec.pop("kind", kind), title, **spec))
         return out
 
-    def row(self, items: Sequence[Any], *, x: float, y: float, w: float, h: float, gap: float = 60,
-            kind: str = "box", styles: Sequence[str | None] | None = None, **common: Any) -> list[Node]:
-        """Place nodes left to right. Items are titles or dicts of node fields."""
-        return self._seq(items, "x", x, y, w, h, gap, kind, styles, **common)
+    @contextmanager
+    def _container(self, axis: str, x: float, y: float, gap: float, same_size: bool, max_width: float | None,
+                   same_icon_size: bool) -> Iterator[Container]:
+        c = Container(axis, x, y, gap, same_size, max_width, same_icon_size)
+        self.containers.append(c)
+        self._open_containers.append(c)
+        try:
+            yield c
+        finally:
+            self._open_containers.pop()
 
-    def column(self, items: Sequence[Any], *, x: float, y: float, w: float, h: float, gap: float = 40,
-               kind: str = "box", styles: Sequence[str | None] | None = None, **common: Any) -> list[Node]:
-        """Place nodes top to bottom."""
-        return self._seq(items, "y", x, y, w, h, gap, kind, styles, **common)
+    def row(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
+            h: float | None = None, gap: float | None = None, kind: str = "box",
+            styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
+            same_icon_size: bool = False, **common: Any) -> Any:
+        """Place nodes left to right. With ``items`` (titles or dicts of node fields) and ``w``/``h``: the nodes.
+        Without items: ``with d.row(x=, y=, gap=, same_size=, max_width=):`` places the nodes created inside."""
+        if items is None:
+            return self._container("row", x, y, 20 if gap is None else gap, same_size, max_width, same_icon_size)
+        if w is None or h is None:
+            raise TypeError("row(items, ...) needs w and h")
+        return self._seq(items, "x", x, y, w, h, 60 if gap is None else gap, kind, styles, **common)
+
+    def column(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
+               h: float | None = None, gap: float | None = None, kind: str = "box",
+               styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
+               same_icon_size: bool = False, **common: Any) -> Any:
+        """Place nodes top to bottom; without items, a ``with`` container like :meth:`row`."""
+        if items is None:
+            return self._container("column", x, y, 20 if gap is None else gap, same_size, max_width,
+                                   same_icon_size)
+        if w is None or h is None:
+            raise TypeError("column(items, ...) needs w and h")
+        return self._seq(items, "y", x, y, w, h, 40 if gap is None else gap, kind, styles, **common)
 
     # rendering shortcut -------------------------------------------------------
     def save(self, out_dir: str | Path = "out", *, theme: Any = None, formats: Sequence[str] = ("svg",),
