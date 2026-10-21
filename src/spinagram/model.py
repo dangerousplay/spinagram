@@ -177,6 +177,15 @@ class Zone:
     meaning: str | None = None             # legend label for this zone style
     cls: str | None = None
 
+    @property
+    def content_top(self) -> float:
+        """First y below this zone's header (header bottom + 12 px) with the built-in header defaults; the
+        scene's ``zone_content_tops`` has the value after theme and style header settings."""
+        from .engine.zones import content_top
+
+        icons = len(self.icon) if isinstance(self.icon, list) else int(bool(self.icon))
+        return content_top(self, icons)
+
 
 # kinds a ``node_size`` default applies to: content boxes, not markers (start/end dots, fork bars, decisions,
 # terminators), free text or pills, which keep the size of their symbol or their text

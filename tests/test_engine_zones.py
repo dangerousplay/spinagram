@@ -273,3 +273,37 @@ def test_unresolved_icon_lays_out_label_alone():  # edge case
 def test_zone_without_icon_keeps_label_place():
     by, _ = _header_scene(None)
     assert (by["z0-label"].x, by["z0-label"].y) == (124, 236)
+
+
+# chips, strip, content_top (ZON-04, 05, 06) ------------------------------------------------------------------
+@pytest.mark.parametrize("count", [1, 2, 3], ids=lambda n: f"{n}chips")
+@pytest.mark.parametrize("strip", [None, "primary"], ids=["no-strip", "strip"])
+def test_header_chips_and_strip(icon_path, count, strip):
+    d = Diagram("Z", "Zones")
+    d.zone("Site A", x=100, y=200, w=600, h=300, icon=[icon_path] * count, header={"strip": strip} if strip else None)
+    sc = build_scene(d, THEME)
+    by = {i.id: i for i in sc.items if isinstance(i, (Shape, Text))}
+    chips = [by["z0-icon"]] + [by[f"z0-icon{k}"] for k in range(1, count)]
+    xs = [c.icon.x for c in chips]
+    assert xs == sorted(xs) and len(set(xs)) == count                           # ZON-04: left to right
+    assert all(c.icon.y == chips[0].icon.y and c.icon.size == 28 for c in chips)
+    assert by["z0-label"].x >= chips[-1].icon.x + 28                           # label after the last chip
+    if strip:                                                                  # ZON-05: 5 px bar at the top
+        bar = by["z0-strip"]
+        assert (bar.y, bar.h, bar.fill) == (200, 5, THEME.color("primary")) and 100 <= bar.x < bar.x + bar.w <= 700
+    else:
+        assert "z0-strip" not in by
+
+
+CONTENT_TOP = [
+    ("icon", "ICON", 200 + 14 + 28 + 12),
+    ("no-icon", None, 200 + 36 + 16 * 0.3 + 12),
+]
+
+
+@pytest.mark.parametrize("icon,expected", [s[1:] for s in CONTENT_TOP], ids=[s[0] for s in CONTENT_TOP])
+def test_content_top(icon_path, icon, expected):  # ZON-06
+    d = Diagram("Z", "Zones")
+    z = d.zone("Site A", x=100, y=200, w=600, h=300, icon=icon_path if icon else None, id="site")
+    assert z.content_top == pytest.approx(expected)
+    assert build_scene(d, THEME).zone_content_tops["site"] == pytest.approx(expected)

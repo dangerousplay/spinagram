@@ -44,6 +44,7 @@ class _Builder:
         self.extras: dict[str, list] = {}  # items drawn right after a node (note accent bar, quote mark)
         self.fits: dict[str, tuple[str, float]] = {}  # node id → (last fitting strategy, final first-block size)
         self.headers: dict[str, tuple[float, float, float, float]] = {}  # zone shape id → header rect
+        self.content_tops: dict[str, float] = {}  # zone id → first free y below its header
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -205,11 +206,15 @@ class _Builder:
         t, zd = self.t, self.t.defaults("zone")
         opts = zones.header_options(z, zs, t)
         names = z.icon or zs["icon"]
-        names = [names] if isinstance(names, str) else list(names or [])[:1]
+        names = [names] if isinstance(names, str) else list(names or [])
         paths = [p for p in (t.icon(n, "light", self.d.base_dir) for n in names) if p is not None]
         size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
         geo = zones.header_layout(z, opts, len(paths), size, zd.get("icon_size", 32))
         items: list = []
+        if opts["strip"]:  # accent bar along the top, clear of the rounded corners
+            r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else zd.get("radius", 26))
+            items.append(Shape(id=f"z{i}-strip", kind="rect", x=z.x + r, y=z.y, w=z.w - 2 * r, h=5,
+                               fill=t.color(opts["strip"]), radius=2.5, role="zone"))
         for k, (p, (ix, iy, isz)) in enumerate(zip(paths, geo["icons"])):
             items.append(Shape(id=f"z{i}-icon" if k == 0 else f"z{i}-icon{k}", kind="rect", x=ix, y=iy, w=isz,
                                h=isz, fill=None, icon=Icon(p, ix, iy, isz), role="zone"))
@@ -224,6 +229,7 @@ class _Builder:
         right = max([z.x + 24] + [it.x + (it.width or 0) for it in items if isinstance(it, Text)] +
                     [it.x + it.w for it in items if isinstance(it, Shape)])
         self.headers[f"z{i}"] = (z.x, z.y, right - z.x, geo["bottom"] - z.y)
+        self.content_tops[z.id or f"z{i}"] = geo["bottom"] + opts["gap"]
         return items
 
     def _note_variant(self, s: Shape, variant: str) -> None:
@@ -507,6 +513,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.annotation_issues = builder.annotation_issues
     scene.fits = builder.fits
     scene.zone_headers = builder.headers
+    scene.zone_content_tops = builder.content_tops
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

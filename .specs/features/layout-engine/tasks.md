@@ -471,10 +471,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] icon list → chips left to right; `header.strip` 5 px accent bar; `Zone.content_top` exposed after build; DDT chip count 1–3 × strip
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] icon list → chips left to right; `header.strip` 5 px accent bar; `Zone.content_top` exposed after build; DDT chip count 1–3 × strip
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

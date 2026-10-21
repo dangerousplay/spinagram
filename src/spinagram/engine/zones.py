@@ -43,11 +43,12 @@ HEADER = {"inset": True, "padding": 14, "icon_size": 28, "gap": 12, "chip_gap": 
           "strip": None, "upper": None}
 
 
-def header_options(z: Zone, zs: dict, theme: Theme) -> dict:
+def header_options(z: Zone, zs: dict | None, theme: Theme | None) -> dict:
     """Header settings: built-in defaults < theme ``defaults.zone.header`` < zone style ``header`` < the zone's."""
     out = dict(HEADER)
-    out.update(theme.defaults("zone").get("header") or {})
-    out.update(zs.get("header") or {})
+    if theme is not None:
+        out.update(theme.defaults("zone").get("header") or {})
+    out.update((zs or {}).get("header") or {})
     out.update(z.header or {})
     return out
 
@@ -72,3 +73,9 @@ def header_layout(z: Zone, opts: dict, icons: int, label_size: float, flush_icon
         slots = [(z.x + k * (flush_icon + 4), z.y, flush_icon) for k in range(icons)]
         return {"icons": slots, "label": (slots[-1][0] + flush_icon + 10, z.y + 22), "bottom": z.y + flush_icon}
     return {"icons": [], "label": (z.x + 24, z.y + 36), "bottom": z.y + 36 + label_size * 0.3}
+
+
+def content_top(z: Zone, icons: int, label_size: float = 16, opts: dict | None = None, flush_icon: float = 32) -> float:
+    """First free y below the header: header bottom + ``gap`` (12 px)."""
+    opts = opts or header_options(z, None, None)
+    return header_layout(z, opts, icons, label_size, flush_icon)["bottom"] + opts["gap"]

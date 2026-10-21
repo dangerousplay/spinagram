@@ -379,9 +379,9 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-01 | P1: Zone header (padding) | Execute | Implementing |
 | ZON-02 | P1: Zone header (icon size) | Execute | Implementing |
 | ZON-03 | P1: Zone header (label centre) | Execute | Implementing |
-| ZON-04 | P1: Zone header (chips) | Tasks | In Tasks |
-| ZON-05 | P1: Zone header (strip) | Tasks | In Tasks |
-| ZON-06 | P1: Zone header (content_top) | Tasks | In Tasks |
+| ZON-04 | P1: Zone header (chips) | Execute | Implementing |
+| ZON-05 | P1: Zone header (strip) | Execute | Implementing |
+| ZON-06 | P1: Zone header (content_top) | Execute | Implementing |
 | ZON-07 | P1: Zone header (flush opt-out) | Execute | Implementing |
 | ZON-08 | P1: Zone header (upper) | Execute | Implementing |
 | ZON-09 | P1: Zone outlines (dash values) | Execute | Implementing |
