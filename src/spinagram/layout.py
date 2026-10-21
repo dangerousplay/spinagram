@@ -146,10 +146,11 @@ class _Builder:
             role = {**role, **((self.t.defaults("label").get("roles") or {}).get(n.extra.get("role")) or {})}
             if n.extra.get("role") == "zone-label" and "color" not in role:
                 role["color"] = self.t.zone_style(None)["label"]
-            weight = int(n.extra.get("weight", role.get("weight", 400)))
-            size = n.title_size or n.extra.get("size") or n.body_size or role.get("size", 18)
+            st = self._css(f"node:{n.id}").get("") or {}  # CSS on the label element (label, text, #id)
+            weight = int(st.get("font-weight") or n.extra.get("weight", role.get("weight", 400)))
+            size = st.get("font-size") or n.title_size or n.extra.get("size") or n.body_size or role.get("size", 18)
             font = self.t.font(n.extra.get("font", "body"), weight, size)
-            color = self.t.color(n.color or role.get("color"), self.t.color("text-muted"))
+            color = st.get("color") or self.t.color(n.color or role.get("color"), self.t.color("text-muted"))
             text = " ".join(_as_list(n.title))
             if role.get("upper"):
                 text = text.upper()
@@ -238,6 +239,8 @@ class _Builder:
                   label=label, icon=icon)
         if variant:
             self._note_variant(s, variant)
+        if icon is not None and not blocks and not variant:  # icon-only box (a chip): no outline unless styled
+            s.stroke, s.stroke_width, s.shadow = None, 0, None
         self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s

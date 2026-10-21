@@ -1578,10 +1578,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `label`, `chip` element types; icon-only boxes no shadow/stroke unless styled; DDT selectors
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_style.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `label`, `chip` element types; icon-only boxes no shadow/stroke unless styled; DDT selectors
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_style.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

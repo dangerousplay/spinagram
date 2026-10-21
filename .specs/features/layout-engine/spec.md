@@ -462,8 +462,8 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-17 | P3: label roles | Execute | Implementing |
 | TXT-18 | P3: label max_width | Execute | Implementing |
 | STY-01 | P3: CSS none colours | Execute | Implementing |
-| STY-02 | P3: CSS element types | Tasks | In Tasks |
-| STY-03 | P3: icon-only box defaults | Tasks | In Tasks |
+| STY-02 | P3: CSS element types | Execute | Implementing |
+| STY-03 | P3: icon-only box defaults | Execute | Implementing |
 | STY-04 | P3: backend golden parity (S2) | Tasks | In Tasks |
 | OUT-01 | P3: output= names | Tasks | In Tasks |
 | OUT-02 | P3: --name-from | Tasks | In Tasks |

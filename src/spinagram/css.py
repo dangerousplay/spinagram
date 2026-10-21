@@ -565,7 +565,10 @@ def tree(d) -> tuple[El, dict[str, El]]:
             title = " ".join(n.title) if isinstance(n.title, list) else n.title
             attrs = {k: v for k, v in (("kind", n.kind), ("label", title), ("icon", n.icon), ("style", n.style)) if v}
             classes = _classes(n.cls, n.style) + ([n.extra.get("variant", "sticky")] if n.kind == "note" else [])
-            el = El("node", [n.kind], n.id, classes, attrs, parent, n.css, key=f"node:{n.id}")
+            kinds = [n.kind] + (["label"] if n.kind == "text" else [])
+            if n.icon and not n.title and not n.text and not n.lines and n.kind in ("box", "note"):
+                kinds.append("chip")  # an icon-only box
+            el = El("node", kinds, n.id, classes, attrs, parent, n.css, key=f"node:{n.id}")
             keys[el.key] = el
 
     for g in d.groups:
