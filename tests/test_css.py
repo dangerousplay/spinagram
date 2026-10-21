@@ -489,9 +489,10 @@ def _placed_diagram():
 
 
 # SVG of the two diagrams above rendered at 46d7696, before any CSS code existed (scene, markers, dashes).
-# Updated once by layout-engine T19 (EDG-01): the only change is P:e0's label, now centred on its edge midpoint
-# instead of 12.5 px above it (pinned by tests/test_engine_labels.py::test_golden_label_change_is_the_centring).
-UNSTYLED_GOLDEN = "019deb5210fc199084ac3c7cf9ce1592c1283ef872cc357cb0c909a9507a5926"
+# Updated by layout-engine T19 (EDG-01): P:e0's label is centred on its edge midpoint instead of 12.5 px above it
+# (tests/test_engine_labels.py::test_golden_label_change_is_the_centring). Updated by T59 (OUT-04): every SVG
+# carries a content-hash <metadata>; without it the SVG is the T19 one (test_engine_output.py pins that).
+UNSTYLED_GOLDEN = "388f432e94b0b0f6127ac91010196f73e253080dda34d8d7c8119520890efe51"
 
 
 def test_unstyled_svg_matches_pre_css_golden():  # CSS-27

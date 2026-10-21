@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 from functools import lru_cache
 from pathlib import Path
@@ -242,10 +243,13 @@ class _Svg:
         if s.sources:
             import json as _json
             meta = f'<metadata id="spinagram-sources">{_esc(_json.dumps(s.sources, ensure_ascii=False))}</metadata>'
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
-                f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(self.defs)}</defs>'
-                f'<rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'
+        head = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
+        rest = (f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(self.defs)}'
+                f'</defs><rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'
                 + "".join(self.back) + "".join(self.mid) + "".join(self.front) + "</svg>")
+        # content hash of the SVG without this element: identical input, identical hash (CI drift checks)
+        digest = hashlib.sha256((head + rest).encode("utf-8")).hexdigest()
+        return f'{head}<metadata id="spinagram-hash">sha256:{digest}</metadata>{rest}'
 
 
 def to_svg(scene: Scene) -> str:

@@ -86,3 +86,49 @@ def test_requires_warns_and_reports(front, requires, flagged):
         assert [i.detail for i in issues] == [f"spec requires spinagram {requires}; installed {installed()}"]
     else:
         assert issues == [] and not w
+
+
+# SVG content hash (OUT-04) ------------------------------------------------------------------------------------
+import hashlib  # noqa: E402
+import re  # noqa: E402
+
+HASH = re.compile(r'<metadata id="spinagram-hash">sha256:([0-9a-f]{64})</metadata>')
+
+
+def _svg(title="Hash", extra=False):
+    from spinagram.backends.svg import to_svg
+    from spinagram import Theme, build_scene
+    d = Diagram("H", title)
+    d.box("A", x=100, y=100, w=200, h=90)
+    if extra:
+        d.box("B", x=500, y=100, w=200, h=90)
+    return to_svg(build_scene(d, Theme.load("default")))
+
+
+CHANGES = [("same-input", {}, True), ("other-title", {"title": "Other"}, False), ("one-more-box", {"extra": True}, False)]
+
+
+@pytest.mark.parametrize("kw,same", [c[1:] for c in CHANGES], ids=[c[0] for c in CHANGES])
+def test_svg_hash_is_stable_and_detects_drift(kw, same):
+    a, b = _svg(), _svg(**kw)
+    ha, hb = HASH.search(a).group(1), HASH.search(b).group(1)
+    assert (ha == hb) is same
+
+
+def test_svg_hash_is_the_sha256_of_the_svg_without_it():
+    svg = _svg()
+    m = HASH.search(svg)
+    assert hashlib.sha256((svg[:m.start()] + svg[m.end():]).encode()).hexdigest() == m.group(1)
+
+
+def test_golden_change_is_only_the_hash_metadata():  # the T59 golden update adds nothing else
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from test_css import _golden_diagram, _placed_diagram
+
+    from spinagram import scenes
+    from spinagram.backends.svg import to_svg
+    svgs = "".join(HASH.sub("", to_svg(sc)) for sc in scenes([_golden_diagram(), _placed_diagram()]))
+    assert hashlib.sha256(svgs.encode()).hexdigest() == \
+        "019deb5210fc199084ac3c7cf9ce1592c1283ef872cc357cb0c909a9507a5926"   # the T19 golden
