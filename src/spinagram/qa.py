@@ -336,6 +336,8 @@ def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
     issues += [Issue(scene.id, item, kind, detail) for item, kind, detail in scene.annotation_issues]
+    issues += [Issue(scene.id, "glyphs", "glyph-missing", f"{ch!r} (U+{ord(ch):04X}) in {role} font, fell back to {fam}")
+               for ch, role, fam in scene.fallbacks]
     over = scene.layout_overflow
     if over:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "

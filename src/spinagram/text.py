@@ -33,17 +33,15 @@ FONTS_DIR = Path(__file__).resolve().parent / "fonts"
 # last links of the glyph fallback chain (role font → body font → these), bundled under OFL
 BUNDLED = (("Noto Sans Symbols 2", FONTS_DIR / "NotoSansSymbols2-Regular.ttf"),
            ("Noto Sans Math", FONTS_DIR / "NotoSansMath-Regular.ttf"))
-SYMBOL_START = 0x2190  # without a font file, Latin text is assumed covered and symbol blocks are not
-
-
 def covers(font: FontRef, ch: str) -> bool:
-    """Does ``font`` have a glyph for ``ch``? From the cmap when the font has a file."""
-    if font.file is not None:
-        try:
-            return ord(ch) in _cmap(str(font.file))
-        except ImportError:
-            return True
-    return ord(ch) < SYMBOL_START
+    """Does ``font`` have a glyph for ``ch``? From its cmap; a font without a file is unknown and counts as
+    covering everything (the renderer falls back on its own)."""
+    if font.file is None:
+        return True
+    try:
+        return ord(ch) in _cmap(str(font.file))
+    except ImportError:
+        return True
 
 
 def bundled_fonts(size: float, weight: int = 400) -> list[FontRef]:
