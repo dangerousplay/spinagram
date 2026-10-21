@@ -162,8 +162,20 @@ class Zone:
     h: float
     label: str | None = None
     color: str = "soft"
-    icon: str | None = None   # group icon in the top-left corner (AWS-style groups); overrides the style's icon
+    icon: str | list[str] | None = None  # header icon (a list: header chips); overrides the style's icon
     gid: str | None = None    # the group this zone was laid out from (styles target it)
+    id: str | None = None     # CSS ``zone#id`` and edge target ``zone:<id>``; builders assign ``z<index>``
+    dash: str | list[float] | None = None  # solid | dashed | dotted | [pattern]; None: the style's
+    stroke: str | None = None
+    stroke_width: float | None = None
+    fill: str | None = None   # token, hex or "none"
+    header: dict[str, Any] | None = None   # padding, icon_size, strip, upper, inset
+    fit: str | None = None    # "children": sized to its children
+    padding: float | None = None
+    equalize: str | None = None            # "siblings": same height as sibling zones
+    children: list[str] = field(default_factory=list)  # node and zone ids inside (``with d.zone(...)``)
+    meaning: str | None = None             # legend label for this zone style
+    cls: str | None = None
 
 
 # kinds a ``node_size`` default applies to: content boxes, not markers (start/end dots, fork bars, decisions,
@@ -446,9 +458,18 @@ class Diagram:
         """Connect consecutive nodes: ``d.chain(a, b, c)``."""
         return [self.edge(a, b, **kw) for a, b in zip(nodes, nodes[1:])]
 
-    def zone(self, label: str | None = None, *, x: float, y: float, w: float, h: float, color: str = "soft",
-             icon: str | None = None) -> Zone:
-        z = Zone(x=x, y=y, w=w, h=h, label=label, color=color, icon=icon)
+    def zone(self, label: str | None = None, *, x: float = 0, y: float = 0, w: float = 0, h: float = 0,
+             color: str = "soft", icon: str | list[str] | None = None, **kw: Any) -> Zone:
+        if "class_" in kw:
+            kw["cls"] = kw.pop("class_")
+        z = Zone(x=x, y=y, w=w, h=h, label=label, color=color, icon=icon, **kw)
+        return self._add_zone(z)
+
+    def _add_zone(self, z: Zone) -> Zone:
+        if z.id is None:
+            z.id = f"z{len(self.zones)}"
+        if any(o.id == z.id for o in self.zones):
+            raise ValueError(f"{self.id}: duplicate zone id {z.id!r}")
         self.zones.append(z)
         return z
 

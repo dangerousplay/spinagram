@@ -174,10 +174,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `Zone` gains id, dash, stroke, stroke_width, fill, header, fit, padding, equalize, children, meaning, cls; `d.zone(...)` accepts them; auto id `z<index>`; YAML load/dump round-trip DDT; existing zones unchanged
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `Zone` gains id, dash, stroke, stroke_width, fill, header, fit, padding, equalize, children, meaning, cls; `d.zone(...)` accepts them; auto id `z<index>`; YAML load/dump round-trip DDT; existing zones unchanged
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

@@ -59,7 +59,10 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
     _groups(d, data.get("groups") or [], None)
     for z in data.get("zones") or []:
-        d.zones.append(Zone(**z))
+        z = dict(z)
+        if "class" in z:
+            z["cls"] = z.pop("class")
+        d._add_zone(Zone(**z))
     for n in data.get("nodes") or []:
         n = dict(n)
         if "at" in n:  # shorthand: at: [x, y, w, h]
