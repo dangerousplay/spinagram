@@ -49,6 +49,7 @@ class _Builder:
         self.edge_extras: list = []  # bus bars, drawn right after the edges
         self.fixed_labels: set[str] = set()  # connector ids whose label has an explicit label_at
         self.label_issues: list[tuple[str, str, str]] = []
+        self.flush: set[str] = set()  # zones with a flush corner icon (AWS style)
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -214,6 +215,8 @@ class _Builder:
         paths = [p for p in (t.icon(n, "light", self.d.base_dir) for n in names) if p is not None]
         size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
         geo = zones.header_layout(z, opts, len(paths), size, zd.get("icon_size", 32))
+        if paths and not opts["inset"]:
+            self.flush.add(f"z{i}")
         items: list = []
         if opts["strip"]:  # accent bar along the top, clear of the rounded corners
             r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else zd.get("radius", 26))
@@ -550,6 +553,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.zone_headers = builder.headers
     scene.zone_content_tops = builder.content_tops
     scene.laid_out = bool(diagram.meta.get("laid_out"))
+    scene.flush_headers = builder.flush
     if not scene.laid_out:  # engines size gaps themselves; collisions are reported for hand-placed diagrams
         scene.annotation_issues = scene.annotation_issues + builder.label_issues
     scene.layout_overflow = diagram.meta.get("layout_overflow")

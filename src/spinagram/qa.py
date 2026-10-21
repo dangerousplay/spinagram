@@ -1,9 +1,10 @@
 """Layout checks on a resolved scene: text that does not fit its box."""
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 
-from .scene import Connector, Scene, Shape, TableGrid
+from .scene import Connector, Scene, Shape, TableGrid, Text
 from .text import measure
 
 
@@ -108,6 +109,63 @@ def edges_through_boxes(scene: Scene) -> list[Issue]:
     return out
 
 
+BORDER_BAND = 4.0  # an icon closer than this to a zone outline touches it
+
+
+def _icon_rect(s: Shape) -> tuple[float, float, float, float]:
+    i = s.icon
+    return (i.x, i.y, getattr(i, "w", None) or i.size, getattr(i, "h", None) or i.size)
+
+
+def _overlap(a, b) -> float:
+    w = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    h = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return w * h if w > 0 and h > 0 else 0.0
+
+
+def _touches_outline(r, z: Shape, band: float = BORDER_BAND) -> bool:
+    """Is rect ``r`` within ``band`` px of zone ``z``'s outline (inside or outside)?"""
+    outer = (z.x - band, z.y - band, z.w + 2 * band, z.h + 2 * band)
+    inner = (z.x + band, z.y + band, z.w - 2 * band, z.h - 2 * band)
+    if not _overlap(r, outer):
+        return False
+    inside = inner[2] > 0 and inner[3] > 0 and r[0] >= inner[0] and r[1] >= inner[1] and \
+        r[0] + r[2] <= inner[0] + inner[2] and r[1] + r[3] <= inner[1] + inner[3]
+    return not inside
+
+
+def icon_issues(scene: Scene) -> list[Issue]:
+    """Icons on zone outlines, icons outside their box, and zone headers covered by content."""
+    out: list[Issue] = []
+    shapes = [s for s in scene.items if isinstance(s, Shape)]
+    zones = {s.id: s for s in shapes if s.role == "zone" and s.icon is None and s.id in scene.zone_headers}
+    for s in shapes:
+        if s.icon is None:
+            continue
+        r = _icon_rect(s)
+        own = s.id.split("-")[0] if s.role == "zone" else None
+        for zid, z in zones.items():
+            if zid == own and zid in scene.flush_headers:
+                continue  # flush corner icon (AWS convention)
+            if _touches_outline(r, z):
+                out.append(Issue(scene.id, s.id, "icon-touches-border", f"icon touches the outline of zone {zid!r}"))
+        if s.role == "node" and (r[0] < s.x - 0.5 or r[1] < s.y - 0.5 or r[0] + r[2] > s.x + s.w + 0.5 or
+                                 r[1] + r[3] > s.y + s.h + 0.5):
+            out.append(Issue(scene.id, s.id, "icon-overflows-box", "icon extends outside its box"))
+    covers = [(s.id, (s.x, s.y, s.w, s.h)) for s in shapes if s.role == "node"]
+    covers += [(c.id, (c.label.x, c.label.y, c.label.w, c.label.h)) for c in scene.items
+               if isinstance(c, Connector) and c.label is not None]
+    covers += [(t.id, (t.x - (t.width or 0) * {"middle": 0.5, "end": 1.0}.get(t.anchor, 0), t.top,
+                       t.width or 0, t.block.height))
+               for t in scene.items if isinstance(t, Text) and not t.id.startswith("chrome-")
+               and not re.match(r"z\d+-", t.id)]
+    for zid, hdr in scene.zone_headers.items():
+        for cid, r in covers:
+            if _overlap(hdr, r) >= 0.5:
+                out.append(Issue(scene.id, zid, "header-overlap", f"{cid!r} covers the header of zone {zid!r}"))
+    return out
+
+
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
@@ -117,8 +175,9 @@ def check(scene: Scene) -> list[Issue]:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "
                             f"{over[1]}px tall — enlarge layout.area/canvas, shrink nodes or change direction"))
     issues += _hidden_heads(scene)
-    if not scene.laid_out:  # engines route their own edges; this checks hand-placed diagrams
+    if not scene.laid_out:  # engines route their own edges and size groups; these check hand-placed diagrams
         issues += edges_through_boxes(scene)
+        issues += icon_issues(scene)
     for it in scene.items:
         if isinstance(it, Shape) and it.label and it.role == "node":
             x, y, w, h = it.label.box

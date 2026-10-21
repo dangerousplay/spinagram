@@ -48,3 +48,52 @@ def test_check_json_lists_issues_with_fix_key(tmp_path, monkeypatch, capsys, bod
     r = json.loads(capsys.readouterr().out)
     assert sorted({i["kind"] for i in r["issues"]}) == kinds
     assert all({"fix", "severity", "item", "detail"} <= set(i) for i in r["issues"])
+
+
+# icon and header diagnostics (CHK-01) --------------------------------------------------------------------------
+from spinagram import Diagram, Theme, build_scene  # noqa: E402
+from spinagram.qa import check  # noqa: E402
+
+THEME = Theme.load("default")
+
+
+@pytest.fixture
+def icon(tmp_path):
+    p = tmp_path / "i.svg"
+    p.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>')
+    return str(p)
+
+
+def _kinds(build, icon):
+    d = Diagram("C", "Check")
+    build(d, icon)
+    return sorted({(i.kind, i.item) for i in check(build_scene(d, THEME))
+                   if i.kind in ("icon-touches-border", "icon-overflows-box", "header-overlap")})
+
+
+ICON_HEADER_SCENARIOS = [
+    ("clean", lambda d, i: (d.zone("Net", x=100, y=100, w=800, h=400, icon=i),
+                            d.box("A", id="a", x=200, y=250, w=200, h=100, icon=i)), []),
+    ("node-icon-on-zone-border", lambda d, i: (d.zone("Net", id="net", x=100, y=100, w=800, h=400),
+                                               d.box(None, id="chip", x=80, y=200, w=60, h=60, icon=i, icon_size=30)),
+     [("icon-touches-border", "chip")]),
+    ("override-padding-touches", lambda d, i: d.zone("Net", x=100, y=100, w=800, h=400, icon=i,
+                                                       header={"padding": 1}),
+     [("icon-touches-border", "z0-icon")]),
+    ("flush-aws-style-is-fine", lambda d, i: d.zone("Net", x=100, y=100, w=800, h=400, icon=i,
+                                                     header={"inset": False}), []),
+    ("icon-bigger-than-box", lambda d, i: d.box(None, id="tiny", x=300, y=300, w=40, h=40, icon=i, icon_size=60),
+     [("icon-overflows-box", "tiny")]),
+    ("node-over-header", lambda d, i: (d.zone("Net", x=100, y=100, w=800, h=400, icon=i),
+                                       d.box("A", id="a", x=110, y=110, w=200, h=60)),
+     [("header-overlap", "z0")]),
+    ("free-label-on-header-baseline", lambda d, i: (d.zone("Net", x=100, y=100, w=800, h=400, icon=i),
+                                                    d.label("NETWORK", x=170, y=135)),
+     [("header-overlap", "z0")]),
+]
+
+
+@pytest.mark.parametrize("build,expected", [s[1:] for s in ICON_HEADER_SCENARIOS],
+                         ids=[s[0] for s in ICON_HEADER_SCENARIOS])
+def test_icon_and_header_diagnostics(icon, build, expected):
+    assert _kinds(build, icon) == expected

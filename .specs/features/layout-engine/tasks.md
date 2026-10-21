@@ -660,10 +660,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `icon-touches-border`, `icon-overflows-box`, `header-overlap`; DDT fixtures one per kind + clean control
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `icon-touches-border`, `icon-overflows-box`, `header-overlap`; DDT fixtures one per kind + clean control
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

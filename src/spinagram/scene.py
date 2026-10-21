@@ -217,6 +217,7 @@ class Scene:
     zone_headers: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)  # zone id → rect
     zone_content_tops: dict[str, float] = field(default_factory=dict)  # zone model id → first y below header
     laid_out: bool = False  # positions came from a layout engine (fixed-layout checks skip it)
+    flush_headers: set[str] = field(default_factory=set)  # zone ids whose corner icon sits on the outline on purpose
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}
