@@ -13,12 +13,20 @@ Point = tuple[float, float]
 
 
 @dataclass
+class Run:
+    """A piece of a line drawn with one font (glyph fallback)."""
+    text: str
+    font: FontRef
+
+
+@dataclass
 class TextBlock:
     lines: list[str]            # wrapped for the box width (SVG, Figma)
     paragraphs: list[str]       # source text (PowerPoint reflows it natively)
     font: FontRef
     color: str
     leading: float              # line height in px
+    runs: list[list[Run]] | None = None  # per line, when some characters fall back to another font
 
     @property
     def height(self) -> float:
@@ -224,6 +232,7 @@ class Scene:
     laid_out: bool = False  # positions came from a layout engine (fixed-layout checks skip it)
     flush_headers: set[str] = field(default_factory=set)  # zone ids whose corner icon sits on the outline on purpose
     check_options: dict = field(default_factory=dict)  # theme defaults.check + canvas margin, read by qa.check
+    fallbacks: list[tuple[str, str, str]] = field(default_factory=list)  # (char, font role, fallback family)
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}

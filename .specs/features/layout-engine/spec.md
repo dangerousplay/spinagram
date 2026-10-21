@@ -419,12 +419,12 @@ defects. The author should declare content and intent; the engine should own fit
 | ICN-08 | P2: Badges (placement) | Execute | Implementing |
 | ICN-09 | P2: Badges (text clearance) | Execute | Implementing |
 | ICN-10 | P2: Badges (cap) | Execute | Implementing |
-| TXT-10 | P2: Glyph fallback (cmap) | Tasks | In Tasks |
-| TXT-11 | P2: Glyph fallback (chain) | Tasks | In Tasks |
+| TXT-10 | P2: Glyph fallback (cmap) | Execute | Implementing |
+| TXT-11 | P2: Glyph fallback (chain) | Execute | Implementing |
 | TXT-12 | P2: Glyph fallback (SVG) | Tasks | In Tasks |
 | TXT-13 | P2: Glyph fallback (PPTX) | Tasks | In Tasks |
 | TXT-14 | P2: Glyph fallback (check) | Tasks | In Tasks |
-| TXT-15 | P2: Glyph fallback (metrics) | Tasks | In Tasks |
+| TXT-15 | P2: Glyph fallback (metrics) | Execute | Implementing |
 | BOX-01 | P2: Content-sized boxes | Tasks | In Tasks |
 | BOX-02 | P2: Row/column context managers | Tasks | In Tasks |
 | BOX-03 | P2: same_size | Tasks | In Tasks |

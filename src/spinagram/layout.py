@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import shapes
-from .engine import endpoints, labels, textfit, zones
+from .engine import endpoints, glyphs, labels, textfit, zones
 from .engine import icons as icon_fit
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
@@ -572,6 +572,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.flush_headers = builder.flush
     scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80)}
+    glyphs.apply(scene, theme)
     if not scene.laid_out:  # engines size gaps themselves; collisions are reported for hand-placed diagrams
         scene.annotation_issues = scene.annotation_issues + builder.label_issues
     scene.layout_overflow = diagram.meta.get("layout_overflow")
