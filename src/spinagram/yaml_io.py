@@ -10,7 +10,7 @@ import yaml
 from .model import NOTE_VARIANTS, Diagram, Edge, Group, Legend, Table, Zone, normalize_tags, parse_edge
 
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
-              "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
+              "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css", "cell"}
 _NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note variant
                "fit", "min_scale", "break_on",  # text fitting
                "badges"}  # corner badge icons
@@ -87,11 +87,17 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
     if data.get("layout") is not None:
         lay = data["layout"]
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
+    if data.get("grid") is not None:  # grid: {cols: [...], rows: [...], gutter: 20}; then cell: [c, r]
+        d.grid(**data["grid"])
     _groups(d, data.get("groups") or [], None)
     for z in data.get("zones") or []:
         z = dict(z)
         if "class" in z:
             z["cls"] = z.pop("class")
+        if "cell" in z:
+            label = z.pop("label", None)
+            d.zone(label, **z)
+            continue
         d._add_zone(Zone(**z))
     for n in data.get("nodes") or []:
         _node(d, n, data)

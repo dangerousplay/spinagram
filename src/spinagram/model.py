@@ -231,6 +231,34 @@ class Group:
     css: str | None = None
 
 
+@dataclass(frozen=True)
+class Cell:
+    """A grid cell: its origin, and its size up to the next grid line minus the gutter (None on the last)."""
+    x: float
+    y: float
+    w: float | None = None
+    h: float | None = None
+
+    def __iter__(self):  # unpacks like a point: ``x, y = g[1, 0]``
+        return iter((self.x, self.y))
+
+
+@dataclass
+class Grid:
+    """Named columns and rows for hand-placed slides: ``g = d.grid(cols=[80, 400], rows=[175]); g[1, 0]``."""
+    cols: list[float]
+    rows: list[float]
+    gutter: float = 0
+
+    def __getitem__(self, key: tuple[int, int]) -> Cell:
+        c, r = key
+        if not (0 <= c < len(self.cols) and 0 <= r < len(self.rows)):
+            raise IndexError(f"grid cell {key!r} outside {len(self.cols)} columns x {len(self.rows)} rows")
+        w = self.cols[c + 1] - self.cols[c] - self.gutter if c + 1 < len(self.cols) else None
+        h = self.rows[r + 1] - self.rows[r] - self.gutter if r + 1 < len(self.rows) else None
+        return Cell(self.cols[c], self.rows[r], w, h)
+
+
 @dataclass
 class Bundle:
     """Edges into one target that share an orthogonal trunk on the ``trunk`` side of their sources."""
@@ -389,6 +417,7 @@ class Diagram:
     node_size: tuple[float, float] | None = None  # (w, h) for every node created without a size
     containers: list[Container] = field(default_factory=list)  # ``with d.row(...)`` / ``with d.column(...)``
     bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
+    grids: list[Grid] = field(default_factory=list)            # ``d.grid(cols=[...], rows=[...])``
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
@@ -422,6 +451,19 @@ class Diagram:
         return cand
 
     # builders -----------------------------------------------------------------
+    def grid(self, cols: Sequence[float], rows: Sequence[float], gutter: float = 0) -> Grid:
+        """Named grid lines; ``cell=g[c, r]`` places a node or zone at a cell (and sizes it when it has no size)."""
+        g = Grid([float(c) for c in cols], [float(r) for r in rows], float(gutter))
+        self.grids.append(g)
+        return g
+
+    def _cell(self, cell: Any) -> Cell:
+        if isinstance(cell, Cell):
+            return cell
+        if not self.grids:
+            raise ValueError(f"{self.id}: cell={cell!r} needs a grid (d.grid(...) or grid: in YAML)")
+        return self.grids[-1][tuple(int(v) for v in cell)]
+
     def add(self, kind: str, title: Any = None, *, id: str | None = None, x: float = 0, y: float = 0,
             w: float = 0, h: float = 0, size: tuple[float, float] | None = None, **kw: Any) -> Node:
         """A node of ``kind``. ``size=(w, h)`` sets both; without a size the innermost ``node_size`` of the
@@ -434,6 +476,9 @@ class Diagram:
                 w, h = default
         if "class_" in kw:
             kw["cls"] = kw.pop("class_")
+        if kw.get("cell") is not None:  # a grid cell: its origin, and its size when none is given
+            c = self._cell(kw.pop("cell"))
+            x, y, w, h = c.x, c.y, w or (c.w or 0), h or (c.h or 0)
         known = {f for f in Node.__dataclass_fields__}  # noqa: SIM118
         extra = {k: kw.pop(k) for k in list(kw) if k not in known}
         if len(extra.get("badges") or []) > 3:
@@ -534,6 +579,10 @@ class Diagram:
              color: str = "soft", icon: str | list[str] | None = None, **kw: Any) -> Zone:
         if "class_" in kw:
             kw["cls"] = kw.pop("class_")
+        if kw.get("cell") is not None:
+            c = self._cell(kw.pop("cell"))
+            x, y, w, h = c.x, c.y, w or (c.w or 0), h or (c.h or 0)
+        kw.pop("cell", None)
         z = Zone(x=x, y=y, w=w, h=h, label=label, color=color, icon=icon, **kw)
         return self._add_zone(z)
 
