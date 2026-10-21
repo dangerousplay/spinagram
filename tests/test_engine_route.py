@@ -36,3 +36,108 @@ def _on_outline(p, b):
 
 def test_without_penalty_routes_are_unchanged():  # default stays identical (layered goldens)
     assert route(SRC, DST, [SRC, DST]) == route(SRC, DST, [SRC, DST], penalty=None, guides=[])
+
+
+# ortho routing pass (EDG-17, EDG-19, EDG-21) -------------------------------------------------------------------
+from spinagram import Diagram, Theme, build_scene  # noqa: E402
+from spinagram.engine.route import crossings  # noqa: E402
+from spinagram.qa import segment_hits  # noqa: E402
+from spinagram.scene import Connector, Shape  # noqa: E402
+
+THEME = Theme.load("default")
+
+
+def _conns(sc):
+    return [i for i in sc.items if isinstance(i, Connector)]
+
+
+def _axis_aligned(pts):
+    return all(p[0] == q[0] or p[1] == q[1] for p, q in zip(pts, pts[1:]))
+
+
+def _blocker(d, **kw):
+    a = d.box("A", id="a", x=200, y=400, w=200, h=100)
+    d.box("C", id="c", x=600, y=380, w=200, h=140)
+    b = d.box("B", id="b", x=1000, y=400, w=200, h=100)
+    return d.edge(a, b, **kw)
+
+
+@pytest.mark.parametrize("source", ["edge", "theme"])
+def test_ortho_routes_around_boxes(tmp_path, source):  # EDG-17
+    th = THEME
+    d = Diagram("R", "Route")
+    if source == "edge":
+        _blocker(d, route="ortho")
+    else:
+        (tmp_path / "theme.yaml").write_text("extends: default\ndefaults: {edge: {route: ortho}}\n")
+        th = Theme.load(tmp_path)
+        _blocker(d)
+    sc = build_scene(d, th)
+    c = _conns(sc)[0]
+    c_box = next(s for s in sc.items if isinstance(s, Shape) and s.id == "c")
+    assert c.route == "poly" and _axis_aligned(c.points)
+    assert not any(segment_hits(p, q, (c_box.x, c_box.y, c_box.w, c_box.h)) for p, q in zip(c.points, c.points[1:]))
+
+
+def test_straight_default_still_crosses_the_box():  # control: without ortho nothing changes
+    d = Diagram("R", "Route")
+    _blocker(d)
+    c = _conns(build_scene(d, THEME))[0]
+    assert c.route == "straight" and len(c.points) == 2
+
+
+@pytest.mark.parametrize("kw", [{"via": [(700, 300)]}, {"curve": (700, 250)}], ids=["via", "curve"])
+def test_explicit_route_is_kept(kw):  # EDG-21
+    d = Diagram("R", "Route")
+    _blocker(d, route="ortho", **kw)
+    c = _conns(build_scene(d, THEME))[0]
+    assert c.route in ("poly", "curve") and len(c.points) == 3 and tuple(c.points[1]) == tuple(
+        kw.get("via", [kw.get("curve")])[0])
+
+
+def test_explicit_side_is_kept():
+    d = Diagram("R", "Route")
+    d.box("A", id="a", x=200, y=400, w=200, h=100)
+    d.box("B", id="b", x=1000, y=400, w=200, h=100)
+    d.edge("a.bottom", "b", route="ortho")
+    c = _conns(build_scene(d, THEME))[0]
+    assert c.points[0] == (300, 500) and c.points[1][0] == 300 and c.points[1][1] > 500 and c.src.side == "bottom"
+
+
+def _two_pools_two_sites(route=None):
+    """Roadmap E4: two pools × two sites — the straight fan-out crosses itself."""
+    d = Diagram("R", "Route")
+    p1 = d.box("pool-1", id="p1", x=200, y=300, w=200, h=90)
+    p2 = d.box("pool-2", id="p2", x=200, y=600, w=200, h=90)
+    s1 = d.box("site-a", id="s1", x=900, y=300, w=200, h=90)
+    s2 = d.box("site-b", id="s2", x=900, y=600, w=200, h=90)
+    for a, b in ((p1, s1), (p1, s2), (p2, s1), (p2, s2)):
+        d.edge(a, b, route=route)
+    return d
+
+
+def test_ortho_does_not_add_crossings():  # EDG-18 on a real fan-out
+    straight = crossings(_conns(build_scene(_two_pools_two_sites(), THEME)))
+    ortho = crossings(_conns(build_scene(_two_pools_two_sites("ortho"), THEME)))
+    assert (straight, ortho) == (1, 0)
+
+
+DETERMINISM = """
+import hashlib, json, sys
+sys.path.insert(0, {tests!r})
+from test_engine_route import _two_pools_two_sites, _conns, THEME
+from spinagram import build_scene
+pts = [c.points for c in _conns(build_scene(_two_pools_two_sites("ortho"), THEME))]
+print(hashlib.sha256(json.dumps(pts).encode()).hexdigest())
+"""
+
+
+def test_ortho_routes_identical_across_hash_seeds():  # EDG-19
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+    code = DETERMINISM.format(tests=str(Path(__file__).parent))
+    out = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
+                          env={**os.environ, "PYTHONHASHSEED": str(s)}).stdout.strip() for s in range(4)}
+    assert len(out) == 1

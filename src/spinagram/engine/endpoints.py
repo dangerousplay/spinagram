@@ -75,11 +75,16 @@ def resolve(ref, other, shapes: dict[str, Shape], diagram_id: str = "",
     if name not in shapes:
         raise KeyError(f"{diagram_id}: edge refers to unknown node {name!r}")
     s = shapes[name]
+    explicit = bool(side)
     if not side:  # auto: face the other endpoint
         side = _facing(s, *center(other, shapes, zones))
     f = float(frac) if frac else 0.5
     pt = s.anchor(side, f)
-    return pt, (Binding(name, side, f) if side != "center" else None)
+    if side == "center":
+        return pt, None
+    b = Binding(name, side, f)
+    b.__dict__["explicit"] = explicit  # a side the author chose (routers keep it)
+    return pt, b
 
 
 BUS_INSET = 10.0

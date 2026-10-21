@@ -1254,10 +1254,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `route="ortho"` per edge or `defaults.edge.route`; declaration order; via/curve kept; hash-seed determinism; DDT layouts
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_route.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `route="ortho"` per edge or `defaults.edge.route`; declaration order; via/curve kept; hash-seed determinism; DDT layouts
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_route.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

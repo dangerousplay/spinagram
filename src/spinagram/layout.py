@@ -361,6 +361,17 @@ class _Builder:
                          arrow_end=m_end != "none", src=b1, dst=b2, label=label, dash=dash or None,
                          marker_start=m_start, marker_end=m_end, opacity=est.get("opacity", 1.0))
 
+    def route_edges(self, edges: list[Connector]) -> None:
+        """``route="ortho"`` edges (or ``defaults.edge.route``) without via/curve, in declaration order."""
+        from .engine import route as router
+
+        default = self.t.defaults("edge").get("route")
+        todo = [i for i, e in enumerate(self.d.edges)
+                if (e.route or default) == "ortho" and not e.via and not e.curve]
+        if todo:
+            targets = {**self.shapes, **{s.id: s for s in self.zone_shapes.values()}}
+            router.route_ortho(edges, todo, self.shapes, targets)
+
     def place_labels(self, edges: list[Connector]) -> None:
         """Move edge labels clear of nodes, zone headers, arrowheads, other labels and the canvas margin."""
         from .qa import polyline
@@ -447,6 +458,7 @@ class _Builder:
             items.extend(self.extras.pop(n.id, []))
         items.extend(self.table(i, tb) for i, tb in enumerate(d.tables))
         edges = [self.edge(i, e) for i, e in enumerate(d.edges)]
+        self.route_edges(edges)
         self.place_labels(edges)
         items.extend(edges)
         items.extend(self.edge_extras)

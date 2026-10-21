@@ -440,11 +440,11 @@ defects. The author should declare content and intent; the engine should own fit
 | EDG-14 | P2: Bundle trunk routing | Tasks | In Tasks |
 | EDG-15 | P2: Bundle single arrowhead | Tasks | In Tasks |
 | EDG-16 | P2: Bundle target mismatch | Tasks | In Tasks |
-| EDG-17 | P2: Ortho routing | Tasks | In Tasks |
+| EDG-17 | P2: Ortho routing | Execute | Implementing |
 | EDG-18 | P2: Crossing penalty | Execute | Implementing |
-| EDG-19 | P2: Ortho determinism | Tasks | In Tasks |
+| EDG-19 | P2: Ortho determinism | Execute | Implementing |
 | EDG-20 | P2: edge-crossings check | Tasks | In Tasks |
-| EDG-21 | P2: explicit route kept | Tasks | In Tasks |
+| EDG-21 | P2: explicit route kept | Execute | Implementing |
 | LEG-01 | P2: meaning= | Tasks | In Tasks |
 | LEG-02 | P2: auto rows | Tasks | In Tasks |
 | LEG-03 | P2: row removal | Tasks | In Tasks |
