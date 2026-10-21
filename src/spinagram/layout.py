@@ -575,6 +575,9 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80)}
     glyphs.apply(scene, theme)
     scene.rows = [(f"{c.axis}{k}", list(c.children), c.same_icon_size) for k, c in enumerate(diagram.containers)]
+    shape_of = {(z.id or f"z{k}"): f"z{k}" for k, z in enumerate(diagram.zones)}
+    scene.zone_children = {f"z{k}": [shape_of.get(c, c) for c in z.children]
+                           for k, z in enumerate(diagram.zones) if z.children}
     if not scene.laid_out:  # engines size gaps themselves; collisions are reported for hand-placed diagrams
         scene.annotation_issues = scene.annotation_issues + builder.label_issues
     scene.layout_overflow = diagram.meta.get("layout_overflow")

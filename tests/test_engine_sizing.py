@@ -206,3 +206,46 @@ def test_equalize_siblings(equalize):  # ZON-16 (opt-in: blank space never a def
     sc = build_scene(d, THEME)
     a, b = (next(i for i in sc.items if isinstance(i, Shape) and i.id == z) for z in ("z0", "z1"))
     assert (a.h == b.h) == equalize and max(a.h, b.h) == pytest.approx(250 + NO_ICON_HEAD + 24)
+
+
+# zone diagnostics (ZON-17) ------------------------------------------------------------------------------------
+CLIP = [
+    # id, declared child?, node rect, expected detail or None   (zone z0 at 200,200 600x400)
+    ("declared-right", True, (700, 300, 130, 100), "'n' extends 30px past the right side"),
+    ("declared-inside", True, (300, 300, 200, 100), None),
+    ("geometric-bottom", False, (300, 520, 200, 100), "'n' extends 20px past the bottom side"),
+    ("geometric-mostly-outside", False, (750, 300, 200, 100), None),
+]
+
+
+@pytest.mark.parametrize("declared,rect,detail", [c[1:] for c in CLIP], ids=[c[0] for c in CLIP])
+def test_zone_clips_child(declared, rect, detail):
+    d = Diagram("S", "Size")
+    z = d.zone("Net", x=200, y=200, w=600, h=400)
+    x, y, w, h = rect
+    d.box("N", id="n", x=x, y=y, w=w, h=h)
+    if declared:
+        z.children.append("n")
+    got = [i.detail for i in check(build_scene(d, THEME)) if i.kind == "zone-clips-child"]
+    assert got == ([detail] if detail else [])
+
+
+@pytest.mark.parametrize("equalize,threshold,flagged", [(True, None, True), (False, None, False),
+                                                        (True, 0.2, False)],
+                         ids=["blank-sibling", "tight", "theme-threshold-0.2"])
+def test_zone_underused(tmp_path, equalize, threshold, flagged):  # roadmap D1: the single-AZ blank sibling
+    th = THEME
+    if threshold is not None:
+        (tmp_path / "theme.yaml").write_text(f"extends: default\ndefaults: {{check: {{underused: {threshold}}}}}\n")
+        th = Theme.load(tmp_path)
+    d = Diagram("S", "Size")
+    kw = {"equalize": "siblings"} if equalize else {}
+    with d.zone("Project A", id="pa", fit="children", **kw):
+        d.box("A1", id="a1", x=200, y=300, w=200, h=100)
+        d.box("A2", id="a2", x=200, y=450, w=200, h=100)
+    with d.zone("Project B", id="pb", fit="children", **kw):
+        d.box("B1", id="b1", x=600, y=300, w=200, h=100)
+    got = [i for i in check(build_scene(d, th)) if i.kind == "zone-underused"]
+    assert [i.item for i in got] == (["z1"] if flagged else [])
+    if flagged:
+        assert got[0].severity == "P2" and got[0].detail.startswith("content fills 28%")

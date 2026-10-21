@@ -234,6 +234,7 @@ class Scene:
     check_options: dict = field(default_factory=dict)  # theme defaults.check + canvas margin, read by qa.check
     fallbacks: list[tuple[str, str, str]] = field(default_factory=list)  # (char, font role, fallback family)
     rows: list[tuple[str, list[str], bool]] = field(default_factory=list)  # (row0 | column1, node ids, same_icon_size)
+    zone_children: dict[str, list[str]] = field(default_factory=dict)  # zone shape id → child shape ids (declared)
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}

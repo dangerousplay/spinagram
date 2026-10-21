@@ -434,7 +434,7 @@ defects. The author should declare content and intent; the engine should own fit
 | ZON-14 | P2: Zones fit children | Execute | Implementing |
 | ZON-15 | P2: Nested resolution order | Execute | Implementing |
 | ZON-16 | P2: equalize siblings | Execute | Implementing |
-| ZON-17 | P2: clips/underused checks | Tasks | In Tasks |
+| ZON-17 | P2: clips/underused checks | Execute | Implementing |
 | ZON-18 | P2: zone context manager | Execute | Implementing |
 | EDG-13 | P2: Bundle API | Tasks | In Tasks |
 | EDG-14 | P2: Bundle trunk routing | Tasks | In Tasks |

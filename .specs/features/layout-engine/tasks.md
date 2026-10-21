@@ -1200,10 +1200,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `zone-clips-child` (children or geometric), `zone-underused` < 0.35; DDT incl. single-AZ blank sibling
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_sizing.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_sizing.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `zone-clips-child` (children or geometric), `zone-underused` < 0.35; DDT incl. single-AZ blank sibling
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_sizing.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_sizing.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

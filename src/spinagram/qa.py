@@ -332,6 +332,36 @@ def fix_for(scene: Scene, i: Issue) -> dict | None:
     return None
 
 
+UNDERUSED = 0.35  # content fill ratio below which a zone is reported (theme defaults.check.underused)
+
+
+def zone_issues(scene: Scene) -> list[Issue]:
+    """Children sticking out of their zone, and zones mostly empty."""
+    out: list[Issue] = []
+    shapes = scene.shapes()
+    zones = {k: s for k, s in shapes.items() if s.role == "zone" and k in scene.zone_headers}
+    limit = scene.check_options.get("underused", UNDERUSED)
+    for zid, z in zones.items():
+        if zid in scene.zone_children:
+            kids = [shapes[c] for c in scene.zone_children[zid] if c in shapes]
+        else:  # undeclared: nodes mostly inside the outline
+            kids = [s for s in shapes.values() if s.role == "node" and s.w * s.h and
+                    _overlap((s.x, s.y, s.w, s.h), (z.x, z.y, z.w, z.h)) > 0.5 * s.w * s.h]
+        for c in kids:
+            past = {"left": z.x - c.x, "top": z.y - c.y, "right": c.x + c.w - z.x - z.w, "bottom": c.y + c.h - z.y - z.h}
+            side = max(past, key=lambda k: past[k])
+            if past[side] > 0.5:
+                out.append(Issue(scene.id, zid, "zone-clips-child", f"{c.id!r} extends {past[side]:.0f}px past "
+                                 f"the {side} side"))
+        hx, hy, hw, hh = scene.zone_headers[zid]
+        area = z.w * (z.y + z.h - (hy + hh))
+        used = sum(_overlap((c.x, c.y, c.w, c.h), (z.x, hy + hh, z.w, z.y + z.h - hy - hh)) for c in kids)
+        if kids and area > 0 and used / area < limit:
+            out.append(Issue(scene.id, zid, "zone-underused", f"content fills {used / area:.0%} of the zone "
+                             f"(< {limit:.0%}); shrink it, use fit: children, or drop equalize"))
+    return out
+
+
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
@@ -347,6 +377,7 @@ def check(scene: Scene) -> list[Issue]:
         issues += edges_through_boxes(scene)
         issues += icon_issues(scene)
         issues += safe_area_issues(scene, scene.check_options.get("margin", 80))
+        issues += zone_issues(scene)
     issues += contrast_issues(scene)
     shapes = scene.shapes()
     for name, ids, uniform in scene.rows:  # explicit rows/columns should show one icon size
