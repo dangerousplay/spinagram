@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import shapes
-from .engine import endpoints, glyphs, labels, textfit, zones
+from .engine import endpoints, glyphs, labels, model_passes, textfit, zones
 from .engine import icons as icon_fit
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
@@ -561,6 +561,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     from .autolayout import apply_layout
 
     diagram = apply_layout(diagram, theme)  # resolves the CSS cascade first (css.prepare)
+    diagram = model_passes.apply(diagram, theme)  # hand-placed diagrams: content sizes, containers, grids
     resolved, refs, reg = apply_facts(diagram)
     builder = _Builder(resolved, theme)
     scene = builder.build()

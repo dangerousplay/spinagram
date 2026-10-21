@@ -425,7 +425,7 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-13 | P2: Glyph fallback (PPTX) | Execute | Implementing |
 | TXT-14 | P2: Glyph fallback (check) | Execute | Implementing |
 | TXT-15 | P2: Glyph fallback (metrics) | Execute | Implementing |
-| BOX-01 | P2: Content-sized boxes | Tasks | In Tasks |
+| BOX-01 | P2: Content-sized boxes | Execute | Implementing |
 | BOX-02 | P2: Row/column context managers | Tasks | In Tasks |
 | BOX-03 | P2: same_size | Tasks | In Tasks |
 | BOX-04 | P2: max_width failure | Tasks | In Tasks |

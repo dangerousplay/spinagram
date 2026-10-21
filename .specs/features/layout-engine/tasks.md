@@ -1065,10 +1065,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] fixed diagrams: box with w=h=0 sized to content; auto diagrams unchanged; DDT icon × title × body
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_sizing.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] fixed diagrams: box with w=h=0 sized to content; auto diagrams unchanged; DDT icon × title × body
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_sizing.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
