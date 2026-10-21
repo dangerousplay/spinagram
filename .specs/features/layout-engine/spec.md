@@ -376,14 +376,14 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-07 | P1: Text fits (overflow detail) | Execute | Implementing |
 | TXT-08 | P1: Text fits (options/defaults) | Execute | Implementing |
 | TXT-09 | P1: Text fits (letter spacing) | Execute | Implementing |
-| ZON-01 | P1: Zone header (padding) | Tasks | In Tasks |
-| ZON-02 | P1: Zone header (icon size) | Tasks | In Tasks |
-| ZON-03 | P1: Zone header (label centre) | Tasks | In Tasks |
+| ZON-01 | P1: Zone header (padding) | Execute | Implementing |
+| ZON-02 | P1: Zone header (icon size) | Execute | Implementing |
+| ZON-03 | P1: Zone header (label centre) | Execute | Implementing |
 | ZON-04 | P1: Zone header (chips) | Tasks | In Tasks |
 | ZON-05 | P1: Zone header (strip) | Tasks | In Tasks |
 | ZON-06 | P1: Zone header (content_top) | Tasks | In Tasks |
-| ZON-07 | P1: Zone header (flush opt-out) | Tasks | In Tasks |
-| ZON-08 | P1: Zone header (upper) | Tasks | In Tasks |
+| ZON-07 | P1: Zone header (flush opt-out) | Execute | Implementing |
+| ZON-08 | P1: Zone header (upper) | Execute | Implementing |
 | ZON-09 | P1: Zone outlines (dash values) | Execute | Implementing |
 | ZON-10 | P1: Zone outlines (stroke/fill) | Execute | Implementing |
 | ZON-11 | P1: Zone outlines (id/class CSS) | Execute | Implementing |

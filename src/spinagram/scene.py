@@ -213,6 +213,7 @@ class Scene:
     style_warnings: list[str] = field(default_factory=list)            # stylesheet diagnostics
     annotation_issues: list[tuple[str, str, str]] = field(default_factory=list)  # (item, kind, detail)
     fits: dict[str, tuple[str, float]] = field(default_factory=dict)  # node id → (fitting strategy, final size)
+    zone_headers: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)  # zone id → rect
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}

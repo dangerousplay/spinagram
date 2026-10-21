@@ -43,6 +43,7 @@ class _Builder:
         self.annotation_issues: list[tuple[str, str, str]] = []
         self.extras: dict[str, list] = {}  # items drawn right after a node (note accent bar, quote mark)
         self.fits: dict[str, tuple[str, float]] = {}  # node id → (last fitting strategy, final first-block size)
+        self.headers: dict[str, tuple[float, float, float, float]] = {}  # zone shape id → header rect
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -198,6 +199,32 @@ class _Builder:
         self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s
+
+    def zone_header(self, i: int, z, zs: dict, zcs: dict) -> list:
+        """Header icon and label of zone ``i`` (see :func:`engine.zones.header_layout`)."""
+        t, zd = self.t, self.t.defaults("zone")
+        opts = zones.header_options(z, zs, t)
+        names = z.icon or zs["icon"]
+        names = [names] if isinstance(names, str) else list(names or [])[:1]
+        paths = [p for p in (t.icon(n, "light", self.d.base_dir) for n in names) if p is not None]
+        size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
+        geo = zones.header_layout(z, opts, len(paths), size, zd.get("icon_size", 32))
+        items: list = []
+        for k, (p, (ix, iy, isz)) in enumerate(zip(paths, geo["icons"])):
+            items.append(Shape(id=f"z{i}-icon" if k == 0 else f"z{i}-icon{k}", kind="rect", x=ix, y=iy, w=isz,
+                               h=isz, fill=None, icon=Icon(p, ix, iy, isz), role="zone"))
+        if z.label:
+            upper = opts["upper"] if opts["upper"] is not None else zs["upper"]
+            lab = z.label.upper() if upper else z.label
+            col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color") or zs["label"], 700)
+            track = zd.get("label_tracking", 0) * size if upper else 0  # em → px, uppercase labels only
+            lx, ly = geo["label"]
+            items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col,
+                                   letter_spacing=track))
+        right = max([z.x + 24] + [it.x + (it.width or 0) for it in items if isinstance(it, Text)] +
+                    [it.x + it.w for it in items if isinstance(it, Shape)])
+        self.headers[f"z{i}"] = (z.x, z.y, right - z.x, geo["bottom"] - z.y)
+        return items
 
     def _note_variant(self, s: Shape, variant: str) -> None:
         """``card``: a white card with a primary accent bar; ``quote``: a tinted panel with a large quote mark."""
@@ -355,23 +382,7 @@ class _Builder:
                                               dashed=ol["dashed"], dash=ol["dash"], cap=ol["cap"], radius=radius,
                                               opacity=opacity, role="zone"),
                                         zcs.get("")))
-            lx = z.x + 24
-            icon_name = z.icon or zs["icon"]
-            if icon_name:
-                isz = zd.get("icon_size", 32)
-                p = t.icon(icon_name, "light", d.base_dir)
-                if p is not None:  # corner icon flush with the outline, AWS group style
-                    items.append(Shape(id=f"z{i}-icon", kind="rect", x=z.x, y=z.y, w=isz, h=isz, fill=None,
-                                       icon=Icon(p, z.x, z.y, isz), role="zone"))
-                    lx = z.x + isz + 10
-            if z.label:
-                lab = z.label.upper() if zs["upper"] else z.label
-                ly = z.y + (22 if icon_name else 36)
-                col, wt, it = self._text(zcs, "label", (zcs.get("") or {}).get("color") or zs["label"], 700)
-                size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
-                track = zd.get("label_tracking", 0) * size if zs["upper"] else 0  # em → px, uppercase labels only
-                items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col,
-                                       letter_spacing=track))
+            items.extend(self.zone_header(i, z, zs, zcs))
         for n in d.nodes:
             items.append(self.node(n))
             items.extend(self.extras.pop(n.id, []))
@@ -495,6 +506,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.style_warnings = list(diagram.meta.get("css_warnings") or []) + builder.warnings
     scene.annotation_issues = builder.annotation_issues
     scene.fits = builder.fits
+    scene.zone_headers = builder.headers
     scene.layout_overflow = diagram.meta.get("layout_overflow")
     scene.model_issues = behavior_issues(diagram)
     if reg is not None:

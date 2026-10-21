@@ -188,3 +188,88 @@ def test_css_none_on_text_colour_warns_and_keeps_colour():
     a = next(i for i in sc.items if isinstance(i, Shape) and i.id == "a")
     assert a.label.blocks[0].color.startswith("#")
     assert any("color: none" in i.detail for i in check(sc))
+
+
+# header (ZON-01, 02, 03, 07, 08) ----------------------------------------------------------------------------
+from spinagram.scene import Text  # noqa: E402
+
+@pytest.fixture
+def icon_path(tmp_path):
+    p = tmp_path / "icon.svg"
+    p.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>')
+    return str(p)
+
+
+def _header_scene(icon, label="Availability zone site-a", theme=THEME, **kw):
+    d = Diagram("Z", "Zones")
+    d.zone(label, x=100, y=200, w=600, h=300, icon=icon, **kw)
+    d.zone("Second", x=800, y=200, w=400, h=300, icon=icon, dash="dotted", stroke="primary")
+    sc = build_scene(d, theme)
+    by = {i.id: i for i in sc.items if isinstance(i, (Shape, Text))}
+    return by, sc
+
+
+def _label_center(t):
+    return t.top + t.block.leading / 2
+
+
+HEADER_SCENARIOS = [
+    pytest.param(dash, label, id=f"{dash}-{len(label)}ch")
+    for dash in ("solid", "dashed", "dotted") for label in ("AZ", "Availability zone site-a · RHEL 9")]
+
+
+@pytest.mark.parametrize("dash,label", HEADER_SCENARIOS)
+def test_inset_header_geometry(icon_path, dash, label):
+    by, _ = _header_scene(icon_path, label, dash=dash, stroke="primary")
+    icon, lab = by["z0-icon"].icon, by["z0-label"]
+    assert icon.x - 100 >= 14 and icon.y - 200 >= 14                  # ZON-01: padding inside the outline
+    assert icon.size == by["z1-icon"].icon.size == 28                 # ZON-02: same size for every zone
+    assert abs(_label_center(lab) - (icon.y + icon.size / 2)) <= 1    # ZON-03: label centred on the icon
+    assert lab.x >= icon.x + icon.size                                # label after the icon
+
+
+@pytest.mark.parametrize("source", ["zone", "style", "theme"])
+@pytest.mark.parametrize("padding,size", [(14, 28), (20, 36)], ids=["default", "custom"])
+def test_header_options_cascade(tmp_path, icon_path, source, padding, size):
+    import yaml
+    hdr = {"padding": padding, "icon_size": size}
+    theme, kw = THEME, {}
+    if source == "zone":
+        kw = {"header": hdr}
+    else:
+        data = {"defaults": {"zone": {"header": hdr}}} if source == "theme" else \
+            {"styles": {"zone": {"hdr": {"fill": "primary-soft", "label": "text-muted", "header": hdr}}}}
+        (tmp_path / "theme.yaml").write_text("extends: default\n" + yaml.safe_dump(data))
+        theme = Theme.load(tmp_path)
+        kw = {"color": "hdr"} if source == "style" else {}
+    by, _ = _header_scene(icon_path, theme=theme, **kw)
+    icon = by["z0-icon"].icon
+    assert (icon.x - 100, icon.y - 200, icon.size) == (padding, padding, size)
+
+
+def test_flush_header_keeps_corner_icon(icon_path):  # ZON-07
+    by, _ = _header_scene(icon_path, header={"inset": False})
+    icon = by["z0-icon"].icon
+    assert (icon.x, icon.y, icon.size) == (100, 200, 32)
+    assert (by["z0-label"].x, by["z0-label"].y) == (100 + 32 + 10, 222)
+
+
+def test_aws_styles_stay_flush():  # ZON-07: the AWS convention is kept by the theme
+    for name in ("aws-cloud", "aws-account", "aws-region", "aws-vpc", "aws-subnet"):
+        assert THEME.zone_style(name)["header"] == {"inset": False}
+
+
+@pytest.mark.parametrize("upper,expected", [(True, "SITE-A"), (False, "site-a")], ids=["upper", "keep-case"])
+def test_header_upper(icon_path, upper, expected):  # ZON-08
+    by, _ = _header_scene(icon_path, "site-a", header={"upper": upper})
+    assert by["z0-label"].block.lines == [expected]
+
+
+def test_unresolved_icon_lays_out_label_alone():  # edge case
+    by, _ = _header_scene("nopack:missing-icon")
+    assert "z0-icon" not in by and (by["z0-label"].x, by["z0-label"].y) == (124, 236)
+
+
+def test_zone_without_icon_keeps_label_place():
+    by, _ = _header_scene(None)
+    assert (by["z0-label"].x, by["z0-label"].y) == (124, 236)

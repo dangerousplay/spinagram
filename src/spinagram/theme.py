@@ -191,6 +191,7 @@ class Theme:
         out["stroke_width"] = z.get("stroke_width", 2 if z.get("stroke") else 0)
         out["dashed"] = bool(z.get("dashed", False))
         out["dash"] = z.get("dash")  # solid | dashed | dotted | [pattern]
+        out["header"] = z.get("header")  # padding, icon_size, inset, strip, upper
         out["icon"] = z.get("icon")
         out["radius"] = z.get("radius")
         out["opacity"] = z.get("opacity")

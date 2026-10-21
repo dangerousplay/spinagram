@@ -65,13 +65,14 @@ styles:
     region:   {fill: none, stroke: gray, stroke_width: 1.5, dashed: true, label: text-muted, radius: 12, upper: false}
     lane:     {fill: none, stroke: border, stroke_width: 1.5, label: primary-deep, radius: 0, upper: false}
     behavior: {fill: neutral-soft, label: text-muted, opacity: 1, upper: false}
-    # AWS Architecture Icons groups (icons from the `aws` pack): outline, no fill, corner icon.
-    aws-cloud:   {fill: none, stroke: "#242F3E", label: "#242F3E", icon: "aws:group-aws-cloud", radius: 0, upper: false}
-    aws-account: {fill: none, stroke: "#E7157B", label: "#E7157B", icon: "aws:group-aws-account", radius: 0, upper: false}
-    aws-region:  {fill: none, stroke: "#00A4A6", dashed: true, label: "#00A4A6", icon: "aws:group-region", radius: 0, upper: false}
-    aws-vpc:     {fill: none, stroke: "#8C4FFF", label: "#8C4FFF", icon: "aws:group-virtualprivatecloud-vpc", radius: 0, upper: false}
+    # AWS Architecture Icons groups (icons from the `aws` pack): outline, no fill, corner icon flush with the
+    # outline (header inset: false keeps the AWS convention).
+    aws-cloud:   {fill: none, stroke: "#242F3E", label: "#242F3E", icon: "aws:group-aws-cloud", radius: 0, upper: false, header: {inset: false}}
+    aws-account: {fill: none, stroke: "#E7157B", label: "#E7157B", icon: "aws:group-aws-account", radius: 0, upper: false, header: {inset: false}}
+    aws-region:  {fill: none, stroke: "#00A4A6", dashed: true, label: "#00A4A6", icon: "aws:group-region", radius: 0, upper: false, header: {inset: false}}
+    aws-vpc:     {fill: none, stroke: "#8C4FFF", label: "#8C4FFF", icon: "aws:group-virtualprivatecloud-vpc", radius: 0, upper: false, header: {inset: false}}
     aws-az:      {fill: none, stroke: "#147EBA", dashed: true, label: "#147EBA", radius: 0, upper: false}
-    aws-subnet:  {fill: "#E6F6F7", stroke: "#00A4A6", label: "#007B7D", icon: "aws:group-privatesubnet", radius: 0, upper: false, opacity: 1}
+    aws-subnet:  {fill: "#E6F6F7", stroke: "#00A4A6", label: "#007B7D", icon: "aws:group-privatesubnet", radius: 0, upper: false, header: {inset: false}, opacity: 1}
   legend:
     default: primary
     dark: primary-deep

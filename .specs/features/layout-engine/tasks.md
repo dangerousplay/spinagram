@@ -444,10 +444,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] icon ≥ padding inside outline, equal header icon size, label centre ±1 px of icon centre, `header.upper`, `inset:false` keeps 0.3 flush; DDT (dash × icon × label × inset); golden updated with intent test
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] icon ≥ padding inside outline, equal header icon size, label centre ±1 px of icon centre, `header.upper`, `inset:false` keeps 0.3 flush; DDT (dash × icon × label × inset); golden updated with intent test
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_zones.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
