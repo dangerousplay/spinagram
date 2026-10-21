@@ -187,3 +187,54 @@ def test_more_than_three_badges_raise(front):  # ICN-10
             Diagram("B", "B").box("T", badges=["a", "b", "c", "d"])
         else:
             from_dict({"id": "B", "title": "B", "nodes": [{"id": "n", "title": "T", "badges": ["a", "b", "c", "d"]}]})
+
+
+# fallback chains and sources (ICN-11, ICN-12) -----------------------------------------------------------------
+def _chain_theme(tmp_path, chain):
+    import yaml
+    good = _svg(tmp_path, "lb", 'viewBox="0 0 10 10"')
+    other = _svg(tmp_path, "lb2", 'viewBox="0 0 10 10"')
+    refs = [{"GOOD": str(good), "OTHER": str(other)}.get(r, r) for r in chain]
+    (tmp_path / "theme.yaml").write_text("extends: default\n" + yaml.safe_dump(
+        {"icons": {"fallback": {"load-balancer": refs}, "alias": {"lb-alias": str(good)}}}))
+    return Theme.load(tmp_path), good, other
+
+
+CHAINS = [
+    # id, chain, expected file stem, expected source
+    ("first-available", ["GOOD", "OTHER"], "lb", "theme"),
+    ("second-is-fallback-1", ["missing-pack:nothing", "OTHER"], "lb2", "fallback:1"),
+    ("third-is-fallback-2", ["missing-pack:a", "missing-pack:b", "GOOD"], "lb", "fallback:2"),
+    ("none-available", ["missing-pack:a"], None, "missing"),
+]
+
+
+@pytest.mark.parametrize("chain,stem,source", [c[1:] for c in CHAINS], ids=[c[0] for c in CHAINS])
+def test_concept_resolves_first_available(tmp_path, chain, stem, source):
+    th, _, _ = _chain_theme(tmp_path, chain)
+    d = Diagram("I", "Icons")
+    d.box("LB", id="n", x=100, y=100, w=400, h=120, icon="concept:load-balancer")
+    if stem is None:
+        with pytest.warns(UserWarning, match="icon 'concept:load-balancer' not found"):
+            sc = build_scene(d, th)
+    else:
+        sc = build_scene(d, th)
+    s = next(i for i in sc.items if isinstance(i, Shape) and i.id == "n")
+    assert (s.icon.path.stem if s.icon else None) == stem
+    assert sc.icon_sources["concept:load-balancer"][1] == source
+
+
+@pytest.mark.parametrize("name,source", [("aws:ec2", "official"), ("lb-alias", "theme"), ("./x.svg", "theme")],
+                         ids=["pack", "alias", "path"])
+def test_icon_source_kinds(tmp_path, name, source):
+    th, _, _ = _chain_theme(tmp_path, ["GOOD"])
+    assert th._source(name) == source
+
+
+def test_icon_sources_recorded_per_scene(tmp_path):
+    th, good, _ = _chain_theme(tmp_path, ["GOOD"])
+    d = Diagram("I", "Icons")
+    d.box("A", id="a", x=100, y=100, w=400, h=120, icon="lb-alias")
+    sc = build_scene(d, th)
+    assert sc.icon_sources == {"lb-alias": (str(good), "theme")}
+    assert th.icon_trace is None                                   # tracing ends with the scene

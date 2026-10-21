@@ -597,7 +597,12 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     diagram = model_passes.apply(diagram, theme)  # hand-placed diagrams: content sizes, containers, grids
     resolved, refs, reg = apply_facts(diagram)
     builder = _Builder(resolved, theme)
-    scene = builder.build()
+    theme.icon_trace = {}  # records how each icon name resolved while this scene is built
+    try:
+        scene = builder.build()
+    finally:
+        trace, theme.icon_trace = theme.icon_trace, None
+    scene.icon_sources = trace
     scene.style_warnings = list(diagram.meta.get("css_warnings") or []) + builder.warnings
     scene.annotation_issues = builder.annotation_issues
     scene.fits = builder.fits

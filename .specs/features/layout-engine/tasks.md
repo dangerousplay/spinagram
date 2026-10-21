@@ -1497,10 +1497,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `icons.fallback` concepts; `concept:<name>`; source official/theme/fallback:n recorded on scene; DDT
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_icons.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_icons.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `icons.fallback` concepts; `concept:<name>`; source official/theme/fallback:n recorded on scene; DDT
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_icons.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_icons.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
