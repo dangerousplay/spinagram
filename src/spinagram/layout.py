@@ -181,6 +181,13 @@ class _Builder:
             ts = n.title_size or nd.get("body_size", 18)
             bs = n.body_size or nd.get("title_size", 24) - 2
         avail = w - 2 * pad - offset
+        names = n.extra.get("badges") or []
+        bpaths = [p for p in (self.t.icon(b, "light", self.d.base_dir) for b in names) if p is not None]
+        if bpaths:  # corner badges: the text ends before the leftmost one
+            main = icon.size if icon else (n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44)))
+            parts, left = icon_fit.badges(n.id, bpaths, (x, y, w, h), icon_fit.badge_size(main))
+            self.extras.setdefault(n.id, []).extend(parts)
+            avail = min(avail, left - icon_fit.BADGE_GAP - (x + pad + offset))
         specs = []
         cs = self._css(f"node:{n.id}")
         titles = _as_list(n.title)
@@ -258,13 +265,13 @@ class _Builder:
                 1.5, 14
             s.shadow = (0.0, 6.0, 18.0, "#0F172A", 0.10)
             inset = min(14.0, s.h / 4)  # clear of the rounded corners
-            self.extras[s.id] = [Shape(id=f"{s.id}-accent", kind="rect", x=s.x, y=s.y + inset, w=6, h=s.h - 2 * inset,
+            self.extras.setdefault(s.id, [])[:0] = [Shape(id=f"{s.id}-accent", kind="rect", x=s.x, y=s.y + inset, w=6, h=s.h - 2 * inset,
                                        fill=primary, radius=3, role="node-part")]
         elif variant == "quote":
             s.fill, s.stroke, s.stroke_width, s.radius = t.color("primary-bg"), None, 0, 18
             font = t.font("heading", 700, 72)
             pad = t.defaults("node").get("padding", 22)
-            self.extras[s.id] = [self.text(f"{s.id}-mark", s.x + pad, s.y + pad + 52, "\u201c", font, primary)]
+            self.extras.setdefault(s.id, [])[:0] = [self.text(f"{s.id}-mark", s.x + pad, s.y + pad + 52, "\u201c", font, primary)]
 
     def symbol(self, n: Node) -> Shape:
         """Flow/activity/state symbol: geometry from ``shapes``, centred text inside its text box."""

@@ -414,11 +414,11 @@ defects. The author should declare content and intent; the engine should own fit
 | ICN-03 | P2: Icon aspect (wordmark ≥24px) | Execute | Implementing |
 | ICN-04 | P2: Icon aspect (variant) | Execute | Implementing |
 | ICN-05 | P2: Icon aspect (centred icon-only) | Execute | Implementing |
-| ICN-06 | P2: Badges (API) | Tasks | In Tasks |
-| ICN-07 | P2: Badges (size/halo) | Tasks | In Tasks |
-| ICN-08 | P2: Badges (placement) | Tasks | In Tasks |
-| ICN-09 | P2: Badges (text clearance) | Tasks | In Tasks |
-| ICN-10 | P2: Badges (cap) | Tasks | In Tasks |
+| ICN-06 | P2: Badges (API) | Execute | Implementing |
+| ICN-07 | P2: Badges (size/halo) | Execute | Implementing |
+| ICN-08 | P2: Badges (placement) | Execute | Implementing |
+| ICN-09 | P2: Badges (text clearance) | Execute | Implementing |
+| ICN-10 | P2: Badges (cap) | Execute | Implementing |
 | TXT-10 | P2: Glyph fallback (cmap) | Tasks | In Tasks |
 | TXT-11 | P2: Glyph fallback (chain) | Tasks | In Tasks |
 | TXT-12 | P2: Glyph fallback (SVG) | Tasks | In Tasks |

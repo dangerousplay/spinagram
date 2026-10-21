@@ -134,3 +134,56 @@ def test_note_variant_is_not_an_icon_variant(tmp_path):
     d = Diagram("I", "Icons")
     d.note("N", id="n", x=100, y=100, w=500, h=120, icon="vmware", variant="card")
     assert next(i for i in build_scene(d, th).items if isinstance(i, Shape) and i.id == "n").icon.path.stem == "plain"
+
+
+# badges (ICN-06..10) ------------------------------------------------------------------------------------------
+from spinagram.text import measure  # noqa: E402
+
+
+def _badge_scene(tmp_path, count, w=360, h=120, icon_size=None, title="node-a gitlab runner manager"):
+    paths = [str(_svg(tmp_path, f"b{k}", 'viewBox="0 0 10 10"')) for k in range(count)]
+    main = str(_svg(tmp_path, "main", 'viewBox="0 0 10 10"'))
+    d = Diagram("B", "Badges")
+    kw = {"icon_size": icon_size} if icon_size else {}
+    d.box(title, id="n", x=100, y=100, w=w, h=h, icon=main, badges=paths, **kw)
+    return {i.id: i for i in build_scene(d, THEME).items if isinstance(i, Shape)}
+
+
+@pytest.mark.parametrize("count", [1, 2, 3], ids=lambda c: f"{c}badges")
+@pytest.mark.parametrize("box,icon_size,size", [((360, 120), 50, 20), ((360, 120), 30, 14), ((480, 200), 60, 24)],
+                         ids=["40pct", "min14", "large"])
+def test_badges_size_halo_placement_and_text(tmp_path, count, box, icon_size, size):
+    w, h = box
+    by = _badge_scene(tmp_path, count, w, h, icon_size)
+    node = by["n"]
+    right = 100 + w - 6
+    for k in range(count):
+        b, halo = by[f"n-badge{k}"], by[f"n-badge{k}-halo"]
+        assert b.icon.size == pytest.approx(size)                                    # ICN-07: 40 %, min 14
+        assert halo.w == pytest.approx(size + 6) and halo.radius == pytest.approx(halo.w / 2)  # halo +3 each side
+        assert halo.fill == "#FFFFFF" and halo.y == pytest.approx(106)                # ICN-08: top, inset 6
+        assert halo.x + halo.w == pytest.approx(right - k * (size + 6 + 4))          # stacking leftward
+    left = min(by[f"n-badge{k}-halo"].x for k in range(count))
+    tx, _, tw, _ = node.label.box
+    assert tx + tw <= left                                                            # ICN-09: text clear of badges
+    for b in node.label.blocks:
+        assert all(tx + measure(ln, b.font) <= left + 0.5 for ln in b.lines)
+
+
+def test_badges_from_yaml(tmp_path):  # ICN-06 YAML
+    from spinagram.yaml_io import from_dict
+    p = str(_svg(tmp_path, "b", 'viewBox="0 0 10 10"'))
+    d = from_dict({"id": "B", "title": "B", "nodes": [{"id": "n", "title": "T", "x": 100, "y": 100, "w": 300,
+                                                       "h": 120, "badges": [p, p]}]})
+    ids = [i.id for i in build_scene(d, THEME).items]
+    assert "n-badge0" in ids and "n-badge1" in ids
+
+
+@pytest.mark.parametrize("front", ["python", "yaml"])
+def test_more_than_three_badges_raise(front):  # ICN-10
+    from spinagram.yaml_io import from_dict
+    with pytest.raises(ValueError, match="4 badges; at most 3"):
+        if front == "python":
+            Diagram("B", "B").box("T", badges=["a", "b", "c", "d"])
+        else:
+            from_dict({"id": "B", "title": "B", "nodes": [{"id": "n", "title": "T", "badges": ["a", "b", "c", "d"]}]})

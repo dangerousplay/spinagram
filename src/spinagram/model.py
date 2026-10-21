@@ -396,6 +396,8 @@ class Diagram:
             kw["cls"] = kw.pop("class_")
         known = {f for f in Node.__dataclass_fields__}  # noqa: SIM118
         extra = {k: kw.pop(k) for k in list(kw) if k not in known}
+        if len(extra.get("badges") or []) > 3:
+            raise ValueError(f"{self.id}: node {id or title!r} has {len(extra['badges'])} badges; at most 3")
         n = Node(id=id or self._auto_id(title), kind=kind, x=x, y=y, w=w, h=h, title=title, extra=extra, **kw)
         if any(o.id == n.id for o in self.nodes):
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")

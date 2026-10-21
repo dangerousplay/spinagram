@@ -62,3 +62,33 @@ def variant_name(theme, name: str | None, variant: str | None) -> str | None:
     alias = ((theme.data.get("icons") or {}).get("alias") or {})
     key = f"{name}-{variant}"
     return key if key in alias else name
+
+
+MAX_BADGES = 3
+BADGE_SCALE, BADGE_MIN, BADGE_INSET, BADGE_HALO, BADGE_GAP = 0.4, 14.0, 6.0, 3.0, 4.0
+
+
+def badge_size(main_icon: float) -> float:
+    return max(BADGE_MIN, main_icon * BADGE_SCALE)
+
+
+def badges(node_id: str, paths: list[Path], box: tuple[float, float, float, float], size: float) -> tuple[list, float]:
+    """Halo + icon shapes for up to three corner badges, from the top-right corner leftward, and the x of the
+    leftmost halo (text must end before it)."""
+    from ..scene import Shape
+
+    x, y, w, _ = box
+    halo = size + 2 * BADGE_HALO
+    right = x + w - BADGE_INSET
+    items, left = [], right
+    for k, p in enumerate(paths):
+        hx = right - (k + 1) * halo - k * BADGE_GAP
+        hy = y + BADGE_INSET
+        bw, bh = fit(p, size, size)
+        items.append(Shape(id=f"{node_id}-badge{k}-halo", kind="rect", x=hx, y=hy, w=halo, h=halo, fill="#FFFFFF",
+                           radius=halo / 2, role="node-part"))
+        ix, iy = hx + (halo - bw) / 2, hy + (halo - bh) / 2
+        items.append(Shape(id=f"{node_id}-badge{k}", kind="rect", x=ix, y=iy, w=bw, h=bh, fill=None,
+                           icon=Icon(p, ix, iy, bh, w=bw), role="node-part"))
+        left = hx
+    return items, left

@@ -12,7 +12,8 @@ from .model import NOTE_VARIANTS, Diagram, Edge, Group, Legend, Table, Zone, nor
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
               "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
 _NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note variant
-               "fit", "min_scale", "break_on"}  # text fitting
+               "fit", "min_scale", "break_on",  # text fitting
+               "badges"}  # corner badge icons
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
                "class", "css"}
 
@@ -83,8 +84,7 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
         if "class" in n:
             n["cls"] = n.pop("class")
         extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS | {"cls"}}
-        node = d.add(kind, title, **n)
-        node.extra.update(extra)
+        node = d.add(kind, title, **n, **extra)  # extras land in node.extra (and are validated there)
         if parent is not None:
             g = next((g for g in d.groups if g.id == parent), None)
             if g is None:

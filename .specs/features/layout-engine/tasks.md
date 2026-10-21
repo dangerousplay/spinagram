@@ -930,10 +930,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] ≤ 3 badges, 40 % size min 14, halo +3, top-right stacking inset 6, text width reduced, ValueError > 3; YAML; DDT count × box size
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_icons.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] ≤ 3 badges, 40 % size min 14, halo +3, top-right stacking inset 6, text width reduced, ValueError > 3; YAML; DDT count × box size
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_icons.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full
