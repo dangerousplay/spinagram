@@ -64,7 +64,15 @@ class _Svg:
     def text_lines(self, out: list[str], block: TextBlock, x: float, baseline: float, anchor: str,
                    letter_spacing: float = 0) -> None:
         f = block.font
-        spans = "".join(f'<tspan x="{x:.1f}" dy="{0 if i == 0 else block.leading:.1f}">{_esc(line) or "&#160;"}</tspan>'
+
+        def content(i: int, line: str) -> str:
+            if not block.runs:
+                return _esc(line) or "&#160;"
+            return "".join(_esc(r.text) if r.font is f else  # fallback glyphs: their own font
+                           f'<tspan font-family="&apos;{_attr(r.font.family)}&apos;, {_attr(r.font.fallback)}">'
+                           f"{_esc(r.text)}</tspan>" for r in block.runs[i]) or "&#160;"
+
+        spans = "".join(f'<tspan x="{x:.1f}" dy="{0 if i == 0 else block.leading:.1f}">{content(i, line)}</tspan>'
                         for i, line in enumerate(block.lines))
         ls = f' letter-spacing="{letter_spacing}"' if letter_spacing else ""
         style = ' font-style="italic"' if f.italic else ""

@@ -421,7 +421,7 @@ defects. The author should declare content and intent; the engine should own fit
 | ICN-10 | P2: Badges (cap) | Execute | Implementing |
 | TXT-10 | P2: Glyph fallback (cmap) | Execute | Implementing |
 | TXT-11 | P2: Glyph fallback (chain) | Execute | Implementing |
-| TXT-12 | P2: Glyph fallback (SVG) | Tasks | In Tasks |
+| TXT-12 | P2: Glyph fallback (SVG) | Execute | Implementing |
 | TXT-13 | P2: Glyph fallback (PPTX) | Tasks | In Tasks |
 | TXT-14 | P2: Glyph fallback (check) | Tasks | In Tasks |
 | TXT-15 | P2: Glyph fallback (metrics) | Execute | Implementing |

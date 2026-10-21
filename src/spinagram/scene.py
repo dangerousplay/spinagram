@@ -242,8 +242,8 @@ class Scene:
         seen: dict[tuple, FontRef] = {}
 
         def add(b: TextBlock):
-            f = b.font
-            seen.setdefault((f.family, f.weight, f.italic), f)
+            for f in [b.font] + [r.font for line in (b.runs or []) for r in line]:
+                seen.setdefault((f.family, f.weight, f.italic), f)
 
         for it in self.items:
             if isinstance(it, Shape) and it.label:

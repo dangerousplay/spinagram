@@ -107,3 +107,34 @@ def test_measure_uses_fallback_metrics(ch):  # TXT-15
     f = THEME.font("body", 400, 20)
     fb = next(b for b in bundled_fonts(20) if covers(b, ch))
     assert measure(f"ab{ch}", f) == pytest.approx(_plain("ab", f) + _plain(ch, fb))
+
+
+# SVG (TXT-12) -------------------------------------------------------------------------------------------------
+from spinagram.backends.svg import to_svg  # noqa: E402
+
+SVG_CASES = [
+    # id, title, body, expected fallback families
+    ("warning-check", "Status", "ok ⚠ ✓", ["Noto Sans Symbols 2"]),
+    ("arrows", "Flow", "a → b ⇄ c", ["Noto Sans Math"]),
+    ("both", "Mixed", "⚠ → ✓", ["Noto Sans Symbols 2", "Noto Sans Math"]),
+]
+
+
+@pytest.mark.parametrize("title,body,families", [c[1:] for c in SVG_CASES], ids=[c[0] for c in SVG_CASES])
+def test_svg_draws_fallback_runs_and_embeds_fonts(title, body, families):
+    import re
+    d = Diagram("G", "Glyphs")
+    d.box(title, id="n", x=200, y=200, w=600, h=160, text=body)
+    svg = to_svg(build_scene(d, THEME))
+    for fam in families:
+        assert f"@font-face{{font-family:'{fam}';src:url(data:font/ttf;base64," in svg
+        spans = re.findall(rf'<tspan font-family="&apos;{fam}&apos;[^"]*">([^<]+)</tspan>', svg)
+        assert spans and all(not covers(THEME.font("body", 400, 18), ch) for sp in spans for ch in sp.strip())
+    text = re.sub(r"<[^>]+>", "", svg).replace("&#160;", " ")
+    assert body in text                                                     # nothing lost or reordered
+
+
+def test_svg_without_fallback_is_unchanged():
+    d = Diagram("G", "Glyphs")
+    d.box("Plain", id="n", x=200, y=200, w=600, h=160, text="text only")
+    assert "Noto Sans" not in to_svg(build_scene(d, THEME))
