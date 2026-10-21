@@ -10,6 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import shapes
+from .engine import endpoints
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
@@ -244,31 +245,7 @@ class _Builder:
         return s
 
     def endpoint(self, ref, other) -> tuple[tuple[float, float], Binding | None]:
-        if not isinstance(ref, str):
-            return (float(ref[0]), float(ref[1])), None
-        name, _, side = ref.partition(".")
-        side, _, frac = side.partition("@")
-        if name not in self.shapes:
-            raise KeyError(f"{self.d.id}: edge refers to unknown node {name!r}")
-        s = self.shapes[name]
-        if not side:  # auto: face the other endpoint
-            ox, oy = self._center(other)
-            cx, cy = s.x + s.w / 2, s.y + s.h / 2
-            dx, dy = ox - cx, oy - cy
-            side = ("right" if dx > 0 else "left") if abs(dx) * s.h >= abs(dy) * s.w else ("bottom" if dy > 0 else "top")
-        f = float(frac) if frac else 0.5
-        pt = s.anchor(side, f)
-        return pt, (Binding(name, side, f) if side != "center" else None)
-
-    def _center(self, ref) -> tuple[float, float]:
-        if not isinstance(ref, str):
-            return float(ref[0]), float(ref[1])
-        name, _, side = ref.partition(".")
-        s = self.shapes[name]
-        if side:
-            side, _, frac = side.partition("@")
-            return s.anchor(side, float(frac) if frac else 0.5)
-        return s.x + s.w / 2, s.y + s.h / 2
+        return endpoints.resolve(ref, other, self.shapes, self.d.id)
 
     def edge(self, i: int, e: Edge) -> Connector:
         ed = self.t.defaults("edge")
