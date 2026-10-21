@@ -370,9 +370,9 @@ defects. The author should declare content and intent; the engine should own fit
 | TXT-01 | P1: Text fits (wrap spaces) | Execute | Implementing |
 | TXT-02 | P1: Text fits (break tokens) | Execute | Implementing |
 | TXT-03 | P1: Text fits (CIDR intact) | Execute | Implementing |
-| TXT-04 | P1: Text fits (shrink) | Tasks | In Tasks |
-| TXT-05 | P1: Text fits (grow) | Tasks | In Tasks |
-| TXT-06 | P1: Text fits (fit=none) | Tasks | In Tasks |
+| TXT-04 | P1: Text fits (shrink) | Execute | Implementing |
+| TXT-05 | P1: Text fits (grow) | Execute | Implementing |
+| TXT-06 | P1: Text fits (fit=none) | Execute | Implementing |
 | TXT-07 | P1: Text fits (overflow detail) | Tasks | In Tasks |
 | TXT-08 | P1: Text fits (options/defaults) | Tasks | In Tasks |
 | TXT-09 | P1: Text fits (letter spacing) | Tasks | In Tasks |

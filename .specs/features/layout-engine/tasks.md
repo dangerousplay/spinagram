@@ -255,10 +255,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `fit_blocks` modes `none|shrink|grow|shrink-then-grow`; 1 px steps to `min_scale`; returns strategy and height needed; DDT matrix mode × text length × box size; empty text no-op; narrow box terminates
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_textfit.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_textfit.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `fit_blocks` modes `none|shrink|grow|shrink-then-grow`; 1 px steps to `min_scale`; returns strategy and height needed; DDT matrix mode × text length × box size; empty text no-op; narrow box terminates
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_textfit.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_textfit.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
