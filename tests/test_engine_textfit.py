@@ -4,8 +4,8 @@ import re
 import pytest
 
 from spinagram import Theme
-from spinagram.engine.textfit import BREAK_ON, break_token
-from spinagram.text import measure
+from spinagram.engine.textfit import BREAK_ON, break_token, wrap_fit
+from spinagram.text import measure, wrap
 
 FONT = Theme.load("default").font("heading", 700, 18)
 CIDR = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?")
@@ -54,3 +54,41 @@ def test_break_token_lines_fit_unless_unbreakable(token, width):
 def test_cidr_golden_stays_unbroken():  # TXT-03 golden from the roadmap
     lines = break_token("10.0.0.0/22·10.0.8.0/21", FONT, 40)
     assert lines == ["10.0.0.0/22·", "10.0.8.0/21"]
+
+
+TEXTS = [
+    ("words", "eight members behind one nginx pool"),
+    ("token-in-sentence", "pool lb-pool-https-8081 serves port 8081"),
+    ("cidr-list", "10.0.0.0/22 · 10.0.8.0/21"),
+    ("one-long-token", "runner-autoscale-template-large-x86-64"),
+    ("mixed", "managers default · 2x runner-*-x-* on gitlab.node-a.example.internal"),
+]
+LENGTH_WIDTHS = [166, 230]
+
+
+@pytest.mark.parametrize("text,width",
+                         [pytest.param(t, w, id=f"{n}-{w}px") for n, t in TEXTS for w in LENGTH_WIDTHS])
+def test_wrap_fit_spaces_first_then_tokens(text, width):  # TXT-01
+    lines = wrap_fit([text], FONT, width)
+    assert " ".join(lines).replace(" ", "") == text.replace(" ", "")  # nothing lost or added
+    for ln in lines:
+        assert measure(ln, FONT) <= width or not any(c in BREAK_ON + " " for c in ln.strip()[:-1]) \
+            or CIDR.fullmatch(ln.strip())
+    if all(measure(w, FONT) <= width for w in text.split()):  # spaces alone suffice: no token is cut
+        assert set(lines) <= set(_space_wrap(text, width))
+
+
+def _space_wrap(text, width):
+    return wrap(text, FONT, width)
+
+
+@pytest.mark.parametrize("n", [10, 20, 30, 40, 50, 60], ids=lambda n: f"{n}chars")
+def test_wrap_fit_growing_token_lengths_fit_166px(n):  # roadmap acceptance: tokens of 10..60 chars
+    token = "-".join(["node"] * 60)[:n]
+    lines = wrap_fit([token], FONT, 166)
+    assert all(measure(ln, FONT) <= 166 for ln in lines)
+    assert "".join(lines) == token
+
+
+def test_wrap_fit_keeps_empty_paragraph():
+    assert wrap_fit(["a", "", "b"], FONT, 100) == ["a", "", "b"]

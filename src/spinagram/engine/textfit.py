@@ -38,3 +38,27 @@ def break_token(token: str, font: FontRef, width: float, break_on: str = BREAK_O
     if cur:
         lines.append(cur)
     return lines
+
+
+def wrap_fit(paragraphs: list[str], font: FontRef, width: float, break_on: str = BREAK_ON) -> list[str]:
+    """Greedy wrap at spaces; a word wider than ``width`` is broken at safe points (:func:`break_token`)
+    and its pieces join the flow like words with no space between them. An empty paragraph keeps a line."""
+    out: list[str] = []
+    for p in paragraphs:
+        if not str(p).strip():
+            out.append("")
+            continue
+        pieces: list[tuple[str, str]] = []  # (text, separator before it)
+        for word in str(p).split():
+            parts = break_token(word, font, width, break_on) if measure(word, font) > width else [word]
+            pieces += [(parts[0], " ")] + [(q, "") for q in parts[1:]]
+        cur = ""
+        for text, sep in pieces:
+            cand = f"{cur}{sep}{text}" if cur else text
+            if cur and measure(cand, font) > width:
+                out.append(cur)
+                cur = text
+            else:
+                cur = cand
+        out.append(cur)
+    return out
