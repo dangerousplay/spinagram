@@ -714,10 +714,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] move-label, resize, nudge, shrink-font fixes with concrete values; DDT issue kind → fix op and payload
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] move-label, resize, nudge, shrink-font fixes with concrete values; DDT issue kind → fix op and payload
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

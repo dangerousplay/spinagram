@@ -108,3 +108,20 @@ def place(connectors, fixed: set[str], obstacles: list[Rect], bounds: Rect, path
             issues.append((c.id, "label-collision", f"label {lab.label.blocks[0].lines[0]!r} overlaps "
                            f"{best_cost:.0f}px² at its best position ({len(cands)} candidates tried)"))
     return issues
+
+
+def free_spot(c, obstacles: list[Rect], bounds: Rect, path=lambda c: c.points) -> Point | None:
+    """A wider search than :func:`candidates` for a label with no free candidate: along the edge every 10 %,
+    up to six label-heights to either side. The first clear centre, or None."""
+    lab = c.label
+    pts = path(c)
+    for k in range(1, 7):
+        off = k * (lab.h / 2 + SIDE_GAP)
+        for t in (0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9):
+            (x, y), (dx, dy) = _point_at(pts, t)
+            for sgn in (1, -1):
+                cx, cy = x + dy * off * sgn, y - dx * off * sgn
+                r = (cx - lab.w / 2, cy - lab.h / 2, lab.w, lab.h)
+                if sum(overlap(r, o) for o in obstacles) + outside(r, bounds) < FREE:
+                    return cx, cy
+    return None

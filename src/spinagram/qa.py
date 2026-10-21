@@ -1,6 +1,7 @@
 """Layout checks on a resolved scene: text that does not fit its box."""
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import asdict, dataclass
 
@@ -249,6 +250,88 @@ def safe_area_issues(scene: Scene, margin: float) -> list[Issue]:
     return out
 
 
+def _shape(scene: Scene, item: str) -> Shape | None:
+    return next((s for s in scene.items if isinstance(s, Shape) and s.id == item), None)
+
+
+def _inside(r, margin: float, scene: Scene) -> bool:
+    x, y, w, h = r
+    return x >= margin - 0.5 and y >= margin - 0.5 and x + w <= scene.width - margin + 0.5 and \
+        y + h <= scene.height - margin + 0.5
+
+
+def _label_obstacles(scene: Scene, skip: str) -> list:
+    from .engine.labels import arrowheads
+
+    conns = [c for c in scene.items if isinstance(c, Connector)]
+    obs = [(s.x, s.y, s.w, s.h) for s in scene.items if isinstance(s, Shape) and s.role == "node"]
+    obs += list(scene.zone_headers.values()) + arrowheads(conns)
+    obs += [(c.label.x, c.label.y, c.label.w, c.label.h) for c in conns if c.label is not None and c.id != skip]
+    return obs
+
+
+def _move_label_fix(scene: Scene, edge_id: str, margin: float) -> dict | None:
+    from .engine.labels import free_spot
+
+    c = next((c for c in scene.items if isinstance(c, Connector) and c.id == edge_id), None)
+    if c is None or c.label is None:
+        return None
+    spot = free_spot(c, _label_obstacles(scene, edge_id),
+                     (margin, margin, scene.width - 2 * margin, scene.height - 2 * margin), polyline)
+    if spot is None:
+        return None
+    size = c.label.h - 14  # pill height = font size + 14; label_at is the pill's anchor (centre + size/2 - 4)
+    return {"op": "move-label", "edge": edge_id, "to": [round(spot[0], 1), round(spot[1] + size / 2 - 4, 1)]}
+
+
+def fix_for(scene: Scene, i: Issue) -> dict | None:
+    """A safe, geometry-only fix for an issue, or None."""
+    m = scene.check_options.get("margin", 80)
+    if i.kind in ("overflow-x", "overflow-y"):
+        s = _shape(scene, i.item)
+        if s is None or s.label is None:
+            return None
+        x, y, w, h = s.label.box
+        if i.kind == "overflow-x":
+            need = max(measure(ln, b.font) for b in s.label.blocks for ln in b.lines)
+            nw = math.ceil(s.w + need - w + 1)
+            if _inside((s.x, s.y, nw, s.h), m, scene):
+                return {"op": "resize", "node": s.id, "w": nw}
+        else:
+            total = sum(b.height for b in s.label.blocks) + s.label.gap * (len(s.label.blocks) - 1)
+            nh = math.ceil(s.h + total - h + 1)
+            if _inside((s.x, s.y, s.w, nh), m, scene):
+                return {"op": "resize", "node": s.id, "h": nh}
+        top = s.label.blocks[0].font.size
+        return {"op": "shrink-font", "node": s.id, "title_size": max(1, math.floor(top * 0.85) - 1)}
+    if i.kind == "icon-overflows-box":
+        s = _shape(scene, i.item)
+        r = _icon_rect(s)
+        return {"op": "resize", "node": s.id, "w": math.ceil(max(s.w, r[0] + r[2] - s.x + 8)),
+                "h": math.ceil(max(s.h, r[3] + 16))}  # the icon is centred vertically: 8 px above and below
+    if i.kind == "outside-safe-area":
+        if re.fullmatch(r"e\d+", i.item):
+            return _move_label_fix(scene, i.item, m)
+        s = _shape(scene, i.item)
+        if s is None:
+            return None
+        dx = max(0, m - s.x) - max(0, s.x + s.w - (scene.width - m))
+        dy = max(0, m - s.y) - max(0, s.y + s.h - (scene.height - m))
+        return {"op": "nudge", "node": s.id, "dx": round(dx, 1), "dy": round(dy, 1)}
+    if i.kind == "label-collision":
+        return _move_label_fix(scene, i.item, m)
+    if i.kind == "header-overlap":
+        cid = re.search(r"'([^']+)' covers", i.detail).group(1)
+        if re.fullmatch(r"e\d+", cid):
+            return _move_label_fix(scene, cid, m)
+        s = _shape(scene, cid)
+        if s is None:
+            return None
+        hx, hy, hw, hh = scene.zone_headers[i.item]
+        return {"op": "nudge", "node": cid, "dx": 0, "dy": round(hy + hh + 12 - s.y, 1)}
+    return None
+
+
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
@@ -286,6 +369,9 @@ def check(scene: Scene) -> list[Issue]:
                     for line in cell.block.lines:
                         if measure(line, cell.block.font) > cw - cell.pad_left:
                             issues.append(Issue(scene.id, f"{it.id}[{r},{c}]", "overflow-x", repr(line)))
+    for i in issues:
+        if i.fix is None:
+            i.fix = fix_for(scene, i)
     return issues
 
 

@@ -177,3 +177,88 @@ def test_low_contrast_single_colour_icon(tmp_path, colours, flagged):
     d.box("T", id="a", x=200, y=200, w=300, h=150, icon=str(p), style="t")
     got = [i for i in check(build_scene(d, Theme.load(tmp_path))) if i.kind == "low-contrast"]
     assert bool(got) == flagged
+
+
+# fixes attached to issues (CHK-02) ---------------------------------------------------------------------------
+LONG = "averyveryverylongunbreakabletoken"
+
+
+def _issue(d, kind, item=None):
+    sc = build_scene(d, THEME)
+    return next(i for i in check(sc) if i.kind == kind and (item is None or i.item == item)), sc
+
+
+def _kinds_after(d, kind):
+    return [i for i in check(build_scene(d, THEME)) if i.kind == kind]
+
+
+def test_fix_resize_width_clears_overflow_x():
+    d = Diagram("F", "Fix")
+    n = d.box(LONG, id="n", x=200, y=200, w=230, h=120, fit="none")
+    i, _ = _issue(d, "overflow-x")
+    assert i.fix["op"] == "resize" and i.fix["node"] == "n" and i.fix["w"] > 230
+    n.w = i.fix["w"]
+    assert _kinds_after(d, "overflow-x") == []
+
+
+def test_fix_resize_height_clears_overflow_y():
+    d = Diagram("F", "Fix")
+    n = d.box("Managers", id="n", x=200, y=200, w=300, h=50, fit="none",
+              text="three managers spread across two availability zones in one region")
+    i, _ = _issue(d, "overflow-y")
+    assert i.fix["op"] == "resize" and i.fix["h"] > 50
+    n.h = i.fix["h"]
+    assert _kinds_after(d, "overflow-y") == []
+
+
+def test_fix_shrinks_font_when_resize_would_leave_the_safe_area():
+    d = Diagram("F", "Fix")
+    d.box(LONG, id="n", x=1600, y=200, w=230, h=120, fit="none")
+    i, _ = _issue(d, "overflow-x")
+    assert i.fix == {"op": "shrink-font", "node": "n", "title_size": 19}
+
+
+@pytest.mark.parametrize("box,dx,dy", [((1553, 300), -13, 0), ((60, 300), 20, 0), ((300, 950), 0, -50)],
+                         ids=["right", "left", "bottom"])
+def test_fix_nudge_clears_outside_safe_area(box, dx, dy):
+    d = Diagram("F", "Fix")
+    n = d.box("A", id="n", x=box[0], y=box[1], w=300, h=100)
+    i, _ = _issue(d, "outside-safe-area")
+    assert i.fix == {"op": "nudge", "node": "n", "dx": dx, "dy": dy}
+    n.x, n.y = n.x + dx, n.y + dy
+    assert _kinds_after(d, "outside-safe-area") == []
+
+
+def test_fix_nudge_clears_header_overlap(icon):
+    d = Diagram("F", "Fix")
+    d.zone("Net", x=100, y=100, w=800, h=400, icon=icon)
+    n = d.box("A", id="a", x=110, y=110, w=200, h=60)
+    i, _ = _issue(d, "header-overlap")
+    assert i.fix["op"] == "nudge" and i.fix["node"] == "a" and i.fix["dx"] == 0
+    n.y += i.fix["dy"]
+    assert _kinds_after(d, "header-overlap") == []
+
+
+def test_fix_move_label_finds_a_free_spot():
+    from spinagram.engine.labels import overlap
+    from spinagram.scene import Shape
+    d = Diagram("F", "Fix")
+    a = d.box("A", id="a", x=200, y=400, w=200, h=100)
+    b = d.box("B", id="b", x=460, y=400, w=200, h=100)
+    e = d.edge(a, b, "replication")
+    i, _ = _issue(d, "label-collision")
+    assert i.fix["op"] == "move-label" and i.fix["edge"] == "e0"
+    e.label_at = tuple(i.fix["to"])
+    sc = build_scene(d, THEME)
+    lab = next(c for c in sc.items if getattr(c, "id", "") == "e0").label
+    nodes = [s for s in sc.items if isinstance(s, Shape) and s.role == "node"]
+    assert all(overlap((lab.x, lab.y, lab.w, lab.h), (s.x, s.y, s.w, s.h)) < 0.5 for s in nodes)
+
+
+def test_fix_resize_clears_icon_overflow(icon):
+    d = Diagram("F", "Fix")
+    n = d.box(None, id="tiny", x=300, y=300, w=40, h=40, icon=icon, icon_size=60)
+    i, _ = _issue(d, "icon-overflows-box")
+    assert i.fix["op"] == "resize"
+    n.w, n.h = i.fix["w"], i.fix["h"]
+    assert _kinds_after(d, "icon-overflows-box") == []

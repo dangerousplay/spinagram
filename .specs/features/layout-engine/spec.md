@@ -402,7 +402,7 @@ defects. The author should declare content and intent; the engine should own fit
 | EDG-11 | P1: Zone targets (PPTX binding) | Execute | Implementing |
 | EDG-12 | P1: Zone targets (unknown id) | Execute | Implementing |
 | CHK-01 | P1: Diagnostics (new kinds) | Tasks | In Tasks |
-| CHK-02 | P1: Diagnostics (fix dicts) | Tasks | In Tasks |
+| CHK-02 | P1: Diagnostics (fix dicts) | Execute | Implementing |
 | CHK-03 | P1: Diagnostics (--json) | Execute | Implementing |
 | CHK-04 | P1: Fix (YAML) | Tasks | In Tasks |
 | CHK-05 | P1: Fix (Python) | Tasks | In Tasks |
