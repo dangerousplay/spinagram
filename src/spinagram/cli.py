@@ -67,6 +67,9 @@ def _main(argv: list[str] | None = None) -> int:
                            help=f"comma list from: {', '.join(sorted(available()))}")
             p.add_argument("-o", "--out", default="out")
             p.add_argument("--no-gallery", action="store_true")
+            p.add_argument("--name-from", choices=("slug", "id", "file"), default="slug",
+                           help="output file names: <id>-<title> (slug, default), the diagram id, or the spec file; "
+                                "a diagram's own `output:` always wins")
             p.add_argument("--relayout", action="store_true",
                            help="apply check's safe fixes in memory before rendering (hand-placed diagrams)")
     ic = sub.add_parser("icons", help="icon packs: list, fetch, search, add, remove")
@@ -202,7 +205,7 @@ def _main(argv: list[str] | None = None) -> int:
 
         diagrams = [d if d.auto else fix_until_clean(d, theme)[0] for d in diagrams]
     written = api.render(diagrams, args.out, theme=theme, formats=formats, gallery=not args.no_gallery,
-                         layout=args.layout)
+                         layout=args.layout, name_from=args.name_from)
     for p in written:
         print(p)
     return 0

@@ -476,7 +476,7 @@ class _Builder:
     def build(self) -> Scene:
         t, d, W, H = self.t, self.d, self.W, self.H
         ch = t.get("chrome") or {}
-        sc = Scene(id=d.id, title=d.title, slug=f"{d.id}-{slugify(d.title)}", width=W, height=H,
+        sc = Scene(id=d.id, title=d.title, slug=d.output or f"{d.id}-{slugify(d.title)}", width=W, height=H,
                    background=t.color(t.get("canvas", "background"), "#FFFFFF"), notes=d.source)
         items = sc.items
         bar = ch.get("bar")

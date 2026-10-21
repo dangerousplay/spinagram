@@ -83,7 +83,7 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
                 facts=data.get("facts"), locale=data.get("locale"),
                 meta=dict(data.get("meta") or {}), css=data.get("css"),
                 stylesheets=[str(x) for x in (data.get("stylesheets") or [])],
-                category=data.get("category"),
+                category=data.get("category"), output=data.get("output"), requires=data.get("requires"),
                 tags=data["tags"] if data.get("tags") is not None else [])
     if data.get("layout") is not None:
         lay = data["layout"]
@@ -325,7 +325,7 @@ def dump(d: Diagram) -> dict[str, Any]:
     from .model import Edge as _E, Node as _N, Zone as _Z
 
     out: dict[str, Any] = {"id": d.id, "title": d.title}
-    for k in ("subtitle", "source", "kicker", "facts", "locale"):
+    for k in ("subtitle", "source", "kicker", "facts", "locale", "output", "requires"):
         if getattr(d, k) is not None:
             out[k] = getattr(d, k)
     if d.category is not None:

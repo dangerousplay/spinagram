@@ -433,6 +433,8 @@ class Diagram:
     bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
     grids: list[Grid] = field(default_factory=list)            # ``d.grid(cols=[...], rows=[...])``
     constraints: list[tuple] = field(default_factory=list)     # (op, node ids...): align_x, align_y, center_on
+    output: str | None = None     # stable output file name (``<output>.svg``); None: ``<id>-<slugified title>``
+    requires: str | None = None   # spinagram version specifier this spec was written for (``>=0.4,<0.5``)
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)

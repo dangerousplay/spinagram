@@ -16,20 +16,50 @@ def _theme(theme: Theme | str | Path | None) -> Theme:
     return theme if isinstance(theme, Theme) else Theme.load(theme)
 
 
+NAME_FROM = ("slug", "id", "file")
+
+
+def _name(d: Diagram, name_from: str, per_file: dict) -> str | None:
+    """The output name ``name_from`` gives a diagram without ``output`` (None: keep the slug)."""
+    if name_from == "id":
+        return d.id
+    if name_from == "file":
+        src = d.__dict__.get("_source")
+        if src is None:
+            return d.id
+        stem = Path(src).stem
+        return stem if per_file[str(src)] == 1 else f"{stem}-{d.id}"  # several diagrams in one file
+    return None
+
+
 def scenes(diagrams: Iterable[Diagram], theme: Theme | str | Path | None = None,
-           layout: str | None = None) -> list[Scene]:
-    """Resolve diagrams into scenes; ``layout`` overrides the engine of diagrams that use ``layout:``."""
+           layout: str | None = None, name_from: str = "slug") -> list[Scene]:
+    """Resolve diagrams into scenes; ``layout`` overrides the engine of diagrams that use ``layout:``;
+    ``name_from`` (slug, id, file) names the outputs of diagrams without ``output``."""
     from .autolayout import apply_layout
 
+    if name_from not in NAME_FROM:
+        raise ValueError(f"name_from {name_from!r}; use one of {', '.join(NAME_FROM)}")
     th = _theme(theme)
-    return [build_scene(apply_layout(d, th, layout), th) for d in diagrams]
+    diagrams = list(diagrams)
+    per_file: dict = {}
+    for d in diagrams:
+        per_file[str(d.__dict__.get("_source"))] = per_file.get(str(d.__dict__.get("_source")), 0) + 1
+    out = []
+    for d in diagrams:
+        sc = build_scene(apply_layout(d, th, layout), th)
+        name = None if d.output else _name(d, name_from, per_file)
+        if name:
+            sc.slug = name
+        out.append(sc)
+    return out
 
 
 def render(diagrams: Iterable[Diagram], out_dir: str | Path, *, theme: Theme | str | Path | None = None,
            formats: Sequence[str] = ("svg",), gallery: bool = False, layout: str | None = None,
-           **backend_options) -> list[Path]:
+           name_from: str = "slug", **backend_options) -> list[Path]:
     out = Path(out_dir)
-    scs = scenes(diagrams, theme, layout)
+    scs = scenes(diagrams, theme, layout, name_from)
     written: list[Path] = []
     for fmt in formats:
         written += get_backend(fmt, **backend_options.get(fmt, {})).render(scs, out)
