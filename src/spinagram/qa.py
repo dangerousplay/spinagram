@@ -348,6 +348,12 @@ def check(scene: Scene) -> list[Issue]:
         issues += icon_issues(scene)
         issues += safe_area_issues(scene, scene.check_options.get("margin", 80))
     issues += contrast_issues(scene)
+    shapes = scene.shapes()
+    for name, ids, uniform in scene.rows:  # explicit rows/columns should show one icon size
+        sizes = {round(shapes[i].icon.size, 1) for i in ids if i in shapes and shapes[i].icon is not None}
+        if not uniform and len(sizes) > 1:
+            issues.append(Issue(scene.id, name, "icon-size-mismatch",
+                                f"icons of {', '.join(sorted(map(str, ids)))} differ: {sorted(sizes)} px"))
     for it in scene.items:
         if isinstance(it, Shape) and it.label and it.role == "node":
             x, y, w, h = it.label.box

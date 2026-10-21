@@ -81,12 +81,24 @@ def containers(d: Diagram, theme: Theme) -> None:
             height = max(m.h for m in members)
             for m in members:
                 m.h = height
+        if c.same_icon_size:  # the smallest icon of the container for all of them
+            nd = theme.defaults("node")
+            sizes = [m.icon_size or icon_size(m, nd) for m in members if m.icon]
+            for m in members:
+                if m.icon and sizes:
+                    m.icon_size = min(sizes)
         pos = c.x if c.axis == "row" else c.y
         for m in members:
             if c.axis == "row":
                 m.x, m.y, pos = pos, c.y, pos + m.w + c.gap
             else:
                 m.x, m.y, pos = c.x, pos, pos + m.h + c.gap
+
+
+def icon_size(n, nd: dict) -> float:
+    """The icon size the builder gives a node without ``icon_size`` (it grows with tall boxes)."""
+    base = nd.get("icon_size_center", 40) if n.align == "center" else nd.get("icon_size", 44)
+    return min(nd.get("icon_max", 88), max(base, n.h * nd.get("icon_scale", 0.26)))
 
 
 def _with_h0(n):

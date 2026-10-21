@@ -114,3 +114,24 @@ def test_container_yaml_unknown_key_raises():
     from spinagram.yaml_io import from_dict
     with pytest.raises(ValueError, match="row has unknown keys"):
         from_dict({"id": "S", "title": "S", "rows": [{"x": 0, "y": 0, "spacing": 3, "nodes": []}]})
+
+
+# uniform icon size (BOX-06) -----------------------------------------------------------------------------------
+@pytest.mark.parametrize("same_icon_size,heights", [(True, (90, 140, 220)), (False, (90, 140, 220)),
+                                                    (False, (90, 90, 90))],
+                         ids=["uniform", "mismatch", "same-heights"])
+def test_same_icon_size_in_a_row(icon, same_icon_size, heights):
+    d = Diagram("S", "Size")
+    with d.row(x=200, y=200, gap=12, same_icon_size=same_icon_size):
+        for k, h in enumerate(heights):
+            d.box(f"N{k}", id=f"n{k}", w=260, h=h, icon=icon)
+    sc = build_scene(d, THEME)
+    sizes = [next(i for i in sc.items if isinstance(i, Shape) and i.id == f"n{k}").icon.size for k in range(3)]
+    mism = [i for i in check(sc) if i.kind == "icon-size-mismatch"]
+    if same_icon_size:
+        assert len(set(sizes)) == 1 and sizes[0] == min(min(88, max(44, h * 0.26)) for h in heights)
+        assert mism == []
+    elif len(set(heights)) > 1:
+        assert len(set(sizes)) > 1 and len(mism) == 1 and mism[0].item == "row0" and mism[0].severity == "P2"
+    else:
+        assert mism == []
