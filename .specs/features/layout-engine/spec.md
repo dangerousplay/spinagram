@@ -445,9 +445,9 @@ defects. The author should declare content and intent; the engine should own fit
 | EDG-19 | P2: Ortho determinism | Execute | Implementing |
 | EDG-20 | P2: edge-crossings check | Execute | Implementing |
 | EDG-21 | P2: explicit route kept | Execute | Implementing |
-| LEG-01 | P2: meaning= | Tasks | In Tasks |
-| LEG-02 | P2: auto rows | Tasks | In Tasks |
-| LEG-03 | P2: row removal | Tasks | In Tasks |
+| LEG-01 | P2: meaning= | Execute | Implementing |
+| LEG-02 | P2: auto rows | Execute | Implementing |
+| LEG-03 | P2: row removal | Execute | Implementing |
 | LEG-04 | P2: row swatches | Tasks | In Tasks |
 | LEG-05 | P2: placement | Tasks | In Tasks |
 | GRD-01 | P3: grid cells | Tasks | In Tasks |

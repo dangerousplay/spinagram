@@ -148,6 +148,7 @@ class Edge:
     fan: str | None = None      # "bus": into a zone through a bar spanning the zone's children
     route: str | None = None    # "ortho": routed around boxes, avoiding crossings; None: straight (or defaults)
     fan_in: bool = False        # edges into the same target with fan_in share one trunk and one arrowhead
+    meaning: str | None = None  # legend label for this edge style (``d.legend(items="auto")``)
 
     def step(self, text: str, n: int | None = None) -> "Step":
         """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""
