@@ -406,7 +406,7 @@ defects. The author should declare content and intent; the engine should own fit
 | CHK-03 | P1: Diagnostics (--json) | Execute | Implementing |
 | CHK-04 | P1: Fix (YAML) | Execute | Implementing |
 | CHK-05 | P1: Fix (Python) | Execute | Implementing |
-| CHK-06 | P1: Fix (render --relayout) | Tasks | In Tasks |
+| CHK-06 | P1: Fix (render --relayout) | Execute | Implementing |
 | CHK-07 | P1: Fix (convergence) | Execute | Implementing |
 | CHK-08 | P1: Fix (safe-area guard) | Execute | Implementing |
 | ICN-01 | P2: Icon aspect (intrinsic ratio) | Tasks | In Tasks |

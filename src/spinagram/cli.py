@@ -67,6 +67,8 @@ def _main(argv: list[str] | None = None) -> int:
                            help=f"comma list from: {', '.join(sorted(available()))}")
             p.add_argument("-o", "--out", default="out")
             p.add_argument("--no-gallery", action="store_true")
+            p.add_argument("--relayout", action="store_true",
+                           help="apply check's safe fixes in memory before rendering (hand-placed diagrams)")
     ic = sub.add_parser("icons", help="icon packs: list, fetch, search, add, remove")
     isub = ic.add_subparsers(dest="icmd", required=True)
     isub.add_parser("list", help="registered packs and whether they are downloaded")
@@ -191,6 +193,10 @@ def _main(argv: list[str] | None = None) -> int:
     if args.cmd == "check":
         return _check(args, diagrams, theme)
     formats = [f.strip() for f in args.formats.split(",") if f.strip()]
+    if args.relayout:
+        from .engine.fix import fix_until_clean
+
+        diagrams = [d if d.auto else fix_until_clean(d, theme)[0] for d in diagrams]
     written = api.render(diagrams, args.out, theme=theme, formats=formats, gallery=not args.no_gallery,
                          layout=args.layout)
     for p in written:

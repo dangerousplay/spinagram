@@ -366,3 +366,20 @@ def test_check_fix_prints_python_suggestions(tmp_path, monkeypatch, capsys, body
     assert (tmp_path / "s.py").read_text() == src
     for ln in lines:
         assert any(row.startswith(f"{tmp_path / 's.py'}: {ln}") or f"s.py: {ln}" in row for row in out.splitlines())
+
+
+# render --relayout (CHK-06) -----------------------------------------------------------------------------------
+@pytest.mark.parametrize("name", ["fixable", "clean"])
+def test_render_relayout_matches_the_fixed_spec(tmp_path, monkeypatch, capsys, name):
+    text, fixable = FIX_YAML[name]
+    (tmp_path / "s.yaml").write_text(text)
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--fix", "s.yaml"])
+    assert main(["render", "--relayout", "-f", "svg", "--no-gallery", "-o", "a", "s.yaml"]) == 0
+    assert main(["render", "-f", "svg", "--no-gallery", "-o", "b",
+                 "s.fixed.yaml" if fixable else "s.yaml"]) == 0
+    assert main(["render", "-f", "svg", "--no-gallery", "-o", "c", "s.yaml"]) == 0
+    capsys.readouterr()
+    a, b, c = (sorted((tmp_path / o).glob("*.svg")) for o in "abc")
+    assert [p.read_text() for p in a] == [p.read_text() for p in b]       # relayout = render of the fixed spec
+    assert ([p.read_text() for p in a] != [p.read_text() for p in c]) == fixable
