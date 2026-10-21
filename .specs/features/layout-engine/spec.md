@@ -368,8 +368,8 @@ defects. The author should declare content and intent; the engine should own fit
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
 | TXT-01 | P1: Text fits (wrap spaces) | Tasks | In Tasks |
-| TXT-02 | P1: Text fits (break tokens) | Tasks | In Tasks |
-| TXT-03 | P1: Text fits (CIDR intact) | Tasks | In Tasks |
+| TXT-02 | P1: Text fits (break tokens) | Execute | Implementing |
+| TXT-03 | P1: Text fits (CIDR intact) | Execute | Implementing |
 | TXT-04 | P1: Text fits (shrink) | Tasks | In Tasks |
 | TXT-05 | P1: Text fits (grow) | Tasks | In Tasks |
 | TXT-06 | P1: Text fits (fit=none) | Tasks | In Tasks |

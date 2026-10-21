@@ -201,10 +201,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `break_token` splits after `break_on` chars with no hyphen; IPv4/CIDR atomic; DDT: 12 tokens (hostnames, `runner-*-x-*`, `10.0.0.0/22 · 10.0.8.0/21`, URLs, paths) × widths
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_textfit.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_textfit.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `break_token` splits after `break_on` chars with no hyphen; IPv4/CIDR atomic; DDT: 12 tokens (hostnames, `runner-*-x-*`, `10.0.0.0/22 · 10.0.8.0/21`, URLs, paths) × widths
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_textfit.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_textfit.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
