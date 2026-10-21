@@ -849,10 +849,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] fixture reproduces D2 first-iteration problems; `check --fix` → zero P0 diagnostics
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run ruff check src tests && uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] fixture reproduces D2 first-iteration problems; `check --fix` → zero P0 diagnostics
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
+- [x] Gate check passes: `uv run ruff check src tests && uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: build

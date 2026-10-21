@@ -383,3 +383,30 @@ def test_render_relayout_matches_the_fixed_spec(tmp_path, monkeypatch, capsys, n
     a, b, c = (sorted((tmp_path / o).glob("*.svg")) for o in "abc")
     assert [p.read_text() for p in a] == [p.read_text() for p in b]       # relayout = render of the fixed spec
     assert ([p.read_text() for p in a] != [p.read_text() for p in c]) == fixable
+
+
+# D2-like first iteration converges (CHK-07, roadmap C1 acceptance) -------------------------------------------
+FIXTURES = __import__("pathlib").Path(__file__).parent / "fixtures" / "layout_engine"
+D2_PROBLEMS = [("label-collision", "e1"), ("header-overlap", "z0"), ("outside-safe-area", "obs"),
+               ("overflow-x", "subnet")]
+
+
+@pytest.mark.parametrize("kind,item", D2_PROBLEMS, ids=[k for k, _ in D2_PROBLEMS])
+def test_d2_first_iteration_has_the_problem(kind, item):
+    from spinagram import load
+    d = load(FIXTURES / "d2_first_iteration.yaml")[0]
+    found = [i for i in check(build_scene(d, THEME)) if i.kind == kind and i.item == item]
+    assert found and found[0].severity == "P0" and found[0].fix is not None
+
+
+def test_d2_first_iteration_converges_with_check_fix(tmp_path, monkeypatch, capsys):
+    import shutil
+
+    from spinagram import load
+    for f in FIXTURES.iterdir():
+        shutil.copy(f, tmp_path / f.name)
+    monkeypatch.chdir(tmp_path)
+    assert main(["check", "--fix", "d2_first_iteration.yaml"]) == 0
+    assert "0 P0 issue(s) left" in capsys.readouterr().out
+    fixed = load(tmp_path / "d2_first_iteration.fixed.yaml")[0]
+    assert [str(i) for i in check(build_scene(fixed, THEME)) if i.severity == "P0"] == []
