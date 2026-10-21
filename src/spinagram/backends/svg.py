@@ -81,7 +81,7 @@ class _Svg:
                    f'href="data:{_mime(path)};base64,{_b64(path)}"/>')
 
     def icon(self, out: list[str], icon: Icon) -> None:
-        self.image(out, icon.path, icon.x, icon.y, icon.size, icon.size)
+        self.image(out, icon.path, icon.x, icon.y, icon.width, icon.size)
 
     def shadow(self, sh: tuple | None) -> str:
         """`` filter="url(#…)"`` for a CSS box-shadow (one drop shadow), defined once per value."""

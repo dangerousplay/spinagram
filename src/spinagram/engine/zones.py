@@ -59,19 +59,25 @@ def label_baseline(center_y: float, size: float) -> float:
     return center_y - leading / 2 + (leading - size) / 2 + size * 0.8
 
 
-def header_layout(z: Zone, opts: dict, icons: int, label_size: float, flush_icon: float) -> dict:
-    """Geometry of a zone header: icon slots (x, y, size), label origin (x, baseline) and header bottom.
+def header_layout(z: Zone, opts: dict, icons, label_size: float, flush_icon: float) -> dict:
+    """Geometry of a zone header: icon slots (x, y, slot height), label origin (x, baseline) and header bottom.
+    ``icons`` is a count (square icons) or the list of icon widths at the slot height.
 
     Inset (default): icons ``padding`` inside the outline at ``icon_size``, the label centred on them.
     Flush (``inset: false``): the 0.3 corner icon at the outline. Without icons the label keeps its 0.3 place."""
-    if icons and opts["inset"]:
-        p, isz = opts["padding"], opts["icon_size"]
-        slots = [(z.x + p + k * (isz + opts["chip_gap"]), z.y + p, isz) for k in range(icons)]
-        lx = slots[-1][0] + isz + opts["label_gap"]
-        return {"icons": slots, "label": (lx, label_baseline(z.y + p + isz / 2, label_size)), "bottom": z.y + p + isz}
-    if icons:
-        slots = [(z.x + k * (flush_icon + 4), z.y, flush_icon) for k in range(icons)]
-        return {"icons": slots, "label": (slots[-1][0] + flush_icon + 10, z.y + 22), "bottom": z.y + flush_icon}
+    isz = opts["icon_size"] if opts["inset"] else flush_icon
+    widths = [isz] * icons if isinstance(icons, int) else list(icons)
+    if widths:
+        p, gap, y = (opts["padding"], opts["chip_gap"], z.y + opts["padding"]) if opts["inset"] else (0, 4, z.y)
+        slots, x = [], z.x + p
+        for w in widths:
+            slots.append((x, y, isz))
+            x += w + gap
+        right = slots[-1][0] + widths[-1]
+        if opts["inset"]:
+            return {"icons": slots, "label": (right + opts["label_gap"], label_baseline(y + isz / 2, label_size)),
+                    "bottom": y + isz}
+        return {"icons": slots, "label": (right + 10, z.y + 22), "bottom": z.y + isz}
     return {"icons": [], "label": (z.x + 24, z.y + 36), "bottom": z.y + 36 + label_size * 0.3}
 
 

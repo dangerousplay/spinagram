@@ -409,11 +409,11 @@ defects. The author should declare content and intent; the engine should own fit
 | CHK-06 | P1: Fix (render --relayout) | Execute | Implementing |
 | CHK-07 | P1: Fix (convergence) | Execute | Implementing |
 | CHK-08 | P1: Fix (safe-area guard) | Execute | Implementing |
-| ICN-01 | P2: Icon aspect (intrinsic ratio) | Tasks | In Tasks |
-| ICN-02 | P2: Icon aspect (fit by height) | Tasks | In Tasks |
-| ICN-03 | P2: Icon aspect (wordmark ≥24px) | Tasks | In Tasks |
+| ICN-01 | P2: Icon aspect (intrinsic ratio) | Execute | Implementing |
+| ICN-02 | P2: Icon aspect (fit by height) | Execute | Implementing |
+| ICN-03 | P2: Icon aspect (wordmark ≥24px) | Execute | Implementing |
 | ICN-04 | P2: Icon aspect (variant) | Tasks | In Tasks |
-| ICN-05 | P2: Icon aspect (centred icon-only) | Tasks | In Tasks |
+| ICN-05 | P2: Icon aspect (centred icon-only) | Execute | Implementing |
 | ICN-06 | P2: Badges (API) | Tasks | In Tasks |
 | ICN-07 | P2: Badges (size/halo) | Tasks | In Tasks |
 | ICN-08 | P2: Badges (placement) | Tasks | In Tasks |

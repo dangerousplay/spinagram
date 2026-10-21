@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import shapes
 from .engine import endpoints, labels, textfit, zones
+from .engine import icons as icon_fit
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
@@ -159,15 +160,19 @@ class _Builder:
         if n.icon and icon_path is None:
             warnings.warn(f"{self.d.id}: icon {n.icon!r} not found in theme {self.t.data.get('name')}", stacklevel=2)
         icon, offset, top = None, 0.0, 0.0
-        if icon_path is not None:
+        if icon_path is not None:  # fitted by height, wordmarks keep their aspect ratio (up to 4 heights wide)
+            has_text = bool(_as_list(n.title)) or bool(n.lines) or bool(n.text)
             if center:
                 isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size_center", 40))
-                icon = Icon(icon_path, x + w / 2 - isz / 2, y + 16, isz)
-                top = 16 + isz - 12
+                if has_text:
+                    icon = icon_fit.place(icon_path, x, y + 16, isz, isz, center_x=x + w / 2)
+                    top = 16 + icon.size - 12
+                else:  # icon-only box: centred both ways
+                    icon = icon_fit.place(icon_path, x, y, h, isz, max_width=w, center_x=x + w / 2)
             else:
                 isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44))
-                icon = Icon(icon_path, x + pad, y + (h - isz) / 2, isz)
-                offset = isz + nd.get("icon_gap", 14)
+                icon = icon_fit.place(icon_path, x + pad, y, h, isz)
+                offset = icon.width + nd.get("icon_gap", 14)
         variant = n.extra.get("variant") if n.kind == "note" else None
         if variant == "quote":
             offset += 46  # room for the quote mark
@@ -214,7 +219,9 @@ class _Builder:
         names = [names] if isinstance(names, str) else list(names or [])
         paths = [p for p in (t.icon(n, "light", self.d.base_dir) for n in names) if p is not None]
         size = (zcs.get("label") or {}).get("font-size") or zd.get("label_size", 16)
-        geo = zones.header_layout(z, opts, len(paths), size, zd.get("icon_size", 32))
+        isz_hdr = opts["icon_size"] if opts["inset"] else zd.get("icon_size", 32)
+        fits = [icon_fit.fit(p, isz_hdr) for p in paths]
+        geo = zones.header_layout(z, opts, [w for w, _ in fits], size, zd.get("icon_size", 32))
         if paths and not opts["inset"]:
             self.flush.add(f"z{i}")
         items: list = []
@@ -222,9 +229,10 @@ class _Builder:
             r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else zd.get("radius", 26))
             items.append(Shape(id=f"z{i}-strip", kind="rect", x=z.x + r, y=z.y, w=z.w - 2 * r, h=5,
                                fill=t.color(opts["strip"]), radius=2.5, role="zone"))
-        for k, (p, (ix, iy, isz)) in enumerate(zip(paths, geo["icons"])):
-            items.append(Shape(id=f"z{i}-icon" if k == 0 else f"z{i}-icon{k}", kind="rect", x=ix, y=iy, w=isz,
-                               h=isz, fill=None, icon=Icon(p, ix, iy, isz), role="zone"))
+        for k, (p, (ix, iy, isz), (fw, fh)) in enumerate(zip(paths, geo["icons"], fits)):
+            iy += (isz - fh) / 2  # centred in the header slot
+            items.append(Shape(id=f"z{i}-icon" if k == 0 else f"z{i}-icon{k}", kind="rect", x=ix, y=iy, w=fw,
+                               h=fh, fill=None, icon=Icon(p, ix, iy, fh, w=fw), role="zone"))
         if z.label:
             upper = opts["upper"] if opts["upper"] is not None else zs["upper"]
             lab = z.label.upper() if upper else z.label

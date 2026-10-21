@@ -299,7 +299,7 @@ class _Slide:
             group.name = f"{s.id} (group)"
             sh = self.shape(s, group.shapes)
             ic = s.icon
-            self.picture(group.shapes, ic.path, ic.x, ic.y, ic.size, ic.size, f"{s.id} icon")
+            self.picture(group.shapes, ic.path, ic.x, ic.y, ic.width, ic.size, f"{s.id} icon")
             return sh
         if s.parts:
             return self.symbol(s, target)

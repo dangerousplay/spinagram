@@ -338,13 +338,13 @@ class _Emitter:
             iv = f"{v}_icon"
             if self.library:
                 code.append(f"const {iv} = icon({_j(s.id + ' icon')}, {_j(self.asset(s.icon.path))}, {_r(s.icon.x)}, "
-                            f"{_r(s.icon.y)}, {_r(s.icon.size)}, {_r(s.icon.size)});")
+                            f"{_r(s.icon.y)}, {_r(s.icon.width)}, {_r(s.icon.size)});")
             elif s.icon.path.suffix.lower() == ".svg":
                 code.append(f"const {iv} = svgIcon({_j(s.id + ' icon')}, {_j(self.svg(s.icon.path))}, {_r(s.icon.x)}, "
                             f"{_r(s.icon.y)}, {_r(s.icon.size)});")
             else:
                 code.append(f"const {iv} = image({_j(s.id + ' icon')}, {_j(self.asset(s.icon.path))}, {_r(s.icon.x)}, "
-                            f"{_r(s.icon.y)}, {_r(s.icon.size)}, {_r(s.icon.size)});")
+                            f"{_r(s.icon.y)}, {_r(s.icon.width)}, {_r(s.icon.size)});")
             members.append(iv)
         if s.label:
             lc, ln = self.label(v, s.label, prewrapped=s.kind in ("diamond", "pill"))

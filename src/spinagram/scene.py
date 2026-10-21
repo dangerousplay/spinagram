@@ -56,7 +56,12 @@ class Icon:
     path: Path
     x: float
     y: float
-    size: float
+    size: float                # height (and width when ``w`` is unset: square)
+    w: float | None = None     # width for icons that are not square (wordmarks)
+
+    @property
+    def width(self) -> float:
+        return self.w if self.w is not None else self.size
 
     @property
     def mime(self) -> str:
