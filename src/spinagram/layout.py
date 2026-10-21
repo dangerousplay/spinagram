@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import shapes
-from .engine import endpoints
+from .engine import endpoints, textfit
 from .autolayout.sizing import TEXT_PAD
 from .facts import FactRegistry, has_placeholders
 from .model import Diagram, Edge, Node, Table
@@ -81,6 +81,15 @@ class _Builder:
         lines = wrap_paragraphs(paragraphs, font, width) if width else list(paragraphs)
         return TextBlock(lines=lines, paragraphs=paragraphs, font=font, color=color, leading=leading)
 
+    def fit(self, n: Node, specs: list, width: float, height: float, gap: float) -> textfit.FitResult:
+        """Fit a node's text blocks with its ``fit``/``min_scale``/``break_on`` (node, else theme defaults)."""
+        nd = self.t.defaults("node")
+        opt = {k: n.extra.get(k, nd.get(k)) for k in ("fit", "min_scale", "break_on")}
+        return textfit.fit_blocks(specs, width, height, mode=opt["fit"] or "shrink",
+                                  min_scale=opt["min_scale"] or textfit.MIN_SCALE,
+                                  break_on=opt["break_on"] if opt["break_on"] is not None else textfit.BREAK_ON,
+                                  gap=gap)
+
     def text(self, id: str, x: float, y: float, s: str, font: FontRef, color: str, anchor: str = "start",
              leading: float | None = None, letter_spacing: float = 0) -> Text:
         blk = TextBlock(lines=[s], paragraphs=[s], font=font, color=color, leading=leading or font.size * 1.3)
@@ -149,18 +158,21 @@ class _Builder:
             ts = n.title_size or nd.get("body_size", 18)
             bs = n.body_size or nd.get("title_size", 24) - 2
         avail = w - 2 * pad - offset
-        blocks = []
+        specs = []
         cs = self._css(f"node:{n.id}")
         titles = _as_list(n.title)
         if titles:
             col, wt, it = self._text(cs, "title", st["title"], 700)
             f = self.t.font("heading", wt, ts, it)
-            blocks.append(self.block(titles, f, col, ts * nd.get("title_leading", 1.15), avail))
+            specs.append(textfit.BlockSpec(titles, f, nd.get("title_leading", 1.15), col))
         body = n.lines if n.lines is not None else ([n.text] if n.text else [])
         if body:
             col, wt, it = self._text(cs, "body", st["body"], 400)
             f = self.t.font("body", wt, bs, it or variant == "quote")
-            blocks.append(self.block([str(b) for b in body], f, col, bs * nd.get("body_leading", 1.32), avail))
+            specs.append(textfit.BlockSpec([str(b) for b in body], f, nd.get("body_leading", 1.32), col))
+        fitted = self.fit(n, specs, avail, h - top, nd.get("title_body_gap", 10))
+        blocks = fitted.blocks
+        h = max(h, fitted.height + top) if fitted.strategy == "grow" else h
         if variant == "quote" and len(blocks) == 2:  # the quote first, the title as its attribution
             title, body = blocks
             title.lines = [f"— {ln}" if i == 0 else ln for i, ln in enumerate(title.lines)]
@@ -200,25 +212,26 @@ class _Builder:
         default = self.t.defaults("diamond").get("style", "soft") if n.kind in shapes.DIAMOND_KINDS else None
         st = self.t.node_style(n.style or default)
         x, y, w, h = n.x, n.y, n.w, n.h
-        blocks = []
         tx, ty, tw, th = shapes.text_box(n.kind, x, y, w, h)
         pad = TEXT_PAD if n.kind not in shapes.ROUND_KINDS else 0
         avail = max(1.0, tw - 2 * pad)
         cs = self._css(f"node:{n.id}")
         titles = _as_list(n.title)
+        specs = []
         if titles:
             ts = n.title_size or nd.get("title_size", 24)
             if n.kind in shapes.ROUND_KINDS:  # "H", "H*", connector letters scale with the circle
                 ts = n.title_size or max(10, h * 0.42)
             col, wt, it = self._text(cs, "title", st["title"], 700)
             f = self.t.font("heading", wt, ts, it)
-            blocks.append(self.block(titles, f, col, ts * nd.get("title_leading", 1.15), avail))
+            specs.append(textfit.BlockSpec(titles, f, nd.get("title_leading", 1.15), col))
         body = n.lines if n.lines is not None else ([n.text] if n.text else [])
         if body:
             bs = n.body_size or nd.get("body_size", 18)
             col, wt, it = self._text(cs, "body", st["body"], 400)
             f = self.t.font("body", wt, bs, it)
-            blocks.append(self.block([str(b) for b in body], f, col, bs * nd.get("body_leading", 1.32), avail))
+            specs.append(textfit.BlockSpec([str(b) for b in body], f, nd.get("body_leading", 1.32), col))
+        blocks = self.fit(n, specs, avail, th, nd.get("title_body_gap", 10)).blocks
         label = Label(blocks, (tx + pad, ty, avail, th), align="center",
                       gap=nd.get("title_body_gap", 10)) if blocks else None
         s = Shape(id=n.id, kind=n.kind, x=x, y=y, w=w, h=h, fill=st["fill"], stroke=st["stroke"],
@@ -236,7 +249,8 @@ class _Builder:
         cs = self._css(f"node:{n.id}")
         col, wt, it = self._text(cs, "title", st["title"], 700)
         f = self.t.font("heading", wt, size, it)
-        blk = self.block(_as_list(n.title), f, col, size * dd.get("leading", 1.22), inner)
+        fitted = self.fit(n, [textfit.BlockSpec(_as_list(n.title), f, dd.get("leading", 1.22), col)], inner, n.h, 0)
+        blk = fitted.blocks[0] if fitted.blocks else self.block([], f, col, size * dd.get("leading", 1.22), inner)
         s = Shape(id=n.id, kind="diamond", x=n.x, y=n.y, w=n.w, h=n.h, fill=st["fill"], stroke=st["stroke"],
                   stroke_width=self.t.defaults("node").get("stroke_width", 3), dashed=n.dashed,
                   label=Label([blk], (n.x + (n.w - inner) / 2, n.y, inner, n.h), align="center"))

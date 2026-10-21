@@ -173,3 +173,82 @@ def test_fit_blocks_rejects_unknown_mode():
     from spinagram.engine.textfit import fit_blocks
     with pytest.raises(ValueError, match="fit 'squash'"):
         fit_blocks(_specs("a", "b"), 10, 10, mode="squash")
+
+
+# builder integration (TXT-08 + TXT-01..06 on real nodes) -------------------------------------------------
+from spinagram import Diagram, build_scene  # noqa: E402
+from spinagram.scene import Shape  # noqa: E402
+
+THEME = Theme.load("default")
+NODE_TEXTS = [
+    ("hostname", "lb-pool-https-8081", "8 members · nginx :8081"),
+    ("cidr-body", "subnet-a", "10.0.0.0/22 · 10.0.8.0/21"),
+    ("long-title", "Managers default runner-autoscale", "spread across zones"),
+    ("short", "API", None),
+]
+NODE_KINDS = [("box", {}), ("decision", {}), ("diamond", {})]
+
+
+def _node_shape(kind, title, text, w=230, h=120, **kw):
+    d = Diagram("F", "Fit")
+    d.add(kind, title, id="n", x=100, y=100, w=w, h=h, text=text, **kw)
+    return next(i for i in build_scene(d, THEME).items if isinstance(i, Shape) and i.id == "n")
+
+
+@pytest.mark.parametrize("kind,title,text", [
+    pytest.param(k, t, b, id=f"{k}-{n}") for k, _ in NODE_KINDS for n, t, b in NODE_TEXTS])
+def test_default_fit_keeps_lines_inside_label_box(kind, title, text):
+    """Text never leaves the box while a strategy remains; once they are exhausted check reports it."""
+    from spinagram.qa import check
+    d = Diagram("F", "Fit")
+    d.add(kind, title, id="n", x=100, y=100, w=200 if kind != "box" else 230, h=160, text=text)
+    sc = build_scene(d, THEME)
+    s = next(i for i in sc.items if isinstance(i, Shape) and i.id == "n")
+    _, _, w, _ = s.label.box
+    outside = [ln for b in s.label.blocks for ln in b.lines if measure(ln, b.font) > w + 0.5]
+    reported = [i for i in check(sc) if i.item == "n" and i.kind == "overflow-x"]
+    assert len(reported) == len(outside)
+    for b in s.label.blocks:
+        if any(ln in outside for ln in b.lines):
+            assert b.font.size == math.ceil(b.font.size) and b.font.size <= 24 - 3  # shrunk to the floor first
+
+
+FIT_OPTION_SCENARIOS = [
+    ("python-none", {"fit": "none"}, None, 24),
+    ("python-shrink-floor", {"fit": "shrink", "min_scale": 0.5}, None, None),
+    ("theme-none", {}, {"fit": "none"}, 24),
+    ("node-beats-theme", {"fit": "none"}, {"fit": "shrink"}, 24),
+]
+
+
+@pytest.mark.parametrize("node_kw,theme_node,size", [s[1:] for s in FIT_OPTION_SCENARIOS],
+                         ids=[s[0] for s in FIT_OPTION_SCENARIOS])
+def test_fit_options_from_node_and_theme(tmp_path, node_kw, theme_node, size):  # TXT-08
+    th = THEME
+    if theme_node:
+        import yaml
+        (tmp_path / "theme.yaml").write_text("extends: default\n" + yaml.safe_dump({"defaults": {"node": theme_node}}))
+        th = Theme.load(tmp_path)
+    d = Diagram("F", "Fit")
+    d.box("Managers default runner autoscale group", id="n", x=0, y=0, w=200, h=60, **node_kw)
+    s = next(i for i in build_scene(d, th).items if isinstance(i, Shape) and i.id == "n")
+    got = s.label.blocks[0].font.size
+    if size is not None:
+        assert got == size
+    else:
+        assert 12 <= got < 24      # min_scale 0.5 lets the title go below the 0.85 floor (20.4)
+
+
+def test_fit_options_from_yaml():  # TXT-08 YAML parity
+    from spinagram.yaml_io import from_dict
+    d = from_dict({"id": "F", "title": "Fit", "nodes": [
+        {"id": "n", "title": "x", "x": 0, "y": 0, "w": 100, "h": 50, "fit": "grow", "min_scale": 0.9, "break_on": "-"}]})
+    assert {k: d.nodes[0].extra[k] for k in ("fit", "min_scale", "break_on")} == {
+        "fit": "grow", "min_scale": 0.9, "break_on": "-"}
+
+
+def test_grow_makes_the_box_taller():  # TXT-05 on a node
+    s = _node_shape("box", "Managers", "three managers spread across two availability zones in one region of the "
+                    "cloud with autoscaling", w=230, h=80, fit="grow")
+    assert s.h > 80
+    assert sum(b.height for b in s.label.blocks) + 10 <= s.label.box[3] + 0.5

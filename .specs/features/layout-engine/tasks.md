@@ -282,10 +282,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] node `fit/min_scale/break_on` via kwargs, YAML and `defaults.node`; default `shrink` (+grow only when `fit` says so); scene DDT: no rendered line exceeds label box; golden SVG regenerated with an intent test listing changed node ids
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_textfit.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] node `fit/min_scale/break_on` via kwargs, YAML and `defaults.node`; default `shrink` (+grow only when `fit` says so); scene DDT: no rendered line exceeds label box; golden SVG regenerated with an intent test listing changed node ids
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_textfit.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: integration
 **Gate**: full

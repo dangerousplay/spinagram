@@ -11,7 +11,8 @@ from .model import NOTE_VARIANTS, Diagram, Edge, Group, Legend, Table, Zone, nor
 
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
               "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
-_NODE_EXTRA = {"weight", "font", "variant"}  # kind: text options; kind: note variant
+_NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note variant
+               "fit", "min_scale", "break_on"}  # text fitting
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
                "class", "css"}
 
