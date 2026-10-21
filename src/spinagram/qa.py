@@ -166,6 +166,89 @@ def icon_issues(scene: Scene) -> list[Issue]:
     return out
 
 
+def luminance(hex_colour: str) -> float:
+    """WCAG relative luminance of ``#RRGGBB``."""
+    h = hex_colour.lstrip("#")
+    rgb = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def contrast(a: str, b: str) -> float:
+    """WCAG contrast ratio of two ``#RRGGBB`` colours (1 to 21)."""
+    la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def _blend(fg: str, bg: str, alpha: float) -> str:
+    f, b = (fg.lstrip("#"), bg.lstrip("#"))
+    mix = [round(int(f[i:i + 2], 16) * alpha + int(b[i:i + 2], 16) * (1 - alpha)) for i in (0, 2, 4)]
+    return "#{:02X}{:02X}{:02X}".format(*mix)
+
+
+def icon_colour(path) -> str | None:
+    """The fill of a single-colour SVG icon; None for rasters and multi-colour or unpainted icons (their
+    contrast cannot be judged from one colour)."""
+    from pathlib import Path
+
+    p = Path(path)
+    if p.suffix.lower() != ".svg" or not p.exists():
+        return None
+    found = {c.upper() for c in re.findall(r'fill[=:]\s*"?\s*(#[0-9A-Fa-f]{6})\b',
+                                           p.read_text(encoding="utf-8", errors="ignore"))}
+    return found.pop() if len(found) == 1 else None
+
+
+# Defaults flag near-invisible text and icons only; a theme raises them to WCAG AA with
+# defaults.check.contrast: {title: 3, body: 4.5, icon: 3}.
+CONTRAST = {"title": 2.0, "body": 2.0, "icon": 1.5}
+
+
+def contrast_issues(scene: Scene) -> list[Issue]:
+    lim = {**CONTRAST, **(scene.check_options.get("contrast") or {})}
+    out: list[Issue] = []
+    bg = scene.background if scene.background.startswith("#") else "#FFFFFF"
+    pills = [c.label for c in scene.items if isinstance(c, Connector) and c.label is not None]
+    for s in [i for i in scene.items if isinstance(i, Shape) and i.role in ("node", "pill")] + pills:
+        fill = s.fill if s.fill and s.fill.startswith("#") else bg
+        a = s.opacity * s.fill_opacity
+        if a < 1 and s.fill:
+            fill = _blend(fill, bg, a)
+        for b in (s.label.blocks if s.label else []):
+            if not str(b.color).startswith("#"):
+                continue
+            part = "title" if b.font.weight >= 600 else "body"
+            need = lim[part]
+            r = contrast(b.color, fill)
+            if r < need:
+                out.append(Issue(scene.id, s.id, "low-contrast",
+                                 f"{part} {b.color} on {fill} is {r:.2f}:1 < {need:g}:1"))
+        col = icon_colour(s.icon.path) if s.icon else None
+        if col and contrast(col, fill) < lim["icon"]:
+            out.append(Issue(scene.id, s.id, "low-contrast",
+                             f"icon {col} on {fill} is {contrast(col, fill):.2f}:1 < {lim['icon']:g}:1"))
+    return out
+
+
+def safe_area_issues(scene: Scene, margin: float) -> list[Issue]:
+    """Nodes, edge labels and free text past the canvas margin (zones may frame content into it)."""
+    x0, y0, x1, y1 = margin, margin, scene.width - margin, scene.height - margin
+    rects = [(s.id, (s.x, s.y, s.w, s.h)) for s in scene.items if isinstance(s, Shape) and s.role == "node"]
+    rects += [(c.id, (c.label.x, c.label.y, c.label.w, c.label.h)) for c in scene.items
+              if isinstance(c, Connector) and c.label is not None]
+    rects += [(t.id, (t.x - (t.width or 0) * {"middle": 0.5, "end": 1.0}.get(t.anchor, 0), t.top, t.width or 0,
+                      t.block.height)) for t in scene.items
+              if isinstance(t, Text) and not t.id.startswith("chrome-") and not re.match(r"z\d+-", t.id)]
+    out = []
+    for item, (x, y, w, h) in rects:
+        past = {"left": x0 - x, "top": y0 - y, "right": x + w - x1, "bottom": y + h - y1}
+        worst = max(past, key=lambda k: past[k])
+        if past[worst] > 0.5:
+            out.append(Issue(scene.id, item, "outside-safe-area",
+                             f"{past[worst]:.0f}px past the {worst} margin ({margin:g}px)"))
+    return out
+
+
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
@@ -178,6 +261,8 @@ def check(scene: Scene) -> list[Issue]:
     if not scene.laid_out:  # engines route their own edges and size groups; these check hand-placed diagrams
         issues += edges_through_boxes(scene)
         issues += icon_issues(scene)
+        issues += safe_area_issues(scene, scene.check_options.get("margin", 80))
+    issues += contrast_issues(scene)
     for it in scene.items:
         if isinstance(it, Shape) and it.label and it.role == "node":
             x, y, w, h = it.label.box

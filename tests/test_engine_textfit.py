@@ -279,7 +279,7 @@ def test_overflow_detail_names_strategy(fit, w, h, title, kind, suffix):  # TXT-
 def test_no_overflow_when_fitting_succeeds(fit):  # TXT-07: nothing reported when a strategy fits
     from spinagram.qa import check
     d = Diagram("F", "Fit")
-    d.box("lb-pool-https-8081", id="n", x=0, y=0, w=166, h=150, text="8 members · nginx :8081", fit=fit)
+    d.box("lb-pool-https-8081", id="n", x=200, y=200, w=166, h=150, text="8 members · nginx :8081", fit=fit)
     assert [i for i in check(build_scene(d, THEME)) if i.item == "n"] == []
 
 

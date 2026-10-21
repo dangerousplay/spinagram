@@ -687,10 +687,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] `outside-safe-area`, `low-contrast` (WCAG < 3.0 title/icon, < 4.5 body); DDT colour pairs incl. boundary ratios
-- [ ] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
-- [ ] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
-- [ ] Test count: previous total + new scenarios pass (no silent deletions)
+- [x] `outside-safe-area`, `low-contrast` (WCAG < 3.0 title/icon, < 4.5 body); DDT colour pairs incl. boundary ratios
+- [x] DDT scenario table (`pytest.mark.parametrize` with `ids=`) in `tests/test_engine_check.py` asserting spec outcomes
+- [x] Gate check passes: `uv run pytest tests/test_engine_check.py -q`
+- [x] Test count: previous total + new scenarios pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

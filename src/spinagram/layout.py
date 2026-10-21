@@ -554,6 +554,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.zone_content_tops = builder.content_tops
     scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.flush_headers = builder.flush
+    scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80)}
     if not scene.laid_out:  # engines size gaps themselves; collisions are reported for hand-placed diagrams
         scene.annotation_issues = scene.annotation_issues + builder.label_issues
     scene.layout_overflow = diagram.meta.get("layout_overflow")

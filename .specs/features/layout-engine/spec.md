@@ -53,7 +53,7 @@ defects. The author should declare content and intent; the engine should own fit
 | Zone header defaults | padding 14, icon_size 28, gap below header 12, label vertically centred on icon | Roadmap Z1 values | n (roadmap/agent default) |
 | E1 arrowhead region | last 14 px of the edge; side offset = label half-height + 6 px | Roadmap E1 values | n (roadmap/agent default) |
 | `zone-underused` threshold | fill ratio < 0.35 of the zone's content area | Flags the D1 ~120 px blank sibling; tunable in theme `defaults.check` | n (roadmap/agent default) |
-| `low-contrast` threshold | WCAG ratio < 3.0 for titles/icons, < 4.5 for body text | WCAG AA large/normal text | n (roadmap/agent default) |
+| `low-contrast` threshold | Near-invisible only: text < 2.0:1, icons < 1.5:1; theme `defaults.check.contrast` raises to WCAG (3 / 4.5 / 3) | Strict WCAG flags the default theme and brand icons in every example (asked 2026-10-20) | y |
 | Safe area | theme `canvas.margin` (default 80) | Existing token | n (roadmap/agent default) |
 | Output naming | `Diagram(output=...)` / YAML `output:` → `<output>.<ext>`; `render --name-from id\|file\|slug` (default `slug`, current behaviour) | Stable names without breaking current ones | y |
 | Badge cap | 3 badges per box; more → `ValueError` | Roadmap I2 | n (roadmap/agent default) |
