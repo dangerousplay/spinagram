@@ -178,6 +178,16 @@ class Zone:
     meaning: str | None = None             # legend label for this zone style
     cls: str | None = None
 
+    def __enter__(self) -> "Zone":  # ``with d.zone(...) as z:``: nodes and zones created inside are children
+        d = self.__dict__.get("_diagram")
+        if d is None:
+            raise TypeError("zone is not in a diagram: create it with d.zone(...)")
+        d._open_zones.append(self)
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.__dict__["_diagram"]._open_zones.pop()
+
     @property
     def content_top(self) -> float:
         """First y below this zone's header (header bottom + 12 px) with the built-in header defaults; the
@@ -370,6 +380,7 @@ class Diagram:
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
     _open_containers: list[Container] = field(default_factory=list, repr=False, compare=False)
+    _open_zones: list[Zone] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.category is not None and not isinstance(self.category, str):
@@ -425,6 +436,8 @@ class Diagram:
             self._open[-1].children.append(n.id)
         if self._open_containers:
             self._open_containers[-1].children.append(n.id)
+        if self._open_zones:
+            self._open_zones[-1].children.append(n.id)
         return n
 
     def box(self, title: Any = None, **kw: Any) -> Node:
@@ -505,6 +518,9 @@ class Diagram:
         if any(o.id == z.id for o in self.zones):
             raise ValueError(f"{self.id}: duplicate zone id {z.id!r}")
         self.zones.append(z)
+        z.__dict__["_diagram"] = self  # for ``with d.zone(...)``; not a dataclass field
+        if self._open_zones:
+            self._open_zones[-1].children.append(z.id)
         return z
 
     @contextmanager

@@ -135,3 +135,26 @@ def test_same_icon_size_in_a_row(icon, same_icon_size, heights):
         assert len(set(sizes)) > 1 and len(mism) == 1 and mism[0].item == "row0" and mism[0].severity == "P2"
     else:
         assert mism == []
+
+
+# zones as containers (ZON-18) ---------------------------------------------------------------------------------
+@pytest.mark.parametrize("depth", [1, 2, 3, 4], ids=lambda n: f"depth{n}")
+def test_zone_context_collects_children(depth):
+    from contextlib import ExitStack
+    d = Diagram("S", "Size")
+    with ExitStack() as stack:
+        for k in range(depth):
+            stack.enter_context(d.zone(f"Z{k}", id=f"z{k}"))
+            d.box(f"N{k}", id=f"n{k}", x=0, y=0, w=10, h=10)
+    d.box("outside", id="out", x=0, y=0, w=10, h=10)
+    for k in range(depth):  # creation order: the zone's own node, then the zone nested in it
+        assert d.zones[k].children == [f"n{k}"] + ([f"z{k + 1}"] if k < depth - 1 else [])
+    assert d.nodes[-1].id == "out" and all("out" not in z.children for z in d.zones)
+
+
+def test_zone_children_from_yaml():
+    from spinagram.yaml_io import from_dict
+    d = from_dict({"id": "S", "title": "S", "zones": [{"id": "net", "x": 0, "y": 0, "w": 10, "h": 10,
+                                                       "children": ["a", "b"]}],
+                   "nodes": [{"id": "a", "title": "A"}, {"id": "b", "title": "B"}]})
+    assert d.zones[0].children == ["a", "b"]
