@@ -96,6 +96,21 @@ def _fallback(svg: Path, data: bytes, w: float, h: float):
     return str(cache)
 
 
+def _segments(text: str, b: TextBlock) -> list[tuple[str, object]]:
+    """``text`` cut where the block's fallback runs change font (one run when there is no fallback)."""
+    if not b.runs:
+        return [(text, b.font)]
+    font_of = {ch: r.font for line in b.runs for r in line if r.font is not b.font for ch in r.text}
+    out: list[list] = []
+    for ch in text:
+        f = font_of.get(ch, b.font) if not ch.isspace() else (out[-1][1] if out else b.font)
+        if out and out[-1][1] is f:
+            out[-1][0] += ch
+        else:
+            out.append([ch, f])
+    return [(t, f) for t, f in out]
+
+
 class _Slide:
     def __init__(self, prs, scene: Scene, svg: str = "vector", svg_parts: dict | None = None):
         self.scene = scene
@@ -117,7 +132,8 @@ class _Slide:
 
     # styling helpers ----------------------------------------------------------
     @staticmethod
-    def _line(shape, color: str | None, width: float, dashed: bool = False, dash: list[float] | None = None) -> None:
+    def _line(shape, color: str | None, width: float, dashed: bool = False, dash: list[float] | None = None,
+              cap: str | None = None) -> None:
         from lxml import etree
         from pptx.enum.dml import MSO_LINE_DASH_STYLE
         from pptx.oxml.ns import qn
@@ -144,6 +160,8 @@ class _Slide:
                     ln.append(el)
         elif dashed:
             shape.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+        if cap == "round":  # dotted outlines: round dots
+            shape.line._get_or_add_ln().set("cap", "rnd")
 
     @staticmethod
     def _shadow(shape, sh: tuple | None) -> None:
@@ -225,14 +243,25 @@ class _Slide:
                 p.line_spacing = round(b.leading / b.font.size, 2)
                 if bi > 0 and pi == 0:
                     p.space_before = Pt(gap * 0.5)
-                r = p.add_run()
-                r.text = text
-                f = r.font
-                f.name = b.font.family
-                f.size = Pt(b.font.size * 0.5)
-                f.bold = b.font.weight >= 600
-                f.italic = b.font.italic
-                f.color.rgb = _rgb(b.color)
+                for seg, font in _segments(text, b):
+                    r = p.add_run()
+                    r.text = seg
+                    f = r.font
+                    f.name = font.family
+                    f.size = Pt(b.font.size * 0.5)
+                    f.bold = b.font.weight >= 600
+                    f.italic = b.font.italic
+                    f.color.rgb = _rgb(b.color)
+                    if font is not b.font:  # glyph fallback: the symbol font for this run (a:latin + a:sym)
+                        from pptx.oxml.ns import qn
+
+                        rpr = r._r.get_or_add_rPr()
+                        sym = rpr.find(qn("a:sym"))
+                        if sym is None:
+                            sym = rpr.makeelement(qn("a:sym"), {})
+                            latin = rpr.find(qn("a:latin"))
+                            latin.addnext(sym) if latin is not None else rpr.append(sym)
+                        sym.set("typeface", font.family)
 
     def _text_frame(self, shape, s: Shape, label: Label, prewrapped: bool) -> None:
         from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
@@ -296,7 +325,7 @@ class _Slide:
             group.name = f"{s.id} (group)"
             sh = self.shape(s, group.shapes)
             ic = s.icon
-            self.picture(group.shapes, ic.path, ic.x, ic.y, ic.size, ic.size, f"{s.id} icon")
+            self.picture(group.shapes, ic.path, ic.x, ic.y, ic.width, ic.size, f"{s.id} icon")
             return sh
         if s.parts:
             return self.symbol(s, target)
@@ -314,7 +343,7 @@ class _Slide:
             self._fill_alpha(sh, s.fill_opacity)
         else:
             sh.fill.background()
-        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash)
+        self._line(sh, s.stroke, s.stroke_width, s.dashed, s.dash, s.cap)
         self._no_shadow(sh)
         self._shadow(sh, s.shadow)
         if s.label:
@@ -387,16 +416,24 @@ class _Slide:
     def connector(self, c: Connector) -> None:
         from pptx.enum.shapes import MSO_CONNECTOR
 
-        bound = c.route == "straight" and any(
-            b is not None and b.frac == 0.5 and b.side in CXN_IDX and b.shape_id in self.shapes
-            for b in (c.src, c.dst))
+        def bindable(b) -> bool:  # zone borders bind at any fraction; nodes at side midpoints (connection sites)
+            return (b is not None and (b.frac == 0.5 or b.target == "zone") and b.side in CXN_IDX
+                    and b.shape_id in self.shapes)
+
+        bound = c.route == "straight" and any(bindable(b) for b in (c.src, c.dst))
         if bound or c.route == "straight":
             (x1, y1), (x2, y2) = c.points[0], c.points[-1]
             cx = self.slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, _e(x1), _e(y1), _e(x2), _e(y2))
             for b, begin in ((c.src, True), (c.dst, False)):
-                if b is not None and b.frac == 0.5 and b.side in CXN_IDX and b.shape_id in self.shapes:
+                if bindable(b):
                     target = self.shapes[b.shape_id]
                     (cx.begin_connect if begin else cx.end_connect)(target, CXN_IDX[b.side])
+                    if b.target == "zone":  # binding snaps to the side midpoint; keep the exact border point
+                        px, py = (x1, y1) if begin else (x2, y2)
+                        if begin:
+                            cx.begin_x, cx.begin_y = _e(px), _e(py)
+                        else:
+                            cx.end_x, cx.end_y = _e(px), _e(py)
             shape = cx
         else:
             pts = c.points

@@ -69,6 +69,19 @@ class Node:
     def center(self) -> str:
         return self.at("center")
 
+    # fractional anchors without string building: ``d.edge(a.at_left(0.35), b)``
+    def at_left(self, frac: float = 0.5) -> str:
+        return self.at("left", frac)
+
+    def at_right(self, frac: float = 0.5) -> str:
+        return self.at("right", frac)
+
+    def at_top(self, frac: float = 0.5) -> str:
+        return self.at("top", frac)
+
+    def at_bottom(self, frac: float = 0.5) -> str:
+        return self.at("bottom", frac)
+
     # edges by operator ----------------------------------------------------------
     # ``a >> b`` draws a -> b, ``a << b`` draws b -> a, ``a - b`` a plain line. Each returns its right-hand
     # side, so ``a >> b >> c`` chains, and lists fan out or in: ``lb >> [web1, web2] >> db``.
@@ -145,6 +158,11 @@ class Edge:
     label_size: float | None = None
     cls: str | None = None
     css: str | None = None
+    fan: str | None = None      # "bus": into a zone through a bar spanning the zone's children
+    route: str | None = None    # "ortho": routed around boxes, avoiding crossings; None: straight (or defaults)
+    fan_in: bool = False        # edges into the same target with fan_in share one trunk and one arrowhead
+    meaning: str | None = None  # legend label for this edge style (``d.legend(items="auto")``)
+    straight: bool = False      # anchor both ends on the boxes' shared span so the edge is axis-aligned
 
     def step(self, text: str, n: int | None = None) -> "Step":
         """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""
@@ -162,8 +180,39 @@ class Zone:
     h: float
     label: str | None = None
     color: str = "soft"
-    icon: str | None = None   # group icon in the top-left corner (AWS-style groups); overrides the style's icon
+    icon: str | list[str] | None = None  # header icon (a list: header chips); overrides the style's icon
     gid: str | None = None    # the group this zone was laid out from (styles target it)
+    id: str | None = None     # CSS ``zone#id`` and edge target ``zone:<id>``; builders assign ``z<index>``
+    dash: str | list[float] | None = None  # solid | dashed | dotted | [pattern]; None: the style's
+    stroke: str | None = None
+    stroke_width: float | None = None
+    fill: str | None = None   # token, hex or "none"
+    header: dict[str, Any] | None = None   # padding, icon_size, strip, upper, inset
+    fit: str | None = None    # "children": sized to its children
+    padding: float | None = None
+    equalize: str | None = None            # "siblings": same height as sibling zones
+    children: list[str] = field(default_factory=list)  # node and zone ids inside (``with d.zone(...)``)
+    meaning: str | None = None             # legend label for this zone style
+    cls: str | None = None
+
+    def __enter__(self) -> "Zone":  # ``with d.zone(...) as z:``: nodes and zones created inside are children
+        d = self.__dict__.get("_diagram")
+        if d is None:
+            raise TypeError("zone is not in a diagram: create it with d.zone(...)")
+        d._open_zones.append(self)
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.__dict__["_diagram"]._open_zones.pop()
+
+    @property
+    def content_top(self) -> float:
+        """First y below this zone's header (header bottom + 12 px) with the built-in header defaults; the
+        scene's ``zone_content_tops`` has the value after theme and style header settings."""
+        from .engine.zones import content_top
+
+        icons = len(self.icon) if isinstance(self.icon, list) else int(bool(self.icon))
+        return content_top(self, icons)
 
 
 # kinds a ``node_size`` default applies to: content boxes, not markers (start/end dots, fork bars, decisions,
@@ -194,6 +243,54 @@ class Group:
     region: str | None = None      # flowchart | state_machine | activity (set by the builders)
     cls: str | None = None
     css: str | None = None
+
+
+@dataclass(frozen=True)
+class Cell:
+    """A grid cell: its origin, and its size up to the next grid line minus the gutter (None on the last)."""
+    x: float
+    y: float
+    w: float | None = None
+    h: float | None = None
+
+    def __iter__(self):  # unpacks like a point: ``x, y = g[1, 0]``
+        return iter((self.x, self.y))
+
+
+@dataclass
+class Grid:
+    """Named columns and rows for hand-placed slides: ``g = d.grid(cols=[80, 400], rows=[175]); g[1, 0]``."""
+    cols: list[float]
+    rows: list[float]
+    gutter: float = 0
+
+    def __getitem__(self, key: tuple[int, int]) -> Cell:
+        c, r = key
+        if not (0 <= c < len(self.cols) and 0 <= r < len(self.rows)):
+            raise IndexError(f"grid cell {key!r} outside {len(self.cols)} columns x {len(self.rows)} rows")
+        w = self.cols[c + 1] - self.cols[c] - self.gutter if c + 1 < len(self.cols) else None
+        h = self.rows[r + 1] - self.rows[r] - self.gutter if r + 1 < len(self.rows) else None
+        return Cell(self.cols[c], self.rows[r], w, h)
+
+
+@dataclass
+class Bundle:
+    """Edges into one target that share an orthogonal trunk on the ``trunk`` side of their sources."""
+    edges: list[int]               # indexes into ``Diagram.edges``
+    trunk: str | None = None       # right | left | top | bottom; None: the side facing the target
+
+
+@dataclass
+class Container:
+    """Nodes placed side by side (``row``) or stacked (``column``) from (x, y), sized by the model passes."""
+    axis: str                      # row | column
+    x: float
+    y: float
+    gap: float = 20
+    same_size: bool = False
+    max_width: float | None = None
+    same_icon_size: bool = False
+    children: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -230,6 +327,8 @@ class LegendSpec:
     title: str = "Legend"
     items: dict[str, str] | None = None
     position: str | None = None  # right | bottom | left | top; None: the stylesheet's `placement`, else right
+    auto: bool = False           # items="auto": one row per edge/zone style that carries a ``meaning``
+    place: tuple[float, float, float, float] | None = None  # a cell (x, y, w, h) instead of the band
 
 
 @dataclass
@@ -261,7 +360,7 @@ class Annotations:
         return bool(self.legend or self.steps or self.callouts)
 
 
-_EDGE_RE = re.compile(r"^\s*(?P<src>.+?)\s*(?P<op><->|->|<-|--)\s*(?P<dst>[^:]+?)\s*(?::\s*(?P<label>.*))?$")
+_EDGE_RE = re.compile(r"^\s*(?P<src>.+?)\s*(?P<op><->|->|<-|--)\s*(?P<dst>(?:zone:)?[^:]+?)\s*(?::\s*(?P<label>.*))?$")
 
 
 def parse_edge(text: str) -> Edge:
@@ -280,6 +379,10 @@ def parse_edge(text: str) -> Edge:
 def _endpoint(v: Any) -> str | Point:
     if isinstance(v, Node):
         return v.id
+    if isinstance(v, Zone):
+        if v.id is None:
+            raise ValueError("zone has no id: create it with d.zone(...) to use it as an edge endpoint")
+        return f"zone:{v.id}"
     if isinstance(v, str):
         return v
     return (float(v[0]), float(v[1]))
@@ -326,9 +429,17 @@ class Diagram:
     category: str | None = None   # catalog grouping (``group`` is taken by layout zones)
     tags: list[str] = field(default_factory=list)  # catalog tags, normalised: trimmed, lower-case, unique, sorted
     node_size: tuple[float, float] | None = None  # (w, h) for every node created without a size
+    containers: list[Container] = field(default_factory=list)  # ``with d.row(...)`` / ``with d.column(...)``
+    bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
+    grids: list[Grid] = field(default_factory=list)            # ``d.grid(cols=[...], rows=[...])``
+    constraints: list[tuple] = field(default_factory=list)     # (op, node ids...): align_x, align_y, center_on
+    output: str | None = None     # stable output file name (``<output>.svg``); None: ``<id>-<slugified title>``
+    requires: str | None = None   # spinagram version specifier this spec was written for (``>=0.4,<0.5``)
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
+    _open_containers: list[Container] = field(default_factory=list, repr=False, compare=False)
+    _open_zones: list[Zone] = field(default_factory=list, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.category is not None and not isinstance(self.category, str):
@@ -338,7 +449,8 @@ class Diagram:
     @property
     def auto(self) -> bool:
         """Laid out automatically: ``layout`` is set, or no node has a position (a size alone is a hint)."""
-        return self.layout is not None or (bool(self.nodes) and not any(n.x or n.y for n in self.nodes))
+        return self.layout is not None or (bool(self.nodes) and not self.containers and
+                                           not any(n.x or n.y for n in self.nodes))
 
     # lookup -------------------------------------------------------------------
     def node(self, node_id: str) -> Node:
@@ -356,10 +468,40 @@ class Diagram:
         return cand
 
     # builders -----------------------------------------------------------------
+    def grid(self, cols: Sequence[float], rows: Sequence[float], gutter: float = 0) -> Grid:
+        """Named grid lines; ``cell=g[c, r]`` places a node or zone at a cell (and sizes it when it has no size)."""
+        g = Grid([float(c) for c in cols], [float(r) for r in rows], float(gutter))
+        self.grids.append(g)
+        return g
+
+    def align_x(self, *nodes: Any) -> None:
+        """Centre every node on the first one's vertical axis (same centre x), after sizing."""
+        self.constraints.append(("align_x", *[self._node_id(n) for n in nodes]))
+
+    def align_y(self, *nodes: Any) -> None:
+        """Centre every node on the first one's horizontal axis (same centre y), after sizing."""
+        self.constraints.append(("align_y", *[self._node_id(n) for n in nodes]))
+
+    def center_on(self, node: Any, other: Any, axis: str = "both") -> None:
+        """Centre ``node`` on ``other`` (``axis``: x, y or both), after sizing."""
+        if axis not in ("x", "y", "both"):
+            raise ValueError(f"{self.id}: center_on axis {axis!r}; use x, y or both")
+        self.constraints.append(("center_on", self._node_id(node), self._node_id(other), axis))
+
+    def _cell(self, cell: Any) -> Cell:
+        if isinstance(cell, Cell):
+            return cell
+        if not self.grids:
+            raise ValueError(f"{self.id}: cell={cell!r} needs a grid (d.grid(...) or grid: in YAML)")
+        return self.grids[-1][tuple(int(v) for v in cell)]
+
     def add(self, kind: str, title: Any = None, *, id: str | None = None, x: float = 0, y: float = 0,
             w: float = 0, h: float = 0, size: tuple[float, float] | None = None, **kw: Any) -> Node:
         """A node of ``kind``. ``size=(w, h)`` sets both; without a size the innermost ``node_size`` of the
-        open groups (or the diagram's) applies, and failing that the node is sized from its text."""
+        open groups (or the diagram's) applies, and failing that the node is sized from its text. A number
+        ``size`` is a free label's font size."""
+        if isinstance(size, (int, float)):
+            kw["size"], size = size, None
         if size is not None:
             w, h = size
         elif not (w or h) and kind in SIZED_KINDS:
@@ -368,8 +510,13 @@ class Diagram:
                 w, h = default
         if "class_" in kw:
             kw["cls"] = kw.pop("class_")
+        if kw.get("cell") is not None:  # a grid cell: its origin, and its size when none is given
+            c = self._cell(kw.pop("cell"))
+            x, y, w, h = c.x, c.y, w or (c.w or 0), h or (c.h or 0)
         known = {f for f in Node.__dataclass_fields__}  # noqa: SIM118
         extra = {k: kw.pop(k) for k in list(kw) if k not in known}
+        if len(extra.get("badges") or []) > 3:
+            raise ValueError(f"{self.id}: node {id or title!r} has {len(extra['badges'])} badges; at most 3")
         n = Node(id=id or self._auto_id(title), kind=kind, x=x, y=y, w=w, h=h, title=title, extra=extra, **kw)
         if any(o.id == n.id for o in self.nodes):
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")
@@ -379,6 +526,10 @@ class Diagram:
         n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
             self._open[-1].children.append(n.id)
+        if self._open_containers:
+            self._open_containers[-1].children.append(n.id)
+        if self._open_zones:
+            self._open_zones[-1].children.append(n.id)
         return n
 
     def box(self, title: Any = None, **kw: Any) -> Node:
@@ -404,9 +555,14 @@ class Diagram:
         """A rounded tag centred on (x, y)."""
         return self.add("pill", title, x=x, y=y, **kw)
 
-    def label(self, text: str, *, x: float, y: float, **kw: Any) -> Node:
-        """Free text; (x, y) is the first baseline."""
-        return self.add("text", text, x=x, y=y, **kw)
+    def label(self, text: str, *, x: float, y: float, size: float | None = None, role: str | None = None,
+              max_width: float | None = None, **kw: Any) -> Node:
+        """Free text; (x, y) is the first baseline. ``role`` (zone-label, caption, footnote) applies that theme
+        typography; ``max_width`` wraps the text."""
+        if role is not None and role not in ("zone-label", "caption", "footnote"):
+            raise ValueError(f"{self.id}: label role {role!r}; use zone-label, caption or footnote")
+        extra = {k: v for k, v in (("size", size), ("role", role), ("max_width", max_width)) if v is not None}
+        return self.add("text", text, x=x, y=y, **extra, **kw)
 
     def edge(self, src: Any, dst: Any = None, label: str | None = None, **kw: Any) -> Edge:
         """``d.edge(a, b)``, ``d.edge(a, b, "label")``, ``d.edge(a.right, b.left@0.3)``, or
@@ -442,14 +598,42 @@ class Diagram:
         if kinds.get(dst) == "initial":
             raise ValueError(f"initial node {dst} cannot have incoming edges")
 
+    def bundle(self, edges: Sequence[Any], trunk: str | None = None) -> Bundle:
+        """Route ``edges`` (Edge objects or indexes) into their common target through one shared trunk."""
+        idx = [e if isinstance(e, int) else next(i for i, o in enumerate(self.edges) if o is e) for e in edges]
+        targets = {str(self.edges[i].dst).partition(".")[0] for i in idx}
+        if len(targets) != 1:
+            raise ValueError(f"{self.id}: bundled edges must share one target, got {sorted(targets)}")
+        if trunk not in (None, "right", "left", "top", "bottom"):
+            raise ValueError(f"{self.id}: bundle trunk {trunk!r}; use right, left, top or bottom")
+        b = Bundle(idx, trunk)
+        self.bundles.append(b)
+        return b
+
     def chain(self, *nodes: Any, **kw: Any) -> list[Edge]:
         """Connect consecutive nodes: ``d.chain(a, b, c)``."""
         return [self.edge(a, b, **kw) for a, b in zip(nodes, nodes[1:])]
 
-    def zone(self, label: str | None = None, *, x: float, y: float, w: float, h: float, color: str = "soft",
-             icon: str | None = None) -> Zone:
-        z = Zone(x=x, y=y, w=w, h=h, label=label, color=color, icon=icon)
+    def zone(self, label: str | None = None, *, x: float = 0, y: float = 0, w: float = 0, h: float = 0,
+             color: str = "soft", icon: str | list[str] | None = None, **kw: Any) -> Zone:
+        if "class_" in kw:
+            kw["cls"] = kw.pop("class_")
+        if kw.get("cell") is not None:
+            c = self._cell(kw.pop("cell"))
+            x, y, w, h = c.x, c.y, w or (c.w or 0), h or (c.h or 0)
+        kw.pop("cell", None)
+        z = Zone(x=x, y=y, w=w, h=h, label=label, color=color, icon=icon, **kw)
+        return self._add_zone(z)
+
+    def _add_zone(self, z: Zone) -> Zone:
+        if z.id is None:
+            z.id = f"z{len(self.zones)}"
+        if any(o.id == z.id for o in self.zones):
+            raise ValueError(f"{self.id}: duplicate zone id {z.id!r}")
         self.zones.append(z)
+        z.__dict__["_diagram"] = self  # for ``with d.zone(...)``; not a dataclass field
+        if self._open_zones:
+            self._open_zones[-1].children.append(z.id)
         return z
 
     @contextmanager
@@ -483,13 +667,22 @@ class Diagram:
             self._sizes.pop()
 
     # annotations ---------------------------------------------------------------------------------
-    def add_legend(self, items: dict[str, str] | None = None, *, title: str = "Legend",
-                   position: str | None = None) -> LegendSpec:
+    def add_legend(self, items: dict[str, str] | str | None = None, *, title: str = "Legend",
+                   position: str | None = None, place: Any = "band") -> LegendSpec:
         """A legend card in the annotation band: ``items`` maps ``.class``, ``edge.class``, ``style:name`` or
-        ``pack:icon`` to a label; without items it lists the classes and styles the diagram uses."""
+        ``pack:icon`` to a label; without items it lists the classes and styles the diagram uses; ``"auto"`` lists
+        one row per edge or zone style that carries a ``meaning``. ``place`` is ``"band"`` or a cell (x, y, w, h).
+
+        SPEC_DEVIATION: the roadmap's ``d.legend(...)`` is taken by the 0.1 fixed-legend field ``Diagram.legend``,
+        so the automatic legend is ``add_legend(items="auto", place=...)``."""
         if position is not None and position not in BAND_POSITIONS:
             raise ValueError(f"{self.id}: legend position {position!r}; use one of {', '.join(BAND_POSITIONS)}")
-        self.annotations.legend = LegendSpec(title, dict(items) if items is not None else None, position)
+        auto = items == "auto"
+        if place != "band" and (not isinstance(place, (list, tuple)) or len(place) != 4):
+            raise ValueError(f"{self.id}: legend place {place!r}; use 'band' or (x, y, w, h)")
+        cell = None if place == "band" else tuple(float(v) for v in place)
+        self.annotations.legend = LegendSpec(title, None if auto or items is None else dict(items), position, auto,
+                                             cell)
         return self.annotations.legend
 
     def _node_id(self, ref: Any) -> str:
@@ -597,15 +790,40 @@ class Diagram:
             out.append(self.add(spec.pop("kind", kind), title, **spec))
         return out
 
-    def row(self, items: Sequence[Any], *, x: float, y: float, w: float, h: float, gap: float = 60,
-            kind: str = "box", styles: Sequence[str | None] | None = None, **common: Any) -> list[Node]:
-        """Place nodes left to right. Items are titles or dicts of node fields."""
-        return self._seq(items, "x", x, y, w, h, gap, kind, styles, **common)
+    @contextmanager
+    def _container(self, axis: str, x: float, y: float, gap: float, same_size: bool, max_width: float | None,
+                   same_icon_size: bool) -> Iterator[Container]:
+        c = Container(axis, x, y, gap, same_size, max_width, same_icon_size)
+        self.containers.append(c)
+        self._open_containers.append(c)
+        try:
+            yield c
+        finally:
+            self._open_containers.pop()
 
-    def column(self, items: Sequence[Any], *, x: float, y: float, w: float, h: float, gap: float = 40,
-               kind: str = "box", styles: Sequence[str | None] | None = None, **common: Any) -> list[Node]:
-        """Place nodes top to bottom."""
-        return self._seq(items, "y", x, y, w, h, gap, kind, styles, **common)
+    def row(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
+            h: float | None = None, gap: float | None = None, kind: str = "box",
+            styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
+            same_icon_size: bool = False, **common: Any) -> Any:
+        """Place nodes left to right. With ``items`` (titles or dicts of node fields) and ``w``/``h``: the nodes.
+        Without items: ``with d.row(x=, y=, gap=, same_size=, max_width=):`` places the nodes created inside."""
+        if items is None:
+            return self._container("row", x, y, 20 if gap is None else gap, same_size, max_width, same_icon_size)
+        if w is None or h is None:
+            raise TypeError("row(items, ...) needs w and h")
+        return self._seq(items, "x", x, y, w, h, 60 if gap is None else gap, kind, styles, **common)
+
+    def column(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
+               h: float | None = None, gap: float | None = None, kind: str = "box",
+               styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
+               same_icon_size: bool = False, **common: Any) -> Any:
+        """Place nodes top to bottom; without items, a ``with`` container like :meth:`row`."""
+        if items is None:
+            return self._container("column", x, y, 20 if gap is None else gap, same_size, max_width,
+                                   same_icon_size)
+        if w is None or h is None:
+            raise TypeError("column(items, ...) needs w and h")
+        return self._seq(items, "y", x, y, w, h, 40 if gap is None else gap, kind, styles, **common)
 
     # rendering shortcut -------------------------------------------------------
     def save(self, out_dir: str | Path = "out", *, theme: Any = None, formats: Sequence[str] = ("svg",),

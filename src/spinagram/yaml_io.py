@@ -10,8 +10,12 @@ import yaml
 from .model import NOTE_VARIANTS, Diagram, Edge, Group, Legend, Table, Zone, normalize_tags, parse_edge
 
 _NODE_KEYS = {"id", "kind", "x", "y", "w", "h", "title", "text", "lines", "style", "icon", "icon_size", "align",
-              "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css"}
-_NODE_EXTRA = {"weight", "font", "variant"}  # kind: text options; kind: note variant
+              "title_size", "body_size", "radius", "dashed", "color", "in", "class", "css", "cell"}
+_NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note variant
+               "fit", "min_scale", "break_on",  # text fitting
+               "badges",  # corner badge icons
+               "size", "role", "max_width"}  # free labels
+_CONTAINER_KEYS = {"x", "y", "gap", "same_size", "max_width", "same_icon_size"}
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
                "class", "css"}
 
@@ -43,6 +47,33 @@ def _groups(d: Diagram, items: list, parent: Group | None) -> None:
         _groups(d, kids, grp)
 
 
+def _node(d: Diagram, n: dict, data: dict[str, Any]) -> None:
+    n = dict(n)
+    if "at" in n:  # shorthand: at: [x, y, w, h]
+        n["x"], n["y"], *wh = n.pop("at")
+        if wh:
+            n["w"], n["h"] = wh
+    if isinstance(n.get("id"), bool):
+        raise ValueError(f"{data['id']}: node id {n['id']!r} is a YAML boolean — "
+                         "yes/no/on/off must be quoted (id: \"no\") or renamed")
+    kind = n.pop("kind", "box")
+    title = n.pop("title", None)
+    unknown = [k for k in n if k not in _NODE_KEYS | _NODE_EXTRA and not str(k).startswith("x-")]
+    if unknown:
+        raise ValueError(f"{data['id']}: node {n.get('id', title)!r} has unknown keys {unknown} "
+                         "(unquoted commas in a flow mapping split the value — quote it)")
+    parent = n.pop("in", None)
+    if "class" in n:
+        n["cls"] = n.pop("class")
+    extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS | {"cls"}}
+    node = d.add(kind, title, **n, **extra)  # extras land in node.extra (and are validated there)
+    if parent is not None:
+        g = next((g for g in d.groups if g.id == parent), None)
+        if g is None:
+            raise ValueError(f"{data['id']}: node {node.id!r} is `in` unknown group {parent!r}")
+        g.children.append(node.id)
+
+
 def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
     for req in ("id", "title"):
         if req not in data:
@@ -52,40 +83,38 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
                 facts=data.get("facts"), locale=data.get("locale"),
                 meta=dict(data.get("meta") or {}), css=data.get("css"),
                 stylesheets=[str(x) for x in (data.get("stylesheets") or [])],
-                category=data.get("category"),
+                category=data.get("category"), output=data.get("output"), requires=data.get("requires"),
                 tags=data["tags"] if data.get("tags") is not None else [])
     if data.get("layout") is not None:
         lay = data["layout"]
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
+    if data.get("grid") is not None:  # grid: {cols: [...], rows: [...], gutter: 20}; then cell: [c, r]
+        d.grid(**data["grid"])
     _groups(d, data.get("groups") or [], None)
     for z in data.get("zones") or []:
-        d.zones.append(Zone(**z))
+        z = dict(z)
+        if "class" in z:
+            z["cls"] = z.pop("class")
+        if "cell" in z:
+            label = z.pop("label", None)
+            d.zone(label, **z)
+            continue
+        d._add_zone(Zone(**z))
     for n in data.get("nodes") or []:
-        n = dict(n)
-        if "at" in n:  # shorthand: at: [x, y, w, h]
-            n["x"], n["y"], *wh = n.pop("at")
-            if wh:
-                n["w"], n["h"] = wh
-        if isinstance(n.get("id"), bool):
-            raise ValueError(f"{data['id']}: node id {n['id']!r} is a YAML boolean — "
-                             "yes/no/on/off must be quoted (id: \"no\") or renamed")
-        kind = n.pop("kind", "box")
-        title = n.pop("title", None)
-        unknown = [k for k in n if k not in _NODE_KEYS | _NODE_EXTRA and not str(k).startswith("x-")]
-        if unknown:
-            raise ValueError(f"{data['id']}: node {n.get('id', title)!r} has unknown keys {unknown} "
-                             "(unquoted commas in a flow mapping split the value — quote it)")
-        parent = n.pop("in", None)
-        if "class" in n:
-            n["cls"] = n.pop("class")
-        extra = {k: n.pop(k) for k in list(n) if k not in _NODE_KEYS | {"cls"}}
-        node = d.add(kind, title, **n)
-        node.extra.update(extra)
-        if parent is not None:
-            g = next((g for g in d.groups if g.id == parent), None)
-            if g is None:
-                raise ValueError(f"{data['id']}: node {node.id!r} is `in` unknown group {parent!r}")
-            g.children.append(node.id)
+        _node(d, n, data)
+    for axis in ("row", "column"):  # containers: rows: [{x, y, gap, same_size, max_width, nodes: [...]}]
+        for c in data.get(f"{axis}s") or []:
+            c = dict(c)
+            items = c.pop("nodes", None) or []
+            unknown = set(c) - _CONTAINER_KEYS
+            if unknown:
+                raise ValueError(f"{d.id}: {axis} has unknown keys {sorted(unknown)}")
+            with getattr(d, axis)(**c) as box:
+                for item in items:
+                    if isinstance(item, str):  # a node declared under nodes:
+                        box.children.append(item)
+                    else:
+                        _node(d, item, data)
     for e in data.get("edges") or []:
         if isinstance(e, str):
             d.edges.append(parse_edge(e))
@@ -95,6 +124,15 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
             e["cls"] = e.pop("class")
         src, dst = e.pop("from"), e.pop("to")
         d.edge(src, dst, **e)
+    for c in data.get("align") or []:  # align: [{x: [a, b]}, {y: [a, c]}, {center: [a, b], axis: x}]
+        if "x" in c:
+            d.align_x(*c["x"])
+        elif "y" in c:
+            d.align_y(*c["y"])
+        else:
+            d.center_on(*c["center"], axis=c.get("axis", "both"))
+    for b in data.get("bundles") or []:  # bundles: [{edges: [0, 1], trunk: right}] (edge indexes)
+        d.bundle(list(b["edges"]), b.get("trunk"))
     for t in data.get("tables") or []:
         d.tables.append(Table(**t))
     _annotations(d, data.get("annotations") or {})
@@ -137,7 +175,8 @@ def _annotations(d: Diagram, data: dict[str, Any]) -> None:
     lg = data.get("legend")
     if lg is not None:
         lg = dict(lg) if isinstance(lg, dict) else {}
-        d.add_legend(lg.get("items"), title=lg.get("title", "Legend"), position=lg.get("position"))
+        d.add_legend(lg.get("items"), title=lg.get("title", "Legend"), position=lg.get("position"),
+                     place=lg.get("place", "band"))
     for st in data.get("steps") or []:
         st = dict(st)
         d.step(st["text"], on=_step_ref(d, _on(st, "step", d)), n=st.get("n"))
@@ -203,7 +242,10 @@ def load_yaml(path: Path) -> list[Diagram]:
             out["tags"] = _tag_list(base["tags"]) + _tag_list(doc["tags"])
         return out
 
-    return [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
+    out = [from_dict(merged(doc), base_dir=path.parent) for doc in docs]
+    for d in out:
+        d.__dict__["_source"] = path  # the spec file (check --fix); not a dataclass field
+    return out
 
 
 def load_python(path: Path) -> list[Diagram]:
@@ -245,6 +287,7 @@ def load_python(path: Path) -> list[Diagram]:
         if base.get("stylesheets"):  # folder stylesheets come before the script's own
             d.stylesheets = [str(x) for x in base["stylesheets"]] + [x for x in d.stylesheets
                                                                      if x not in base["stylesheets"]]
+        d.__dict__["_source"] = path
     return list(items)
 
 
@@ -282,7 +325,7 @@ def dump(d: Diagram) -> dict[str, Any]:
     from .model import Edge as _E, Node as _N, Zone as _Z
 
     out: dict[str, Any] = {"id": d.id, "title": d.title}
-    for k in ("subtitle", "source", "kicker", "facts", "locale"):
+    for k in ("subtitle", "source", "kicker", "facts", "locale", "output", "requires"):
         if getattr(d, k) is not None:
             out[k] = getattr(d, k)
     if d.category is not None:

@@ -1,0 +1,20 @@
+# D2-like first iteration (roadmap basis): a load-balanced Git service across two sites, before any hand fix.
+# Placeholders only. Problems on purpose: a CIDR title wider than its card, a node under a zone header,
+# the right column 13 px past the 80 px margin, and a labelled edge across a 60 px gap.
+id: D2
+title: Git service across two sites
+zones:
+  - {id: site-a, label: "AZ site-a · RHEL 9", x: 520, y: 180, w: 560, h: 520, icon: vm.svg, dash: dotted, stroke: primary}
+  - {id: site-b, label: "AZ site-b · RHEL 9", x: 1120, y: 180, w: 600, h: 520, icon: vm.svg, dash: dotted, stroke: primary}
+nodes:
+  - {id: clients, title: Developers, text: git over HTTPS and SSH, x: 100, y: 330, w: 260, h: 110}
+  - {id: subnet, title: "10.10.100.0/22·10.10.104.0/22", x: 100, y: 560, w: 150, h: 90}
+  - {id: node-a, title: node-a, text: gitlab 17 · gitaly, x: 540, y: 190, w: 220, h: 100}
+  - {id: node-b, title: node-b, text: gitlab 17 · gitaly, x: 820, y: 300, w: 220, h: 100}
+  - {id: nfs, title: nas-01, text: NFS v4 · replicated, x: 1150, y: 300, w: 220, h: 100}
+  - {id: nfs-b, title: nas-02, text: NFS v4 · standby, x: 1430, y: 300, w: 220, h: 100}
+  - {id: obs, title: observability, text: logs and metrics SaaS, x: 1560, y: 760, w: 293, h: 100}
+edges:
+  - "clients -> zone:site-a: HTTPS"
+  - "nfs.right -> nfs-b.left: replicação"
+  - "node-b -> obs: logs"

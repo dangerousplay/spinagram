@@ -32,12 +32,14 @@ def _inside(px: float, py: float, b: Box, pad: float = 0.5) -> bool:
 
 def route(src: Box, dst: Box, obstacles: list[Box], *, margin: float = MARGIN,
           sides: tuple[str | None, str | None] = (None, None),
-          busy: dict[Box, set[str]] | None = None) -> list[Point]:
+          busy: dict[Box, set[str]] | None = None, penalty=None, guides: list[Point] = ()) -> list[Point]:
     """Orthogonal polyline from a side of ``src`` to a side of ``dst`` that enters no obstacle.
 
     ``obstacles`` may include ``src`` and ``dst``; they are always avoided except at the ports.
     Without ``sides`` every side pair is tried and the cheapest route wins. ``busy`` maps a box to the
     sides other edges already attach to; those cost ``BUSY`` so the route prefers a free side.
+    ``penalty(a, b)`` adds a cost to a grid segment (e.g. per crossing with edges already routed);
+    ``guides`` add grid lines through points so a route can pass around such edges.
     """
     obs = [b for b in obstacles if b != src and b != dst] + [src, dst]
     sp, dp = _ports(src), _ports(dst)
@@ -47,7 +49,7 @@ def route(src: Box, dst: Box, obstacles: list[Box], *, margin: float = MARGIN,
     best: tuple[float, list[Point]] | None = None
     for ss in s_sides:
         for ds in d_sides:
-            got = _search(sp[ss], dp[ds], obs, margin)
+            got = _search(sp[ss], dp[ds], obs, margin, penalty, guides)
             if got:
                 extra = BUSY * ((ss in busy.get(src, ())) + (ds in busy.get(dst, ())))
                 got = (got[0] + extra, got[1])
@@ -60,7 +62,7 @@ def route(src: Box, dst: Box, obstacles: list[Box], *, margin: float = MARGIN,
     return best[1]
 
 
-def _search(sport, dport, obs: list[Box], margin: float):
+def _search(sport, dport, obs: list[Box], margin: float, penalty=None, guides: list[Point] = ()):
     (sx, sy), (sdx, sdy) = sport
     (tx, ty), (tdx, tdy) = dport
     s_stub = (sx + sdx * margin, sy + sdy * margin)
@@ -72,6 +74,9 @@ def _search(sport, dport, obs: list[Box], margin: float):
     for x, y, w, h in obs:
         xs.update((x - margin, x + w + margin))
         ys.update((y - margin, y + h + margin))
+    for gx, gy in guides:
+        xs.add(gx)
+        ys.add(gy)
     xs_l, ys_l = sorted(xs), sorted(ys)
     nx, ny = len(xs_l), len(ys_l)
     blocked = [[any(_inside(xs_l[i], ys_l[j], b) for b in obs) for j in range(ny)] for i in range(nx)]
@@ -118,6 +123,8 @@ def _search(sport, dport, obs: list[Box], margin: float):
                 continue
             step = abs(xs_l[ni] - xs_l[i]) + abs(ys_l[nj] - ys_l[j])
             ng = g + step + (BEND if (di, dj) != d else 0.0) + (CLOSE * step if seg_close(i, j, ni, nj) else 0.0)
+            if penalty is not None:
+                ng += penalty((xs_l[i], ys_l[j]), (xs_l[ni], ys_l[nj]))
             nk = (ni, nj, (di, dj))
             if nk in seen:
                 continue

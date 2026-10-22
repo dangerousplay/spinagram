@@ -22,16 +22,6 @@ def _pil_font(path: str, size_tenths: int):
     return ImageFont.truetype(path, size_tenths)
 
 
-@lru_cache(maxsize=4096)
-def _has_glyph(path: str, ch: str) -> bool:
-    try:
-        from fontTools.ttLib import TTFont  # noqa: F401  (availability probe)
-    except ImportError:
-        return True
-    cmap = _cmap(path)
-    return ord(ch) in cmap
-
-
 @lru_cache(maxsize=16)
 def _cmap(path: str) -> set[int]:
     from fontTools.ttLib import TTFont
@@ -39,16 +29,46 @@ def _cmap(path: str) -> set[int]:
     return set(TTFont(path, lazy=True).getBestCmap() or {})
 
 
+FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+# last links of the glyph fallback chain (role font → body font → these), bundled under OFL
+BUNDLED = (("Noto Sans Symbols 2", FONTS_DIR / "NotoSansSymbols2-Regular.ttf"),
+           ("Noto Sans Math", FONTS_DIR / "NotoSansMath-Regular.ttf"))
+def covers(font: FontRef, ch: str) -> bool:
+    """Does ``font`` have a glyph for ``ch``? From its cmap; a font without a file is unknown and counts as
+    covering everything (the renderer falls back on its own)."""
+    if font.file is None:
+        return True
+    try:
+        return ord(ch) in _cmap(str(font.file))
+    except ImportError:
+        return True
+
+
+def bundled_fonts(size: float, weight: int = 400) -> list[FontRef]:
+    return [FontRef(family=fam, weight=weight, size=size, file=path, fallback="sans-serif", figma_style="Regular")
+            for fam, path in BUNDLED if path.exists()]
+
+
+def _plain(text: str, font: FontRef) -> float:
+    if font.file is not None:
+        return _pil_font(str(font.file), max(1, round(font.size * 10))).getlength(text) / 10
+    return len(text) * font.size * _HEURISTIC[font.weight >= 600]
+
+
 def measure(text: str, font: FontRef) -> float:
+    """Width of ``text``; characters the font lacks are measured with the bundled fallback that has them."""
     if not text:
         return 0.0
-    if font.file is not None:
-        f = _pil_font(str(font.file), max(1, round(font.size * 10)))
-        width = f.getlength(text) / 10
-        # glyphs missing from the font (e.g. arrows) render with a wider fallback font
-        missing = sum(1 for ch in text if ord(ch) > 0x2000 and not _has_glyph(str(font.file), ch))
-        return width + missing * font.size * 0.5
-    return len(text) * font.size * _HEURISTIC[font.weight >= 600]
+    width, run = 0.0, ""
+    for ch in text:
+        if ch.isspace() or covers(font, ch):
+            run += ch
+            continue
+        width += _plain(run, font)
+        run = ""
+        fb = next((f for f in bundled_fonts(font.size, font.weight) if covers(f, ch)), None)
+        width += _plain(ch, fb) if fb is not None else font.size * 0.5
+    return width + _plain(run, font)
 
 
 def wrap(text: str, font: FontRef, width: float) -> list[str]:

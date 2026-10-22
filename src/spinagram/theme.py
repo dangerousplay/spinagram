@@ -190,6 +190,8 @@ class Theme:
         out["stroke"] = self.color(z["stroke"]) if z.get("stroke") else None
         out["stroke_width"] = z.get("stroke_width", 2 if z.get("stroke") else 0)
         out["dashed"] = bool(z.get("dashed", False))
+        out["dash"] = z.get("dash")  # solid | dashed | dotted | [pattern]
+        out["header"] = z.get("header")  # padding, icon_size, inset, strip, upper
         out["icon"] = z.get("icon")
         out["radius"] = z.get("radius")
         out["opacity"] = z.get("opacity")
@@ -219,8 +221,37 @@ class Theme:
 
     # icons --------------------------------------------------------------------
     def icon(self, name: str | None, tone: str = "light", base_dir: Path | None = None) -> Path | None:
-        """Resolve an icon: ``pack:name`` (icon packs, see :mod:`spinagram.icons`), a theme alias
-        (``icons.alias: {ec2: aws:ec2}``), a path relative to the spec, or a name in the theme's icon dirs."""
+        """Resolve an icon: ``concept:<name>`` (the first available entry of ``icons.fallback.<name>``),
+        ``pack:name`` (icon packs, see :mod:`spinagram.icons`), a theme alias (``icons.alias: {ec2: aws:ec2}``),
+        a path relative to the spec, or a name in the theme's icon dirs. While ``icon_trace`` is a dict, every
+        resolution is recorded there as ``name → (ref, source)`` (source: official, theme or fallback:<n>)."""
+        if not name:
+            return None
+        if name.startswith("concept:"):
+            chain = ((self.data.get("icons") or {}).get("fallback") or {}).get(name[len("concept:"):]) or []
+            for k, ref in enumerate(chain):
+                found = self._icon(ref, tone, base_dir)
+                if found is not None:
+                    self._trace(name, ref, self._source(ref) if k == 0 else f"fallback:{k}")
+                    return found
+            self._trace(name, None, "missing")
+            return None
+        found = self._icon(name, tone, base_dir)
+        self._trace(name, ((self.data.get("icons") or {}).get("alias") or {}).get(name, name),
+                    self._source(name) if found is not None else "missing")
+        return found
+
+    def _source(self, name: str) -> str:
+        """official: an icon pack reference; theme: a theme alias, path or icon dir."""
+        if ((self.data.get("icons") or {}).get("alias") or {}).get(name):
+            return "theme"
+        return "official" if re.match(r"^[a-z0-9][a-z0-9_-]*:[^/\\]", name) else "theme"
+
+    def _trace(self, name: str, ref: str | None, source: str) -> None:
+        if getattr(self, "icon_trace", None) is not None:
+            self.icon_trace.setdefault(name, (ref, source))
+
+    def _icon(self, name: str | None, tone: str = "light", base_dir: Path | None = None) -> Path | None:
         if not name:
             return None
         key = (name, tone, str(base_dir))

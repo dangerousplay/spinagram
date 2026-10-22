@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 from functools import lru_cache
 from pathlib import Path
@@ -64,7 +65,15 @@ class _Svg:
     def text_lines(self, out: list[str], block: TextBlock, x: float, baseline: float, anchor: str,
                    letter_spacing: float = 0) -> None:
         f = block.font
-        spans = "".join(f'<tspan x="{x:.1f}" dy="{0 if i == 0 else block.leading:.1f}">{_esc(line) or "&#160;"}</tspan>'
+
+        def content(i: int, line: str) -> str:
+            if not block.runs:
+                return _esc(line) or "&#160;"
+            return "".join(_esc(r.text) if r.font is f else  # fallback glyphs: their own font
+                           f'<tspan font-family="&apos;{_attr(r.font.family)}&apos;, {_attr(r.font.fallback)}">'
+                           f"{_esc(r.text)}</tspan>" for r in block.runs[i]) or "&#160;"
+
+        spans = "".join(f'<tspan x="{x:.1f}" dy="{0 if i == 0 else block.leading:.1f}">{content(i, line)}</tspan>'
                         for i, line in enumerate(block.lines))
         ls = f' letter-spacing="{letter_spacing}"' if letter_spacing else ""
         style = ' font-style="italic"' if f.italic else ""
@@ -81,7 +90,7 @@ class _Svg:
                    f'href="data:{_mime(path)};base64,{_b64(path)}"/>')
 
     def icon(self, out: list[str], icon: Icon) -> None:
-        self.image(out, icon.path, icon.x, icon.y, icon.size, icon.size)
+        self.image(out, icon.path, icon.x, icon.y, icon.width, icon.size)
 
     def shadow(self, sh: tuple | None) -> str:
         """`` filter="url(#…)"`` for a CSS box-shadow (one drop shadow), defined once per value."""
@@ -129,7 +138,7 @@ class _Svg:
         layer = self.back if s.role in ("zone", "chrome") else (self.front if s.role in ("pill", "swatch") else self.mid)
         stroke = (f' stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"' if s.stroke and s.stroke_width
                   else "")
-        dash = _dash(s.dashed, s.dash)
+        dash = _dash(s.dashed, s.dash) + (f' stroke-linecap="{s.cap}"' if s.cap and s.stroke else "")
         op = f' opacity="{s.opacity:g}"' if s.opacity < 1 else ""
         op += self.shadow(s.shadow)
         fill = s.fill or "none"
@@ -234,10 +243,13 @@ class _Svg:
         if s.sources:
             import json as _json
             meta = f'<metadata id="spinagram-sources">{_esc(_json.dumps(s.sources, ensure_ascii=False))}</metadata>'
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
-                f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(self.defs)}</defs>'
-                f'<rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'
+        head = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
+        rest = (f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(self.defs)}'
+                f'</defs><rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'
                 + "".join(self.back) + "".join(self.mid) + "".join(self.front) + "</svg>")
+        # content hash of the SVG without this element: identical input, identical hash (CI drift checks)
+        digest = hashlib.sha256((head + rest).encode("utf-8")).hexdigest()
+        return f'{head}<metadata id="spinagram-hash">sha256:{digest}</metadata>{rest}'
 
 
 def to_svg(scene: Scene) -> str:

@@ -159,7 +159,7 @@ The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable
 - [CLI](https://dangerousplay.github.io/spinagram/docs/tools/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/tools/live-ui/)
 - [AI agent skills](https://dangerousplay.github.io/spinagram/docs/tools/ai-skills/): `spinagram skills install --agent claude|codex|cursor|gemini|copilot|…` teaches your coding agent to write and style diagrams
 - [MCP server](https://dangerousplay.github.io/spinagram/docs/tools/mcp/): `spinagram mcp install -a claude|codex|cursor|gemini|copilot|opencode` lets any MCP agent render, check and preview diagrams without a shell
-- [What's new in 0.3](https://dangerousplay.github.io/spinagram/docs/whats-new/)
+- [Release notes](https://dangerousplay.github.io/spinagram/docs/release-notes/): what's new in each version
 - [Extending](https://dangerousplay.github.io/spinagram/docs/reference/extending/) with your own backends and layout engines
 
 ## Development

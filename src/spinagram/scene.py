@@ -13,12 +13,20 @@ Point = tuple[float, float]
 
 
 @dataclass
+class Run:
+    """A piece of a line drawn with one font (glyph fallback)."""
+    text: str
+    font: FontRef
+
+
+@dataclass
 class TextBlock:
     lines: list[str]            # wrapped for the box width (SVG, Figma)
     paragraphs: list[str]       # source text (PowerPoint reflows it natively)
     font: FontRef
     color: str
     leading: float              # line height in px
+    runs: list[list[Run]] | None = None  # per line, when some characters fall back to another font
 
     @property
     def height(self) -> float:
@@ -56,7 +64,12 @@ class Icon:
     path: Path
     x: float
     y: float
-    size: float
+    size: float                # height (and width when ``w`` is unset: square)
+    w: float | None = None     # width for icons that are not square (wordmarks)
+
+    @property
+    def width(self) -> float:
+        return self.w if self.w is not None else self.size
 
     @property
     def mime(self) -> str:
@@ -89,6 +102,7 @@ class Shape:
     dash: list[float] | None = None    # explicit dash pattern (CSS stroke-dasharray); None = default dash
     shadow: tuple | None = None        # (dx, dy, blur, colour, alpha) drop shadow (CSS box-shadow)
     fill_opacity: float = 1.0          # alpha of the fill only (CSS fill-opacity)
+    cap: str | None = None             # stroke line cap: None (butt) | round (dotted outlines)
 
     def anchor(self, side: str, frac: float = 0.5) -> Point:
         x, y, w, h = self.x, self.y, self.w, self.h
@@ -105,6 +119,7 @@ class Binding:
     shape_id: str
     side: str
     frac: float = 0.5
+    target: str = "node"   # node | zone (a zone border: bound at any fraction)
 
 
 @dataclass
@@ -211,6 +226,18 @@ class Scene:
     model_issues: list[tuple[str, str]] = field(default_factory=list)  # (item, message) from model rules
     style_warnings: list[str] = field(default_factory=list)            # stylesheet diagnostics
     annotation_issues: list[tuple[str, str, str]] = field(default_factory=list)  # (item, kind, detail)
+    fits: dict[str, tuple[str, float]] = field(default_factory=dict)  # node id → (fitting strategy, final size)
+    zone_headers: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)  # zone id → rect
+    zone_content_tops: dict[str, float] = field(default_factory=dict)  # zone model id → first y below header
+    laid_out: bool = False  # positions came from a layout engine (fixed-layout checks skip it)
+    flush_headers: set[str] = field(default_factory=set)  # zone ids whose corner icon sits on the outline on purpose
+    check_options: dict = field(default_factory=dict)  # theme defaults.check + canvas margin, read by qa.check
+    fallbacks: list[tuple[str, str, str]] = field(default_factory=list)  # (char, font role, fallback family)
+    rows: list[tuple[str, list[str], bool]] = field(default_factory=list)  # (row0 | column1, node ids, same_icon_size)
+    zone_children: dict[str, list[str]] = field(default_factory=dict)  # zone shape id → child shape ids (declared)
+    not_straight: list[str] = field(default_factory=list)  # straight=True edges that could not be made straight
+    icon_sources: dict[str, tuple] = field(default_factory=dict)  # icon name → (resolved ref, source)
+    version_mismatch: tuple[str, str] | None = None  # (requires, installed) when the spec's pin is not met
 
     def shapes(self) -> dict[str, Shape]:
         return {i.id: i for i in self.items if isinstance(i, Shape)}
@@ -220,8 +247,8 @@ class Scene:
         seen: dict[tuple, FontRef] = {}
 
         def add(b: TextBlock):
-            f = b.font
-            seen.setdefault((f.family, f.weight, f.italic), f)
+            for f in [b.font] + [r.font for line in (b.runs or []) for r in line]:
+                seen.setdefault((f.family, f.weight, f.italic), f)
 
         for it in self.items:
             if isinstance(it, Shape) and it.label:

@@ -488,9 +488,12 @@ def _placed_diagram():
     return d
 
 
-# SVG of the two diagrams above with no stylesheet: first taken at 46d7696 before any CSS code existed;
-# re-taken when edge labels learned to stay clear of arrowheads (only label positions moved).
-UNSTYLED_GOLDEN = "0c480e238b67b38884224231612a212e3875ef3c6114d69b7fc3cf613dcfba48"
+# SVG of the two diagrams above rendered at 46d7696, before any CSS code existed (scene, markers, dashes).
+# Updated by layout-engine T19 (EDG-01): P:e0's label is centred on its edge midpoint instead of 12.5 px above it
+# (tests/test_engine_labels.py::test_golden_label_change_is_the_centring). Updated by T59 (OUT-04): every SVG
+# carries a content-hash <metadata>; without it the SVG is the T19 one (test_engine_output.py pins that).
+# Re-taken on the rebase onto 0.3.0: edge labels also stay clear of arrowheads (only label positions moved).
+UNSTYLED_GOLDEN = "aa8ccb4edafd3179d7881812e85649a6d72e151eb6a554cd8f929e58cbbb50da"
 
 
 def test_unstyled_svg_matches_pre_css_golden():  # CSS-27

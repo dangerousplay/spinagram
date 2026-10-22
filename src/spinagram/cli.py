@@ -59,11 +59,19 @@ def _main(argv: list[str] | None = None) -> int:
             p.add_argument("--json", action="store_true", help="print the style report as JSON (implies --styles)")
             p.add_argument("--color", choices=("auto", "always", "never"), default="auto",
                            help="colour the style report (auto: when stdout is a terminal and NO_COLOR is unset)")
+            p.add_argument("--fix", action="store_true",
+                           help="apply safe fixes: YAML specs get a <name>.fixed.yaml copy, Python specs get "
+                                "suggested edits; sources are never modified")
         if name == "render":
             p.add_argument("-f", "--formats", default="svg,png",
                            help=f"comma list from: {', '.join(sorted(available()))}")
             p.add_argument("-o", "--out", default="out")
             p.add_argument("--no-gallery", action="store_true")
+            p.add_argument("--name-from", choices=("slug", "id", "file"), default="slug",
+                           help="output file names: <id>-<title> (slug, default), the diagram id, or the spec file; "
+                                "a diagram's own `output:` always wins")
+            p.add_argument("--relayout", action="store_true",
+                           help="apply check's safe fixes in memory before rendering (hand-placed diagrams)")
     ic = sub.add_parser("icons", help="icon packs: list, fetch, search, add, remove")
     isub = ic.add_subparsers(dest="icmd", required=True)
     isub.add_parser("list", help="registered packs and whether they are downloaded")
@@ -93,6 +101,10 @@ def _main(argv: list[str] | None = None) -> int:
     im = isub.add_parser("import", help="register every pack of a descriptor YAML (e.g. a package's spinagram-icons.yaml)")
     im.add_argument("file")
     im.add_argument("--project", action="store_true")
+    rp = isub.add_parser("report", help="every icon the diagrams use: resolved reference and source "
+                                        "(official, theme, fallback:<n>, missing)")
+    rp.add_argument("paths", nargs="+", help="spec files or directories")
+    rp.add_argument("-t", "--theme", help="theme directory or built-in name (env SPINAGRAM_THEME)")
     r = isub.add_parser("remove", help="unregister a user or project pack")
     r.add_argument("name")
     r.add_argument("--project", action="store_true")
@@ -188,22 +200,65 @@ def _main(argv: list[str] | None = None) -> int:
     if args.cmd == "check":
         return _check(args, diagrams, theme)
     formats = [f.strip() for f in args.formats.split(",") if f.strip()]
+    if args.relayout:
+        from .engine.fix import fix_until_clean
+
+        diagrams = [d if d.auto else fix_until_clean(d, theme)[0] for d in diagrams]
     written = api.render(diagrams, args.out, theme=theme, formats=formats, gallery=not args.no_gallery,
-                         layout=args.layout)
+                         layout=args.layout, name_from=args.name_from)
     for p in written:
         print(p)
     return 0
 
 
+def _fix(diagrams, theme) -> int:
+    """``check --fix``: fixed YAML copies next to YAML specs, suggestions for Python specs."""
+    import yaml
+
+    from .engine.fix import fix_until_clean, suggest_python
+    from .yaml_io import dump
+
+    by_source: dict = {}
+    for d in diagrams:
+        by_source.setdefault(d.__dict__.get("_source"), []).append(d)
+    remaining_p0 = 0
+    for src, ds in by_source.items():
+        results = [fix_until_clean(d, theme) for d in ds]
+        applied = [i for _, a, _ in results for i in a]
+        remaining = [i for _, _, r in results for i in r]
+        remaining_p0 += sum(1 for i in remaining if i.severity == "P0")
+        if src is not None and Path(src).suffix in (".yaml", ".yml"):
+            if applied:
+                docs = [dump(f) for f, _, _ in results]
+                out = Path(src).with_name(Path(src).stem + ".fixed.yaml")
+                out.write_text(yaml.safe_dump(docs if len(docs) > 1 else docs[0], sort_keys=False,
+                                              allow_unicode=True, width=120), encoding="utf-8")
+                print(f"{out}: {len(applied)} fix(es) applied")
+        else:
+            for line in suggest_python(applied):
+                print(f"{src}: {line}" if src else line)
+        for i in remaining:
+            print(i)
+    print(f"{len(diagrams)} diagram(s), {remaining_p0} P0 issue(s) left")
+    return 1 if remaining_p0 else 0
+
+
 def _check(args, diagrams, theme) -> int:
     from . import css, inspect_fmt
+
+    if args.fix:
+        return _fix(diagrams, theme)
 
     reports = [css.inspect(d, theme) for d in diagrams]
     selected = [css.select(d, args.select) if args.select else None for d in diagrams]
     if args.json:
-        for r, keys in zip(reports, selected):
+        # SPEC_DEVIATION: CHK-03 asks for issues as JSON; --json already prints the style report, so the issues
+        # join each diagram's report under "issues" instead of replacing it (keeps the report contract).
+        scs = api.scenes(diagrams, theme, args.layout)
+        for r, keys, sc in zip(reports, selected, scs):
             if keys is not None:
                 r["elements"] = [e for e in r["elements"] if e["key"] in keys]
+            r["issues"] = [i.to_dict() for i in qa.check(sc)]
         print(json.dumps(reports if len(reports) > 1 else reports[0], indent=2, ensure_ascii=False))
         return 0
     color = inspect_fmt.use_color(args.color, sys.stdout)
@@ -286,6 +341,16 @@ def _icons(args) -> int:
 
     from . import icons
 
+    if args.icmd == "report":
+        theme = Theme.load(args.theme)
+        diagrams = [d for p in args.paths for d in load(p)]
+        rows = 0
+        for sc in api.scenes(diagrams, theme):
+            for name, (ref, source) in sorted(sc.icon_sources.items()):
+                print(f"{sc.id}\t{name}\t{ref or '-'}\t{source}")
+                rows += 1
+        print(f"{len(diagrams)} diagram(s), {rows} icon(s)")
+        return 0
     packs = icons.registry()
     if args.icmd == "list":
         for p in packs.values():
