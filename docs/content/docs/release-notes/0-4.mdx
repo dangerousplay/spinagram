@@ -1,0 +1,74 @@
+---
+title: What's new in 0.4
+description: The layout engine fits text, lays out zone headers, places labels, routes edges and fixes what it can.
+---
+
+spinagram 0.4 moves layout work from you to the engine. You declare what exists, how it is grouped and how it
+relates. The engine fits text, lays out zone headers, places labels and routes edges. `spinagram check` finds
+what the engine could not fix, and `check --fix` repairs it.
+
+![A Git service across two sites: a load-balancer pool reaching a whole network zone, availability zones with inset headers, a shared log trunk and an automatic legend](/assets/release-0-4/git-two-sites.svg)
+
+The source is `examples/layout-engine/git_two_sites.py`. It has no hand-computed anchor fractions, `via`
+points, `label_at` positions or widened boxes.
+
+## Text fits its box
+
+Long hostnames, CIDR lists and titles fit without hand-tuned widths. The engine wraps at spaces, then breaks
+long tokens after `-`, `.`, `/`, `:` or `·`, then shrinks the font down to 85 %. It never splits an address
+like `10.0.8.0/21`. Characters missing from a font fall back to the body font, then to bundled symbol fonts.
+
+```python
+d.box("lb-pool-https-8081", text="8 members · nginx :8081", w=230, h=90)   # fits, no overflow
+```
+
+## Zones that lay themselves out
+
+- **Headers.** Icons sit inside the outline at one size, the label is centred on them, and several icons
+  become chips. Content starts below the header.
+- **Outlines.** `dash="dashed" | "dotted" | [4, 2]`, `stroke`, `fill="none"`. SVG and PowerPoint draw the same
+  pattern, and CSS reaches every zone by `#id` or `.style`.
+- **Size.** `fit="children"` wraps a zone around its content, nested zones first.
+
+## Boxes, rows and grids
+
+Leave out `w` and `h` and a box takes the size of its content. `with d.row(..., same_size=True):` gives a row
+one size. `d.grid(...)` names columns and rows, and `cell=g[1, 0]` places a node there.
+`d.edge(a, b, straight=True)` keeps an edge vertical or horizontal without hand-computed anchors.
+
+## Edges
+
+- **Labels** take the first clear spot, away from boxes, zone headers, other labels and arrowheads.
+- **Zones as targets.** `d.edge(pool, net_zone)` ends on the side of the zone that faces the source.
+  `fan="bus"` adds a bar inside the zone.
+- **Routing.** `route="ortho"` routes around boxes and avoids crossing other edges.
+- **Trunks.** `d.bundle([e1, e2], trunk="right")` joins edges into one target on a shared trunk.
+
+## Icons and legend
+
+Wordmarks keep their aspect ratio. `badges=[...]` adds up to three corner logos to a box. Themes declare icon
+fallback chains, and `spinagram icons report` lists where each icon came from. Add `meaning=` to edges and
+zones, and `d.add_legend(items="auto")` lists one row per style you used.
+
+## check finds more, and fixes it
+
+`check` now also reports icons touching borders, headers covered by content, missing glyphs, clipped or
+underused zones, content outside the safe area, low contrast and edge crossings. Each issue has a severity and,
+when it is safe, a fix:
+
+```bash
+spinagram check --fix specs/runners.yaml   # writes runners.fixed.yaml; Python specs get suggested edits
+spinagram render --relayout specs/         # applies the safe fixes in memory
+```
+
+## Stable outputs
+
+`output="runners-network"` writes stable file names. `requires=">=0.4,<0.5"` warns when the installed version
+does not match. Every SVG carries a content hash, so CI can detect drift.
+
+[Layout engine guide →](/docs/write/layout-engine)
+
+## Also in 0.4
+
+- Edge labels also stay off arrowheads in auto-laid-out diagrams.
+- The MCP `styles` tool reports issues, like `check --json`.
