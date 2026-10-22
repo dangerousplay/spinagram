@@ -35,7 +35,13 @@ def test_python_output_name(tmp_path, fmt):  # OUT-01 for each format
         pytest.importorskip("playwright")
     d = Diagram("R01", "Runners network", output="runners-network")
     d.box("A", x=100, y=100, w=200, h=90)
-    assert [p.name for p in render([d], tmp_path, formats=[fmt])] == [f"runners-network.{fmt}"]
+    try:
+        names = [p.name for p in render([d], tmp_path, formats=[fmt])]
+    except Exception as exc:  # noqa: BLE001 - no browser installed
+        if "Executable doesn't exist" in str(exc) or "playwright install" in str(exc):
+            pytest.skip("chromium not installed for playwright")
+        raise
+    assert names == [f"runners-network.{fmt}"]
 
 
 def test_unknown_name_from_raises():
