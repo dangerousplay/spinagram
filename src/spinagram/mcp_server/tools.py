@@ -73,11 +73,13 @@ class Tools:
                theme: str | None = None) -> dict | list:
         th = self._theme(theme)
         reports = []
-        for d in self.diagrams(paths, only):
+        ds = self.diagrams(paths, only)
+        for d, sc in zip(ds, api.scenes(ds, th, self.layout)):
             r = css.inspect(d, th)
             if select:
                 keys = css.select(d, select)
                 r["elements"] = [e for e in r["elements"] if e["key"] in keys]
+            r["issues"] = [i.to_dict() for i in qa.check(sc)]  # as ``check --json``
             reports.append(r)
         return json.loads(json.dumps(reports if len(reports) > 1 else reports[0], ensure_ascii=False))
 

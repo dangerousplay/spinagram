@@ -132,4 +132,4 @@ def test_golden_change_is_only_the_hash_metadata():  # the T59 golden update add
     from spinagram.backends.svg import to_svg
     svgs = "".join(HASH.sub("", to_svg(sc)) for sc in scenes([_golden_diagram(), _placed_diagram()]))
     assert hashlib.sha256(svgs.encode()).hexdigest() == \
-        "019deb5210fc199084ac3c7cf9ce1592c1283ef872cc357cb0c909a9507a5926"   # the T19 golden
+        "fce570de60c5bc2600e5846adea5a8253bbf91c2d4f9d75fbfc123703e89f805"   # the T19 golden, plus labels off arrowheads

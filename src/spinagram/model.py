@@ -498,7 +498,10 @@ class Diagram:
     def add(self, kind: str, title: Any = None, *, id: str | None = None, x: float = 0, y: float = 0,
             w: float = 0, h: float = 0, size: tuple[float, float] | None = None, **kw: Any) -> Node:
         """A node of ``kind``. ``size=(w, h)`` sets both; without a size the innermost ``node_size`` of the
-        open groups (or the diagram's) applies, and failing that the node is sized from its text."""
+        open groups (or the diagram's) applies, and failing that the node is sized from its text. A number
+        ``size`` is a free label's font size."""
+        if isinstance(size, (int, float)):
+            kw["size"], size = size, None
         if size is not None:
             w, h = size
         elif not (w or h) and kind in SIZED_KINDS:

@@ -492,7 +492,8 @@ def _placed_diagram():
 # Updated by layout-engine T19 (EDG-01): P:e0's label is centred on its edge midpoint instead of 12.5 px above it
 # (tests/test_engine_labels.py::test_golden_label_change_is_the_centring). Updated by T59 (OUT-04): every SVG
 # carries a content-hash <metadata>; without it the SVG is the T19 one (test_engine_output.py pins that).
-UNSTYLED_GOLDEN = "388f432e94b0b0f6127ac91010196f73e253080dda34d8d7c8119520890efe51"
+# Re-taken on the rebase onto 0.3.0: edge labels also stay clear of arrowheads (only label positions moved).
+UNSTYLED_GOLDEN = "aa8ccb4edafd3179d7881812e85649a6d72e151eb6a554cd8f929e58cbbb50da"
 
 
 def test_unstyled_svg_matches_pre_css_golden():  # CSS-27
@@ -643,3 +644,19 @@ def test_defined_var_with_function_fallback_resolves_cleanly():  # CSS-14 (kills
 def test_not_with_nested_selector_list():  # CSS-02 (bracket counting in :not)
     root, vpc, api, db, edge = _tree()
     assert _m("node:not(:not(.critical))", api) is True and _m("node:not(:not(.critical))", db) is False
+
+
+# inspector on unstyled diagrams (features/inspector-declarations) -------------------------------
+def test_inspect_all_elements_lists_unstyled_tree():  # ELI-01
+    r = css.inspect(_golden_diagram(), None, all_elements=True)
+    assert r["styled"] is False
+    assert [e["key"] for e in r["elements"]] == [
+        "diagram", "group:zone", "node:gateway", "node:valid", "node:paid", "node:done",
+        "edge:0", "edge:1", "edge:2", "edge:3"]
+    assert all(e["styles"] == {} and e["trace"] == {} for e in r["elements"])
+    gw = next(e for e in r["elements"] if e["key"] == "node:gateway")
+    assert gw["parent"] == "group:zone" and gw["attrs"]["label"] == "Gateway"
+
+
+def test_inspect_unstyled_without_flag_lists_nothing():  # ELI-02
+    assert css.inspect(_golden_diagram(), None)["elements"] == []

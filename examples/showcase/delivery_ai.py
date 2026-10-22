@@ -19,7 +19,7 @@ with d.group("Build", id="build", direction="down", gap=22, padding=16):
 with d.group("Supply", id="supply", direction="down", gap=22, padding=16):
     jfrog = d.box("Artifactory", text="Maven, npm, PyPI", icon="logos:jfrog")
     harbor = d.box("Harbor", text="signed images", icon="cncf:harbor", **DARK)
-    vault = d.box("Vault", text="secrets", icon="logos:vault")
+    vault = d.box("Vault", text="secrets", icon="logos:vault", **DARK)
 with d.group("Run", id="run", direction="down", gap=22, padding=16):
     argo = d.box("Argo CD", text="GitOps sync", icon="cncf:argo")
     k8s = d.box("Kubernetes", text="workloads", icon="cncf:kubernetes", **DARK)
