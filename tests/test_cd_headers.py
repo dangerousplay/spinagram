@@ -179,3 +179,109 @@ def test_header_crossing_hand_placed_only():
     sc = _crossing_scene(("a", "b", {}))
     sc.laid_out = True
     assert not [i for i in check(sc) if i.kind == "edge-crosses-zone-header"]
+
+
+# anchor and reroute fixes (HDR-04, HDR-05) --------------------------------------------------------------------
+# The measured font is 9.6 px per character at 16 px: LONG's header ends at 124 + 24 × 9.6 = 354.4, so its
+# interior (shrunk by 1 px) is x 101 → 353.4, y 201 → 239.8. a = (100, 80, 400, 60), b = (100, 400, 400, 60):
+# an anchor at fraction f sits at x = 100 + 400 f. A segment from (px, 140) to (qx, 400) is inside the header band
+# for t = (y - 140) / 260 in 0.2346 → 0.3838.
+#   fs 0.5  (px 300): x at the band top ≤ 300 + 140 × 0.2346 = 332.8 for every fd → all hit.
+#   fs 0.65 (px 360): fd 0.5 (qx 300) → x at the band bottom 360 - 60 × 0.3838 = 337 → hit;
+#                     fd 0.65 (qx 360) → vertical at 360 → clear: the first pair.
+#   with a blocker c = (340, 300, 40, 40): (0.65, 0.65) hits c; fd 0.35 (qx 240) → 313.9 in the band → hit;
+#                     fd 0.8 (qx 420) → x ≥ 360 in the band and 396.9 → 406 at y 300 → 340 (c is x 341 → 379): clear.
+#   WIDE header (label 50 chars → ends at 124 + 480 = 604): every anchor x (160 → 440) is under it → reroute.
+WIDE = "Availability zone site-a · primary · consul server"   # 50 characters
+
+
+def _fix_scene(label=LONG, blocker=False, edge=("a.bottom", "b.top", {})):
+    d = Diagram("Z", "Zones")
+    with d.zone(label, x=X, y=Y, w=W, h=H):
+        d.box("B", id="b", x=100, y=400, w=400, h=60)
+        if blocker:
+            d.box("C", id="c", x=340, y=300, w=40, h=60)
+    d.box("A", id="a", x=100, y=80, w=400, h=60)
+    src, dst, kw = edge
+    d.edge(src, dst, **kw)
+    return d
+
+
+FIX_SCENARIOS = [  # (id, scene kwargs, expected fix)
+    ("anchor-first-pair", {}, {"op": "anchor", "edge": "e0", "src": "a.bottom@0.65", "dst": "b.top@0.65"}),
+    ("anchor-skips-node", {"blocker": True}, {"op": "anchor", "edge": "e0", "src": "a.bottom@0.65",
+                                              "dst": "b.top@0.8"}),
+    ("anchor-auto-sides", {"edge": ("a", "b", {})},
+     {"op": "anchor", "edge": "e0", "src": "a.bottom@0.65", "dst": "b.top@0.65"}),
+    ("reroute", {"label": WIDE}, {"op": "reroute", "edge": "e0", "route": "ortho"}),
+    ("zone-end-no-fix", {"edge": ("a", "zone:z0.left@0.333333", {"via": [(140, 300)]})}, None),
+    ("via-no-fix", {"edge": ("a", "b", {"via": [(300, 220), (300, 400)]})}, None),
+]
+
+
+@pytest.mark.parametrize("kw,fix", [s[1:] for s in FIX_SCENARIOS], ids=[s[0] for s in FIX_SCENARIOS])
+def test_header_crossing_fix(kw, fix):
+    sc = build_scene(_fix_scene(**kw), THEME)
+    if kw.get("label") == WIDE:
+        assert sc.zone_headers["z0"][2] == pytest.approx(504)                   # header 100 → 604
+    else:
+        assert sc.zone_headers["z0"][2] == pytest.approx(254.4)                 # header 100 → 354.4
+    got = [i for i in check(sc) if i.kind == "edge-crosses-zone-header"]
+    assert len(got) == 1 and got[0].fix == fix
+
+
+APPLY = [("anchor", {}, {"src": "a.bottom@0.65", "dst": "b.top@0.65", "route": None}),
+         ("reroute", {"label": WIDE}, {"src": "a.bottom", "dst": "b.top", "route": "ortho"})]
+
+
+@pytest.mark.parametrize("kw,edge", [s[1:] for s in APPLY], ids=[s[0] for s in APPLY])
+def test_apply_anchor_and_reroute(kw, edge):
+    from spinagram.engine.fix import apply_to_diagram
+    d = _fix_scene(**kw)
+    issues = [i for i in check(build_scene(d, THEME)) if i.kind == "edge-crosses-zone-header"]
+    fixed, applied, skipped = apply_to_diagram(d, issues)
+    assert len(applied) == 1 and skipped == []
+    e = fixed.edges[0]
+    assert {"src": e.src, "dst": e.dst, "route": e.route} == edge
+    assert (d.edges[0].src, d.edges[0].dst, d.edges[0].route) == ("a.bottom", "b.top", None)  # source untouched
+    after = check(build_scene(fixed, THEME))
+    assert [i for i in after if i.kind in ("edge-crosses-zone-header", "edge-through-box")] == []
+
+
+def _yaml_spec(label):
+    return (f"id: F1\ntitle: Fix\nzones:\n  - {{label: '{label}', x: 100, y: 200, w: 600, h: 300}}\n"
+            "nodes:\n  - {id: a, title: A, x: 100, y: 80, w: 400, h: 60}\n"
+            "  - {id: b, title: B, x: 100, y: 400, w: 400, h: 60}\n"
+            "edges:\n  - {from: a.bottom, to: b.top}\n")
+
+
+@pytest.mark.parametrize("label,edge", [(LONG, {"from": "a.bottom@0.65", "to": "b.top@0.65"}),
+                                        (WIDE, {"from": "a.bottom", "to": "b.top", "route": "ortho"})],
+                         ids=["anchor", "reroute"])
+def test_check_fix_yaml_applies_header_fixes(tmp_path, monkeypatch, capsys, label, edge):
+    import yaml
+    from spinagram import load
+    from spinagram.cli import main
+    (tmp_path / "s.yaml").write_text(_yaml_spec(label))
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--fix", "s.yaml"])
+    assert "s.fixed.yaml" in capsys.readouterr().out
+    data = yaml.safe_load((tmp_path / "s.fixed.yaml").read_text())
+    assert data["edges"][0] == edge
+    d = load(tmp_path / "s.fixed.yaml")[0]
+    assert [i for i in check(build_scene(d, THEME)) if i.kind == "edge-crosses-zone-header"] == []
+
+
+@pytest.mark.parametrize("label,line", [(LONG, 'e0: src="a.bottom@0.65", dst="b.top@0.65"'),
+                                        (WIDE, 'e0: route="ortho"')], ids=["anchor", "reroute"])
+def test_check_fix_python_suggests_header_fixes(tmp_path, monkeypatch, capsys, label, line):
+    from spinagram.cli import main
+    src = ("from spinagram import Diagram\nd = Diagram('P1', 'Py')\n"
+           f"with d.zone({label!r}, x=100, y=200, w=600, h=300):\n"
+           "    d.box('B', id='b', x=100, y=400, w=400, h=60)\n"
+           "d.box('A', id='a', x=100, y=80, w=400, h=60)\nd.edge('a.bottom', 'b.top')\ndiagram = d\n")
+    (tmp_path / "s.py").write_text(src)
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--fix", "s.py"])
+    out = capsys.readouterr().out.splitlines()
+    assert any(row.endswith(f"s.py: {line}") for row in out)

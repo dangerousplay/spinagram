@@ -73,7 +73,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: A04 fixture (3 stacked phase zones × 4 steps, plain order, centred anchors) → straight: ≥1 `edge-crosses-zone-header`; ortho: 0 and 0 `edge-through-box`; DDT of header positions; ortho into a zone target still reaches the border; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(route): route around zone headers`
 
-### T4: Anchor and reroute fixes
+### T4: Anchor and reroute fixes ✅
 **What**: Attach `anchor` (candidate fractions) or `reroute` fixes to `edge-crosses-zone-header`; `engine/fix.py` applies both; Python suggestions.
 **Where**: `src/spinagram/qa.py` (`fix_for`), `src/spinagram/engine/fix.py`
 **Depends on**: T3 · **Reuses**: `endpoints.resolve`, `segment_hits`, `apply_to_diagram`, `suggest_python` · **Requirement**: HDR-04, HDR-05

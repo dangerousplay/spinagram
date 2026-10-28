@@ -5,7 +5,7 @@ import copy
 
 from ..model import Diagram
 
-SAFE_OPS = ("move-label", "resize", "nudge", "shrink-font")
+SAFE_OPS = ("move-label", "resize", "nudge", "shrink-font", "anchor", "reroute")
 
 
 def _inside(x: float, y: float, w: float, h: float, canvas: tuple[float, float], margin: float) -> bool:
@@ -30,12 +30,18 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
             continue
         done.add(key)
         op = f["op"]
-        if op == "move-label":
+        if op in ("move-label", "anchor", "reroute"):
             idx = int(f["edge"][1:])
             if idx >= len(out.edges):
                 skipped.append(i)
                 continue
-            out.edges[idx].label_at = (float(f["to"][0]), float(f["to"][1]))
+            e = out.edges[idx]
+            if op == "move-label":
+                e.label_at = (float(f["to"][0]), float(f["to"][1]))
+            elif op == "anchor":
+                e.src, e.dst = f["src"], f["dst"]
+            else:
+                e.route = f["route"]
             applied.append(i)
             continue
         n = nodes.get(f.get("node"))
@@ -83,6 +89,10 @@ def suggest_python(issues) -> list[str]:
             out.append(f"{f['edge']}: label_at=({f['to'][0]:g}, {f['to'][1]:g})")
         elif f["op"] == "nudge":
             out.append(f"{f['node']}: move by dx={f['dx']:g}, dy={f['dy']:g}")
+        elif f["op"] == "anchor":
+            out.append(f'{f["edge"]}: src="{f["src"]}", dst="{f["dst"]}"')
+        elif f["op"] == "reroute":
+            out.append(f'{f["edge"]}: route="{f["route"]}"')
         elif f["op"] == "shrink-font":
             out.append(f"{f['node']}: title_size={f['title_size']:g}")
         else:

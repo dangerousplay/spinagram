@@ -301,6 +301,29 @@ def _move_label_fix(scene: Scene, edge_id: str, margin: float) -> dict | None:
     return {"op": "move-label", "edge": edge_id, "to": [round(spot[0], 1), round(spot[1] + size / 2 - 4, 1)]}
 
 
+FRACTIONS = (0.5, 0.65, 0.35, 0.8, 0.2, 0.85, 0.15)  # anchor fix candidates, in order (HDR-04)
+
+
+def _anchor_fix(scene: Scene, edge_id: str) -> dict | None:
+    """First anchor pair on the edge's sides (source fraction outer loop) whose straight segment crosses no
+    header and no other node; else reroute to ortho. Only straight edges between two nodes get one."""
+    c = next((c for c in scene.items if isinstance(c, Connector) and c.id == edge_id), None)
+    if c is None or c.route != "straight" or c.src is None or c.dst is None or \
+            c.src.target != "node" or c.dst.target != "node":
+        return None
+    shapes = scene.shapes()
+    a, b = shapes[c.src.shape_id], shapes[c.dst.shape_id]
+    nodes = [(s.x, s.y, s.w, s.h) for s in shapes.values() if s.role == "node" and s.id not in (a.id, b.id)]
+    blocks = list(scene.zone_headers.values()) + nodes
+    for fs in FRACTIONS:
+        for fd in FRACTIONS:
+            p, q = a.anchor(c.src.side, fs), b.anchor(c.dst.side, fd)
+            if not any(segment_hits(p, q, r) for r in blocks):
+                return {"op": "anchor", "edge": edge_id, "src": f"{a.id}.{c.src.side}@{fs:g}",
+                        "dst": f"{b.id}.{c.dst.side}@{fd:g}"}
+    return {"op": "reroute", "edge": edge_id, "route": "ortho"}
+
+
 def fix_for(scene: Scene, i: Issue) -> dict | None:
     """A safe, geometry-only fix for an issue, or None."""
     m = scene.check_options.get("margin", 80)
@@ -337,6 +360,8 @@ def fix_for(scene: Scene, i: Issue) -> dict | None:
         return {"op": "nudge", "node": s.id, "dx": round(dx, 1), "dy": round(dy, 1)}
     if i.kind == "label-collision":
         return _move_label_fix(scene, i.item, m)
+    if i.kind == "edge-crosses-zone-header":
+        return _anchor_fix(scene, i.item)
     if i.kind == "header-overlap":
         cid = re.search(r"'([^']+)' covers", i.detail).group(1)
         if re.fullmatch(r"e\d+", cid):
