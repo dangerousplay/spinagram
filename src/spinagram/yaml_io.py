@@ -16,6 +16,7 @@ _NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note va
                "fit", "min_scale", "break_on",  # text fitting
                "badges",  # corner badge icons
                "size", "role", "max_width"}  # free labels
+_SNAKE_KEYS = {"steps", "cols", "y", "h", "x", "w", "gap", "row_gap", "zones", "mode"}
 _CONTAINER_KEYS = {"x", "y", "gap", "same_size", "max_width", "same_icon_size", "zone", "align", "cols",
                    "same_text_scale"}
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
@@ -126,6 +127,15 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
                             zone.children.append(item)
                     else:
                         _node(d, item, data)
+    for s in data.get("snakes") or []:  # snakes: [{steps, cols, y, h, x, w, gap, row_gap, zones, mode}]
+        s = dict(s)
+        unknown = set(s) - _SNAKE_KEYS
+        if unknown:
+            raise ValueError(f"{d.id}: snake has unknown keys {sorted(unknown)}")
+        missing = {"steps", "cols", "y", "h"} - set(s)
+        if missing:
+            raise ValueError(f"{d.id}: snake is missing keys {sorted(missing)}")
+        d.snake(s.pop("steps"), s.pop("cols"), **s)
     for e in data.get("edges") or []:
         if isinstance(e, str):
             d.edges.append(parse_edge(e))

@@ -149,7 +149,7 @@ def snakes(d: Diagram, theme: Theme) -> None:
     for s in d.snakes:
         x0 = m if s.x is None else s.x
         width = s.w or theme.canvas[0] - 2 * m
-        top, row_of = s.y, {}
+        top, row_of, gaps = s.y, {}, []
         for r in range(-(-len(s.nodes) // s.cols)):
             ids = s.nodes[r * s.cols:(r + 1) * s.cols]
             z = zones[s.zones[r]] if s.zones else None
@@ -167,11 +167,23 @@ def snakes(d: Diagram, theme: Theme) -> None:
                 n = nodes[i]
                 n.x, n.y, n.w, n.h = x0 + pad + slot * (cw + s.gap), cy, cw, s.h
                 row_of[i] = (r, back)
-            top = (z.y + z.h if z else cy + s.h) + s.row_gap
-        for e in d.edges:  # in-row edges: straight between facing sides
+            gaps.append((z.y + z.h if z else cy + s.h) + s.row_gap / 2)  # middle of the gap below row r
+            top = gaps[-1] + s.row_gap / 2
+        lane = x0 - s.gap / 2  # left of the row (outside its zones): restart returns run down here
+        for e in d.edges:
             a, b = row_of.get(e.src), row_of.get(e.dst)
-            if a and b and a[0] == b[0] and e.via is None:
+            if not (a and b) or e.via is not None:
+                continue
+            if a[0] == b[0]:  # in-row edges: straight between facing sides
                 e.src, e.dst = (f"{e.src}.left", f"{e.dst}.right") if a[1] else (f"{e.src}.right", f"{e.dst}.left")
+            elif s.mode == "restart":  # return to the row start: down, left through the row gap, down the lane
+                # SPEC_DEVIATION: SNK-05 routes turn edges with route="ortho"; restart returns get explicit via
+                # points instead. Reason: the ortho router squeezes them between the next header and its cards
+                # (12 px) and overlaps the in-row arrows; the row gap and the lane hold no header and no box.
+                src, dst = nodes[e.src], nodes[e.dst]
+                gy, by = gaps[a[0]], dst.y + dst.h / 2
+                e.src, e.dst, e.route = f"{e.src}.bottom", f"{e.dst}.left", None
+                e.via = [(src.x + src.w / 2, gy), (lane, gy), (lane, by)]
 
 
 def _with_h0(n):

@@ -4,7 +4,9 @@ import pytest
 from spinagram import Diagram, Theme, build_scene
 from spinagram.engine import model_passes
 from spinagram.model import Snake
-from spinagram.scene import Connector
+from spinagram.qa import check
+from spinagram.scene import Connector, Shape
+from spinagram.yaml_io import from_dict
 
 INPUTS = [  # (id, steps, cols, zones, nodes, rows, zones made, turn edge indexes)
     ("5x2-no-zones", 5, 2, None, 5, 3, 0, [1, 3]),
@@ -180,7 +182,8 @@ IN_ROW = [  # (id, steps, cols, mode, expected (src, dst) per edge)
     ("5x2-boustrophedon", 5, 2, "boustrophedon",
      [("step-1.right", "step-2.left"), ("step-2", "step-3"), ("step-3.left", "step-4.right"), ("step-4", "step-5")]),
     ("5x2-restart", 5, 2, "restart",
-     [("step-1.right", "step-2.left"), ("step-2", "step-3"), ("step-3.right", "step-4.left"), ("step-4", "step-5")]),
+     [("step-1.right", "step-2.left"), ("step-2.bottom", "step-3.left"), ("step-3.right", "step-4.left"),
+      ("step-4.bottom", "step-5.left")]),  # restart returns: explicit route (T15)
     ("3x5-one-row", 3, 5, "boustrophedon", [("step-1.right", "step-2.left"), ("step-2.right", "step-3.left")]),
 ]
 
@@ -188,7 +191,7 @@ IN_ROW = [  # (id, steps, cols, mode, expected (src, dst) per edge)
 @pytest.mark.parametrize("n,cols,mode,ends", [t[1:] for t in IN_ROW], ids=[t[0] for t in IN_ROW])
 def test_in_row_edges_anchor_facing_sides(n, cols, mode, ends):
     d = _laid(n, cols, y=200, h=120, mode=mode)
-    assert [(e.src, e.dst) for e in d.edges] == ends                  # turn edges keep their ids (ortho routes)
+    assert [(e.src, e.dst) for e in d.edges] == ends      # boustrophedon turns keep their ids (ortho routes)
 
 
 def test_in_row_edges_are_horizontal_in_the_scene():
@@ -204,3 +207,110 @@ def test_pass_leaves_the_source_diagram_alone():
     d.snake(["a", "b", "c"], 2, y=200, h=120)
     model_passes.apply(d, THEME)
     assert [(n.x, n.y, n.w, n.h) for n in d.nodes] == [(0, 0, 0, 0)] * 3
+
+
+# ---- T15: snake edges clear and YAML (SNK-05, SNK-07) ----------------------------------------------------------
+LONG = "CADA NÓ · CLOUD-INIT · VAULT AGENT · CONSUL CLIENT · FASE {}"
+ZONINGS = {  # zone spec for row r (icon: a header icon file), or None
+    "plain": None,
+    "short": lambda r, icon: f"Phase {r + 1}",
+    "long": lambda r, icon: LONG.format(r + 1),
+    "long-right": lambda r, icon: {"label": LONG.format(r + 1), "header": "right"},
+    "long-icon": lambda r, icon: {"label": LONG.format(r + 1), "icon": icon},
+}
+CLEAR = [(n, c, m, z) for n in range(5, 15) for c in range(2, 6) for m in ("boustrophedon", "restart")
+         for z in ZONINGS]
+
+
+def _issues(sc):
+    return [(i.item, i.kind, i.detail) for i in check(sc) if i.kind in ("edge-crosses-zone-header", "edge-through-box")]
+
+
+@pytest.fixture(scope="module")
+def icon_path(tmp_path_factory):
+    p = tmp_path_factory.mktemp("icons") / "icon.svg"
+    p.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>')
+    return str(p)
+
+
+@pytest.mark.parametrize("n,cols,mode,zoning", CLEAR, ids=[f"{n}x{c}-{m[:4]}-{z}" for n, c, m, z in CLEAR])
+def test_snake_edges_clear(n, cols, mode, zoning, icon_path):
+    rows = -(-n // cols)
+    zones = [ZONINGS[zoning](r, icon_path) for r in range(rows)] if ZONINGS[zoning] else None
+    d = Diagram("S", "Snake")
+    d.snake([f"Step {k + 1}" for k in range(n)], cols, y=150, h=110, mode=mode, zones=zones)
+    assert _issues(build_scene(d, THEME)) == []
+
+
+RETURNS = [  # (id, steps, cols, kwargs, expected points of the first restart return edge)
+    # 5x2, no zones: step-2 bottom (1410, 320) → row gap middle 320 + 30 → lane 80 - 40 / 2 = 60 → step-3 left
+    # (80, 380 + 60)
+    ("5x2-plain", 5, 2, {"y": 200, "h": 120},
+     [(1410, 320), (1410, 350), (60, 350), (60, 440), (80, 440)]),
+    # zones pad 40 (see 4x3-zones-pad40-restart): step-3 bottom (798.667 + 144.667, 152.8) → zone gap middle
+    # 192.8 + 30 → lane 100 - 20 → step-4 left (140, 305.6 + 50)
+    ("4x3-zones", 4, 3, {"y": 0, "h": 100, "x": 100, "w": 1028,
+                         "zones": [{"label": "A", "padding": 40}, {"label": "B", "padding": 40}]},
+     [(943.333, 152.8), (943.333, 222.8), (80, 222.8), (80, 355.6), (140, 355.6)]),
+]
+
+
+@pytest.mark.parametrize("n,cols,kw,points", [t[1:] for t in RETURNS], ids=[t[0] for t in RETURNS])
+def test_restart_return_runs_through_the_row_gap_and_the_left_lane(n, cols, kw, points):
+    d = Diagram("S", "Snake")
+    d.snake([f"Step {k + 1}" for k in range(n)], cols, mode="restart", **kw)
+    conns = [i for i in build_scene(d, THEME).items if isinstance(i, Connector)]
+    assert [tuple(round(v, 3) for v in p) for p in conns[cols - 1].points] == points
+
+
+def _scene_rects(d):  # shapes by rect, connectors by points
+    items = build_scene(d, THEME).items
+    return ({i.id: (i.x, i.y, i.w, i.h) for i in items if isinstance(i, Shape)} |
+            {i.id: tuple(i.points) for i in items if isinstance(i, Connector)})
+
+
+STEPS = ["Init", {"title": "Join", "id": "join", "style": "dark"}, "ACL", "Token", "Agent"]
+YAML_PARITY = [  # (id, YAML snake row, DSL kwargs)
+    ("defaults", {"cols": 2, "y": 200, "h": 120}, {}),
+    ("all-keys", {"cols": 3, "y": 100, "h": 100, "x": 100, "w": 1028, "gap": 30, "row_gap": 50, "mode": "restart",
+                  "zones": ["A", {"label": "B", "id": "pb", "header": "right"}]},
+     {"x": 100, "w": 1028, "gap": 30, "row_gap": 50, "mode": "restart",
+      "zones": ["A", {"label": "B", "id": "pb", "header": "right"}]}),
+]
+
+
+@pytest.mark.parametrize("row,kw", [t[1:] for t in YAML_PARITY], ids=[t[0] for t in YAML_PARITY])
+def test_yaml_parity(row, kw):
+    y = from_dict({"id": "S", "title": "Snake", "snakes": [{"steps": STEPS, **row}]})
+    d = Diagram("S", "Snake")
+    d.snake([dict(s) if isinstance(s, dict) else s for s in STEPS], row["cols"], y=row["y"], h=row["h"], **kw)
+    assert y.snakes == d.snakes
+    assert _scene_rects(y) == _scene_rects(d)
+
+
+YAML_ERRORS = [  # (id, snake row, message)
+    ("unknown-key", {"steps": ["a"], "cols": 1, "y": 0, "h": 90, "rows": 2}, "S: snake has unknown keys ['rows']"),
+    ("missing", {"steps": ["a"], "y": 0}, "S: snake is missing keys ['cols', 'h']"),
+    ("builder-error", {"steps": ["a"], "cols": 1, "y": 0, "h": 90, "mode": "zig"},
+     "S: snake mode 'zig'; use boustrophedon or restart"),
+]
+
+
+@pytest.mark.parametrize("row,msg", [t[1:] for t in YAML_ERRORS], ids=[t[0] for t in YAML_ERRORS])
+def test_yaml_errors(row, msg):
+    with pytest.raises(ValueError) as err:
+        from_dict({"id": "S", "title": "Snake", "snakes": [row]})
+    assert str(err.value) == msg
+
+
+A04_PHASES = ["FASE 1 · CADA NÓ · CLOUD-INIT · USER-DATA", "FASE 2 · CADA NÓ · CLOUD-INIT · CONSUL",
+              "FASE 3 · PÓS-APPLY · MANUAL · ACL BOOTSTRAP"]
+
+
+def test_a04_is_one_clean_snake_call():
+    d = Diagram("A04", "Consul bootstrap")
+    d.snake([f"Step {k + 1}" for k in range(12)], cols=4, y=170, h=120, zones=A04_PHASES)
+    assert all(e.via is None and "." not in e.src and "." not in e.dst for e in d.edges)  # no hand anchors or via
+    sc = build_scene(d, THEME)
+    assert _issues(sc) == []
+    assert len([i for i in sc.items if isinstance(i, Connector)]) == 11

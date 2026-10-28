@@ -150,7 +150,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (steps 5–14 × cols 2–5 × mode × zones) asserts card rects and per-row direction against hand-computed values; fewer steps than cols → one left-aligned row; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(layout): lay out snakes`
 
-### T15: Snake edges clear and YAML
+### T15: Snake edges clear and YAML ✅
 **What**: Snake renders with 0 header crossings and 0 edges through boxes; YAML `snakes:`.
 **Where**: `src/spinagram/yaml_io.py`, `src/spinagram/engine/model_passes.py` (if needed)
 **Depends on**: T14 · **Reuses**: T2/T3 · **Requirement**: SNK-05, SNK-07
