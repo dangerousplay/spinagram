@@ -227,7 +227,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (origin canvas / safe at margins 80 and 40) via `check --fix` on a `.py` spec → exact `label_at` suggestion; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `fix(fix): safe-origin suggestions in safe coordinates`
 
-### T23: Nested zones count as content
+### T23: Nested zones count as content ✅
 **What**: `zone-underused` content = child zones + free nodes, overlaps once; undeclared child zone detection.
 **Where**: `src/spinagram/qa.py`
 **Depends on**: T22 · **Reuses**: `_overlap` · **Requirement**: ZUN-01..03

@@ -408,8 +408,36 @@ def fix_for(scene: Scene, i: Issue) -> dict | None:
 UNDERUSED = 0.35  # content fill ratio below which a zone is reported (theme defaults.check.underused)
 
 
+def _union_area(rects) -> float:
+    """Area covered by axis-aligned rectangles ``(x, y, w, h)``, overlaps counted once."""
+    rects = [r for r in rects if r[2] > 0 and r[3] > 0]
+    xs = sorted({v for x, _, w, _ in rects for v in (x, x + w)})
+    total = 0.0
+    for x0, x1 in zip(xs, xs[1:]):
+        spans = sorted((y, y + h) for x, y, w, h in rects if x <= x0 and x + w >= x1)
+        top = covered = 0.0
+        for k, (y0, y1) in enumerate(spans):
+            if k == 0 or y0 > top:
+                covered, top = covered + y1 - y0, y1
+            elif y1 > top:
+                covered, top = covered + y1 - top, y1
+        total += covered * (x1 - x0)
+    return total
+
+
+def _clip(r, area) -> tuple[float, float, float, float]:
+    x0, y0 = max(r[0], area[0]), max(r[1], area[1])
+    x1, y1 = min(r[0] + r[2], area[0] + area[2]), min(r[1] + r[3], area[1] + area[3])
+    return (x0, y0, max(0.0, x1 - x0), max(0.0, y1 - y0))
+
+
+def _mostly_in(s, z) -> bool:
+    return bool(s.w * s.h) and _overlap((s.x, s.y, s.w, s.h), (z.x, z.y, z.w, z.h)) > 0.5 * s.w * s.h
+
+
 def zone_issues(scene: Scene) -> list[Issue]:
-    """Children sticking out of their zone, and zones mostly empty."""
+    """Children sticking out of their zone, and zones mostly empty. A zone's content is its direct child zones
+    plus the nodes not inside one of them, clipped to the area below the header, overlaps counted once (ZUN-01)."""
     out: list[Issue] = []
     shapes = scene.shapes()
     zones = {k: s for k, s in shapes.items() if s.role == "zone" and re.fullmatch(r"z\d+", k)}
@@ -417,19 +445,27 @@ def zone_issues(scene: Scene) -> list[Issue]:
     for zid, z in zones.items():
         if zid in scene.zone_children:
             kids = [shapes[c] for c in scene.zone_children[zid] if c in shapes]
-        else:  # undeclared: nodes mostly inside the outline
-            kids = [s for s in shapes.values() if s.role == "node" and s.w * s.h and
-                    _overlap((s.x, s.y, s.w, s.h), (z.x, z.y, z.w, z.h)) > 0.5 * s.w * s.h]
+            subs = [c for c in kids if c.id in zones]
+            nodes = [c for c in kids if c.id not in zones]
+        else:  # undeclared: nodes and zones mostly inside the outline (ZUN-02)
+            kids = [s for s in shapes.values() if s.role == "node" and _mostly_in(s, z)]
+            # smaller zones only: a parent can lie mostly inside a big child; direct children: not inside a
+            # larger candidate
+            inner = [s for s in zones.values() if s.w * s.h < z.w * z.h and _mostly_in(s, z)]
+            subs = [s for s in inner if not any(o.w * o.h > s.w * s.h and _mostly_in(s, o) for o in inner)]
+            nodes = kids
         for c in kids:
             past = {"left": z.x - c.x, "top": z.y - c.y, "right": c.x + c.w - z.x - z.w, "bottom": c.y + c.h - z.y - z.h}
             side = max(past, key=lambda k: past[k])
             if past[side] > 0.5:
                 out.append(Issue(scene.id, zid, "zone-clips-child", f"{c.id!r} extends {past[side]:.0f}px past "
                                  f"the {side} side"))
+        free = [c for c in nodes if not any(_mostly_in(c, sz) for sz in subs)]
         hx, hy, hw, hh = scene.zone_headers.get(zid, (z.x, z.y, 0, 0))  # header "none": no header rect
-        area = z.w * (z.y + z.h - (hy + hh))
-        used = sum(_overlap((c.x, c.y, c.w, c.h), (z.x, hy + hh, z.w, z.y + z.h - hy - hh)) for c in kids)
-        if kids and area > 0 and used / area < limit:
+        content = (z.x, hy + hh, z.w, z.y + z.h - hy - hh)
+        area = content[2] * content[3]
+        used = _union_area([_clip((c.x, c.y, c.w, c.h), content) for c in subs + free])
+        if (subs or free) and area > 0 and used / area < limit:
             out.append(Issue(scene.id, zid, "zone-underused", f"content fills {used / area:.0%} of the zone "
                              f"(< {limit:.0%}); shrink it, use fit: children, or drop equalize"))
     return out
