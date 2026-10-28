@@ -113,6 +113,15 @@ def _depth(zid: str, parents: dict[str, str]) -> int:
     return n
 
 
+def content_area(z: Zone, theme: Theme) -> tuple[float, float, float, float]:
+    """(x0, y0, x1, y1) free for a zone's content: ``padding`` (default 24) inside the outline, below the header."""
+    pad = z.padding if z.padding is not None else FIT_PADDING
+    zs = theme.zone_style(z.color)
+    icons = len(z.icon) if isinstance(z.icon, list) else int(bool(z.icon or zs["icon"]))
+    top = content_top(z, icons, theme.defaults("zone").get("label_size", 16), header_options(z, zs, theme))
+    return z.x + pad, top, z.x + z.w - pad, z.y + z.h - pad
+
+
 def bands(d, theme: Theme) -> None:
     """Zones with ``band=(y0, y1)`` span it vertically; without ``w`` they take the safe width (canvas − 2 margins)."""
     m = (theme.get("canvas") or {}).get("margin", 80)

@@ -43,20 +43,29 @@ def min_width(n, theme: Theme) -> float:
 def containers(d: Diagram, theme: Theme) -> None:
     """Size and place the nodes of each ``row``/``column`` container."""
     from ..autolayout.sizing import auto_size
+    from .zones import content_area
 
     nodes = {n.id: n for n in d.nodes}
+    zones = {z.id: z for z in d.zones}
     for c in d.containers:
         members = [nodes[i] for i in c.children if i in nodes]
         if not members:
             continue
+        k = len(members)
+        area = content_area(zones[c.zone], theme) if c.zone is not None else None  # zone rows: (x0, y0, x1, y1)
+        if area and c.cols and k > c.cols:
+            raise ValueError(f"{d.id}: {c.axis} in zone {c.zone!r} has {k} members, more than cols={c.cols}")
+        max_width = c.max_width if c.max_width is not None or area is None else area[2] - area[0]
         fixed_h = {m.id: bool(m.h) for m in members}
         for m in members:
             if not (m.w and m.h):
                 m.w, m.h = auto_size(m, theme)
-        k = len(members)
         if c.axis == "row":
-            room = None if c.max_width is None else (c.max_width - c.gap * (k - 1))
-            if c.same_size:
+            room = None if max_width is None else (max_width - c.gap * (k - 1))
+            if area and c.cols:  # each member 1/cols of the content width
+                for m in members:
+                    m.w = (area[2] - area[0] - c.gap * (c.cols - 1)) / c.cols
+            elif c.same_size:
                 width = max(m.w for m in members)
                 if room is not None:
                     width = min(width, room / k)
@@ -66,10 +75,10 @@ def containers(d: Diagram, theme: Theme) -> None:
                 f = room / sum(m.w for m in members)
                 for m in members:
                     m.w *= f
-        elif c.max_width is not None or c.same_size:
+        elif max_width is not None or c.same_size:
             width = max(m.w for m in members) if c.same_size else None
             for m in members:
-                m.w = min(width or m.w, c.max_width or float("inf"))
+                m.w = min(width or m.w, max_width or float("inf"))
         widest = max(members, key=lambda m: min_width(m, theme) - m.w)
         if min_width(widest, theme) > widest.w + 0.5:
             raise ValueError(f"{d.id}: {c.axis} cannot fit {widest.id!r} in {widest.w:.0f}px "
@@ -87,12 +96,20 @@ def containers(d: Diagram, theme: Theme) -> None:
             for m in members:
                 if m.icon and sizes:
                     m.icon_size = min(sizes)
-        pos = c.x if c.axis == "row" else c.y
+        cx, cy = c.x, c.y
+        if area:  # place the block in the zone's content area by align (default center)
+            row = c.axis == "row"
+            bw = sum(m.w for m in members) + c.gap * (k - 1) if row else max(m.w for m in members)
+            bh = max(m.h for m in members) if row else sum(m.h for m in members) + c.gap * (k - 1)
+            align = c.align or "center"
+            cx = {"start": area[0], "center": (area[0] + area[2] - bw) / 2, "end": area[2] - bw}[align]
+            cy = area[1] if align == "start" else (area[1] + area[3] - bh) / 2
+        pos = cx if c.axis == "row" else cy
         for m in members:
             if c.axis == "row":
-                m.x, m.y, pos = pos, c.y, pos + m.w + c.gap
+                m.x, m.y, pos = pos, cy, pos + m.w + c.gap
             else:
-                m.x, m.y, pos = c.x, pos, pos + m.h + c.gap
+                m.x, m.y, pos = cx, pos, pos + m.h + c.gap
 
 
 def icon_size(n, nd: dict) -> float:

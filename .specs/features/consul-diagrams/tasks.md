@@ -115,7 +115,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT of call shapes → container fields / nodes returned / errors; old `row(items, x, y, w, h)` path unchanged (asserted positions); gate passes.
 **Tests**: unit · **Gate**: full · **Commit**: `feat(dsl): rows and columns inside zones`
 
-### T10: Zone container placement
+### T10: Zone container placement ✅
 **What**: `containers` pass: zone content area, default `max_width`, `cols` widths, `align` placement (center/start/end), cols overflow error.
 **Where**: `src/spinagram/engine/model_passes.py`
 **Depends on**: T9 · **Reuses**: `content_top`, `header_options`, `FIT_PADDING`, `min_width` · **Requirement**: BND-02, BND-03, BND-06, BND-07
