@@ -339,6 +339,9 @@ def _anchor_fix(scene: Scene, edge_id: str) -> dict | None:
     """First anchor pair on the edge's sides (source fraction outer loop) whose straight segment crosses no
     header and no other node; else reroute to ortho. Only straight edges between two nodes get one."""
     c = next((c for c in scene.items if isinstance(c, Connector) and c.id == edge_id), None)
+    # SPEC_DEVIATION: HDR-04 gives every crossing edge between two nodes an anchor fix or a reroute; `via` and
+    # `curve` edges get no fix. Reason: the builder ignores `route` when `via`/`curve` is set (they win), and new
+    # anchors leave the author's bend points, so neither fix reliably removes the crossing.
     if c is None or c.route != "straight" or c.src is None or c.dst is None or \
             c.src.target != "node" or c.dst.target != "node":
         return None

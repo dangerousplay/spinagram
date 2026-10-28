@@ -50,6 +50,7 @@ to review every render.
 | YAML parity | Every new Python API has a YAML equivalent | Project goal | y |
 | Test style | DDT: each requirement exercised through a `pytest.mark.parametrize` scenario table with readable `ids=` | 0.4 user rule | y |
 | Placement checks | New geometry checks (`edge-crosses-zone-header`, `text-scale-mismatch`, nested `zone-underused`) run on hand-placed diagrams only; `icon-overlaps-text`, `glyph-mapped` and `icon-generic-for-service` run on every scene | Same split as 0.4 (`qa.py:375`): engines own their own placement | n (agent default) |
+| Header-crossing fix on `via` / `curve` edges | No fix (HDR-04 asks for an anchor fix or reroute on every edge joining two nodes) | `via` / `curve` win over `route`, so a reroute is ignored, and new anchors keep the author's bend points, so the crossing usually stays. `SPEC_DEVIATION` at `qa.py` `_anchor_fix`; pinned by `test_cd_headers.py` `via-no-fix` | n (agent default) |
 | Header obstacle exemption | The router ignores the header of a zone the edge ends on (zone endpoint) | Otherwise a zone target is unreachable from the top | n (agent default) |
 | Centred icon gap | Theme `defaults.node.icon_text_gap`, default 8 px; icon floor `defaults.node.icon_min`, default 24 px | Roadmap #2 names `icon_min`; 8 px matches the header gap scale | n (agent default) |
 | `align="auto"` rule | Top icon when `h > w` and the text fits the centred layout at base size; left icon otherwise | Roadmap #2 wording | n (agent default) |
