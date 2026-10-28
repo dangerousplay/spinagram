@@ -338,6 +338,24 @@ class Container:
 
 
 @dataclass
+class Snake:
+    """Steps laid out in rows of ``cols`` (``d.snake``); the snake model pass places the nodes and row zones."""
+    nodes: list[str]
+    zones: list[str]
+    cols: int
+    y: float
+    h: float
+    x: float | None = None      # None: the canvas margin
+    w: float | None = None      # None: canvas width − 2 × margin
+    gap: float = 40
+    row_gap: float = 60
+    mode: str = "boustrophedon"  # boustrophedon (odd rows right to left) | restart (every row left to right)
+
+
+SNAKE_MODES = ("boustrophedon", "restart")
+
+
+@dataclass
 class Table:
     x: float
     y: float
@@ -477,6 +495,7 @@ class Diagram:
     bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
     grids: list[Grid] = field(default_factory=list)            # ``d.grid(cols=[...], rows=[...])``
     constraints: list[tuple] = field(default_factory=list)     # (op, node ids...): align_x, align_y, center_on
+    snakes: list[Snake] = field(default_factory=list)          # ``d.snake(steps, cols, ...)``
     output: str | None = None     # stable output file name (``<output>.svg``); None: ``<id>-<slugified title>``
     requires: str | None = None   # spinagram version specifier this spec was written for (``>=0.4,<0.5``)
 
@@ -493,7 +512,7 @@ class Diagram:
     @property
     def auto(self) -> bool:
         """Laid out automatically: ``layout`` is set, or no node has a position (a size alone is a hint)."""
-        return self.layout is not None or (bool(self.nodes) and not self.containers and
+        return self.layout is not None or (bool(self.nodes) and not self.containers and not self.snakes and
                                            not any(n.x or n.y for n in self.nodes))
 
     # lookup -------------------------------------------------------------------
@@ -813,6 +832,44 @@ class Diagram:
     def set_legend(self, items: Iterable[tuple[str, str]], *, x: float, y: float) -> Legend:
         self.legend = Legend(x=x, y=y, items=list(items))
         return self.legend
+
+    def snake(self, steps: Sequence[Any], cols: int, *, y: float, h: float, x: float | None = None,
+              w: float | None = None, gap: float = 40, row_gap: float = 60, zones: Sequence[Any] | None = None,
+              mode: str = "boustrophedon", **edge_kw: Any) -> list[Node]:
+        """A multi-row process: one node per step (a title or a dict of node fields) in rows of ``cols``, chained
+        by edges (``edge_kw``; turns between rows are ``route="ortho"``). ``zones`` (labels or dicts of zone
+        fields) puts each row in its own zone. ``mode``: ``boustrophedon`` (odd rows right to left) or
+        ``restart``. Placed by the snake model pass; returns the nodes."""
+        if cols < 1:
+            raise ValueError(f"{self.id}: snake cols {cols}; use 1 or more")
+        if not steps:
+            raise ValueError(f"{self.id}: snake needs at least one step")
+        if mode not in SNAKE_MODES:
+            raise ValueError(f"{self.id}: snake mode {mode!r}; use {' or '.join(SNAKE_MODES)}")
+        rows = -(-len(steps) // cols)
+        if zones is not None and len(zones) != rows:
+            raise ValueError(f"{self.id}: snake has {rows} row{'s' * (rows != 1)} but {len(zones)} zones; "
+                             f"give {rows}")
+        nodes, made = [], []
+        for r in range(rows):
+            z = None
+            if zones is not None:
+                spec = dict(zones[r]) if isinstance(zones[r], dict) else {"label": zones[r]}
+                z = self.zone(**spec)
+                made.append(z.id)
+                self._open_zones.append(z)
+            try:
+                for item in steps[r * cols:(r + 1) * cols]:
+                    spec = dict(item) if isinstance(item, dict) else {"title": item}
+                    nodes.append(self.add(spec.pop("kind", "box"), spec.pop("title", None), **spec))
+            finally:
+                if z is not None:
+                    self._open_zones.pop()
+        for k, (a, b) in enumerate(zip(nodes, nodes[1:])):
+            kw = dict(edge_kw, route="ortho") if (k + 1) % cols == 0 else edge_kw  # turn: row r → r + 1
+            self.edge(a, b, **kw)
+        self.snakes.append(Snake([n.id for n in nodes], made, cols, y, h, x, w, gap, row_gap, mode))
+        return nodes
 
     # layout helpers -----------------------------------------------------------
     def _seq(self, items: Sequence[Any], axis: str, x: float, y: float, w: float, h: float, gap: float,

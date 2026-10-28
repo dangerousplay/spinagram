@@ -136,7 +136,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT sides × fractions: refs string and arrow tip on the outline (±0.5 px) outside the header interior; errors; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(dsl): zone anchors`
 
-### T13: Snake model and DSL
+### T13: Snake model and DSL ✅
 **What**: `Snake` dataclass, `Diagram.snakes`, `d.snake(...)` creating nodes, zones and edges; validation errors.
 **Where**: `src/spinagram/model.py`
 **Depends on**: T12 · **Reuses**: `add`, `_add_zone`, `edge` · **Requirement**: SNK-01, SNK-08
