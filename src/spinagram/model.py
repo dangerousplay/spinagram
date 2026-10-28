@@ -284,15 +284,20 @@ class Bundle:
 
 @dataclass
 class Container:
-    """Nodes placed side by side (``row``) or stacked (``column``) from (x, y), sized by the model passes."""
+    """Nodes placed side by side (``row``) or stacked (``column``) from (x, y), sized by the model passes.
+    A zone container (``zone`` set, x/y None) is placed in that zone's content area by ``align``."""
     axis: str                      # row | column
-    x: float
-    y: float
+    x: float | None
+    y: float | None
     gap: float = 20
     same_size: bool = False
     max_width: float | None = None
     same_icon_size: bool = False
     children: list[str] = field(default_factory=list)
+    zone: str | None = None        # the zone whose content area holds it
+    align: str | None = None       # center | start | end (None: center in a zone)
+    cols: int | None = None        # zone rows: members are 1/cols of the content width
+    same_text_scale: bool | None = None  # None: same_size
 
 
 @dataclass
@@ -793,9 +798,9 @@ class Diagram:
         return out
 
     @contextmanager
-    def _container(self, axis: str, x: float, y: float, gap: float, same_size: bool, max_width: float | None,
-                   same_icon_size: bool) -> Iterator[Container]:
-        c = Container(axis, x, y, gap, same_size, max_width, same_icon_size)
+    def _container(self, axis: str, x: float | None, y: float | None, gap: float, same_size: bool,
+                   max_width: float | None, same_icon_size: bool, **zone_kw: Any) -> Iterator[Container]:
+        c = Container(axis, x, y, gap, same_size, max_width, same_icon_size, **zone_kw)
         self.containers.append(c)
         self._open_containers.append(c)
         try:
@@ -803,29 +808,60 @@ class Diagram:
         finally:
             self._open_containers.pop()
 
-    def row(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
-            h: float | None = None, gap: float | None = None, kind: str = "box",
-            styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
-            same_icon_size: bool = False, **common: Any) -> Any:
-        """Place nodes left to right. With ``items`` (titles or dicts of node fields) and ``w``/``h``: the nodes.
-        Without items: ``with d.row(x=, y=, gap=, same_size=, max_width=):`` places the nodes created inside."""
+    def _box_seq(self, axis: str, items: Sequence[Any] | None, x: float | None, y: float | None,
+                 w: float | None, h: float | None, gap: float | None, kind: str,
+                 styles: Sequence[str | None] | None, same_size: bool, max_width: float | None,
+                 same_icon_size: bool, align: str | None, cols: int | None, same_text_scale: bool | None,
+                 common: dict) -> Any:
+        """``row``/``column``: absolute items (x, y, w, h all given), or a container (in the open zone when x/y
+        are not given) holding ``items`` and returning their nodes, or a ``with`` container without items."""
+        missing = [k for k, v in (("x", x), ("y", y)) if v is None]
+        zone = self._open_zones[-1].id if self._open_zones else None
+        if zone is None and missing:
+            raise TypeError(f"{self.id}: {axis} outside a zone needs x and y (missing: {', '.join(missing)})")
+        if zone is not None and len(missing) == 1:
+            raise TypeError(f"{self.id}: {axis} in zone {zone!r} takes both x and y or neither "
+                            f"(missing: {missing[0]})")
+        if not missing:
+            zone = None  # placed by hand
+        if align is not None and align not in ("center", "start", "end"):
+            raise ValueError(f"{self.id}: {axis} align {align!r}; use center, start or end")
+        if cols is not None and cols < 1:
+            raise ValueError(f"{self.id}: {axis} cols {cols}; use 1 or more")
+        if zone is None and (cols is not None or align is not None):
+            raise ValueError(f"{self.id}: {axis} cols and align need a zone (call it inside `with d.zone(...)`)")
+        seq_axis = "x" if axis == "row" else "y"
+        if items is not None and zone is None and w is not None and h is not None:  # the 0.4 absolute form
+            return self._seq(items, seq_axis, x, y, w, h, (60 if axis == "row" else 40) if gap is None else gap,
+                             kind, styles, **common)
+        ctx = self._container(axis, x, y, 20 if gap is None else gap, same_size, max_width, same_icon_size,
+                              zone=zone, align=align, cols=cols, same_text_scale=same_text_scale)
         if items is None:
-            return self._container("row", x, y, 20 if gap is None else gap, same_size, max_width, same_icon_size)
-        if w is None or h is None:
-            raise TypeError("row(items, ...) needs w and h")
-        return self._seq(items, "x", x, y, w, h, 60 if gap is None else gap, kind, styles, **common)
+            return ctx
+        with ctx:  # sized and placed by the model passes; w/h, when given, are each node's size
+            return self._seq(items, seq_axis, 0, 0, w or 0, h or 0, 0, kind, styles, **common)
 
-    def column(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
-               h: float | None = None, gap: float | None = None, kind: str = "box",
+    def row(self, items: Sequence[Any] | None = None, *, x: float | None = None, y: float | None = None,
+            w: float | None = None, h: float | None = None, gap: float | None = None, kind: str = "box",
+            styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
+            same_icon_size: bool = False, align: str | None = None, cols: int | None = None,
+            same_text_scale: bool | None = None, **common: Any) -> Any:
+        """Place nodes left to right. With ``items`` (titles or dicts of node fields) and ``x``/``y``/``w``/``h``:
+        the nodes at those places. With ``items`` but no size or no x/y: a container holding them; returns the
+        nodes. Without items: ``with d.row(x=, y=, gap=, same_size=, max_width=):`` places the nodes created
+        inside. Inside ``with d.zone(...)`` without x/y the row is placed in the zone's content area by ``align``
+        (center, start, end); ``cols=N`` makes each member 1/N of the content width."""
+        return self._box_seq("row", items, x, y, w, h, gap, kind, styles, same_size, max_width, same_icon_size,
+                             align, cols, same_text_scale, common)
+
+    def column(self, items: Sequence[Any] | None = None, *, x: float | None = None, y: float | None = None,
+               w: float | None = None, h: float | None = None, gap: float | None = None, kind: str = "box",
                styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
-               same_icon_size: bool = False, **common: Any) -> Any:
-        """Place nodes top to bottom; without items, a ``with`` container like :meth:`row`."""
-        if items is None:
-            return self._container("column", x, y, 20 if gap is None else gap, same_size, max_width,
-                                   same_icon_size)
-        if w is None or h is None:
-            raise TypeError("column(items, ...) needs w and h")
-        return self._seq(items, "y", x, y, w, h, 40 if gap is None else gap, kind, styles, **common)
+               same_icon_size: bool = False, align: str | None = None, cols: int | None = None,
+               same_text_scale: bool | None = None, **common: Any) -> Any:
+        """Place nodes top to bottom; the same forms as :meth:`row`."""
+        return self._box_seq("column", items, x, y, w, h, gap, kind, styles, same_size, max_width,
+                             same_icon_size, align, cols, same_text_scale, common)
 
     # rendering shortcut -------------------------------------------------------
     def save(self, out_dir: str | Path = "out", *, theme: Any = None, formats: Sequence[str] = ("svg",),

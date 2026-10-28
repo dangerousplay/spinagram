@@ -108,7 +108,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (band × explicit x/w × margin 40/80) asserts zone rect; error row; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(zones): vertical bands`
 
-### T9: Zone-attached containers in the DSL
+### T9: Zone-attached containers in the DSL ✅
 **What**: `row/column` x/y optional; inside an open zone the container records `zone`; `row(items)` without w/h or x/y creates a container and returns nodes; outside a zone missing x/y → `TypeError`; new fields `align`, `cols`, `same_text_scale`.
 **Where**: `src/spinagram/model.py`
 **Depends on**: T8 · **Reuses**: `_container`, `_seq` · **Requirement**: BND-04, BND-05

@@ -96,8 +96,10 @@ def test_legacy_function_forms_unchanged():  # BOX-05
     c = d.column(["C", "D"], x=100, y=400, w=200, h=80)
     assert [(n.x, n.y, n.w, n.h) for n in a] == [(100, 100, 200, 80), (360, 100, 200, 80)]
     assert [(n.x, n.y, n.w, n.h) for n in c] == [(100, 400, 200, 80), (100, 520, 200, 80)]
-    with pytest.raises(TypeError, match="needs w and h"):
-        d.row(["E"], x=0, y=0)
+    # intended change (consul-diagrams BND-04): items without w/h no longer raise "needs w and h"; they become
+    # a container at (x, y) sized from their content, and the nodes are returned
+    e = d.row(["E"], x=0, y=0)
+    assert [n.id for n in e] == ["e"] and d.containers[-1].children == ["e"]
 
 
 def test_container_yaml_parity():  # BOX-02 YAML
