@@ -199,7 +199,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT of lookups and distribute inputs → hand-computed xs/w or errors; gate passes.
 **Tests**: unit · **Gate**: quick · **Commit**: `feat(dsl): node lookup and distribute`
 
-### T21: Elbow route
+### T21: Elbow route ✅
 **What**: `Edge.mid`, `route="elbow"`, route validation, YAML.
 **Where**: `src/spinagram/model.py`, `src/spinagram/engine/endpoints.py`, `src/spinagram/layout.py`, `src/spinagram/yaml_io.py`
 **Depends on**: T20 · **Reuses**: `Binding.side` · **Requirement**: HLP-04, HLP-05

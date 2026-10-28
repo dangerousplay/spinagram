@@ -160,10 +160,12 @@ class Edge:
     cls: str | None = None
     css: str | None = None
     fan: str | None = None      # "bus": into a zone through a bar spanning the zone's children
-    route: str | None = None    # "ortho": routed around boxes, avoiding crossings; None: straight (or defaults)
+    route: str | None = None    # "ortho": routed around boxes, avoiding crossings; "elbow": two bends at ``mid``;
+    # None: straight (or defaults.edge.route)
     fan_in: bool = False        # edges into the same target with fan_in share one trunk and one arrowhead
     meaning: str | None = None  # legend label for this edge style (``d.legend(items="auto")``)
     straight: bool = False      # anchor both ends on the boxes' shared span so the edge is axis-aligned
+    mid: float | None = None    # route="elbow": the middle segment's y (vertical exit) or x; None: the midpoint
 
     def step(self, text: str, n: int | None = None) -> "Step":
         """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""
@@ -354,6 +356,7 @@ class Snake:
 
 SNAKE_MODES = ("boustrophedon", "restart")
 ORIGINS = ("canvas", "safe")
+EDGE_ROUTES = (None, "ortho", "elbow")
 
 
 @dataclass
@@ -672,6 +675,8 @@ class Diagram:
                 setattr(e, k, v)
         else:
             e = Edge(src=_endpoint(src), dst=_endpoint(dst), **kw)
+        if e.route not in EDGE_ROUTES:
+            raise ValueError(f"{self.id}: edge route {e.route!r}; use ortho, elbow or none")
         if e.via:
             e.via = [(float(p[0]), float(p[1])) for p in e.via]
         self._check_pseudo(e)

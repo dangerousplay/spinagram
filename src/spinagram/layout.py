@@ -418,6 +418,8 @@ class _Builder:
             pts, route = [p1, *e.via, p2], "poly"
         elif e.curve:
             pts, route = [p1, (float(e.curve[0]), float(e.curve[1])), p2], "curve"
+        elif e.route == "elbow":
+            pts, route = endpoints.elbow(p1, b1, p2, e.mid), "poly"
         else:
             pts, route = [p1, p2], "straight"
         label = None
