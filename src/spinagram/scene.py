@@ -238,6 +238,7 @@ class Scene:
     not_straight: list[str] = field(default_factory=list)  # straight=True edges that could not be made straight
     icon_sources: dict[str, tuple] = field(default_factory=dict)  # icon name → (resolved ref, source)
     vendor_hints: dict[str, tuple[str, str, str]] = field(default_factory=dict)  # node → (title, vendor ref, icon)
+    glyph_mapped: dict[str, str] = field(default_factory=dict)  # char → replacement (theme text.glyph_map)
     version_mismatch: tuple[str, str] | None = None  # (requires, installed) when the spec's pin is not met
 
     def shapes(self) -> dict[str, Shape]:

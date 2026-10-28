@@ -15,7 +15,8 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
             "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1",
-            "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0", "icon-generic-for-service": "P2"}
+            "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0", "icon-generic-for-service": "P2",
+            "glyph-mapped": "P2"}
 
 
 @dataclass
@@ -440,6 +441,8 @@ def check(scene: Scene) -> list[Issue]:
     issues += [Issue(scene.id, item, kind, detail) for item, kind, detail in scene.annotation_issues]
     issues += [Issue(scene.id, "glyphs", "glyph-missing", f"{ch!r} (U+{ord(ch):04X}) in {role} font, fell back to {fam}")
                for ch, role, fam in scene.fallbacks]
+    issues += [Issue(scene.id, "glyphs", "glyph-mapped", f"'{ch}' (U+{ord(ch):04X}) replaced by '{rep}' (theme glyph_map)")
+               for ch, rep in scene.glyph_mapped.items()]
     over = scene.layout_overflow
     if over:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "

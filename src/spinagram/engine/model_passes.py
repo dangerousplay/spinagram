@@ -186,6 +186,66 @@ def snakes(d: Diagram, theme: Theme) -> None:
                 e.via = [(src.x + src.w / 2, gy), (lane, gy), (lane, by)]
 
 
+def _texts(d: Diagram, fn) -> None:
+    """Every diagram text (GLM-01) through ``fn`` (value → value), in place."""
+    for attr in ("title", "subtitle", "kicker", "source"):
+        setattr(d, attr, fn(getattr(d, attr)))
+    for n in d.nodes:
+        n.title, n.text, n.lines = fn(n.title), fn(n.text), fn(n.lines)
+    for e in d.edges:
+        e.label = fn(e.label)
+    for z in d.zones:
+        z.label = fn(z.label)
+    for g in d.groups:
+        g.label = fn(g.label)
+    for t in d.tables:
+        t.header, t.rows = fn(t.header), [fn(r) for r in t.rows]
+    if d.legend:
+        d.legend.items = [(c, fn(lab)) for c, lab in d.legend.items]
+    a = d.annotations
+    if a.legend:
+        a.legend.title = fn(a.legend.title)
+        if a.legend.items:
+            a.legend.items = {k: fn(v) for k, v in a.legend.items.items()}
+    for st in a.steps:
+        st.text = fn(st.text)
+    for c in a.callouts:
+        c.text, c.title = fn(c.text), fn(c.title)
+
+
+def glyph_map(d: Diagram, theme: Theme) -> Diagram:
+    """A copy of ``d`` with the theme's ``text.glyph_map`` applied to every text (``d`` when no text holds a
+    mapped character); the characters replaced are in ``copy.__dict__["_glyph_mapped"]`` (char → replacement,
+    theme order) for ``qa``'s ``glyph-mapped`` issues."""
+    gm = {k: v for k, v in ((theme.get("text") or {}).get("glyph_map") or {}).items() if k != v}  # identity: no-op
+    if not gm:
+        return d
+    seen: set[str] = set()
+
+    def scan(v):
+        if isinstance(v, str):
+            seen.update(ch for ch in v if ch in gm)
+        elif isinstance(v, list):
+            for x in v:
+                scan(x)
+        return v
+
+    _texts(d, scan)
+    if not seen:
+        return d
+    table = str.maketrans(gm)
+
+    def sub(v):
+        if isinstance(v, str):
+            return v.translate(table)
+        return [sub(x) for x in v] if isinstance(v, list) else v
+
+    out = copy.deepcopy(d)
+    _texts(out, sub)
+    out.__dict__["_glyph_mapped"] = {k: v for k, v in gm.items() if k in seen}
+    return out
+
+
 def _with_h0(n):
     m = copy.copy(n)
     m.h = 0
@@ -193,7 +253,9 @@ def _with_h0(n):
 
 
 def apply(d: Diagram, theme: Theme) -> Diagram:
-    """A copy of ``d`` with every model pass applied (``d`` itself when there is nothing to do)."""
+    """A copy of ``d`` with every model pass applied (``d`` itself when there is nothing to do). The glyph map
+    runs on every diagram, engine-laid-out ones included; the placement passes on hand-placed ones."""
+    source, d = d, glyph_map(d, theme)
     if d.auto or d.meta.get("laid_out"):
         return d
     unsized = any(not (n.w and n.h) and n.kind not in SIZED_KINDS_SKIP for n in d.nodes)
@@ -202,7 +264,8 @@ def apply(d: Diagram, theme: Theme) -> Diagram:
         return d
     from .zones import bands, fit_children
 
-    d = copy.deepcopy(d)
+    if d is source:
+        d = copy.deepcopy(d)
     snakes(d, theme)  # before bands: rows read the zone header height
     bands(d, theme)  # before containers: zone rows read the zone rect
     containers(d, theme)

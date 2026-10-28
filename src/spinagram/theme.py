@@ -93,6 +93,20 @@ def _load_raw(ref: str | Path, relative_to: Path | None = None, seen: set[Path] 
     return own
 
 
+def _check_glyph_map(raw: dict, name: str) -> None:
+    """``text.glyph_map`` maps single characters to replacement strings (GLM-04)."""
+    gm = (raw.get("text") or {}).get("glyph_map")
+    if gm is None:
+        return
+    if not isinstance(gm, dict):
+        raise ValueError(f"theme {name!r}: text.glyph_map must be a mapping of characters, got {gm!r}")
+    for k, v in gm.items():
+        if not (isinstance(k, str) and len(k) == 1):
+            raise ValueError(f"theme {name!r}: text.glyph_map key {k!r} is not a single character")
+        if not isinstance(v, str):
+            raise ValueError(f"theme {name!r}: text.glyph_map value for {k!r} must be a string, got {v!r}")
+
+
 @dataclass
 class FontRef:
     family: str
@@ -117,6 +131,7 @@ class Theme:
     def load(cls, ref: str | Path | None = None) -> "Theme":
         ref = ref or os.environ.get("SPINAGRAM_THEME") or "default"
         raw = _load_raw(ref)
+        _check_glyph_map(raw, Path(raw["_root"]).name)
         return cls(raw, Path(raw["_root"]))
 
     def stylesheets(self) -> list[Path]:

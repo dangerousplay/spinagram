@@ -178,7 +178,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (icon source theme/concept/pack × flag) → issue + exact detail or swapped icon path; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(check): hint vendor icons for cloud services`
 
-### T18: Theme glyph map
+### T18: Theme glyph map ✅
 **What**: `text.glyph_map` validation, model pass replacing text, `glyph-mapped` issues, no `glyph-missing` for mapped chars.
 **Where**: `src/spinagram/theme.py`, `src/spinagram/engine/model_passes.py`, `src/spinagram/layout.py`, `src/spinagram/qa.py`, `src/spinagram/scene.py`
 **Depends on**: T17 · **Reuses**: `apply_facts` walk pattern · **Requirement**: GLM-01..04
