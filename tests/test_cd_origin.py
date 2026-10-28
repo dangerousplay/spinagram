@@ -250,3 +250,29 @@ def test_move_label_fix_lands_in_spec_coordinates(origin, label_at):
     fix = {"op": "move-label", "edge": "e0", "to": [500, 300]}           # scene coordinates
     out, applied, _ = apply_to_diagram(d, [Issue("O", "e0", "label-collision", "x", fix=fix)])
     assert len(applied) == 1 and out.edges[0].label_at == label_at
+
+
+# G2: Python suggestions print move-label targets in the spec's coordinates ------------------------------------------
+SUGGEST = [  # (id, origin, theme margin, node shift into the spec's coordinates, expected suggestion)
+    ("canvas", "canvas", 80, 0, "e0: label_at=(430, 368.5)"),     # the fix target in scene (canvas) coordinates
+    ("safe-80", "safe", 80, 80, "e0: label_at=(350, 288.5)"),     # 430 − 80, 368.5 − 80
+    ("safe-40", "safe", 40, 40, "e0: label_at=(390, 328.5)"),     # 430 − 40, 368.5 − 40
+]
+
+
+@pytest.mark.parametrize("origin,margin,shift,line", [s[1:] for s in SUGGEST], ids=[s[0] for s in SUGGEST])
+def test_python_move_label_suggestion_in_spec_coordinates(tmp_path, monkeypatch, capsys, origin, margin, shift,
+                                                          line):
+    from spinagram.cli import main
+
+    (tmp_path / "th").mkdir()
+    (tmp_path / "th" / "theme.yaml").write_text(f"extends: default\ncanvas: {{margin: {margin}}}\n")
+    src = (f"from spinagram import Diagram\nd = Diagram('S', 'Suggest', origin={origin!r})\n"
+           f"d.box('A', id='a', x={200 - shift}, y={400 - shift}, w=200, h=100)\n"
+           f"d.box('B', id='b', x={460 - shift}, y={400 - shift}, w=200, h=100)\n"
+           "d.edge('a', 'b', 'replication')\ndiagram = d\n")
+    (tmp_path / "s.py").write_text(src)
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--fix", "-t", str(tmp_path / "th"), "s.py"])
+    out = capsys.readouterr().out.splitlines()
+    assert [row for row in out if "label_at" in row] == [f"s.py: {line}"]

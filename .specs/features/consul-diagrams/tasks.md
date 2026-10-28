@@ -220,11 +220,11 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (fact only / fact + spec / spec only / none) → mapped title and exact `glyph-mapped` details; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `fix(theme): apply the glyph map to fact values`
 
-### G2: Safe-origin fix suggestions
+### G2: Safe-origin fix suggestions ✅
 **What**: For `origin="safe"` Python specs, `suggest_python` prints move-label `label_at` in the spec's (safe) coordinates, like `apply_to_diagram`.
-**Where**: `src/spinagram/engine/fix.py` (`suggest_python`)
+**Where**: `src/spinagram/engine/fix.py` (`suggest_python(offset=)`), `src/spinagram/cli.py` (`_fix` passes the margin per safe-origin diagram)
 **Depends on**: G1 · **Reuses**: `apply_to_diagram` margin handling · **Requirement**: ORG-01
-**Done when**: DDT (origin canvas/safe × margin) → exact suggestion text; gate passes.
+**Done when**: DDT (origin canvas / safe at margins 80 and 40) via `check --fix` on a `.py` spec → exact `label_at` suggestion; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `fix(fix): safe-origin suggestions in safe coordinates`
 
 ### T23: Nested zones count as content

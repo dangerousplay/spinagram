@@ -235,8 +235,10 @@ def _fix(diagrams, theme) -> int:
                                               allow_unicode=True, width=120), encoding="utf-8")
                 print(f"{out}: {len(applied)} fix(es) applied")
         else:
-            for line in suggest_python(applied):
-                print(f"{src}: {line}" if src else line)
+            margin = (theme.get("canvas") or {}).get("margin", 80)
+            for d, (_, a, _) in zip(ds, results):
+                for line in suggest_python(a, margin if d.origin == "safe" else 0):
+                    print(f"{src}: {line}" if src else line)
         for i in remaining:
             print(i)
     print(f"{len(diagrams)} diagram(s), {remaining_p0} P0 issue(s) left")

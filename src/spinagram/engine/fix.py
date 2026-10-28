@@ -81,13 +81,15 @@ def fix_until_clean(d: Diagram, theme, rounds: int = 3) -> tuple[Diagram, list, 
     return cur, applied_all, check(build_scene(cur, theme))
 
 
-def suggest_python(issues) -> list[str]:
-    """One suggested edit per applied fix, for specs that cannot be rewritten (``node: w=240``)."""
+def suggest_python(issues, offset: float = 0) -> list[str]:
+    """One suggested edit per applied fix, for specs that cannot be rewritten (``node: w=240``). ``offset`` is
+    the margin of an ``origin="safe"`` spec: positions are printed in its coordinates, as ``apply_to_diagram``
+    writes them."""
     out = []
     for i in issues:
         f = i.fix
         if f["op"] == "move-label":
-            out.append(f"{f['edge']}: label_at=({f['to'][0]:g}, {f['to'][1]:g})")
+            out.append(f"{f['edge']}: label_at=({f['to'][0] - offset:g}, {f['to'][1] - offset:g})")
         elif f["op"] == "nudge":
             out.append(f"{f['node']}: move by dx={f['dx']:g}, dy={f['dy']:g}")
         elif f["op"] == "anchor":
