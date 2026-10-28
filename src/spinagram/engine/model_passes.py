@@ -138,6 +138,42 @@ def constraints(d: Diagram) -> None:
                 n.y = first.y + first.h / 2 - n.h / 2
 
 
+def snakes(d: Diagram, theme: Theme) -> None:
+    """Place each snake: rows of ``cols`` cards stacked ``row_gap`` apart from ``y`` (between zone outlines when
+    each row has a zone), odd rows right to left in boustrophedon; in-row edges anchored on facing sides."""
+    from .zones import FIT_PADDING, content_top, header_options
+
+    m = (theme.get("canvas") or {}).get("margin", 80)
+    label_size = theme.defaults("zone").get("label_size", 16)
+    nodes, zones = {n.id: n for n in d.nodes}, {z.id: z for z in d.zones}
+    for s in d.snakes:
+        x0 = m if s.x is None else s.x
+        width = s.w or theme.canvas[0] - 2 * m
+        top, row_of = s.y, {}
+        for r in range(-(-len(s.nodes) // s.cols)):
+            ids = s.nodes[r * s.cols:(r + 1) * s.cols]
+            z = zones[s.zones[r]] if s.zones else None
+            pad = (z.padding if z.padding is not None else FIT_PADDING) if z else 0
+            cy = top
+            if z:  # the zone spans the row; the cards sit in its content area
+                z.x, z.y, z.w = x0, top, width
+                icons = len(z.icon) if isinstance(z.icon, list) else int(bool(z.icon or theme.zone_style(z.color)["icon"]))
+                cy = content_top(z, icons, label_size, header_options(z, theme.zone_style(z.color), theme))
+                z.h = cy - top + s.h + pad
+            cw = (width - 2 * pad - (s.cols - 1) * s.gap) / s.cols
+            back = s.mode == "boustrophedon" and r % 2 == 1
+            for j, i in enumerate(ids):
+                slot = s.cols - 1 - j if back else j
+                n = nodes[i]
+                n.x, n.y, n.w, n.h = x0 + pad + slot * (cw + s.gap), cy, cw, s.h
+                row_of[i] = (r, back)
+            top = (z.y + z.h if z else cy + s.h) + s.row_gap
+        for e in d.edges:  # in-row edges: straight between facing sides
+            a, b = row_of.get(e.src), row_of.get(e.dst)
+            if a and b and a[0] == b[0] and e.via is None:
+                e.src, e.dst = (f"{e.src}.left", f"{e.dst}.right") if a[1] else (f"{e.src}.right", f"{e.dst}.left")
+
+
 def _with_h0(n):
     m = copy.copy(n)
     m.h = 0
@@ -150,11 +186,12 @@ def apply(d: Diagram, theme: Theme) -> Diagram:
         return d
     unsized = any(not (n.w and n.h) and n.kind not in SIZED_KINDS_SKIP for n in d.nodes)
     fitted = any(z.fit or z.equalize or z.band for z in d.zones)
-    if not unsized and not d.containers and not fitted and not d.constraints:
+    if not unsized and not d.containers and not fitted and not d.constraints and not d.snakes:
         return d
     from .zones import bands, fit_children
 
     d = copy.deepcopy(d)
+    snakes(d, theme)  # before bands: rows read the zone header height
     bands(d, theme)  # before containers: zone rows read the zone rect
     containers(d, theme)
     content_size(d, theme)

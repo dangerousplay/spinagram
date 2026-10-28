@@ -143,7 +143,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT of inputs → node/zone/edge counts and errors; turn edges have `route="ortho"`; gate passes.
 **Tests**: unit · **Gate**: full · **Commit**: `feat(dsl): snake for multi-row processes`
 
-### T14: Snake layout pass
+### T14: Snake layout pass ✅
 **What**: `model_passes.snakes`: row width, card sizes, row direction by mode, zone rects, row stacking; in-row edge anchors.
 **Where**: `src/spinagram/engine/model_passes.py`
 **Depends on**: T13 · **Reuses**: `content_top`, `header_options` · **Requirement**: SNK-02, SNK-03, SNK-04, SNK-06

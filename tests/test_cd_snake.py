@@ -1,8 +1,10 @@
 """Snake model and DSL (SNK-01, SNK-08): one call creates the steps, the row zones and the chain of edges."""
 import pytest
 
-from spinagram import Diagram
+from spinagram import Diagram, Theme, build_scene
+from spinagram.engine import model_passes
 from spinagram.model import Snake
+from spinagram.scene import Connector
 
 INPUTS = [  # (id, steps, cols, zones, nodes, rows, zones made, turn edge indexes)
     ("5x2-no-zones", 5, 2, None, 5, 3, 0, [1, 3]),
@@ -87,3 +89,118 @@ def test_modes_accepted(mode):
     d = Diagram("S", "Snake")
     d.snake(["a", "b", "c"], 2, y=0, h=100, mode=mode)
     assert d.snakes[0].mode == mode
+
+
+# ---- T14: the snake layout pass (SNK-02, SNK-03, SNK-04, SNK-06) -------------------------------------------------
+THEME = Theme.load("default")  # canvas 1920 x 1080, margin 80; zone label 16, no header icon
+HEAD = 36 + 16 * 0.3 + 12      # zone top → content top: label header bottom (36 + 0.3 · 16) + gap 12 = 52.8
+
+
+def _laid(n, cols, **kw):
+    d = Diagram("S", "Snake")
+    d.snake([f"Step {k + 1}" for k in range(n)], cols, **kw)
+    return model_passes.apply(d, THEME)
+
+
+def _rect(o):
+    return tuple(round(v, 3) for v in (o.x, o.y, o.w, o.h))
+
+
+LAYOUTS = [  # (id, steps, cols, kwargs, expected card (x, y, w, h) per step, expected zone rects)
+    # no zones, defaults: row 80 … 1840 (1760), card (1760 - 40) / 2 = 860; rows 200, 380, 560 (120 + 60 apart)
+    ("5x2-boustrophedon", 5, 2, {"y": 200, "h": 120},
+     [(80, 200, 860, 120), (980, 200, 860, 120), (980, 380, 860, 120), (80, 380, 860, 120), (80, 560, 860, 120)],
+     []),
+    ("5x2-restart", 5, 2, {"y": 200, "h": 120, "mode": "restart"},
+     [(80, 200, 860, 120), (980, 200, 860, 120), (80, 380, 860, 120), (980, 380, 860, 120), (80, 560, 860, 120)],
+     []),
+    # x/w/gap/row_gap given: card (1000 - 2 * 20) / 3 = 320; rows 50, 180
+    ("4x3-xw", 4, 3, {"y": 50, "h": 100, "x": 100, "w": 1000, "gap": 20, "row_gap": 30},
+     [(100, 50, 320, 100), (440, 50, 320, 100), (780, 50, 320, 100), (780, 180, 320, 100)], []),
+    # fewer steps than cols: one left-aligned row, card (1760 - 4 * 40) / 5 = 320
+    ("3x5-one-row", 3, 5, {"y": 300, "h": 90},
+     [(80, 300, 320, 90), (440, 300, 320, 90), (800, 300, 320, 90)], []),
+    # zones: zone 100 wide 1028; cards inset 24: (1028 - 48 - 2 * 40) / 3 = 300 at x 124, 464, 804.
+    # zone 0 at y 100, cards at 100 + 52.8, zone h 52.8 + 100 + 24 = 176.8; next zone 100 + 176.8 + 60 = 336.8 …
+    ("7x3-zones", 7, 3, {"y": 100, "h": 100, "x": 100, "w": 1028, "zones": ["A", "B", "C"]},
+     [(124, 152.8, 300, 100), (464, 152.8, 300, 100), (804, 152.8, 300, 100),
+      (804, 389.6, 300, 100), (464, 389.6, 300, 100), (124, 389.6, 300, 100), (124, 626.4, 300, 100)],
+     [(100, 100, 1028, 176.8), (100, 336.8, 1028, 176.8), (100, 573.6, 1028, 176.8)]),
+    # zone padding 40: cards (1028 - 80 - 80) / 3 = 289.333 at 140, 469.333, 798.667; zone h 52.8 + 100 + 40;
+    # zone 1 at 192.8 + 60 = 252.8, its cards at 252.8 + 52.8 = 305.6
+    ("4x3-zones-pad40-restart", 4, 3, {"y": 0, "h": 100, "x": 100, "w": 1028, "mode": "restart",
+                                       "zones": [{"label": "A", "padding": 40}, {"label": "B", "padding": 40}]},
+     [(140, 52.8, 289.333, 100), (469.333, 52.8, 289.333, 100), (798.667, 52.8, 289.333, 100),
+      (140, 305.6, 289.333, 100)],
+     [(100, 0, 1028, 192.8), (100, 252.8, 1028, 192.8)]),
+]
+
+
+@pytest.mark.parametrize("n,cols,kw,cards,zones", [t[1:] for t in LAYOUTS], ids=[t[0] for t in LAYOUTS])
+def test_layout_by_hand(n, cols, kw, cards, zones):
+    d = _laid(n, cols, **kw)
+    assert [_rect(c) for c in d.nodes] == [tuple(round(v, 3) for v in r) for r in cards]
+    assert [_rect(z) for z in d.zones] == [tuple(round(v, 3) for v in r) for r in zones]
+
+
+def _expected(n, cols, mode, zoned, y=200, h=120, gap=40, row_gap=60):
+    """Card rects by the SNK rules (default x/w: the margins), written out independently of the pass."""
+    pad = 24 if zoned else 0
+    cw = (1760 - 2 * pad - (cols - 1) * gap) / cols
+    out = []
+    for k in range(n):
+        r, j = divmod(k, cols)
+        slot = cols - 1 - j if mode == "boustrophedon" and r % 2 else j
+        card_y = y + r * ((HEAD + h + pad + row_gap) if zoned else (h + row_gap)) + (HEAD if zoned else 0)
+        out.append((80 + pad + slot * (cw + gap), card_y, cw, h))
+    return out
+
+
+SWEEP = [(n, c, m, z) for n in range(5, 15) for c in range(2, 6) for m in ("boustrophedon", "restart")
+         for z in (False, True)]
+
+
+@pytest.mark.parametrize("n,cols,mode,zoned", SWEEP, ids=[f"{n}x{c}-{m[:4]}-{'zones' if z else 'plain'}"
+                                                          for n, c, m, z in SWEEP])
+def test_layout_sweep(n, cols, mode, zoned):
+    rows = -(-n // cols)
+    zones = [f"Phase {r + 1}" for r in range(rows)] if zoned else None
+    d = _laid(n, cols, y=200, h=120, mode=mode, zones=zones)
+    assert [_rect(c) for c in d.nodes] == [tuple(round(v, 3) for v in r) for r in _expected(n, cols, mode, zoned)]
+    for r in range(rows):  # per-row direction: x increases left to right, or decreases on odd boustrophedon rows
+        xs = [c.x for c in d.nodes[r * cols:(r + 1) * cols]]
+        assert xs == sorted(xs, reverse=mode == "boustrophedon" and r % 2 == 1)
+    if zoned:  # zones span the row width and stack row_gap apart
+        assert [_rect(z) for z in d.zones] == [
+            tuple(round(v, 3) for v in (80, 200 + r * (HEAD + 120 + 24 + 60), 1760, HEAD + 120 + 24))
+            for r in range(rows)]
+
+
+IN_ROW = [  # (id, steps, cols, mode, expected (src, dst) per edge)
+    ("5x2-boustrophedon", 5, 2, "boustrophedon",
+     [("step-1.right", "step-2.left"), ("step-2", "step-3"), ("step-3.left", "step-4.right"), ("step-4", "step-5")]),
+    ("5x2-restart", 5, 2, "restart",
+     [("step-1.right", "step-2.left"), ("step-2", "step-3"), ("step-3.right", "step-4.left"), ("step-4", "step-5")]),
+    ("3x5-one-row", 3, 5, "boustrophedon", [("step-1.right", "step-2.left"), ("step-2.right", "step-3.left")]),
+]
+
+
+@pytest.mark.parametrize("n,cols,mode,ends", [t[1:] for t in IN_ROW], ids=[t[0] for t in IN_ROW])
+def test_in_row_edges_anchor_facing_sides(n, cols, mode, ends):
+    d = _laid(n, cols, y=200, h=120, mode=mode)
+    assert [(e.src, e.dst) for e in d.edges] == ends                  # turn edges keep their ids (ortho routes)
+
+
+def test_in_row_edges_are_horizontal_in_the_scene():
+    d = Diagram("S", "Snake")
+    d.snake([f"Step {k + 1}" for k in range(5)], 2, y=200, h=120)
+    conns = [i for i in build_scene(d, THEME).items if isinstance(i, Connector)]
+    straight = [c.points for k, c in enumerate(conns) if k % 2 == 0]   # edges 0 and 2 are in-row
+    assert straight == [[(940, 260), (980, 260)], [(980, 440), (940, 440)]]  # row centres 200 + 60, 380 + 60
+
+
+def test_pass_leaves_the_source_diagram_alone():
+    d = Diagram("S", "Snake")
+    d.snake(["a", "b", "c"], 2, y=200, h=120)
+    model_passes.apply(d, THEME)
+    assert [(n.x, n.y, n.w, n.h) for n in d.nodes] == [(0, 0, 0, 0)] * 3
