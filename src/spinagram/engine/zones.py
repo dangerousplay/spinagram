@@ -103,7 +103,8 @@ FIT_PADDING = 24.0
 
 
 def _parents(zones: list[Zone]) -> dict[str, str]:
-    return {c: z.id for z in zones for c in z.children if any(o.id == c for o in zones)}
+    """Child zone id → parent zone id; never a zone to itself, so ``_depth`` ends."""
+    return {c: z.id for z in zones for c in z.children if c != z.id and any(o.id == c for o in zones)}
 
 
 def _depth(zid: str, parents: dict[str, str]) -> int:

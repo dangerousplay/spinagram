@@ -559,7 +559,8 @@ class Diagram:
 
     def _auto_id(self, title: Any) -> str:
         base = re.sub(r"[^a-z0-9]+", "-", str(title or "n").lower()).strip("-")[:24] or "n"
-        ids = {n.id for n in self.nodes} | {g.id for g in self.groups}  # a box and a group never share an id
+        # a box never shares an id with a group or a zone
+        ids = {n.id for n in self.nodes} | {g.id for g in self.groups} | {z.id for z in self.zones}
         cand, i = base, 2
         while cand in ids:
             cand, i = f"{base}-{i}", i + 1
@@ -620,6 +621,8 @@ class Diagram:
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")
         if any(g.id == n.id for g in self.groups):
             raise ValueError(f"{self.id}: node id {n.id!r} is already a group id")
+        if any(z.id == n.id for z in self.zones):
+            raise ValueError(f"{self.id}: node id {n.id!r} is already a zone id")
         self.nodes.append(n)
         n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
@@ -730,6 +733,8 @@ class Diagram:
             z.id = f"z{len(self.zones)}"
         if any(o.id == z.id for o in self.zones):
             raise ValueError(f"{self.id}: duplicate zone id {z.id!r}")
+        if any(n.id == z.id for n in self.nodes):
+            raise ValueError(f"{self.id}: zone id {z.id!r} is already a node id")
         self.zones.append(z)
         z.__dict__["_diagram"] = self  # for ``with d.zone(...)``; not a dataclass field
         if self._open_zones:

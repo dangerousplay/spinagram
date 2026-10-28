@@ -4,14 +4,16 @@ from __future__ import annotations
 import pytest
 
 from spinagram import Diagram
+from spinagram.model import Zone
 
 
 def _d():
     d = Diagram("H", "Helpers")
     d.box("API", id="api", x=0, y=0, w=100, h=50)
     d.zone("VPC", id="vpc", x=0, y=0, w=500, h=300)
-    d.zone("Shared", id="both", x=0, y=0, w=500, h=300)
     d.box("Both", id="both", x=0, y=0, w=100, h=50)
+    # the builders refuse a zone id that is a node id; a model edited by hand can still hold one
+    d.zones.append(Zone(x=0, y=0, w=500, h=300, label="Shared", id="both"))
     return d
 
 
