@@ -424,7 +424,7 @@ class _Builder:
         bundled = {i for idx, _ in bundles for i in idx}
         todo = [i for i in todo if i not in bundled]
         if todo:
-            router.route_ortho(edges, todo, self.shapes, targets)
+            router.route_ortho(edges, todo, self.shapes, targets, headers=self.headers)
         for idx, trunk in bundles:
             router.route_bundle(edges, idx, trunk, targets)
 

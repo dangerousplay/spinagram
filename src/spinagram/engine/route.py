@@ -39,10 +39,41 @@ def _side(p, q) -> str:
     return {(1, 0): "right", (-1, 0): "left", (0, 1): "bottom", (0, -1): "top"}.get(d, "right")
 
 
+def _clearance(box, rect) -> float | None:
+    """Gap between ``box`` and ``rect`` when they face each other across one side (spans overlap), else None."""
+    x, y, w, h = box
+    rx, ry, rw, rh = rect
+    if x < rx + rw and rx < x + w:
+        return y - (ry + rh) if ry + rh <= y else (ry - (y + h) if ry >= y + h else None)
+    if y < ry + rh and ry < y + h:
+        return x - (rx + rw) if rx + rw <= x else (rx - (x + w) if rx >= x + w else None)
+    return None
+
+
+def _header_obstacles(a: Shape, b: Shape, c: Connector, headers: dict) -> tuple[list, float]:
+    """Header rects an edge must avoid (HDR-01): not those of zones it is bound to, nor any overlapping an end
+    box. Returns them with the route margin: a header closer than ``MARGIN`` to an end box (a card 12 px under
+    it) halves that gap, so the port stub stays clear of the header instead of the side being unreachable."""
+    own = {e.shape_id for e in (c.src, c.dst) if e.target == "zone"}
+    out, margin = [], MARGIN
+    for zid, r in headers.items():
+        gaps = [_clearance(_box(s), r) for s in (a, b)]
+        if zid in own or any(g is None and _overlaps(_box(s), r) for g, s in zip(gaps, (a, b))):
+            continue
+        out.append(r)
+        margin = min([margin] + [g / 2 for g in gaps if g is not None and 0 < g < MARGIN])
+    return out, margin
+
+
+def _overlaps(p, q) -> bool:
+    return p[0] < q[0] + q[2] and q[0] < p[0] + p[2] and p[1] < q[1] + q[3] and q[1] < p[1] + p[3]
+
+
 def route_ortho(connectors: list[Connector], todo: list[int], shapes: dict[str, Shape],
-                targets: dict[str, Shape], penalty: float = CROSSING) -> None:
-    """Route connectors ``todo`` (indices, in declaration order) orthogonally around node shapes, each paying
-    ``penalty`` per crossing with every edge drawn so far. Edges without a bound shape at both ends stay."""
+                targets: dict[str, Shape], penalty: float = CROSSING, headers: dict | None = None) -> None:
+    """Route connectors ``todo`` (indices, in declaration order) orthogonally around node shapes and zone
+    ``headers`` (zone shape id → rect), each paying ``penalty`` per crossing with every edge drawn so far. Edges
+    without a bound shape at both ends stay."""
     obstacles = [_box(s) for s in shapes.values() if s.role == "node"]
     placed = [segments(c) for i, c in enumerate(connectors) if i not in todo]
     for i in todo:
@@ -58,7 +89,8 @@ def route_ortho(connectors: list[Connector], todo: list[int], shapes: dict[str, 
             return penalty * sum(crosses(p, q, *s) for s in drawn)
         sides = (c.src.side if c.src.target == "node" and c.src.__dict__.get("explicit") else None,
                  c.dst.side if c.dst.target == "node" and c.dst.__dict__.get("explicit") else None)
-        pts = route(_box(a), _box(b), obstacles, sides=sides, penalty=cost, guides=guides)
+        hdrs, margin = _header_obstacles(a, b, c, headers or {})
+        pts = route(_box(a), _box(b), obstacles + hdrs, margin=margin, sides=sides, penalty=cost, guides=guides)
         c.points, c.route = [tuple(p) for p in pts], "poly"
         c.src = Binding(c.src.shape_id, _side(pts[0], pts[1]), 0.5, c.src.target)
         c.dst = Binding(c.dst.shape_id, _side(pts[-1], pts[-2]), 0.5, c.dst.target)

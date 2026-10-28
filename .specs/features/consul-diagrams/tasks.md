@@ -66,7 +66,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (straight/poly/curve edges × through/near/own-zone-target) asserts issue presence, item, exact detail; hand-placed only; gate passes.
 **Tests**: unit · **Gate**: full · **Commit**: `feat(check): report edges crossing zone headers`
 
-### T3: Router treats zone headers as obstacles
+### T3: Router treats zone headers as obstacles ✅
 **What**: `route_ortho` receives header rects as obstacles, skipping headers of zones bound at either end; A04-like fixture.
 **Where**: `src/spinagram/engine/route.py`, `src/spinagram/layout.py` (`route_edges`)
 **Depends on**: T2 · **Reuses**: `route_ortho`, `autolayout.route.route` · **Requirement**: HDR-01, HDR-08
