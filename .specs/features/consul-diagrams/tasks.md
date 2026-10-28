@@ -164,7 +164,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: round-trip DDT (`from_dict(dump(d))` equal model and identical SVG) over plain / zoned / nested / mixed / edge-kwarg / fixed-edge snakes and the T1–T15 fields (zone `band`, `header` string, zone containers); `check --fix` on a YAML snake spec writes a `.fixed.yaml` that renders like the source plus the applied fix; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `fix(yaml): dump snakes`
 
-### T16: Vendor service matcher
+### T16: Vendor service matcher ✅
 **What**: `engine/vendor.py`: n-grams, cached-only indexes, deterministic match.
 **Where**: `src/spinagram/engine/vendor.py`
 **Depends on**: T15 · **Reuses**: `icons.index(auto_fetch=False)`, `icons.kebab`, `metadata.PROVIDERS` · **Requirement**: VND-02, VND-03
