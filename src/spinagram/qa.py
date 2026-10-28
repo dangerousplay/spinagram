@@ -14,7 +14,9 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "icon-touches-border": "P0", "header-overlap": "P0", "icon-overflows-box": "P0",
             "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
-            "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1"}
+            "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1",
+            "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0", "icon-generic-for-service": "P2",
+            "glyph-mapped": "P2", "text-scale-mismatch": "P2"}
 
 
 @dataclass
@@ -110,6 +112,22 @@ def edges_through_boxes(scene: Scene) -> list[Issue]:
     return out
 
 
+def header_crossings(scene: Scene) -> list[Issue]:
+    """Edges entering a zone header (HDR-02); the segment that ends on that zone's own border is exempt (HDR-03).
+    One issue per (edge, zone)."""
+    out = []
+    for c in (i for i in scene.items if isinstance(i, Connector)):
+        pts = polyline(c)
+        segs = list(zip(pts, pts[1:]))
+        for zid, rect in scene.zone_headers.items():
+            own = [b is not None and b.target == "zone" and b.shape_id == zid for b in (c.src, c.dst)]
+            hits = [k for k, (a, b) in enumerate(segs) if segment_hits(a, b, rect)]
+            hits = [k for k in hits if not (k == 0 and own[0]) and not (k == len(segs) - 1 and own[1])]
+            if hits:
+                out.append(Issue(scene.id, c.id, "edge-crosses-zone-header", f"crosses the header of zone {zid!r}"))
+    return out
+
+
 BORDER_BAND = 4.0  # an icon closer than this to a zone outline touches it
 
 
@@ -139,7 +157,7 @@ def icon_issues(scene: Scene) -> list[Issue]:
     """Icons on zone outlines, icons outside their box, and zone headers covered by content."""
     out: list[Issue] = []
     shapes = [s for s in scene.items if isinstance(s, Shape)]
-    zones = {s.id: s for s in shapes if s.role == "zone" and s.icon is None and s.id in scene.zone_headers}
+    zones = {s.id: s for s in shapes if s.role == "zone" and s.icon is None and re.fullmatch(r"z\d+", s.id)}
     for s in shapes:
         if s.icon is None:
             continue
@@ -165,6 +183,36 @@ def icon_issues(scene: Scene) -> list[Issue]:
             if _overlap(hdr, r) >= 0.5:
                 out.append(Issue(scene.id, zid, "header-overlap", f"{cid!r} covers the header of zone {zid!r}"))
     return out
+
+
+def icon_text_issues(scene: Scene) -> list[Issue]:
+    """A node icon over the first line of its own text (ICO-04): both axes overlap by more than 0.5 px."""
+    out: list[Issue] = []
+    for s in scene.items:
+        if not (isinstance(s, Shape) and s.role == "node" and s.icon is not None and s.label and s.label.blocks):
+            continue
+        b, bx, top = s.label.place()[0]
+        if not b.lines:
+            continue
+        w = measure(b.lines[0], b.font)
+        x0 = bx - w / 2 if s.label.align == "center" else bx
+        ix, iy, iw, ih = _icon_rect(s)
+        ox = min(ix + iw, x0 + w) - max(ix, x0)
+        oy = min(iy + ih, top + b.leading) - max(iy, top)
+        if ox > 0.5 and oy > 0.5:
+            out.append(Issue(scene.id, s.id, "icon-overlaps-text", f"icon overlaps the first text line by {oy:.0f}px",
+                             fix=_icon_text_fix(scene, s, oy)))
+    return out
+
+
+def _icon_text_fix(scene: Scene, s: Shape, overlap: float) -> dict | None:
+    """Taller box (ICO-05). SPEC_DEVIATION: design.md says h + overlap + gap; the text is centred vertically in its
+    box, so it moves down by half the added height: h + 2 × overlap + gap clears it in one round.
+    Reason: with the design formula an overlap larger than the gap survives the fix."""
+    gap = scene.check_options.get("icon_text_gap", 8)
+    h = math.ceil(s.h + 2 * overlap + gap)
+    return {"op": "resize", "node": s.id, "h": h} if _inside((s.x, s.y, s.w, h), scene.check_options.get(
+        "margin", 80), scene) else None
 
 
 def luminance(hex_colour: str) -> float:
@@ -284,6 +332,32 @@ def _move_label_fix(scene: Scene, edge_id: str, margin: float) -> dict | None:
     return {"op": "move-label", "edge": edge_id, "to": [round(spot[0], 1), round(spot[1] + size / 2 - 4, 1)]}
 
 
+FRACTIONS = (0.5, 0.65, 0.35, 0.8, 0.2, 0.85, 0.15)  # anchor fix candidates, in order (HDR-04)
+
+
+def _anchor_fix(scene: Scene, edge_id: str) -> dict | None:
+    """First anchor pair on the edge's sides (source fraction outer loop) whose straight segment crosses no
+    header and no other node; else reroute to ortho. Only straight edges between two nodes get one."""
+    c = next((c for c in scene.items if isinstance(c, Connector) and c.id == edge_id), None)
+    # SPEC_DEVIATION: HDR-04 gives every crossing edge between two nodes an anchor fix or a reroute; `via` and
+    # `curve` edges get no fix. Reason: the builder ignores `route` when `via`/`curve` is set (they win), and new
+    # anchors leave the author's bend points, so neither fix reliably removes the crossing.
+    if c is None or c.route != "straight" or c.src is None or c.dst is None or \
+            c.src.target != "node" or c.dst.target != "node":
+        return None
+    shapes = scene.shapes()
+    a, b = shapes[c.src.shape_id], shapes[c.dst.shape_id]
+    nodes = [(s.x, s.y, s.w, s.h) for s in shapes.values() if s.role == "node" and s.id not in (a.id, b.id)]
+    blocks = list(scene.zone_headers.values()) + nodes
+    for fs in FRACTIONS:
+        for fd in FRACTIONS:
+            p, q = a.anchor(c.src.side, fs), b.anchor(c.dst.side, fd)
+            if not any(segment_hits(p, q, r) for r in blocks):
+                return {"op": "anchor", "edge": edge_id, "src": f"{a.id}.{c.src.side}@{fs:g}",
+                        "dst": f"{b.id}.{c.dst.side}@{fd:g}"}
+    return {"op": "reroute", "edge": edge_id, "route": "ortho"}
+
+
 def fix_for(scene: Scene, i: Issue) -> dict | None:
     """A safe, geometry-only fix for an issue, or None."""
     m = scene.check_options.get("margin", 80)
@@ -320,6 +394,8 @@ def fix_for(scene: Scene, i: Issue) -> dict | None:
         return {"op": "nudge", "node": s.id, "dx": round(dx, 1), "dy": round(dy, 1)}
     if i.kind == "label-collision":
         return _move_label_fix(scene, i.item, m)
+    if i.kind == "edge-crosses-zone-header":
+        return _anchor_fix(scene, i.item)
     if i.kind == "header-overlap":
         cid = re.search(r"'([^']+)' covers", i.detail).group(1)
         if re.fullmatch(r"e\d+", cid):
@@ -335,30 +411,84 @@ def fix_for(scene: Scene, i: Issue) -> dict | None:
 UNDERUSED = 0.35  # content fill ratio below which a zone is reported (theme defaults.check.underused)
 
 
+def _union_area(rects) -> float:
+    """Area covered by axis-aligned rectangles ``(x, y, w, h)``, overlaps counted once."""
+    rects = [r for r in rects if r[2] > 0 and r[3] > 0]
+    xs = sorted({v for x, _, w, _ in rects for v in (x, x + w)})
+    total = 0.0
+    for x0, x1 in zip(xs, xs[1:]):
+        spans = sorted((y, y + h) for x, y, w, h in rects if x <= x0 and x + w >= x1)
+        top = covered = 0.0
+        for k, (y0, y1) in enumerate(spans):
+            if k == 0 or y0 > top:
+                covered, top = covered + y1 - y0, y1
+            elif y1 > top:
+                covered, top = covered + y1 - top, y1
+        total += covered * (x1 - x0)
+    return total
+
+
+def _clip(r, area) -> tuple[float, float, float, float]:
+    x0, y0 = max(r[0], area[0]), max(r[1], area[1])
+    x1, y1 = min(r[0] + r[2], area[0] + area[2]), min(r[1] + r[3], area[1] + area[3])
+    return (x0, y0, max(0.0, x1 - x0), max(0.0, y1 - y0))
+
+
+def _mostly_in(s, z) -> bool:
+    return bool(s.w * s.h) and _overlap((s.x, s.y, s.w, s.h), (z.x, z.y, z.w, z.h)) > 0.5 * s.w * s.h
+
+
 def zone_issues(scene: Scene) -> list[Issue]:
-    """Children sticking out of their zone, and zones mostly empty."""
+    """Children sticking out of their zone, and zones mostly empty. A zone's content is its direct child zones
+    plus the nodes not inside one of them, clipped to the area below the header, overlaps counted once (ZUN-01)."""
     out: list[Issue] = []
     shapes = scene.shapes()
-    zones = {k: s for k, s in shapes.items() if s.role == "zone" and k in scene.zone_headers}
+    zones = {k: s for k, s in shapes.items() if s.role == "zone" and re.fullmatch(r"z\d+", k)}
     limit = scene.check_options.get("underused", UNDERUSED)
     for zid, z in zones.items():
         if zid in scene.zone_children:
             kids = [shapes[c] for c in scene.zone_children[zid] if c in shapes]
-        else:  # undeclared: nodes mostly inside the outline
-            kids = [s for s in shapes.values() if s.role == "node" and s.w * s.h and
-                    _overlap((s.x, s.y, s.w, s.h), (z.x, z.y, z.w, z.h)) > 0.5 * s.w * s.h]
+            subs = [c for c in kids if c.id in zones]
+            nodes = [c for c in kids if c.id not in zones]
+        else:  # undeclared: nodes and zones mostly inside the outline (ZUN-02)
+            kids = [s for s in shapes.values() if s.role == "node" and _mostly_in(s, z)]
+            # smaller zones only: a parent can lie mostly inside a big child; direct children: not inside a
+            # larger candidate
+            inner = [s for s in zones.values() if s.w * s.h < z.w * z.h and _mostly_in(s, z)]
+            subs = [s for s in inner if not any(o.w * o.h > s.w * s.h and _mostly_in(s, o) for o in inner)]
+            nodes = kids
         for c in kids:
             past = {"left": z.x - c.x, "top": z.y - c.y, "right": c.x + c.w - z.x - z.w, "bottom": c.y + c.h - z.y - z.h}
             side = max(past, key=lambda k: past[k])
             if past[side] > 0.5:
                 out.append(Issue(scene.id, zid, "zone-clips-child", f"{c.id!r} extends {past[side]:.0f}px past "
                                  f"the {side} side"))
-        hx, hy, hw, hh = scene.zone_headers[zid]
-        area = z.w * (z.y + z.h - (hy + hh))
-        used = sum(_overlap((c.x, c.y, c.w, c.h), (z.x, hy + hh, z.w, z.y + z.h - hy - hh)) for c in kids)
-        if kids and area > 0 and used / area < limit:
+        free = [c for c in nodes if not any(_mostly_in(c, sz) for sz in subs)]
+        hx, hy, hw, hh = scene.zone_headers.get(zid, (z.x, z.y, 0, 0))  # header "none": no header rect
+        content = (z.x, hy + hh, z.w, z.y + z.h - hy - hh)
+        area = content[2] * content[3]
+        used = _union_area([_clip((c.x, c.y, c.w, c.h), content) for c in subs + free])
+        if (subs or free) and area > 0 and used / area < limit:
             out.append(Issue(scene.id, zid, "zone-underused", f"content fills {used / area:.0%} of the zone "
                              f"(< {limit:.0%}); shrink it, use fit: children, or drop equalize"))
+    return out
+
+
+TEXT_SCALE = 1.10  # largest max/min ratio of one text role across a row before it is reported (TSC-03)
+
+
+def text_scale_issues(scene: Scene) -> list[Issue]:
+    """Rows and columns without ``same_text_scale`` whose members' title (or body) sizes differ by > 10 %."""
+    out: list[Issue] = []
+    for name, ids, _ in scene.rows:
+        if name in scene.text_scale_rows:
+            continue
+        for role, label in enumerate(("title", "body")):
+            sizes = sorted({scene.text_sizes[i][role] for i in ids
+                            if i in scene.text_sizes and scene.text_sizes[i][role] is not None})
+            if len(sizes) > 1 and sizes[-1] / sizes[0] > TEXT_SCALE:
+                out.append(Issue(scene.id, name, "text-scale-mismatch", f"{label} sizes differ: "
+                                 f"[{', '.join(f'{v:g}' for v in sizes)}] px; use same_text_scale"))
     return out
 
 
@@ -368,6 +498,8 @@ def check(scene: Scene) -> list[Issue]:
     issues += [Issue(scene.id, item, kind, detail) for item, kind, detail in scene.annotation_issues]
     issues += [Issue(scene.id, "glyphs", "glyph-missing", f"{ch!r} (U+{ord(ch):04X}) in {role} font, fell back to {fam}")
                for ch, role, fam in scene.fallbacks]
+    issues += [Issue(scene.id, "glyphs", "glyph-mapped", f"'{ch}' (U+{ord(ch):04X}) replaced by '{rep}' (theme glyph_map)")
+               for ch, rep in scene.glyph_mapped.items()]
     over = scene.layout_overflow
     if over:
         issues.append(Issue(scene.id, "layout", "overflow", f"auto layout exceeds its area by {over[0]}px wide, "
@@ -375,15 +507,20 @@ def check(scene: Scene) -> list[Issue]:
     issues += _hidden_heads(scene)
     if not scene.laid_out:  # engines route their own edges and size groups; these check hand-placed diagrams
         issues += edges_through_boxes(scene)
+        issues += header_crossings(scene)
         issues += icon_issues(scene)
         issues += safe_area_issues(scene, scene.check_options.get("margin", 80))
         issues += zone_issues(scene)
         from .engine.route import crossings
 
+        issues += text_scale_issues(scene)
         n = crossings([c for c in scene.items if isinstance(c, Connector)])
         if n:
             issues.append(Issue(scene.id, "edges", "edge-crossings",
                                 f"{n} crossing(s); try route: ortho or swap anchor sides"))
+    issues += icon_text_issues(scene)
+    issues += [Issue(scene.id, nid, "icon-generic-for-service", f"'{title}' matches {ref}; icon '{icon}' is generic")
+               for nid, (title, ref, icon) in scene.vendor_hints.items()]
     issues += contrast_issues(scene)
     if scene.version_mismatch:
         req, have = scene.version_mismatch

@@ -18,8 +18,57 @@ colors:
   primary-deep: "#134E4A"
 ```
 
-Select a theme with `--theme DIR` (or a built-in name) or the `SPINAGRAM_THEME` environment
+Select a theme with `--theme` (a directory or a name) or the `SPINAGRAM_THEME` environment
 variable. In Python, pass `theme=` to `d.save(...)` or `spinagram.render(...)`.
+
+## Themes by name
+
+A name such as `--theme acme` (or `extends: acme`) is looked up in this order:
+
+1. the built-in themes;
+2. a directory with that path: relative to the theme that extends it, then to the working directory;
+3. `<dir>/acme/theme.yaml` for each directory in `SPINAGRAM_THEME_PATH` (separated by `:`, `;` on Windows);
+4. the `acme` entry point in the `spinagram.themes` group of an installed package.
+
+A path (`./acme`, `~/themes/acme`, `/abs/acme`) is only looked up as a path. A brand package registers its theme
+directory, either as the package itself or as an attribute holding the path:
+
+```toml title="pyproject.toml"
+[project.entry-points."spinagram.themes"]
+acme = "acme_theme"                    # the package directory holds theme.yaml
+acme-dark = "acme_theme.paths:DARK"    # DARK is the path of a directory with theme.yaml
+```
+
+When nothing matches, the error lists every place searched, in order:
+
+```text
+theme 'acme' not found; searched, in order:
+  1. built-in themes (default, …)
+  2. /work/acme
+  3. /opt/themes/acme (SPINAGRAM_THEME_PATH)
+  4. entry point 'acme' in group 'spinagram.themes' (none installed)
+```
+
+## Glyph map
+
+When the brand font lacks a character, `text.glyph_map` replaces it before layout, in every text of the
+diagram, fact values included:
+
+```yaml title="my-theme/theme.yaml"
+text:
+  glyph_map: {"→": "->", "✓": "OK"}
+```
+
+Keys are single characters; values are strings. `check` lists each replacement as `glyph-mapped` (P2):
+`'→' (U+2192) replaced by '->' (theme glyph_map)`. A mapped character is not reported as `glyph-missing`.
+
+## Node and icon defaults
+
+| Key | Default | Meaning |
+|---|---|---|
+| `defaults.node.icon_text_gap` | 8 | Space between a centred icon and the text below it |
+| `defaults.node.icon_min` | 24 | Smallest size a centred icon shrinks to before the text shrinks |
+| `icons.prefer_vendor_for_services` | false | Swap a generic icon for the vendor icon a box title names; see [Layout engine](/docs/write/layout-engine#icons) |
 
 [`src/spinagram/themes/default/theme.yaml`](https://github.com/dangerousplay/spinagram/blob/main/src/spinagram/themes/default/theme.yaml)
 documents every key: `canvas`, `colors`, font roles (with font files for metrics and embedding),

@@ -7,7 +7,7 @@ Pick outputs with `-f` on `spinagram render` (or `formats=` in Python):
 
 | Backend | Output |
 |---|---|
-| `svg` | Self-contained SVG with fonts and images embedded |
+| `svg` | Self-contained SVG with fonts (subset to the characters drawn) and images embedded |
 | `png` | 2x PNG rendered from the SVG (Playwright) |
 | `pptx` | One slide per diagram. Native shapes with the text inside, connectors bound to their shapes (move a box and the arrows follow), native tables. SVG icons stay vectors (PowerPoint 365 `svgBlip`) with a PNG fallback for other readers (`SPINAGRAM_PPTX_SVG=raster` turns this off) |
 | `figma` | Figma Plugin-API JavaScript, run through the Figma MCP `use_figma` tool to build native, editable nodes |
@@ -22,6 +22,33 @@ spinagram render specs/ -f svg,png,pptx,figma,excalidraw -o out/
 `figma/<id>.js` chunks and an `index.html` gallery (`--no-gallery` skips it).
 
 See [Figma and FigJam](/docs/share/figma) for running the Figma scripts.
+
+## SVG fonts
+
+The SVG embeds each font face it uses. `--fonts` (`fonts=` in Python) chooses how:
+
+| Mode | SVG holds | Use |
+|---|---|---|
+| `subset` (default) | Each face cut down to the characters drawn with it | Small files that render the same everywhere |
+| `embed` | The whole font files (the 0.4 output) | Text you will edit in the SVG later |
+| `link` | No font data: one Google Fonts `@import` per family | The smallest files, for viewers online; the fonts must be on Google Fonts |
+
+```bash
+spinagram render specs/ --fonts link -o out/
+```
+
+```python
+import spinagram
+from spinagram.backends.svg import SvgBackend, to_svg
+
+spinagram.render(diagrams, "out/", formats=["svg", "png"],
+                 backend_options={"svg": {"fonts": "link"}, "png": {"fonts": "link"}})
+svg = to_svg(spinagram.scenes([d])[0], fonts="embed")     # one SVG as a string
+SvgBackend(fonts="embed")                                 # the backend, for custom pipelines
+```
+
+The PNG is rendered from an SVG built the same way. A font that cannot be subset is embedded whole, with a
+warning. Subsets are identical between runs, so content hashes stay stable.
 
 ## Presentations
 

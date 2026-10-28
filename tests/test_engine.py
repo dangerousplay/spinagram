@@ -228,6 +228,7 @@ def icon_env(tmp_path, monkeypatch):
     """Isolated icon cache + user registry (no network)."""
     monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.delenv("SPINAGRAM_OFFLINE", raising=False)  # local packs: fetched from disk on first use
     monkeypatch.chdir(tmp_path)
     from spinagram import icons
 

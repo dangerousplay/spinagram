@@ -17,6 +17,7 @@ Point = tuple[float, float]
 EndpointLike = "str | Node | Sequence[float]"
 
 SIDES = ("top", "bottom", "left", "right", "center")
+ZONE_SIDES = SIDES[:4]
 
 
 @dataclass
@@ -33,7 +34,7 @@ class Node:
     style: str | None = None
     icon: str | None = None
     icon_size: float | None = None  # px; default scales with the box (theme defaults.node.icon_*)
-    align: str = "left"  # left | center
+    align: str = "left"  # left | center | auto (centred when h > w and the text fits under the icon)
     title_size: float | None = None
     body_size: float | None = None
     radius: float | None = None
@@ -159,10 +160,12 @@ class Edge:
     cls: str | None = None
     css: str | None = None
     fan: str | None = None      # "bus": into a zone through a bar spanning the zone's children
-    route: str | None = None    # "ortho": routed around boxes, avoiding crossings; None: straight (or defaults)
+    route: str | None = None    # "ortho": routed around boxes, avoiding crossings; "elbow": two bends at ``mid``;
+    # None: straight (or defaults.edge.route)
     fan_in: bool = False        # edges into the same target with fan_in share one trunk and one arrowhead
     meaning: str | None = None  # legend label for this edge style (``d.legend(items="auto")``)
     straight: bool = False      # anchor both ends on the boxes' shared span so the edge is axis-aligned
+    mid: float | None = None    # route="elbow": the middle segment's y (vertical exit) or x; None: the midpoint
 
     def step(self, text: str, n: int | None = None) -> "Step":
         """Number this edge as a step of the flow: a badge on the edge and a line in the steps panel."""
@@ -187,10 +190,12 @@ class Zone:
     stroke: str | None = None
     stroke_width: float | None = None
     fill: str | None = None   # token, hex or "none"
-    header: dict[str, Any] | None = None   # padding, icon_size, strip, upper, inset
+    header: dict[str, Any] | str | None = None  # padding, icon_size, strip, upper, inset, align; or the align:
+    # "left" | "right" | "none"
     fit: str | None = None    # "children": sized to its children
     padding: float | None = None
     equalize: str | None = None            # "siblings": same height as sibling zones
+    band: tuple[float, float] | None = None  # (y0, y1): y/h from the band; x/w default to the safe width
     children: list[str] = field(default_factory=list)  # node and zone ids inside (``with d.zone(...)``)
     meaning: str | None = None             # legend label for this zone style
     cls: str | None = None
@@ -204,6 +209,42 @@ class Zone:
 
     def __exit__(self, *exc: Any) -> None:
         self.__dict__["_diagram"]._open_zones.pop()
+
+    # edge targets: ``d.edge(a, z.top)``, ``d.edge(a, z.at_left(0.3))`` → ``zone:<id>.<side>[@frac]``
+    def at(self, side: str, frac: float = 0.5) -> str:
+        if self.id is None:
+            raise ValueError(f"zone {self.label!r} has no id; create it with d.zone(...) or give it id=")
+        if side not in ZONE_SIDES:
+            raise ValueError(f"unknown zone side {side!r}; use one of {', '.join(ZONE_SIDES)}")
+        return f"zone:{self.id}.{side}" + ("" if frac == 0.5 else f"@{frac:g}")
+
+    @property
+    def top(self) -> str:
+        return self.at("top")
+
+    @property
+    def bottom(self) -> str:
+        return self.at("bottom")
+
+    @property
+    def left(self) -> str:
+        return self.at("left")
+
+    @property
+    def right(self) -> str:
+        return self.at("right")
+
+    def at_left(self, frac: float = 0.5) -> str:
+        return self.at("left", frac)
+
+    def at_right(self, frac: float = 0.5) -> str:
+        return self.at("right", frac)
+
+    def at_top(self, frac: float = 0.5) -> str:
+        return self.at("top", frac)
+
+    def at_bottom(self, frac: float = 0.5) -> str:
+        return self.at("bottom", frac)
 
     @property
     def content_top(self) -> float:
@@ -282,15 +323,40 @@ class Bundle:
 
 @dataclass
 class Container:
-    """Nodes placed side by side (``row``) or stacked (``column``) from (x, y), sized by the model passes."""
+    """Nodes placed side by side (``row``) or stacked (``column``) from (x, y), sized by the model passes.
+    A zone container (``zone`` set, x/y None) is placed in that zone's content area by ``align``."""
     axis: str                      # row | column
-    x: float
-    y: float
+    x: float | None
+    y: float | None
     gap: float = 20
     same_size: bool = False
     max_width: float | None = None
     same_icon_size: bool = False
     children: list[str] = field(default_factory=list)
+    zone: str | None = None        # the zone whose content area holds it
+    align: str | None = None       # center | start | end (None: center in a zone)
+    cols: int | None = None        # zone rows: members are 1/cols of the content width
+    same_text_scale: bool | None = None  # None: same_size
+
+
+@dataclass
+class Snake:
+    """Steps laid out in rows of ``cols`` (``d.snake``); the snake model pass places the nodes and row zones."""
+    nodes: list[str]
+    zones: list[str]
+    cols: int
+    y: float
+    h: float
+    x: float | None = None      # None: the canvas margin
+    w: float | None = None      # None: canvas width − 2 × margin
+    gap: float = 40
+    row_gap: float = 60
+    mode: str = "boustrophedon"  # boustrophedon (odd rows right to left) | restart (every row left to right)
+
+
+SNAKE_MODES = ("boustrophedon", "restart")
+ORIGINS = ("canvas", "safe")
+EDGE_ROUTES = (None, "ortho", "elbow")
 
 
 @dataclass
@@ -433,8 +499,10 @@ class Diagram:
     bundles: list[Bundle] = field(default_factory=list)        # ``d.bundle([e1, e2], trunk="right")``
     grids: list[Grid] = field(default_factory=list)            # ``d.grid(cols=[...], rows=[...])``
     constraints: list[tuple] = field(default_factory=list)     # (op, node ids...): align_x, align_y, center_on
+    snakes: list[Snake] = field(default_factory=list)          # ``d.snake(steps, cols, ...)``
     output: str | None = None     # stable output file name (``<output>.svg``); None: ``<id>-<slugified title>``
     requires: str | None = None   # spinagram version specifier this spec was written for (``>=0.4,<0.5``)
+    origin: str = "canvas"        # canvas: coordinates from the canvas corner; safe: from the safe area (+margin)
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
@@ -445,11 +513,13 @@ class Diagram:
         if self.category is not None and not isinstance(self.category, str):
             raise ValueError(f"{self.id}: category must be a string, got {self.category!r}")
         self.tags = normalize_tags(self.tags, self.id)
+        if self.origin not in ORIGINS:
+            raise ValueError(f"{self.id}: origin {self.origin!r}; use {' or '.join(ORIGINS)}")
 
     @property
     def auto(self) -> bool:
         """Laid out automatically: ``layout`` is set, or no node has a position (a size alone is a hint)."""
-        return self.layout is not None or (bool(self.nodes) and not self.containers and
+        return self.layout is not None or (bool(self.nodes) and not self.containers and not self.snakes and
                                            not any(n.x or n.y for n in self.nodes))
 
     # lookup -------------------------------------------------------------------
@@ -459,9 +529,38 @@ class Diagram:
                 return n
         raise KeyError(f"{self.id}: no node {node_id!r}")
 
+    def __getitem__(self, key: str) -> "Node | Zone":
+        """``d["api"]``: the node with that id, else the zone with that id."""
+        for o in (*self.nodes, *self.zones):
+            if o.id == key:
+                return o
+        raise KeyError(f"{self.id}: no node or zone {key!r}")
+
+    __iter__ = None  # ``d[...]`` is a lookup by id; a diagram is not a sequence
+
+    def distribute(self, n: int, w: float | None = None, gap: float = 0, *,
+                   within: tuple[float, float]) -> "list[float] | tuple[list[float], float]":
+        """``n`` x positions in ``within=(x0, x1)``: with ``w``, a block of ``n·w + (n−1)·gap`` centred in it;
+        without, ``n`` equal widths filling it, returned as ``(xs, w)``."""
+        if n < 1:
+            raise ValueError(f"{self.id}: distribute n {n}; use 1 or more")
+        x0, x1 = within
+        width = x1 - x0
+        fill = w is None
+        if fill:
+            w = (width - (n - 1) * gap) / n
+        block = n * max(w, 0) + (n - 1) * gap
+        if block > width + 1e-9 or w <= 0:
+            raise ValueError(f"{self.id}: distribute block {block:g}px does not fit within {tuple(within)} "
+                             f"({width:g}px)")
+        start = x0 if fill else x0 + (width - block) / 2
+        xs = [start + i * (w + gap) for i in range(n)]
+        return (xs, w) if fill else xs
+
     def _auto_id(self, title: Any) -> str:
         base = re.sub(r"[^a-z0-9]+", "-", str(title or "n").lower()).strip("-")[:24] or "n"
-        ids = {n.id for n in self.nodes} | {g.id for g in self.groups}  # a box and a group never share an id
+        # a box never shares an id with a group or a zone
+        ids = {n.id for n in self.nodes} | {g.id for g in self.groups} | {z.id for z in self.zones}
         cand, i = base, 2
         while cand in ids:
             cand, i = f"{base}-{i}", i + 1
@@ -522,6 +621,8 @@ class Diagram:
             raise ValueError(f"{self.id}: duplicate node id {n.id!r}")
         if any(g.id == n.id for g in self.groups):
             raise ValueError(f"{self.id}: node id {n.id!r} is already a group id")
+        if any(z.id == n.id for z in self.zones):
+            raise ValueError(f"{self.id}: node id {n.id!r} is already a zone id")
         self.nodes.append(n)
         n.__dict__["_diagram"] = self  # for a >> b; not a dataclass field, so dumps and asdict skip it
         if self._open:
@@ -577,6 +678,8 @@ class Diagram:
                 setattr(e, k, v)
         else:
             e = Edge(src=_endpoint(src), dst=_endpoint(dst), **kw)
+        if e.route not in EDGE_ROUTES:
+            raise ValueError(f"{self.id}: edge route {e.route!r}; use ortho, elbow or none")
         if e.via:
             e.via = [(float(p[0]), float(p[1])) for p in e.via]
         self._check_pseudo(e)
@@ -630,6 +733,8 @@ class Diagram:
             z.id = f"z{len(self.zones)}"
         if any(o.id == z.id for o in self.zones):
             raise ValueError(f"{self.id}: duplicate zone id {z.id!r}")
+        if any(n.id == z.id for n in self.nodes):
+            raise ValueError(f"{self.id}: zone id {z.id!r} is already a node id")
         self.zones.append(z)
         z.__dict__["_diagram"] = self  # for ``with d.zone(...)``; not a dataclass field
         if self._open_zones:
@@ -770,6 +875,45 @@ class Diagram:
         self.legend = Legend(x=x, y=y, items=list(items))
         return self.legend
 
+    def snake(self, steps: Sequence[Any], cols: int, *, y: float, h: float, x: float | None = None,
+              w: float | None = None, gap: float = 40, row_gap: float = 60, zones: Sequence[Any] | None = None,
+              mode: str = "boustrophedon", chain: bool = True, **edge_kw: Any) -> list[Node]:
+        """A multi-row process: one node per step (a title or a dict of node fields) in rows of ``cols``, chained
+        by edges (``edge_kw``; turns between rows are ``route="ortho"``). ``zones`` (labels or dicts of zone
+        fields) puts each row in its own zone. ``mode``: ``boustrophedon`` (odd rows right to left) or
+        ``restart``. ``chain=False`` draws no edges (``yaml_io.dump`` lists customised chain edges itself).
+        Placed by the snake model pass; returns the nodes."""
+        if cols < 1:
+            raise ValueError(f"{self.id}: snake cols {cols}; use 1 or more")
+        if not steps:
+            raise ValueError(f"{self.id}: snake needs at least one step")
+        if mode not in SNAKE_MODES:
+            raise ValueError(f"{self.id}: snake mode {mode!r}; use {' or '.join(SNAKE_MODES)}")
+        rows = -(-len(steps) // cols)
+        if zones is not None and len(zones) != rows:
+            raise ValueError(f"{self.id}: snake has {rows} row{'s' * (rows != 1)} but {len(zones)} zones; "
+                             f"give {rows}")
+        nodes, made = [], []
+        for r in range(rows):
+            z = None
+            if zones is not None:
+                spec = dict(zones[r]) if isinstance(zones[r], dict) else {"label": zones[r]}
+                z = self.zone(**spec)
+                made.append(z.id)
+                self._open_zones.append(z)
+            try:
+                for item in steps[r * cols:(r + 1) * cols]:
+                    spec = dict(item) if isinstance(item, dict) else {"title": item}
+                    nodes.append(self.add(spec.pop("kind", "box"), spec.pop("title", None), **spec))
+            finally:
+                if z is not None:
+                    self._open_zones.pop()
+        for k, (a, b) in enumerate(zip(nodes, nodes[1:]) if chain else []):
+            kw = dict(edge_kw, route="ortho") if (k + 1) % cols == 0 else edge_kw  # turn: row r → r + 1
+            self.edge(a, b, **kw)
+        self.snakes.append(Snake([n.id for n in nodes], made, cols, y, h, x, w, gap, row_gap, mode))
+        return nodes
+
     # layout helpers -----------------------------------------------------------
     def _seq(self, items: Sequence[Any], axis: str, x: float, y: float, w: float, h: float, gap: float,
              kind: str, styles: Sequence[str | None] | None, **common: Any) -> list[Node]:
@@ -791,9 +935,9 @@ class Diagram:
         return out
 
     @contextmanager
-    def _container(self, axis: str, x: float, y: float, gap: float, same_size: bool, max_width: float | None,
-                   same_icon_size: bool) -> Iterator[Container]:
-        c = Container(axis, x, y, gap, same_size, max_width, same_icon_size)
+    def _container(self, axis: str, x: float | None, y: float | None, gap: float, same_size: bool,
+                   max_width: float | None, same_icon_size: bool, **zone_kw: Any) -> Iterator[Container]:
+        c = Container(axis, x, y, gap, same_size, max_width, same_icon_size, **zone_kw)
         self.containers.append(c)
         self._open_containers.append(c)
         try:
@@ -801,29 +945,60 @@ class Diagram:
         finally:
             self._open_containers.pop()
 
-    def row(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
-            h: float | None = None, gap: float | None = None, kind: str = "box",
-            styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
-            same_icon_size: bool = False, **common: Any) -> Any:
-        """Place nodes left to right. With ``items`` (titles or dicts of node fields) and ``w``/``h``: the nodes.
-        Without items: ``with d.row(x=, y=, gap=, same_size=, max_width=):`` places the nodes created inside."""
+    def _box_seq(self, axis: str, items: Sequence[Any] | None, x: float | None, y: float | None,
+                 w: float | None, h: float | None, gap: float | None, kind: str,
+                 styles: Sequence[str | None] | None, same_size: bool, max_width: float | None,
+                 same_icon_size: bool, align: str | None, cols: int | None, same_text_scale: bool | None,
+                 common: dict) -> Any:
+        """``row``/``column``: absolute items (x, y, w, h all given), or a container (in the open zone when x/y
+        are not given) holding ``items`` and returning their nodes, or a ``with`` container without items."""
+        missing = [k for k, v in (("x", x), ("y", y)) if v is None]
+        zone = self._open_zones[-1].id if self._open_zones else None
+        if zone is None and missing:
+            raise TypeError(f"{self.id}: {axis} outside a zone needs x and y (missing: {', '.join(missing)})")
+        if zone is not None and len(missing) == 1:
+            raise TypeError(f"{self.id}: {axis} in zone {zone!r} takes both x and y or neither "
+                            f"(missing: {missing[0]})")
+        if not missing:
+            zone = None  # placed by hand
+        if align is not None and align not in ("center", "start", "end"):
+            raise ValueError(f"{self.id}: {axis} align {align!r}; use center, start or end")
+        if cols is not None and cols < 1:
+            raise ValueError(f"{self.id}: {axis} cols {cols}; use 1 or more")
+        if zone is None and (cols is not None or align is not None):
+            raise ValueError(f"{self.id}: {axis} cols and align need a zone (call it inside `with d.zone(...)`)")
+        seq_axis = "x" if axis == "row" else "y"
+        if items is not None and zone is None and w is not None and h is not None:  # the 0.4 absolute form
+            return self._seq(items, seq_axis, x, y, w, h, (60 if axis == "row" else 40) if gap is None else gap,
+                             kind, styles, **common)
+        ctx = self._container(axis, x, y, 20 if gap is None else gap, same_size, max_width, same_icon_size,
+                              zone=zone, align=align, cols=cols, same_text_scale=same_text_scale)
         if items is None:
-            return self._container("row", x, y, 20 if gap is None else gap, same_size, max_width, same_icon_size)
-        if w is None or h is None:
-            raise TypeError("row(items, ...) needs w and h")
-        return self._seq(items, "x", x, y, w, h, 60 if gap is None else gap, kind, styles, **common)
+            return ctx
+        with ctx:  # sized and placed by the model passes; w/h, when given, are each node's size
+            return self._seq(items, seq_axis, 0, 0, w or 0, h or 0, 0, kind, styles, **common)
 
-    def column(self, items: Sequence[Any] | None = None, *, x: float, y: float, w: float | None = None,
-               h: float | None = None, gap: float | None = None, kind: str = "box",
+    def row(self, items: Sequence[Any] | None = None, *, x: float | None = None, y: float | None = None,
+            w: float | None = None, h: float | None = None, gap: float | None = None, kind: str = "box",
+            styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
+            same_icon_size: bool = False, align: str | None = None, cols: int | None = None,
+            same_text_scale: bool | None = None, **common: Any) -> Any:
+        """Place nodes left to right. With ``items`` (titles or dicts of node fields) and ``x``/``y``/``w``/``h``:
+        the nodes at those places. With ``items`` but no size or no x/y: a container holding them; returns the
+        nodes. Without items: ``with d.row(x=, y=, gap=, same_size=, max_width=):`` places the nodes created
+        inside. Inside ``with d.zone(...)`` without x/y the row is placed in the zone's content area by ``align``
+        (center, start, end); ``cols=N`` makes each member 1/N of the content width."""
+        return self._box_seq("row", items, x, y, w, h, gap, kind, styles, same_size, max_width, same_icon_size,
+                             align, cols, same_text_scale, common)
+
+    def column(self, items: Sequence[Any] | None = None, *, x: float | None = None, y: float | None = None,
+               w: float | None = None, h: float | None = None, gap: float | None = None, kind: str = "box",
                styles: Sequence[str | None] | None = None, same_size: bool = False, max_width: float | None = None,
-               same_icon_size: bool = False, **common: Any) -> Any:
-        """Place nodes top to bottom; without items, a ``with`` container like :meth:`row`."""
-        if items is None:
-            return self._container("column", x, y, 20 if gap is None else gap, same_size, max_width,
-                                   same_icon_size)
-        if w is None or h is None:
-            raise TypeError("column(items, ...) needs w and h")
-        return self._seq(items, "y", x, y, w, h, 40 if gap is None else gap, kind, styles, **common)
+               same_icon_size: bool = False, align: str | None = None, cols: int | None = None,
+               same_text_scale: bool | None = None, **common: Any) -> Any:
+        """Place nodes top to bottom; the same forms as :meth:`row`."""
+        return self._box_seq("column", items, x, y, w, h, gap, kind, styles, same_size, max_width,
+                             same_icon_size, align, cols, same_text_scale, common)
 
     # rendering shortcut -------------------------------------------------------
     def save(self, out_dir: str | Path = "out", *, theme: Any = None, formats: Sequence[str] = ("svg",),

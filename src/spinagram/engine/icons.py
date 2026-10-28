@@ -52,6 +52,29 @@ def place(path: Path, x: float, slot_y: float, slot_h: float, height: float, max
     return Icon(path, ix, slot_y + (slot_h - h) / 2, h, w=w)
 
 
+CENTRE_TOP = 16.0  # a centred icon sits this far below the box top
+
+
+def centre_layout(path: Path, box: tuple[float, float, float, float], size: float, floor: float, specs: list,
+                  width: float, gap: float, block_gap: float, break_on: str) -> tuple[Icon, float, bool]:
+    """Centred icon over text (ICO-01/02): the icon at ``size``, else 1 px smaller down to ``floor``, at the first
+    size whose text (wrapped, base size) fits the height left below icon bottom + ``gap``. Returns the icon, the
+    label box top (relative to the box) and whether the text fits there at base size."""
+    from .textfit import fit_blocks
+
+    x, y, w, h = box
+    sizes = [size - k for k in range(int(max(0.0, size - floor)) + 1)]
+    if sizes[-1] > floor:
+        sizes.append(floor)
+    for isz in sizes:
+        icon = place(path, x, y + CENTRE_TOP, isz, isz, center_x=x + w / 2)
+        top = icon.y - y + icon.size + gap
+        res = fit_blocks(specs, width, h - top, mode="shrink", min_scale=1.0, break_on=break_on, gap=block_gap)
+        if res.height <= h - top + 0.5:
+            return icon, top, res.ok
+    return icon, top, False
+
+
 ICON_VARIANTS = ("wordmark", "symbol")
 
 

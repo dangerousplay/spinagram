@@ -47,6 +47,13 @@ edges:
 | `d.pill(title, x=, y=)` | A rounded tag centred on (x, y) |
 | `d.label(text, x=, y=)` | Free text; (x, y) is the first baseline |
 | `d.zone(label, x=, y=, w=, h=, color=)` | A background zone |
+| `d.zone(label, band=(y0, y1))` | A zone across the safe width; rows inside it need no coordinates |
+| `d.snake(steps, cols, y=, h=)` | A process wrapped onto rows of `cols` cards |
+| `d.distribute(n, w, gap, within=(x0, x1))` | The x of `n` boxes centred in a span; without `w`, `(xs, w)` filling it |
+
+With `Diagram(..., origin="safe")` (YAML `origin: safe`), coordinates start at the safe area (the canvas margin,
+80 px by default) instead of the canvas corner. See [Layout engine](/docs/write/layout-engine) for zone rows,
+snakes and anchors.
 
 In YAML, `at: [x, y, w, h]` is a shorthand for the four fields, and `kind:` is `box`, `note`,
 `diamond`, `pill` or `text`.

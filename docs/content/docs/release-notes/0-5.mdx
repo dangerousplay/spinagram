@@ -1,0 +1,87 @@
+---
+title: What's new in 0.5
+description: Zone headers that edges avoid, centred icons clear of the text, rows placed inside zones, snakes, and smaller SVGs.
+---
+
+These notes describe the next release, 0.5, which is not published yet. Install spinagram from the repository to
+try it.
+
+spinagram 0.5 takes on the slides that still needed hand-placed coordinates in 0.4: phase bands, cards laid out
+inside a zone, processes that wrap onto several rows, and edges that cut through zone headers. You declare the
+zone and the steps; the engine places the cards and routes the edges.
+
+![A delivery pipeline wrapping through two phase zones, two banded zones with rows placed for you, a zone anchor and an elbow edge](/assets/release-0-5/commit-to-production.svg)
+
+The source is `docs/diagrams/release_0_5.py`. It places no card by hand: only the snake, the bands and the zone widths have coordinates.
+
+## Edges stay off zone headers
+
+`route="ortho"` routes around zone headers, as it routes around boxes. `check` reports a straight edge that
+crosses a header as `edge-crosses-zone-header` (P0), and `check --fix` moves its anchors to the first pair of
+side fractions that clears every header, or switches it to `route: ortho`. A header can also sit on the right
+(`header="right"`) or be left out (`header="none"`).
+
+## Centred icons clear of the text
+
+A centred icon reserves its height: the text starts 8 px below it, and the icon shrinks to 24 px before the
+text does (`defaults.node.icon_text_gap`, `icon_min`). `check` reports an icon over its own text as
+`icon-overlaps-text` (P0) and fixes it with a taller box. `align="auto"` picks a centred icon for tall cards
+and a left icon for wide ones.
+
+## Zones that hold rows
+
+```python
+with d.zone("Observe", band=(560, 790)):
+    d.row(["Metrics", "Logs", "Traces"], cols=3)
+```
+
+`band=(y0, y1)` spans a zone across the safe width. A row or column inside it needs no coordinates: the engine
+places it below the header, centred or at the `start` or `end`, and `cols=N` gives each card 1/N of the width.
+`d.row(items)` with no size returns the nodes. Edges reach a point of a zone's outline with `z.top`,
+`z.at_top(0.8)` and the other side helpers.
+
+## Snakes
+
+```python
+d.snake(steps, cols=4, y=170, h=100, zones=["Build", "Release"])
+```
+
+A long process wraps onto rows of `cols` cards, each row in its own zone if you want, chained by edges that
+turn between rows clear of the headers. Rows alternate direction (`mode="boustrophedon"`) or all run left to
+right (`mode="restart"`). YAML: `snakes:`.
+
+## Even text in a row
+
+`same_text_scale=True` on a row or column gives every member the same title and body size, so one long title
+does not leave its card with smaller text. Without it, `check` reports sizes that differ by more than 10 % as
+`text-scale-mismatch`.
+
+## Helpers
+
+- `d["api"]` returns a node or zone by id.
+- `d.distribute(n, w, gap, within=(x0, x1))` returns the x of `n` boxes centred in a span, or equal widths that
+  fill it.
+- `route="elbow"` with `mid=` draws an edge with two bends at a chosen x or y.
+- `origin="safe"` measures coordinates from the canvas margin, so `x=0, y=0` is the safe area's corner.
+
+## Themes
+
+- **By name.** `--theme acme` also looks in each `SPINAGRAM_THEME_PATH` directory and in installed packages
+  that register a `spinagram.themes` entry point. The error lists every place it searched.
+- **Glyph map.** `text: {glyph_map: {"→": "->"}}` replaces characters the brand font lacks, in facts too;
+  `check` lists each one as `glyph-mapped`.
+- **Vendor icons.** `check` reports a generic icon on a box that names a cloud service
+  (`icon-generic-for-service`), and `icons: {prefer_vendor_for_services: true}` swaps it for the vendor icon.
+
+## Smaller SVGs
+
+SVGs now embed only the characters they draw from each font. `render --fonts embed` keeps whole font files
+(the 0.4 output), and `--fonts link` embeds none and imports Google Fonts instead. In Python, use
+`to_svg(scene, fonts=...)` or `spinagram.render(..., backend_options={"svg": {"fonts": "link"}})`.
+
+[Layout engine guide →](/docs/write/layout-engine)
+
+## Also in 0.5
+
+- `zone-underused` counts nested zones as content, so a Region that holds a VPC is not reported.
+- `check --fix` on a Python spec with `origin="safe"` prints label positions in the spec's coordinates.

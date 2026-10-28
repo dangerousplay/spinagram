@@ -1,10 +1,10 @@
 ---
 title: Extending
-description: Add output formats and layout engines from your own package.
+description: Add output formats, layout engines and themes from your own package.
 ---
 
 spinagram is built from plug-ins registered through Python entry points, so a separate package can
-add an output format or a layout engine.
+add an output format, a layout engine or a theme.
 
 ## Backends
 
@@ -29,6 +29,17 @@ An engine is a class with `name`, `available()` and `run(LGraph) -> LResult` (se
 mine = "my_package.layout:MyEngine"
 ```
 
+## Themes
+
+A theme package registers its theme directory through the `spinagram.themes` entry point, as the package itself
+(its directory holds `theme.yaml`) or as `module:ATTR`, where `ATTR` is the directory's path. `--theme acme` and
+`extends: acme` then find it by name. See [Themes by name](/docs/customize/themes#themes-by-name).
+
+```toml title="pyproject.toml"
+[project.entry-points."spinagram.themes"]
+acme = "acme_theme"
+```
+
 ## Python API
 
 ```python
@@ -37,4 +48,8 @@ import spinagram
 diagrams = spinagram.load("specs/")                  # YAML and Python specs
 spinagram.render(diagrams, "out/", theme="my-theme", formats=["svg", "pptx"], gallery=True)
 scenes = spinagram.scenes(diagrams, theme="my-theme")   # resolved scenes, for custom tooling
+spinagram.render(diagrams, "out/", backend_options={"svg": {"fonts": "link"}})   # options per backend
 ```
+
+`backend_options` maps a format to the keyword arguments of its backend; the SVG and PNG backends take
+`fonts="subset" | "embed" | "link"` ([SVG fonts](/docs/share/outputs#svg-fonts)).

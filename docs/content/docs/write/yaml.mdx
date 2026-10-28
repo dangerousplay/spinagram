@@ -22,8 +22,11 @@ spinagram render examples/quickstart.yaml -f svg,png,pptx -o out/
 | `layout` | Engine and direction for automatic layout: `{engine: elk, direction: down}` |
 | `groups` | Nested containers: `{id, label, style, direction, children: [...]}` |
 | `nodes` | `{id, title, text, icon, style, kind, x, y, w, h}`; `at: [x, y, w, h]` is a shorthand |
-| `edges` | Shorthand strings or `{from, to, label, color, dashed, via, arrow}` |
-| `zones`, `tables`, `legend` | Fixed-position extras, see [Manual layout](/docs/write/manual-layout) |
+| `edges` | Shorthand strings or `{from, to, label, color, dashed, via, arrow, route, mid}` |
+| `zones`, `tables`, `legend` | Fixed-position extras, see [Manual layout](/docs/write/manual-layout); a zone takes `band: [y0, y1]` and `header: left\|right\|none` |
+| `rows`, `columns` | Containers: `{x, y, gap, same_size, same_text_scale, nodes: [...]}`, or in a zone `{zone: <id>, align, cols, nodes: [...]}`, see [Layout engine](/docs/write/layout-engine#rows-inside-zones) |
+| `snakes` | Multi-row processes: `{steps, cols, y, h, x, w, gap, row_gap, zones, mode, chain}`, see [Layout engine](/docs/write/layout-engine#snakes) |
+| `origin` | `canvas` (default) or `safe`: coordinates from the safe area |
 | `facts`, `locale` | [Facts](/docs/customize/facts) file and number format |
 | `category`, `tags` | Catalog metadata for `serve` and `--tag`/`--category`, see [Python guide](/docs/write/python#catalog-metadata) |
 
@@ -31,7 +34,8 @@ spinagram render examples/quickstart.yaml -f svg,png,pptx -o out/
 
 `"<from> -> <to>[: label]"`, where an endpoint is a node id (the facing side is picked
 automatically) or `node.side[@frac]` with `side` one of `top|bottom|left|right|center` and `frac` a
-position from 0 to 1 along that side. `<-`, `<->` and `--` (no arrow) work too.
+position from 0 to 1 along that side. `zone:<id>` ends on a zone, and `zone:<id>.side[@frac]` on a point of
+its outline. `<-`, `<->` and `--` (no arrow) work too.
 
 ## Folder defaults
 

@@ -69,9 +69,12 @@ def resolve(ref, other, shapes: dict[str, Shape], diagram_id: str = "",
     if name.startswith(ZONE):
         z = _zone(name, zones or {}, diagram_id)
         ox, oy = center(other, shapes, zones)
+        explicit = bool(side)
         side = side or _zone_side(z, ox, oy)
         f = float(frac) if frac else _clamped_frac(z, side, ox, oy)
-        return z.anchor(side, f), Binding(z.id, side, f, "zone")
+        b = Binding(z.id, side, f, "zone")
+        b.__dict__["explicit"] = explicit  # ``zone:<id>.side``: the ortho router keeps the side and fraction
+        return z.anchor(side, f), b
     if name not in shapes:
         raise KeyError(f"{diagram_id}: edge refers to unknown node {name!r}")
     s = shapes[name]
@@ -85,6 +88,30 @@ def resolve(ref, other, shapes: dict[str, Shape], diagram_id: str = "",
     b = Binding(name, side, f)
     b.__dict__["explicit"] = explicit  # a side the author chose (routers keep it)
     return pt, b
+
+
+def elbow(p1: Point, b1: Binding | None, p2: Point, mid: float | None) -> list[Point]:
+    """``p1 → bend → bend → p2`` with the middle segment at ``mid`` (HLP-04): a y when ``p1`` leaves vertically
+    (an anchor on a top or bottom side), an x when it leaves horizontally (left or right); without a side, the
+    dominant axis of ``p2 − p1``. ``mid`` defaults to the midpoint on that axis. Repeated and straight-through
+    points are dropped."""
+    vertical = b1.side in ("top", "bottom") if b1 is not None and b1.side != "center" else \
+        abs(p2[1] - p1[1]) > abs(p2[0] - p1[0])
+    if vertical:
+        m = (p1[1] + p2[1]) / 2 if mid is None else float(mid)
+        pts = [p1, (p1[0], m), (p2[0], m), p2]
+    else:
+        m = (p1[0] + p2[0]) / 2 if mid is None else float(mid)
+        pts = [p1, (m, p1[1]), (m, p2[1]), p2]
+    out: list[Point] = []
+    for p in pts:
+        if out and p == out[-1]:
+            continue
+        if len(out) >= 2 and (out[-2][0] == out[-1][0] == p[0] or out[-2][1] == out[-1][1] == p[1]):
+            out[-1] = p  # the previous point lies on a straight run: keep the run's ends only
+            continue
+        out.append(p)
+    return out
 
 
 BUS_INSET = 10.0

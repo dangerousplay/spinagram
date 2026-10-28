@@ -237,6 +237,10 @@ class Scene:
     zone_children: dict[str, list[str]] = field(default_factory=dict)  # zone shape id → child shape ids (declared)
     not_straight: list[str] = field(default_factory=list)  # straight=True edges that could not be made straight
     icon_sources: dict[str, tuple] = field(default_factory=dict)  # icon name → (resolved ref, source)
+    vendor_hints: dict[str, tuple[str, str, str]] = field(default_factory=dict)  # node → (title, vendor ref, icon)
+    glyph_mapped: dict[str, str] = field(default_factory=dict)  # char → replacement (theme text.glyph_map)
+    text_sizes: dict[str, tuple[float | None, float | None]] = field(default_factory=dict)  # card → (title, body)
+    text_scale_rows: set[str] = field(default_factory=set)  # rows/columns with same_text_scale on
     version_mismatch: tuple[str, str] | None = None  # (requires, installed) when the spec's pin is not met
 
     def shapes(self) -> dict[str, Shape]:

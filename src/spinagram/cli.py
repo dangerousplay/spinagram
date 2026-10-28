@@ -70,6 +70,9 @@ def _main(argv: list[str] | None = None) -> int:
             p.add_argument("--name-from", choices=("slug", "id", "file"), default="slug",
                            help="output file names: <id>-<title> (slug, default), the diagram id, or the spec file; "
                                 "a diagram's own `output:` always wins")
+            p.add_argument("--fonts", choices=("subset", "embed", "link"), default="subset",
+                           help="SVG/PNG fonts: subset to the drawn glyphs (default), embed whole files, or link "
+                                "Google Fonts")
             p.add_argument("--relayout", action="store_true",
                            help="apply check's safe fixes in memory before rendering (hand-placed diagrams)")
     ic = sub.add_parser("icons", help="icon packs: list, fetch, search, add, remove")
@@ -205,7 +208,8 @@ def _main(argv: list[str] | None = None) -> int:
 
         diagrams = [d if d.auto else fix_until_clean(d, theme)[0] for d in diagrams]
     written = api.render(diagrams, args.out, theme=theme, formats=formats, gallery=not args.no_gallery,
-                         layout=args.layout, name_from=args.name_from)
+                         layout=args.layout, name_from=args.name_from,
+                         backend_options={f: {"fonts": args.fonts} for f in ("svg", "png")})
     for p in written:
         print(p)
     return 0
@@ -235,8 +239,10 @@ def _fix(diagrams, theme) -> int:
                                               allow_unicode=True, width=120), encoding="utf-8")
                 print(f"{out}: {len(applied)} fix(es) applied")
         else:
-            for line in suggest_python(applied):
-                print(f"{src}: {line}" if src else line)
+            margin = (theme.get("canvas") or {}).get("margin", 80)
+            for d, (_, a, _) in zip(ds, results):
+                for line in suggest_python(a, margin if d.origin == "safe" else 0):
+                    print(f"{src}: {line}" if src else line)
         for i in remaining:
             print(i)
     print(f"{len(diagrams)} diagram(s), {remaining_p0} P0 issue(s) left")

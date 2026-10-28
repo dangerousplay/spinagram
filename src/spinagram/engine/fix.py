@@ -5,7 +5,7 @@ import copy
 
 from ..model import Diagram
 
-SAFE_OPS = ("move-label", "resize", "nudge", "shrink-font")
+SAFE_OPS = ("move-label", "resize", "nudge", "shrink-font", "anchor", "reroute")
 
 
 def _inside(x: float, y: float, w: float, h: float, canvas: tuple[float, float], margin: float) -> bool:
@@ -18,6 +18,7 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
     """A copy of ``d`` with every safe fix applied, plus (applied, skipped) issues. A fix that would leave an
     element outside the safe area is skipped and its issue kept (CHK-08)."""
     out = copy.deepcopy(d)
+    off = margin if out.origin == "safe" else 0  # fixes read scene (canvas) coordinates; the spec is in safe ones
     nodes = {n.id: n for n in out.nodes}
     applied, skipped = [], []
     done: set[tuple] = set()
@@ -30,12 +31,18 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
             continue
         done.add(key)
         op = f["op"]
-        if op == "move-label":
+        if op in ("move-label", "anchor", "reroute"):
             idx = int(f["edge"][1:])
             if idx >= len(out.edges):
                 skipped.append(i)
                 continue
-            out.edges[idx].label_at = (float(f["to"][0]), float(f["to"][1]))
+            e = out.edges[idx]
+            if op == "move-label":
+                e.label_at = (float(f["to"][0]) - off, float(f["to"][1]) - off)
+            elif op == "anchor":
+                e.src, e.dst = f["src"], f["dst"]
+            else:
+                e.route = f["route"]
             applied.append(i)
             continue
         n = nodes.get(f.get("node"))
@@ -45,7 +52,7 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
         x, y, w, h = n.x, n.y, f.get("w", n.w), f.get("h", n.h)
         if op == "nudge":
             x, y = n.x + f.get("dx", 0), n.y + f.get("dy", 0)
-        if op in ("nudge", "resize") and not _inside(x, y, w, h, canvas, margin):
+        if op in ("nudge", "resize") and not _inside(x + off, y + off, w, h, canvas, margin):
             skipped.append(i)
             continue
         if op == "shrink-font":
@@ -74,15 +81,21 @@ def fix_until_clean(d: Diagram, theme, rounds: int = 3) -> tuple[Diagram, list, 
     return cur, applied_all, check(build_scene(cur, theme))
 
 
-def suggest_python(issues) -> list[str]:
-    """One suggested edit per applied fix, for specs that cannot be rewritten (``node: w=240``)."""
+def suggest_python(issues, offset: float = 0) -> list[str]:
+    """One suggested edit per applied fix, for specs that cannot be rewritten (``node: w=240``). ``offset`` is
+    the margin of an ``origin="safe"`` spec: positions are printed in its coordinates, as ``apply_to_diagram``
+    writes them."""
     out = []
     for i in issues:
         f = i.fix
         if f["op"] == "move-label":
-            out.append(f"{f['edge']}: label_at=({f['to'][0]:g}, {f['to'][1]:g})")
+            out.append(f"{f['edge']}: label_at=({f['to'][0] - offset:g}, {f['to'][1] - offset:g})")
         elif f["op"] == "nudge":
             out.append(f"{f['node']}: move by dx={f['dx']:g}, dy={f['dy']:g}")
+        elif f["op"] == "anchor":
+            out.append(f'{f["edge"]}: src="{f["src"]}", dst="{f["dst"]}"')
+        elif f["op"] == "reroute":
+            out.append(f'{f["edge"]}: route="{f["route"]}"')
         elif f["op"] == "shrink-font":
             out.append(f"{f['node']}: title_size={f['title_size']:g}")
         else:

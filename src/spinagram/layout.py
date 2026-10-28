@@ -31,6 +31,9 @@ LABEL_ROLES = {
 }
 
 
+_PACK_REF = re.compile(r"^[a-z0-9][a-z0-9_-]*:[^/\\]")  # ``pack:name`` (as ``Theme._source``)
+
+
 def slugify(text: str, max_len: int = 60) -> str:
     s = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:max_len].rstrip("-")
@@ -61,6 +64,8 @@ class _Builder:
         self.label_issues: list[tuple[str, str, str]] = []
         self.flush: set[str] = set()  # zones with a flush corner icon (AWS style)
         self.not_straight: list[str] = []  # straight=True edges whose boxes share no span
+        self.vendor_hints: dict[str, tuple[str, str, str]] = {}  # node id → (title, vendor ref, generic icon)
+        self.text_sizes: dict[str, tuple[float | None, float | None]] = {}  # card id → final (title, body) size
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -134,6 +139,50 @@ class _Builder:
                      stroke=color, stroke_width=1.6, radius=h / 2, role="pill",
                      label=Label([blk], (x, y, w, h), align="center"))
 
+    # shared text scale (TSC) ---------------------------------------------------
+    @staticmethod
+    def _boxed(n: Node) -> bool:
+        """Whether :meth:`node` draws ``n`` with :meth:`box` (titled card text)."""
+        return n.kind not in ("pill", "text", "diamond") and n.kind not in shapes.KINDS
+
+    def _fitted_sizes(self, n: Node) -> tuple[float | None, float | None]:
+        """Final (title, body) sizes of ``n`` fitted alone, on a scratch builder (no effect on this one)."""
+        scratch = copy.copy(self)
+        scratch.shapes, scratch.extras, scratch.fits, scratch.vendor_hints, scratch.text_sizes = {}, {}, {}, {}, {}
+        scratch.warnings = []
+        with warnings.catch_warnings():  # the real build warns once
+            warnings.simplefilter("ignore")
+            scratch.box(n)
+        return scratch.text_sizes[n.id]
+
+    def shared_text_scale(self) -> None:
+        """TSC-02: members of a container with ``same_text_scale`` (None: its ``same_size``) take the smallest
+        final title and body size any member reaches fitted alone. Changed nodes are copies on a copy of the
+        diagram; members already at the smallest size keep their own settings (TSC-04)."""
+        nodes = list(self.d.nodes)
+        at = {n.id: k for k, n in enumerate(nodes)}
+        for c in self.d.containers:
+            on = c.same_text_scale if c.same_text_scale is not None else c.same_size
+            members = [i for i in c.children if i in at and self._boxed(nodes[at[i]])]
+            if not on or len(members) < 2:
+                continue
+            sizes = {i: self._fitted_sizes(nodes[at[i]]) for i in members}
+            low = [min((sz[role] for sz in sizes.values() if sz[role] is not None), default=None) for role in (0, 1)]
+            for i, sz in sizes.items():
+                if not any(s is not None and s > m for s, m in zip(sz, low)):
+                    continue
+                # pin every role, not only the lowered one: the fit shrinks both together, so a role left
+                # unpinned grows back into the room the other one freed
+                k = at[i]
+                if nodes[k] is self.d.nodes[k]:
+                    nodes[k] = copy.copy(nodes[k])
+                for role, attr in enumerate(("title_size", "body_size")):
+                    if sz[role] is not None:
+                        setattr(nodes[k], attr, low[role])
+        if any(a is not b for a, b in zip(nodes, self.d.nodes)):
+            self.d = copy.copy(self.d)
+            self.d.nodes = nodes
+
     # elements -----------------------------------------------------------------
     def node(self, n: Node) -> Shape | Text:
         if n.kind == "pill":
@@ -179,39 +228,10 @@ class _Builder:
         x, y, w, h = n.x, n.y, n.w, n.h
         pad = nd.get("padding", 22)
         ts, bs = n.title_size or nd.get("title_size", 24), n.body_size or nd.get("body_size", 18)
-        center = n.align == "center"
-        icon_name = n.icon if n.kind == "note" else icon_fit.variant_name(self.t, n.icon, n.extra.get("variant"))
-        icon_path = self.t.icon(icon_name, st["tone"], self.d.base_dir)
-        if n.icon and icon_path is None:
-            warnings.warn(f"{self.d.id}: icon {n.icon!r} not found in theme {self.t.data.get('name')}", stacklevel=2)
-        icon, offset, top = None, 0.0, 0.0
-        if icon_path is not None:  # fitted by height, wordmarks keep their aspect ratio (up to 4 heights wide)
-            has_text = bool(_as_list(n.title)) or bool(n.lines) or bool(n.text)
-            if center:
-                isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size_center", 40))
-                if has_text:
-                    icon = icon_fit.place(icon_path, x, y + 16, isz, isz, center_x=x + w / 2)
-                    top = 16 + icon.size - 12
-                else:  # icon-only box: centred both ways
-                    icon = icon_fit.place(icon_path, x, y, h, isz, max_width=w, center_x=x + w / 2)
-            else:
-                isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44))
-                icon = icon_fit.place(icon_path, x + pad, y, h, isz)
-                offset = icon.width + nd.get("icon_gap", 14)
         variant = n.extra.get("variant") if n.kind == "note" else None
-        if variant == "quote":
-            offset += 46  # room for the quote mark
-            # the quote reads larger than its attribution (theme sizes only; CSS or explicit sizes win)
+        if variant == "quote":  # the quote reads larger than its attribution (theme sizes only; CSS or explicit win)
             ts = n.title_size or nd.get("body_size", 18)
             bs = n.body_size or nd.get("title_size", 24) - 2
-        avail = w - 2 * pad - offset
-        names = n.extra.get("badges") or []
-        bpaths = [p for p in (self.t.icon(b, "light", self.d.base_dir) for b in names) if p is not None]
-        if bpaths:  # corner badges: the text ends before the leftmost one
-            main = icon.size if icon else (n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44)))
-            parts, left = icon_fit.badges(n.id, bpaths, (x, y, w, h), icon_fit.badge_size(main))
-            self.extras.setdefault(n.id, []).extend(parts)
-            avail = min(avail, left - icon_fit.BADGE_GAP - (x + pad + offset))
         specs = []
         cs = self._css(f"node:{n.id}")
         titles = _as_list(n.title)
@@ -224,8 +244,50 @@ class _Builder:
             col, wt, it = self._text(cs, "body", st["body"], 400)
             f = self.t.font("body", wt, bs, it or variant == "quote")
             specs.append(textfit.BlockSpec([str(b) for b in body], f, nd.get("body_leading", 1.32), col))
+        icon_name = n.icon if n.kind == "note" else icon_fit.variant_name(self.t, n.icon, n.extra.get("variant"))
+        icon_path = self.t.icon(icon_name, st["tone"], self.d.base_dir)
+        if n.icon and icon_path is None:
+            warnings.warn(f"{self.d.id}: icon {n.icon!r} not found in theme {self.t.data.get('name')}", stacklevel=2)
+        icon_path = self.vendor_icon(n, icon_name, icon_path, st["tone"])
+        brk = n.extra.get("break_on", nd.get("break_on"))
+        brk = brk if brk is not None else textfit.BREAK_ON
+
+        def centred(isz: float, avail: float):
+            return icon_fit.centre_layout(icon_path, (x, y, w, h), isz, min(isz, nd.get("icon_min", 24)), specs,
+                                          avail, nd.get("icon_text_gap", 8), nd.get("title_body_gap", 10), brk)
+        center = n.align == "center"
+        if n.align == "auto":  # ICO-06: centred when tall and the text fits under the icon (badges not counted)
+            center = icon_path is not None and bool(specs) and h > w and \
+                centred(n.icon_size or self._icon_size(h, nd, nd.get("icon_size_center", 40)), w - 2 * pad)[2]
+        icon, offset, top = None, 0.0, 0.0
+        if icon_path is not None:  # fitted by height, wordmarks keep their aspect ratio (up to 4 heights wide)
+            has_text = bool(_as_list(n.title)) or bool(n.lines) or bool(n.text)
+            if center:
+                isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size_center", 40))
+                if has_text:  # provisional: centre_layout settles size and text top once the text is known
+                    icon = icon_fit.place(icon_path, x, y + 16, isz, isz, center_x=x + w / 2)
+                else:  # icon-only box: centred both ways
+                    icon = icon_fit.place(icon_path, x, y, h, isz, max_width=w, center_x=x + w / 2)
+            else:
+                isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44))
+                icon = icon_fit.place(icon_path, x + pad, y, h, isz)
+                offset = icon.width + nd.get("icon_gap", 14)
+        if variant == "quote":
+            offset += 46  # room for the quote mark
+        avail = w - 2 * pad - offset
+        names = n.extra.get("badges") or []
+        bpaths = [p for p in (self.t.icon(b, "light", self.d.base_dir) for b in names) if p is not None]
+        if bpaths:  # corner badges: the text ends before the leftmost one
+            main = icon.size if icon else (n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44)))
+            parts, left = icon_fit.badges(n.id, bpaths, (x, y, w, h), icon_fit.badge_size(main))
+            self.extras.setdefault(n.id, []).extend(parts)
+            avail = min(avail, left - icon_fit.BADGE_GAP - (x + pad + offset))
+        if center and icon is not None and specs:  # the icon reserves its height, shrinking before the text
+            icon, top, _ = centred(icon.size, avail)
         fitted = self.fit(n, specs, avail, h - top, nd.get("title_body_gap", 10))
         blocks = fitted.blocks
+        self.text_sizes[n.id] = (blocks[0].font.size if titles and blocks else None,
+                                 blocks[-1].font.size if body and blocks else None)
         h = max(h, fitted.height + top) if fitted.strategy == "grow" else h
         if variant == "quote" and len(blocks) == 2:  # the quote first, the title as its attribution
             title, body = blocks
@@ -245,10 +307,31 @@ class _Builder:
         self.shapes[n.id] = s
         return s
 
+    def vendor_icon(self, n: Node, icon_name: str | None, icon_path: Path | None, tone: str) -> Path | None:
+        """A generic icon (theme alias, icon dir or ``concept:`` chain) on a node titled after a cached vendor
+        service: the vendor icon with ``icons.prefer_vendor_for_services``, else a hint for ``check`` (VND)."""
+        from .engine import vendor
+
+        if icon_path is None or not n.icon or (_PACK_REF.match(n.icon) and not n.icon.startswith("concept:")):
+            return icon_path
+        ref = vendor.match(n.title, self.t.icon_packs())
+        trace = getattr(self.t, "icon_trace", None) or {}
+        if ref is None or (trace.get(icon_name) or (None,))[0] == ref:  # it already draws that service
+            return icon_path
+        if (self.t.get("icons") or {}).get("prefer_vendor_for_services"):
+            swapped = self.t.icon(ref, tone, self.d.base_dir)
+            if swapped is not None:
+                return swapped
+        self.vendor_hints[n.id] = (" ".join(_as_list(n.title)), ref, n.icon)
+        return icon_path
+
     def zone_header(self, i: int, z, zs: dict, zcs: dict) -> list:
         """Header icon and label of zone ``i`` (see :func:`engine.zones.header_layout`)."""
         t, zd = self.t, self.t.defaults("zone")
         opts = zones.header_options(z, zs, t)
+        if opts["align"] == "none":  # no icon, no label, no header rect (HDR-07); the strip stays
+            self.content_tops[z.id or f"z{i}"] = zones.content_top(z, 0, opts=opts)
+            return self._strip(i, z, zs, opts)
         names = z.icon or zs["icon"]
         names = [names] if isinstance(names, str) else list(names or [])
         names = [icon_fit.variant_name(t, nm, opts.get("variant")) for nm in names]
@@ -259,11 +342,7 @@ class _Builder:
         geo = zones.header_layout(z, opts, [w for w, _ in fits], size, zd.get("icon_size", 32))
         if paths and not opts["inset"]:
             self.flush.add(f"z{i}")
-        items: list = []
-        if opts["strip"]:  # accent bar along the top, clear of the rounded corners
-            r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else zd.get("radius", 26))
-            items.append(Shape(id=f"z{i}-strip", kind="rect", x=z.x + r, y=z.y, w=z.w - 2 * r, h=5,
-                               fill=t.color(opts["strip"]), radius=2.5, role="zone"))
+        items: list = self._strip(i, z, zs, opts)
         for k, (p, (ix, iy, isz), (fw, fh)) in enumerate(zip(paths, geo["icons"], fits)):
             iy += (isz - fh) / 2  # centred in the header slot
             items.append(Shape(id=f"z{i}-icon" if k == 0 else f"z{i}-icon{k}", kind="rect", x=ix, y=iy, w=fw,
@@ -275,12 +354,25 @@ class _Builder:
             track = zd.get("label_tracking", 0) * size if upper else 0  # em → px, uppercase labels only
             lx, ly = geo["label"]
             items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col,
-                                   letter_spacing=track))
-        right = max([z.x + 24] + [it.x + (it.width or 0) for it in items if isinstance(it, Text)] +
-                    [it.x + it.w for it in items if isinstance(it, Shape)])
-        self.headers[f"z{i}"] = (z.x, z.y, right - z.x, geo["bottom"] - z.y)
+                                   anchor=geo["anchor"], letter_spacing=track))
+        if opts["align"] == "right":  # mirrored: from the leftmost item to the right outline
+            left = min([z.x + z.w - 24] + [it.x - (it.width or 0) for it in items if isinstance(it, Text)] +
+                       [it.x for it in items if isinstance(it, Shape)])
+            self.headers[f"z{i}"] = (left, z.y, z.x + z.w - left, geo["bottom"] - z.y)
+        else:
+            right = max([z.x + 24] + [it.x + (it.width or 0) for it in items if isinstance(it, Text)] +
+                        [it.x + it.w for it in items if isinstance(it, Shape)])
+            self.headers[f"z{i}"] = (z.x, z.y, right - z.x, geo["bottom"] - z.y)
         self.content_tops[z.id or f"z{i}"] = geo["bottom"] + opts["gap"]
         return items
+
+    def _strip(self, i: int, z, zs: dict, opts: dict) -> list:
+        """The header accent bar along the top, clear of the rounded corners (``strip`` option)."""
+        if not opts["strip"]:
+            return []
+        r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else self.t.defaults("zone").get("radius", 26))
+        return [Shape(id=f"z{i}-strip", kind="rect", x=z.x + r, y=z.y, w=z.w - 2 * r, h=5,
+                      fill=self.t.color(opts["strip"]), radius=2.5, role="zone")]
 
     def _note_variant(self, s: Shape, variant: str) -> None:
         """``card``: a white card with a primary accent bar; ``quote``: a tinted panel with a large quote mark."""
@@ -373,6 +465,8 @@ class _Builder:
             pts, route = [p1, *e.via, p2], "poly"
         elif e.curve:
             pts, route = [p1, (float(e.curve[0]), float(e.curve[1])), p2], "curve"
+        elif e.route == "elbow":
+            pts, route = endpoints.elbow(p1, b1, p2, e.mid), "poly"
         else:
             pts, route = [p1, p2], "straight"
         label = None
@@ -412,7 +506,7 @@ class _Builder:
         bundled = {i for idx, _ in bundles for i in idx}
         todo = [i for i in todo if i not in bundled]
         if todo:
-            router.route_ortho(edges, todo, self.shapes, targets)
+            router.route_ortho(edges, todo, self.shapes, targets, headers=self.headers)
         for idx, trunk in bundles:
             router.route_bundle(edges, idx, trunk, targets)
 
@@ -474,6 +568,7 @@ class _Builder:
 
     # assembly -----------------------------------------------------------------
     def build(self) -> Scene:
+        self.shared_text_scale()
         t, d, W, H = self.t, self.d, self.W, self.H
         ch = t.get("chrome") or {}
         sc = Scene(id=d.id, title=d.title, slug=d.output or f"{d.id}-{slugify(d.title)}", width=W, height=H,
@@ -621,6 +716,8 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     diagram = apply_layout(diagram, theme)  # resolves the CSS cascade first (css.prepare)
     diagram = model_passes.apply(diagram, theme)  # hand-placed diagrams: content sizes, containers, grids
     resolved, refs, reg = apply_facts(diagram)
+    if reg is not None:  # GLM-01: fact values are diagram text too
+        resolved = model_passes.glyph_map(resolved, theme)
     builder = _Builder(resolved, theme)
     theme.icon_trace = {}  # records how each icon name resolved while this scene is built
     try:
@@ -643,9 +740,15 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.flush_headers = builder.flush
     scene.not_straight = builder.not_straight
-    scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80)}
+    scene.vendor_hints = builder.vendor_hints
+    scene.text_sizes = builder.text_sizes
+    scene.glyph_mapped = resolved.__dict__.get("_glyph_mapped") or {}
+    scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80),
+                           "icon_text_gap": theme.defaults("node").get("icon_text_gap", 8)}
     glyphs.apply(scene, theme)
     scene.rows = [(f"{c.axis}{k}", list(c.children), c.same_icon_size) for k, c in enumerate(diagram.containers)]
+    scene.text_scale_rows = {f"{c.axis}{k}" for k, c in enumerate(diagram.containers)
+                             if (c.same_size if c.same_text_scale is None else c.same_text_scale)}
     shape_of = {(z.id or f"z{k}"): f"z{k}" for k, z in enumerate(diagram.zones)}
     scene.zone_children = {f"z{k}": [shape_of.get(c, c) for c in z.children]
                            for k, z in enumerate(diagram.zones) if z.children}

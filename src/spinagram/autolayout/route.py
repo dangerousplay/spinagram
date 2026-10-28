@@ -18,11 +18,12 @@ BUSY = 400.0  # cost of attaching to a side another edge already uses: arrowhead
 CLOSE = 4.0  # extra cost per px of a segment closer than ``margin`` to a box it does not start or end at
 
 
-def _ports(b: Box) -> dict[str, tuple[Point, Point]]:
-    """side → (point on the border, unit direction outward)."""
+def _ports(b: Box, f: float | None = None) -> dict[str, tuple[Point, Point]]:
+    """side → (point on the border at fraction ``f``, default the middle; unit direction outward)."""
     x, y, w, h = b
-    return {"top": ((x + w / 2, y), (0, -1)), "bottom": ((x + w / 2, y + h), (0, 1)),
-            "left": ((x, y + h / 2), (-1, 0)), "right": ((x + w, y + h / 2), (1, 0))}
+    f = 0.5 if f is None else f
+    return {"top": ((x + w * f, y), (0, -1)), "bottom": ((x + w * f, y + h), (0, 1)),
+            "left": ((x, y + h * f), (-1, 0)), "right": ((x + w, y + h * f), (1, 0))}
 
 
 def _inside(px: float, py: float, b: Box, pad: float = 0.5) -> bool:
@@ -32,17 +33,19 @@ def _inside(px: float, py: float, b: Box, pad: float = 0.5) -> bool:
 
 def route(src: Box, dst: Box, obstacles: list[Box], *, margin: float = MARGIN,
           sides: tuple[str | None, str | None] = (None, None),
-          busy: dict[Box, set[str]] | None = None, penalty=None, guides: list[Point] = ()) -> list[Point]:
+          busy: dict[Box, set[str]] | None = None, penalty=None, guides: list[Point] = (),
+          fracs: tuple[float | None, float | None] = (None, None)) -> list[Point]:
     """Orthogonal polyline from a side of ``src`` to a side of ``dst`` that enters no obstacle.
 
     ``obstacles`` may include ``src`` and ``dst``; they are always avoided except at the ports.
     Without ``sides`` every side pair is tried and the cheapest route wins. ``busy`` maps a box to the
     sides other edges already attach to; those cost ``BUSY`` so the route prefers a free side.
     ``penalty(a, b)`` adds a cost to a grid segment (e.g. per crossing with edges already routed);
-    ``guides`` add grid lines through points so a route can pass around such edges.
+    ``guides`` add grid lines through points so a route can pass around such edges; ``fracs`` put the
+    ports at that fraction of their side instead of the middle.
     """
     obs = [b for b in obstacles if b != src and b != dst] + [src, dst]
-    sp, dp = _ports(src), _ports(dst)
+    sp, dp = _ports(src, fracs[0]), _ports(dst, fracs[1])
     s_sides = [sides[0]] if sides[0] else list(sp)
     d_sides = [sides[1]] if sides[1] else list(dp)
     busy = busy or {}

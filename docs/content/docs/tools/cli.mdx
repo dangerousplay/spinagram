@@ -25,7 +25,7 @@ defaults for every spec in it.
 
 | Option | Commands | Meaning |
 |---|---|---|
-| `-t, --theme` | render, check, facts, layout, deck, serve | Theme directory or built-in name (env `SPINAGRAM_THEME`) |
+| `-t, --theme` | render, check, facts, layout, deck, serve | Theme directory or name, see [Themes by name](/docs/customize/themes#themes-by-name) (env `SPINAGRAM_THEME`) |
 | `--only ID...` | render, check, facts, layout | Diagram ids to include |
 | `--tag TAG` | render, check, facts, layout | Only diagrams with this tag, declared or inferred from icons; repeat to require several |
 | `--category NAME` | render, check, facts, layout | Only diagrams in this category (case-insensitive) |
@@ -33,6 +33,7 @@ defaults for every spec in it.
 | `-f, --formats` | render | Comma list from `svg`, `png`, `pptx`, `figma`, `figjam`, `excalidraw` |
 | `-o, --out` | render, layout, vectorize, deck | Output directory or file |
 | `--no-gallery` | render | Skip `index.html` |
+| `--fonts subset\|embed\|link` | render | SVG and PNG fonts: `subset` (default) embeds only the characters drawn, `embed` the whole font files, `link` none (a Google Fonts `@import`) ([details](/docs/share/outputs#svg-fonts)) |
 | `--styles` | check | Explain each element's computed style: matching rules, overrides, inheritance ([details](/docs/customize/css-reference#inspect-computed-styles)) |
 | `--select SELECTOR` | check | With `--styles` or `--json`: only elements matching a CSS selector |
 | `--json` | check | Print the style report as JSON |
@@ -49,6 +50,11 @@ defaults for every spec in it.
 | `style` | A stylesheet error, an unknown property or a font the theme does not embed |
 | `behavior` | A decision with one branch, a fork with one branch, a state region without an initial state |
 | `legend`, `steps`, `callout`, `annotations` | Annotation problems, see [Annotations](/docs/customize/annotations#checks) |
+| `edge-crosses-zone-header`, `icon-overlaps-text` | An edge through a zone header, an icon over its box's text (P0) |
+| `text-scale-mismatch`, `icon-generic-for-service`, `glyph-mapped` | Uneven text sizes in a row, a generic icon on a named cloud service, a character replaced by the theme glyph map (P2) |
+
+Hand-placed diagrams get the layout checks too (`zone-underused`, `edge-crossings`, …); the
+[Layout engine](/docs/write/layout-engine#check-and---fix) guide lists every kind, its severity and its fix.
 
 `check` exits non-zero when it finds anything, so it can gate a pull request.
 
@@ -67,6 +73,7 @@ defaults for every spec in it.
 | Variable | Effect |
 |---|---|
 | `SPINAGRAM_THEME` | Default theme |
+| `SPINAGRAM_THEME_PATH` | Directories searched for themes by name (`<dir>/<name>/theme.yaml`), separated by `:` (`;` on Windows) |
 | `SPINAGRAM_LAYOUT` | Default layout engine override |
 | `SPINAGRAM_CACHE` | Cache directory for icon packs (default `~/.cache/spinagram`) |
 | `SPINAGRAM_OFFLINE=1` | Never download icon packs |
