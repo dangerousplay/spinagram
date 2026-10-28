@@ -167,14 +167,18 @@ class _Builder:
             if not on or len(members) < 2:
                 continue
             sizes = {i: self._fitted_sizes(nodes[at[i]]) for i in members}
-            for role, attr in enumerate(("title_size", "body_size")):
-                low = min((sz[role] for sz in sizes.values() if sz[role] is not None), default=None)
-                for i, sz in sizes.items():
-                    if sz[role] is not None and sz[role] > low:
-                        k = at[i]
-                        if nodes[k] is self.d.nodes[k]:
-                            nodes[k] = copy.copy(nodes[k])
-                        setattr(nodes[k], attr, low)
+            low = [min((sz[role] for sz in sizes.values() if sz[role] is not None), default=None) for role in (0, 1)]
+            for i, sz in sizes.items():
+                if not any(s is not None and s > m for s, m in zip(sz, low)):
+                    continue
+                # pin every role, not only the lowered one: the fit shrinks both together, so a role left
+                # unpinned grows back into the room the other one freed
+                k = at[i]
+                if nodes[k] is self.d.nodes[k]:
+                    nodes[k] = copy.copy(nodes[k])
+                for role, attr in enumerate(("title_size", "body_size")):
+                    if sz[role] is not None:
+                        setattr(nodes[k], attr, low[role])
         if any(a is not b for a, b in zip(nodes, self.d.nodes)):
             self.d = copy.copy(self.d)
             self.d.nodes = nodes

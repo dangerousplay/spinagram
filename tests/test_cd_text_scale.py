@@ -19,8 +19,9 @@ def _diagram(cards, axis="row", **kw):
     d = Diagram("R", "Row")
     pos = {"row": {"x": 100, "y": 300}, "column": {"x": 100, "y": 200}}[axis]
     with getattr(d, axis)(gap=20, **pos, **kw):
-        for i, (title, body) in enumerate(cards):
-            d.box(title, text=body, id=f"n{i}", w=300, h=120)
+        for i, (title, body, *wh) in enumerate(cards):
+            w, h = wh or (300, 120)
+            d.box(title, text=body, id=f"n{i}", w=w, h=h)
     return d
 
 
@@ -31,6 +32,9 @@ def _sizes(d):
 
 FIVE = [("Alpha", None), ("Beta", None), (LONG, None), ("Gamma", None), ("Delta", None)]
 BODIES = [("Alpha", BODY), ("Beta", "x"), ("Gamma", "y")]
+# Fitted alone: card 0 (21, 16), card 1 (22, 16). Lowering card 1's title alone frees room and its body grows to 18.
+CROSS = [("A much longer card title here", "a much longer body text that wraps a lot", 200, 90),
+         ("Service mesh control plane", "body text here", 160, 160)]
 
 SCENARIOS = [  # (id, cards, axis, container kwargs, expected [title, body?] size per card)
     ("one-long-title-flag-on", FIVE, "row", {"same_text_scale": True}, [[21]] * 5),
@@ -41,6 +45,8 @@ SCENARIOS = [  # (id, cards, axis, container kwargs, expected [title, body?] siz
      [[24], [24], [21], [24], [24]]),
     ("per-role-minimum", BODIES, "row", {"same_text_scale": True}, [[22, 16]] * 3),
     ("per-role-flag-off", BODIES, "row", {}, [[22, 16], [24, 18], [24, 18]]),
+    ("lowered-title-keeps-body-minimum", CROSS, "row", {"same_text_scale": True}, [[21, 16]] * 2),
+    ("lowered-title-flag-off", CROSS, "row", {}, [[21, 16], [22, 16]]),
     ("column", FIVE[:3], "column", {"same_text_scale": True}, [[21]] * 3),
     ("all-equal", FIVE[:2], "row", {"same_text_scale": True}, [[24], [24]]),
 ]
