@@ -661,7 +661,8 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.flush_headers = builder.flush
     scene.not_straight = builder.not_straight
-    scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80)}
+    scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80),
+                           "icon_text_gap": theme.defaults("node").get("icon_text_gap", 8)}
     glyphs.apply(scene, theme)
     scene.rows = [(f"{c.axis}{k}", list(c.children), c.same_icon_size) for k, c in enumerate(diagram.containers)]
     shape_of = {(z.id or f"z{k}"): f"z{k}" for k, z in enumerate(diagram.zones)}

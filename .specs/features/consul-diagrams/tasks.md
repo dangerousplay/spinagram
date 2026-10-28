@@ -87,7 +87,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT of card sizes × text lengths: first text top ≥ icon bottom + gap − 0.5, icon ≥ icon_min; icon-only centred unchanged; theme keys override; any default-theme golden hash change re-pinned with an intent test naming the centred card; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `fix(layout): keep centred icons clear of the text`
 
-### T6: icon-overlaps-text diagnostic and fix
+### T6: icon-overlaps-text diagnostic and fix ✅
 **What**: `qa` rule on icon rect ∩ first text line rect, P0, with a `resize` fix.
 **Where**: `src/spinagram/qa.py`
 **Depends on**: T5 · **Reuses**: `_icon_rect`, `Label.place`, `measure`, `_inside` · **Requirement**: ICO-04, ICO-05

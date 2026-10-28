@@ -15,7 +15,7 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
             "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1",
-            "edge-crosses-zone-header": "P0"}
+            "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0"}
 
 
 @dataclass
@@ -182,6 +182,36 @@ def icon_issues(scene: Scene) -> list[Issue]:
             if _overlap(hdr, r) >= 0.5:
                 out.append(Issue(scene.id, zid, "header-overlap", f"{cid!r} covers the header of zone {zid!r}"))
     return out
+
+
+def icon_text_issues(scene: Scene) -> list[Issue]:
+    """A node icon over the first line of its own text (ICO-04): both axes overlap by more than 0.5 px."""
+    out: list[Issue] = []
+    for s in scene.items:
+        if not (isinstance(s, Shape) and s.role == "node" and s.icon is not None and s.label and s.label.blocks):
+            continue
+        b, bx, top = s.label.place()[0]
+        if not b.lines:
+            continue
+        w = measure(b.lines[0], b.font)
+        x0 = bx - w / 2 if s.label.align == "center" else bx
+        ix, iy, iw, ih = _icon_rect(s)
+        ox = min(ix + iw, x0 + w) - max(ix, x0)
+        oy = min(iy + ih, top + b.leading) - max(iy, top)
+        if ox > 0.5 and oy > 0.5:
+            out.append(Issue(scene.id, s.id, "icon-overlaps-text", f"icon overlaps the first text line by {oy:.0f}px",
+                             fix=_icon_text_fix(scene, s, oy)))
+    return out
+
+
+def _icon_text_fix(scene: Scene, s: Shape, overlap: float) -> dict | None:
+    """Taller box (ICO-05). SPEC_DEVIATION: design.md says h + overlap + gap; the text is centred vertically in its
+    box, so it moves down by half the added height: h + 2 × overlap + gap clears it in one round.
+    Reason: with the design formula an overlap larger than the gap survives the fix."""
+    gap = scene.check_options.get("icon_text_gap", 8)
+    h = math.ceil(s.h + 2 * overlap + gap)
+    return {"op": "resize", "node": s.id, "h": h} if _inside((s.x, s.y, s.w, h), scene.check_options.get(
+        "margin", 80), scene) else None
 
 
 def luminance(hex_colour: str) -> float:
@@ -427,6 +457,7 @@ def check(scene: Scene) -> list[Issue]:
         if n:
             issues.append(Issue(scene.id, "edges", "edge-crossings",
                                 f"{n} crossing(s); try route: ortho or swap anchor sides"))
+    issues += icon_text_issues(scene)
     issues += contrast_issues(scene)
     if scene.version_mismatch:
         req, have = scene.version_mismatch

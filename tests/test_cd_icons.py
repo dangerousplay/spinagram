@@ -105,3 +105,68 @@ def test_centred_card_text_moved_below_the_icon(icon):
     (16 + isz - 12); it now starts icon_text_gap below it."""
     s = _card(icon, 240, 200, "API")
     assert s.label.box[1] - (s.icon.y + s.icon.size) == pytest.approx(8)    # was -12 in 0.4
+
+
+# icon-overlaps-text (ICO-04, ICO-05) -------------------------------------------------------------------------
+from spinagram.engine.fix import apply_to_diagram  # noqa: E402
+from spinagram.qa import check  # noqa: E402
+
+GREEK = ["Alpha", "Beta", "Gamma", "Delta", "Omega"]  # 5 title lines, 24 px × 1.15 = 27.6 each
+
+
+def _overlap_diagram(title, body=None, y=Y0, h=120, **kw):
+    d = Diagram("I", "Icons")
+    d.box(title, id="n", x=X0, y=y, w=240, h=h, text=body, **kw)
+    return d
+
+
+# Forced overlaps, by hand (icon_size 20 stays: it is under the floor; label box top Y0 + 16 + 20 + 8 = Y0 + 44):
+#   mesh:  120 high, H = 76; the normal fit ends at 21/16 px: title 2 × 24.15 + 10 + body 2 × 21.12 = 100.54
+#          → first line top Y0 + 44 + (76 - 100.54) / 2 = Y0 + 31.73; icon bottom Y0 + 36 → 4.27 px → "by 4px".
+#          "Service mesh" (151.2 px at 21) is centred on the icon column → horizontal overlap.
+#          fix h = ceil(120 + 2 × 4.27 + 8) = 137 → H 93, the 21/16 px text (100.54) starts at Y0 + 40.27: clear.
+#   greek: 5 lines end at 21 px: 5 × 24.15 = 120.75 → top Y0 + 44 + (76 - 120.75) / 2 = Y0 + 21.625 → 14.375 px
+#          → "by 14px"; fix h = ceil(120 + 28.75 + 8) = 157 → H 113, top Y0 + 40.125: clear.
+OVERLAPS = [  # (id, title, body, kwargs, detail, fix h)
+    ("mesh", "Service mesh gateway", BODY, {}, "icon overlaps the first text line by 4px", 137),
+    ("greek", GREEK, None, {}, "icon overlaps the first text line by 14px", 157),
+]
+
+
+@pytest.mark.parametrize("title,body,kw,detail,fix_h", [s[1:] for s in OVERLAPS], ids=[s[0] for s in OVERLAPS])
+def test_icon_overlaps_text_reported_with_resize_fix(icon, title, body, kw, detail, fix_h):
+    d = _overlap_diagram(title, body, icon=icon, align="center", icon_size=20, **kw)
+    sc = build_scene(d, THEME)
+    got = [i for i in check(sc) if i.kind == "icon-overlaps-text"]
+    assert [(i.item, i.detail, i.severity) for i in got] == [("n", detail, "P0")]
+    assert got[0].fix == {"op": "resize", "node": "n", "h": fix_h}
+    fixed, applied, skipped = apply_to_diagram(d, got)
+    assert len(applied) == 1 and fixed.nodes[0].h == fix_h
+    assert [i for i in check(build_scene(fixed, THEME)) if i.kind == "icon-overlaps-text"] == []
+
+
+def test_icon_overlap_fix_skipped_outside_the_safe_area(icon):
+    d = _overlap_diagram("Service mesh gateway", BODY, y=880, icon=icon, align="center", icon_size=20)
+    got = [i for i in check(build_scene(d, THEME)) if i.kind == "icon-overlaps-text"]  # 880 + 137 > 1000
+    assert len(got) == 1 and got[0].fix is None
+
+
+def test_icon_overlap_checked_on_laid_out_scenes(icon):
+    sc = build_scene(_overlap_diagram(GREEK, icon=icon, align="center", icon_size=20), THEME)
+    sc.laid_out = True
+    assert [i.item for i in check(sc) if i.kind == "icon-overlaps-text"] == ["n"]
+
+
+CLEAN = [  # no overlap: the left icon sits before the text; fitted centred cards; icon-only chips
+    ("left-big-icon", "Service mesh gateway", BODY, {"icon_size": 80}),
+    ("left-greek", GREEK, None, {"icon_size": 20}),
+    ("centred-fits", "API", None, {"align": "center"}),
+    ("centred-shrunk-icon", "Gateway", BODY, {"align": "center", "h": 140}),
+    ("icon-only", None, None, {"align": "center"}),
+]
+
+
+@pytest.mark.parametrize("title,body,kw", [s[1:] for s in CLEAN], ids=[s[0] for s in CLEAN])
+def test_no_icon_overlap(icon, title, body, kw):
+    d = _overlap_diagram(title, body, icon=icon, **kw)
+    assert [i for i in check(build_scene(d, THEME)) if i.kind == "icon-overlaps-text"] == []
