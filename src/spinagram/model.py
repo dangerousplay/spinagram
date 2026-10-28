@@ -835,11 +835,12 @@ class Diagram:
 
     def snake(self, steps: Sequence[Any], cols: int, *, y: float, h: float, x: float | None = None,
               w: float | None = None, gap: float = 40, row_gap: float = 60, zones: Sequence[Any] | None = None,
-              mode: str = "boustrophedon", **edge_kw: Any) -> list[Node]:
+              mode: str = "boustrophedon", chain: bool = True, **edge_kw: Any) -> list[Node]:
         """A multi-row process: one node per step (a title or a dict of node fields) in rows of ``cols``, chained
         by edges (``edge_kw``; turns between rows are ``route="ortho"``). ``zones`` (labels or dicts of zone
         fields) puts each row in its own zone. ``mode``: ``boustrophedon`` (odd rows right to left) or
-        ``restart``. Placed by the snake model pass; returns the nodes."""
+        ``restart``. ``chain=False`` draws no edges (``yaml_io.dump`` lists customised chain edges itself).
+        Placed by the snake model pass; returns the nodes."""
         if cols < 1:
             raise ValueError(f"{self.id}: snake cols {cols}; use 1 or more")
         if not steps:
@@ -865,7 +866,7 @@ class Diagram:
             finally:
                 if z is not None:
                     self._open_zones.pop()
-        for k, (a, b) in enumerate(zip(nodes, nodes[1:])):
+        for k, (a, b) in enumerate(zip(nodes, nodes[1:]) if chain else []):
             kw = dict(edge_kw, route="ortho") if (k + 1) % cols == 0 else edge_kw  # turn: row r → r + 1
             self.edge(a, b, **kw)
         self.snakes.append(Snake([n.id for n in nodes], made, cols, y, h, x, w, gap, row_gap, mode))

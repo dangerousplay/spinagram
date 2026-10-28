@@ -16,7 +16,7 @@ _NODE_EXTRA = {"weight", "font", "variant",  # kind: text options; kind: note va
                "fit", "min_scale", "break_on",  # text fitting
                "badges",  # corner badge icons
                "size", "role", "max_width"}  # free labels
-_SNAKE_KEYS = {"steps", "cols", "y", "h", "x", "w", "gap", "row_gap", "zones", "mode"}
+_SNAKE_KEYS = {"steps", "cols", "y", "h", "x", "w", "gap", "row_gap", "zones", "mode", "chain"}
 _CONTAINER_KEYS = {"x", "y", "gap", "same_size", "max_width", "same_icon_size", "zone", "align", "cols",
                    "same_text_scale"}
 _GROUP_KEYS = {"id", "label", "style", "icon", "children", "direction", "columns", "gap", "padding", "align",
@@ -135,7 +135,9 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
         missing = {"steps", "cols", "y", "h"} - set(s)
         if missing:
             raise ValueError(f"{d.id}: snake is missing keys {sorted(missing)}")
-        d.snake(s.pop("steps"), s.pop("cols"), **s)
+        if s.get("zones") is not None:
+            s["zones"] = [_cls(z) for z in s["zones"]]
+        d.snake([_cls(st) for st in s.pop("steps")], s.pop("cols"), **s)
     for e in data.get("edges") or []:
         if isinstance(e, str):
             d.edges.append(parse_edge(e))
@@ -165,6 +167,14 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
 
     validate_groups(d)
     return d
+
+
+def _cls(item: Any) -> Any:
+    """A snake step or zone dict with YAML's ``class`` key as the model's ``cls``."""
+    if isinstance(item, dict) and "class" in item:
+        item = dict(item)
+        item["cls"] = item.pop("class")
+    return item
 
 
 def _step_ref(d: Diagram, on: Any) -> Any:
@@ -336,6 +346,52 @@ def _clean(v: Any) -> Any:
     return v
 
 
+def _dump_snakes(d: Diagram, changed) -> tuple[list[dict[str, Any]], set]:
+    """``snakes:`` entries for ``dump``, plus the node ids, zone ids and edge ``id()``s each one regenerates.
+
+    The snake pass places steps and row zones, so their x/y/w/h are left out. Chain edges are left out too when
+    ``d.snake`` would recreate them as they are; otherwise (edge kwargs, an applied fix) the entry says
+    ``chain: false`` and the edges stay in ``edges:``, at their indexes."""
+    from .model import Node as _N, Zone as _Z
+
+    out, made = [], set()
+    for s in d.snakes:
+        nodes = {n.id: n for n in d.nodes if n.id in s.nodes}
+        zones = {z.id: z for z in d.zones if z.id in s.zones}
+        steps = []
+        for i in s.nodes:
+            n = nodes[i]
+            row = {"id": n.id} | ({"kind": n.kind} if n.kind != "box" else {})
+            row |= changed(n, _N, skip=("id", "kind", "x", "y", "w", "h", "extra"))
+            steps.append(row | {k: v for k, v in n.extra.items() if k != "in"})
+        row = {"steps": steps, "cols": s.cols, "y": _clean(s.y), "h": _clean(s.h)}
+        row |= {k: _clean(getattr(s, k)) for k, default in (("x", None), ("w", None), ("gap", 40), ("row_gap", 60),
+                                                            ("mode", "boustrophedon")) if getattr(s, k) != default}
+        if s.zones:
+            row["zones"] = [{"id": z.id} | changed(z, _Z, skip=("id", "x", "y", "w", "h", "children"))
+                            for z in (zones[i] for i in s.zones)]
+        probe = Diagram(d.id, d.title)  # the chain edges ``d.snake`` would draw for this entry
+        for i in s.nodes:  # endpoint kinds decide dashed object flows
+            probe.add(nodes[i].kind, id=i)
+        regen = [Edge(a, b, route="ortho" if (k + 1) % s.cols == 0 else None) for k, (a, b) in
+                 enumerate(zip(s.nodes, s.nodes[1:]))]
+        for e in regen:
+            probe.edge(e.src, e.dst, route=e.route)
+        chain = [next((e for e in d.edges if id(e) not in made and _ends(e) == (a, b)), None)
+                 for a, b in zip(s.nodes, s.nodes[1:])]
+        if all(c is not None for c in chain) and chain == probe.edges:
+            made |= {id(e) for e in chain}
+        else:
+            row["chain"] = False
+        made |= set(s.nodes) | set(s.zones)
+        out.append(row)
+    return out, made
+
+
+def _ends(e: Edge) -> tuple[str, str]:
+    return str(e.src).partition(".")[0], str(e.dst).partition(".")[0]
+
+
 def dump(d: Diagram) -> dict[str, Any]:
     """An explicit, coordinate-complete spec for ``d`` (``layout``/``groups`` are dropped: zones carry them).
 
@@ -363,18 +419,25 @@ def dump(d: Diagram) -> dict[str, Any]:
         return {"class" if k == "cls" else k: _clean(v) for k, v in asdict(obj).items()
                 if k not in skip and v not in (None, [], {}) and base.get(k, object()) != v}
 
+    snakes, made = _dump_snakes(d, changed)  # the snakes, and the nodes/zones/edges they regenerate
     out["zones"] = [changed(z, _Z) | {"x": _clean(z.x), "y": _clean(z.y), "w": _clean(z.w), "h": _clean(z.h)}
-                    for z in d.zones]
+                    for z in d.zones if z.id not in made]
     nodes = []
     for n in d.nodes:
+        if n.id in made:
+            continue
         row = {"id": n.id, "kind": n.kind} if n.kind != "box" else {"id": n.id}
         row["at"] = [_clean(n.x), _clean(n.y)] + ([_clean(n.w), _clean(n.h)] if n.w or n.h else [])
         row |= changed(n, _N, skip=("id", "kind", "x", "y", "w", "h", "extra"))
         row |= {k: v for k, v in n.extra.items() if k != "in"}
         nodes.append(row)
     out["nodes"] = nodes
+    if snakes:
+        out["snakes"] = snakes
     edges = []
     for e in d.edges:
+        if id(e) in made:
+            continue
         row = {"from": _clean(e.src), "to": _clean(e.dst)}
         row |= changed(e, _E, skip=("src", "dst"))
         edges.append(row)

@@ -42,7 +42,7 @@ All tasks are sequential (shared files: `model.py`, `layout.py`, `qa.py`, `yaml_
 
 ```
 Phase 1 QA (P0):        T1 → T2 → T3 → T4 → T5 → T6 → T7
-Phase 2 primitives:     T8 → T9 → T10 → T11 → T12 → T13 → T14 → T15
+Phase 2 primitives:     T8 → T9 → T10 → T11 → T12 → T13 → T14 → T15 → T15b
 Phase 3 ergonomics:     T16 → T17 → T18 → T19 → T20 → T21 → T22
 Phase 4 polish:         T23 → T24 → T25 → T26 → T27
 Phase 5 wrap-up:        T28 → T29
@@ -157,6 +157,13 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT over the T14 table + long header labels → `check` has no `edge-crosses-zone-header`/`edge-through-box`; A04 as a single `snake` call; YAML parity; gate passes.
 **Tests**: integration · **Gate**: build · **Commit**: `feat(yaml): snakes`
 
+### T15b: Dump snakes ✅
+**What**: `yaml_io.dump` emits `snakes:` (steps as node dicts, row zones as zone dicts) and omits the nodes, zones and edges the snake generated; chain edges that the snake cannot regenerate (edge kwargs, applied fixes) are dumped explicitly under `chain: false`.
+**Where**: `src/spinagram/yaml_io.py`, `src/spinagram/model.py` (`snake(chain=)`)
+**Depends on**: T15 · **Reuses**: `dump.changed`, `Diagram.snake` · **Requirement**: SNK-07
+**Done when**: round-trip DDT (`from_dict(dump(d))` equal model and identical SVG) over plain / zoned / nested / mixed / edge-kwarg / fixed-edge snakes and the T1–T15 fields (zone `band`, `header` string, zone containers); `check --fix` on a YAML snake spec writes a `.fixed.yaml` that renders like the source plus the applied fix; gate passes.
+**Tests**: integration · **Gate**: full · **Commit**: `fix(yaml): dump snakes`
+
 ### T16: Vendor service matcher
 **What**: `engine/vendor.py`: n-grams, cached-only indexes, deterministic match.
 **Where**: `src/spinagram/engine/vendor.py`
@@ -269,5 +276,5 @@ Phase 5 wrap-up:        T28 → T29
 | Task | Layer | Matrix Requires | Task Says | Status |
 | ---- | ----- | --------------- | --------- | ------ |
 | T2, T6, T9, T13, T16, T20, T23, T26 | engine helpers / model | unit | unit | ✅ |
-| T1, T3–T5, T7, T8, T10–T12, T14, T15, T17–T19, T21, T22, T24, T25, T27 | builder / YAML / theme / backend / CLI | integration | integration | ✅ |
+| T1, T3–T5, T7, T8, T10–T12, T14, T15, T15b, T17–T19, T21, T22, T24, T25, T27 | builder / YAML / theme / backend / CLI | integration | integration | ✅ |
 | T28, T29 | docs / specs | none | none | ✅ |

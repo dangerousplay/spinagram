@@ -314,3 +314,142 @@ def test_a04_is_one_clean_snake_call():
     sc = build_scene(d, THEME)
     assert _issues(sc) == []
     assert len([i for i in sc.items if isinstance(i, Connector)]) == 11
+
+
+# ---- T15b: dump snakes (SNK-07) -----------------------------------------------------------------------------------
+def _yaml_snake():
+    return from_dict({"id": "S", "title": "Snake", "snakes": [{"steps": STEPS, "cols": 2, "y": 200, "h": 120}]})
+
+
+def _zoned():
+    d = Diagram("S", "Snake")
+    d.snake(["Init", "Join", "ACL", "Token"], 3, y=100, h=100, x=100, w=1028, gap=30, row_gap=50, mode="restart",
+            zones=["A", {"label": "B", "id": "pb", "header": "right"}])
+    return d
+
+
+def _nested():
+    d = Diagram("S", "Snake")
+    with d.zone("Account", id="acct", x=60, y=60, w=1800, h=900):
+        d.snake(["a", "b", "c"], 2, y=150, h=90, x=100, w=1500, zones=["R1", "R2"])
+    return d
+
+
+def _mixed():
+    d = Diagram("S", "Snake")
+    d.zone("Secrets", id="sm", band=(800, 960), header="none")
+    with d.zone("Tools", id="tools", band=(600, 760), header="right"):
+        d.row(["Vault", "Consul"], cols=3, align="start", same_text_scale=True)
+    d.box("Ops", id="ops", x=1500, y=400, w=300, h=100)  # YAML order: nodes before snake steps (paint order)
+    nodes = d.snake(["a", "b", "c"], 2, y=150, h=90)
+    d.edge("ops", nodes[2], "watch")
+    return d
+
+
+def _edge_kwargs():
+    d = Diagram("S", "Snake")
+    d.snake(["a", "b", "c"], 2, y=150, h=90, dashed=True, label="next")
+    return d
+
+
+def _fixed_edge():
+    d = _yaml_snake()
+    d.edges[0].src, d.edges[0].dst = "init.bottom@0.65", "join.top@0.65"   # an applied anchor fix
+    return d
+
+
+ROUND_TRIPS = [  # (id, diagram factory, expected dumped snakes, expected dumped node ids, dumped edge count)
+    ("yaml-defaults", _yaml_snake,
+     [{"steps": [{"id": "init", "title": "Init"}, {"id": "join", "title": "Join", "style": "dark"},
+                 {"id": "acl", "title": "ACL"}, {"id": "token", "title": "Token"}, {"id": "agent", "title": "Agent"}],
+       "cols": 2, "y": 200, "h": 120}], [], 0),
+    ("zoned-all-keys", _zoned,
+     [{"steps": [{"id": "init", "title": "Init"}, {"id": "join", "title": "Join"}, {"id": "acl", "title": "ACL"},
+                 {"id": "token", "title": "Token"}],
+       "cols": 3, "y": 100, "h": 100, "x": 100, "w": 1028, "gap": 30, "row_gap": 50, "mode": "restart",
+       "zones": [{"id": "z0", "label": "A"}, {"id": "pb", "label": "B", "header": "right"}]}], [], 0),
+    ("nested-in-zone", _nested,
+     [{"steps": [{"id": "a", "title": "a"}, {"id": "b", "title": "b"}, {"id": "c", "title": "c"}],
+       "cols": 2, "y": 150, "h": 90, "x": 100, "w": 1500,
+       "zones": [{"id": "z1", "label": "R1"}, {"id": "z2", "label": "R2"}]}], [], 0),
+    ("mixed", _mixed,
+     [{"steps": [{"id": "a", "title": "a"}, {"id": "b", "title": "b"}, {"id": "c", "title": "c"}],
+       "cols": 2, "y": 150, "h": 90}], ["vault", "consul", "ops"], 1),
+    ("edge-kwargs", _edge_kwargs,
+     [{"steps": [{"id": "a", "title": "a"}, {"id": "b", "title": "b"}, {"id": "c", "title": "c"}],
+       "cols": 2, "y": 150, "h": 90, "chain": False}], [], 2),
+    ("fixed-edge", _fixed_edge,
+     [{"steps": [{"id": "init", "title": "Init"}, {"id": "join", "title": "Join", "style": "dark"},
+                 {"id": "acl", "title": "ACL"}, {"id": "token", "title": "Token"}, {"id": "agent", "title": "Agent"}],
+       "cols": 2, "y": 200, "h": 120, "chain": False}], [], 4),
+]
+
+
+def _model(d):
+    return (d.nodes, d.zones, d.edges, d.snakes, d.containers)
+
+
+@pytest.mark.parametrize("make,snakes,node_ids,n_edges", [t[1:] for t in ROUND_TRIPS], ids=[t[0] for t in ROUND_TRIPS])
+def test_dump_round_trips_snakes(make, snakes, node_ids, n_edges):
+    from spinagram.backends.svg import to_svg
+    from spinagram.yaml_io import dump
+
+    d = make()
+    out = dump(d)
+    assert out["snakes"] == snakes                                                 # snakes: in the YAML shape
+    assert [n["id"] for n in out.get("nodes", [])] == node_ids                     # generated nodes omitted
+    snake_zones = {z for s in d.snakes for z in s.zones}
+    assert not snake_zones & {z["id"] for z in out.get("zones", [])}               # generated zones omitted
+    assert len(out.get("edges", [])) == n_edges                                    # chain edges regenerated
+    back = from_dict(out)
+    assert sorted(_model(back)[0], key=lambda n: n.id) == sorted(d.nodes, key=lambda n: n.id)
+    assert sorted(back.zones, key=lambda z: z.id) == sorted(d.zones, key=lambda z: z.id)
+    assert (back.edges, back.snakes, back.containers) == (d.edges, d.snakes, d.containers)
+    assert to_svg(build_scene(back, THEME)) == to_svg(build_scene(d, THEME))       # identical scene
+
+
+def test_yaml_step_and_zone_class_keys_are_classes():
+    y = from_dict({"id": "S", "title": "Snake", "snakes": [{"steps": [{"title": "a", "class": "hot"}, "b"], "cols": 2,
+                                                            "y": 0, "h": 90, "zones": [{"label": "A", "class": "z"}]}]})
+    assert (y.nodes[0].cls, y.nodes[0].extra, y.zones[0].cls) == ("hot", {}, "z")
+
+
+def test_snake_without_chain_draws_no_edges():
+    d = Diagram("S", "Snake")
+    d.snake(["a", "b", "c"], 2, y=0, h=90, chain=False)
+    assert d.edges == [] and len(d.nodes) == 3
+
+
+SNAKE_FIX_SPEC = """id: F1
+title: Fix
+snakes:
+  - steps: [Init, Join, ACL, Token, Agent]
+    cols: 3
+    y: 200
+    h: 120
+    zones: [Phase 1, Phase 2]
+nodes:
+  - {id: ops, title: Ops, x: 1550, y: 800, w: 300, h: 100}
+edges:
+  - {from: ops, to: agent}
+"""
+
+
+def test_check_fix_on_a_yaml_snake(tmp_path, monkeypatch, capsys):
+    import yaml
+
+    from spinagram import load
+    from spinagram.backends.svg import to_svg
+    from spinagram.cli import main
+
+    (tmp_path / "s.yaml").write_text(SNAKE_FIX_SPEC)
+    monkeypatch.chdir(tmp_path)
+    main(["check", "--fix", "s.yaml"])
+    assert "s.fixed.yaml: 1 fix(es) applied" in capsys.readouterr().out
+    data = yaml.safe_load((tmp_path / "s.fixed.yaml").read_text())
+    assert [n["id"] for n in data["nodes"]] == ["ops"] and len(data["snakes"]) == 1
+    assert data["nodes"][0]["at"] == [1540, 800, 300, 100]                         # nudged 10 px into the safe area
+    want = load(tmp_path / "s.yaml")[0]
+    want.node("ops").x = 1540                                                      # the source plus the applied fix
+    got = load(tmp_path / "s.fixed.yaml")[0]
+    assert to_svg(build_scene(got, THEME)) == to_svg(build_scene(want, THEME))
