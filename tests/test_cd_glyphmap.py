@@ -155,3 +155,26 @@ def test_map_merges_through_extends(tmp_path):
     child.mkdir()
     (child / "theme.yaml").write_text(f"extends: {base.root}\ntext:\n  glyph_map: {{'×': x}}\n")
     assert Theme.load(child).get("text", "glyph_map") == {"→": "›", "×": "x"}
+
+
+FACT_CASES = [  # (id, fact value, spec text, expected title, expected glyph-mapped details)
+    ("fact-only", "a → b", "{{f}}", "a › b", ["'→' (U+2192) replaced by '›' (theme glyph_map)"]),
+    ("fact-and-spec", "a → b", "{{f}} × 2", "a › b x 2",
+     ["'→' (U+2192) replaced by '›' (theme glyph_map)", "'×' (U+00D7) replaced by 'x' (theme glyph_map)"]),
+    ("spec-only", "a b", "{{f}} × 2", "a b x 2", ["'×' (U+00D7) replaced by 'x' (theme glyph_map)"]),
+    ("no-mapped-char", "a b", "{{f}}", "a b", []),
+]
+
+
+@pytest.mark.parametrize("value,text,want,details", [c[1:] for c in FACT_CASES], ids=[c[0] for c in FACT_CASES])
+def test_fact_values_are_mapped(tmp_path, value, text, want, details):
+    import json
+
+    (tmp_path / "facts.json").write_text(json.dumps(
+        {"facts": [{"id": "f", "label": "F", "format": "text", "value": value, "source": {}}]}))
+    theme = _theme(tmp_path, {"→": "›", "×": "x"})
+    d = Diagram("G", "Plain", facts="facts.json", base_dir=tmp_path)
+    d.box(text, id="a", x=200, y=200, w=600, h=160)
+    sc = build_scene(d, theme)
+    assert sc.shapes()["a"].label.blocks[0].lines == [want]                   # substituted text is mapped too
+    assert [i.detail for i in check(sc) if i.kind == "glyph-mapped"] == details

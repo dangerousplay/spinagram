@@ -245,7 +245,8 @@ def _texts(d: Diagram, fn) -> None:
 def glyph_map(d: Diagram, theme: Theme) -> Diagram:
     """A copy of ``d`` with the theme's ``text.glyph_map`` applied to every text (``d`` when no text holds a
     mapped character); the characters replaced are in ``copy.__dict__["_glyph_mapped"]`` (char → replacement,
-    theme order) for ``qa``'s ``glyph-mapped`` issues."""
+    theme order) for ``qa``'s ``glyph-mapped`` issues, merged with those of an earlier run on ``d`` (fact values
+    are mapped after substitution)."""
     gm = {k: v for k, v in ((theme.get("text") or {}).get("glyph_map") or {}).items() if k != v}  # identity: no-op
     if not gm:
         return d
@@ -271,6 +272,7 @@ def glyph_map(d: Diagram, theme: Theme) -> Diagram:
 
     out = copy.deepcopy(d)
     _texts(out, sub)
+    seen.update(d.__dict__.get("_glyph_mapped") or {})
     out.__dict__["_glyph_mapped"] = {k: v for k, v in gm.items() if k in seen}
     return out
 

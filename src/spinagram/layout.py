@@ -668,6 +668,8 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     diagram = apply_layout(diagram, theme)  # resolves the CSS cascade first (css.prepare)
     diagram = model_passes.apply(diagram, theme)  # hand-placed diagrams: content sizes, containers, grids
     resolved, refs, reg = apply_facts(diagram)
+    if reg is not None:  # GLM-01: fact values are diagram text too
+        resolved = model_passes.glyph_map(resolved, theme)
     builder = _Builder(resolved, theme)
     theme.icon_trace = {}  # records how each icon name resolved while this scene is built
     try:
@@ -691,7 +693,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.flush_headers = builder.flush
     scene.not_straight = builder.not_straight
     scene.vendor_hints = builder.vendor_hints
-    scene.glyph_mapped = diagram.__dict__.get("_glyph_mapped") or {}
+    scene.glyph_mapped = resolved.__dict__.get("_glyph_mapped") or {}
     scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80),
                            "icon_text_gap": theme.defaults("node").get("icon_text_gap", 8)}
     glyphs.apply(scene, theme)

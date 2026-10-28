@@ -213,6 +213,20 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT setups (builtin, path, env dirs incl. missing, entry point pkg / pkg:ATTR, nothing) → resolved dir or exact error lines; `extends:` path covered; gate passes.
 **Tests**: integration · **Gate**: build · **Commit**: `feat(theme): resolve themes by name`
 
+### G1: Glyph map on fact values ✅
+**What**: `{{fact}}` values substituted after the model passes go through the theme glyph map; their mapped chars are reported by `glyph-mapped`.
+**Where**: `src/spinagram/layout.py` (`build_scene`), `src/spinagram/engine/model_passes.py` (`glyph_map` merges earlier seen chars)
+**Depends on**: T22 · **Reuses**: `model_passes.glyph_map` · **Requirement**: GLM-01
+**Done when**: DDT (fact only / fact + spec / spec only / none) → mapped title and exact `glyph-mapped` details; gate passes.
+**Tests**: integration · **Gate**: full · **Commit**: `fix(theme): apply the glyph map to fact values`
+
+### G2: Safe-origin fix suggestions
+**What**: For `origin="safe"` Python specs, `suggest_python` prints move-label `label_at` in the spec's (safe) coordinates, like `apply_to_diagram`.
+**Where**: `src/spinagram/engine/fix.py` (`suggest_python`)
+**Depends on**: G1 · **Reuses**: `apply_to_diagram` margin handling · **Requirement**: ORG-01
+**Done when**: DDT (origin canvas/safe × margin) → exact suggestion text; gate passes.
+**Tests**: integration · **Gate**: full · **Commit**: `fix(fix): safe-origin suggestions in safe coordinates`
+
 ### T23: Nested zones count as content
 **What**: `zone-underused` content = child zones + free nodes, overlaps once; undeclared child zone detection.
 **Where**: `src/spinagram/qa.py`
