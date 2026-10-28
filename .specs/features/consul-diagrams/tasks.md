@@ -248,7 +248,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT around the 1.10 boundary (1.09 no, 1.11 yes) with exact detail; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(check): report uneven text sizes in rows`
 
-### T26: Font subset module
+### T26: Font subset module ✅
 **What**: `backends/fontsubset.py`: subset to chars, keep flavour, cache, fallback on error.
 **Where**: `src/spinagram/backends/fontsubset.py`
 **Depends on**: T25 · **Reuses**: fontTools · **Requirement**: FNT-02, FNT-05, FNT-06
