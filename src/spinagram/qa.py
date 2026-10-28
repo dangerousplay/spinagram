@@ -139,7 +139,7 @@ def icon_issues(scene: Scene) -> list[Issue]:
     """Icons on zone outlines, icons outside their box, and zone headers covered by content."""
     out: list[Issue] = []
     shapes = [s for s in scene.items if isinstance(s, Shape)]
-    zones = {s.id: s for s in shapes if s.role == "zone" and s.icon is None and s.id in scene.zone_headers}
+    zones = {s.id: s for s in shapes if s.role == "zone" and s.icon is None and re.fullmatch(r"z\d+", s.id)}
     for s in shapes:
         if s.icon is None:
             continue
@@ -339,7 +339,7 @@ def zone_issues(scene: Scene) -> list[Issue]:
     """Children sticking out of their zone, and zones mostly empty."""
     out: list[Issue] = []
     shapes = scene.shapes()
-    zones = {k: s for k, s in shapes.items() if s.role == "zone" and k in scene.zone_headers}
+    zones = {k: s for k, s in shapes.items() if s.role == "zone" and re.fullmatch(r"z\d+", k)}
     limit = scene.check_options.get("underused", UNDERUSED)
     for zid, z in zones.items():
         if zid in scene.zone_children:
@@ -353,7 +353,7 @@ def zone_issues(scene: Scene) -> list[Issue]:
             if past[side] > 0.5:
                 out.append(Issue(scene.id, zid, "zone-clips-child", f"{c.id!r} extends {past[side]:.0f}px past "
                                  f"the {side} side"))
-        hx, hy, hw, hh = scene.zone_headers[zid]
+        hx, hy, hw, hh = scene.zone_headers.get(zid, (z.x, z.y, 0, 0))  # header "none": no header rect
         area = z.w * (z.y + z.h - (hy + hh))
         used = sum(_overlap((c.x, c.y, c.w, c.h), (z.x, hy + hh, z.w, z.y + z.h - hy - hh)) for c in kids)
         if kids and area > 0 and used / area < limit:

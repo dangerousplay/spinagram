@@ -187,7 +187,8 @@ class Zone:
     stroke: str | None = None
     stroke_width: float | None = None
     fill: str | None = None   # token, hex or "none"
-    header: dict[str, Any] | None = None   # padding, icon_size, strip, upper, inset
+    header: dict[str, Any] | str | None = None  # padding, icon_size, strip, upper, inset, align; or the align:
+    # "left" | "right" | "none"
     fit: str | None = None    # "children": sized to its children
     padding: float | None = None
     equalize: str | None = None            # "siblings": same height as sibling zones

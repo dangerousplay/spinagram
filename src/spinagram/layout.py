@@ -249,6 +249,9 @@ class _Builder:
         """Header icon and label of zone ``i`` (see :func:`engine.zones.header_layout`)."""
         t, zd = self.t, self.t.defaults("zone")
         opts = zones.header_options(z, zs, t)
+        if opts["align"] == "none":  # no icon, no label, no header rect (HDR-07); the strip stays
+            self.content_tops[z.id or f"z{i}"] = zones.content_top(z, 0, opts=opts)
+            return self._strip(i, z, zs, opts)
         names = z.icon or zs["icon"]
         names = [names] if isinstance(names, str) else list(names or [])
         names = [icon_fit.variant_name(t, nm, opts.get("variant")) for nm in names]
@@ -259,11 +262,7 @@ class _Builder:
         geo = zones.header_layout(z, opts, [w for w, _ in fits], size, zd.get("icon_size", 32))
         if paths and not opts["inset"]:
             self.flush.add(f"z{i}")
-        items: list = []
-        if opts["strip"]:  # accent bar along the top, clear of the rounded corners
-            r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else zd.get("radius", 26))
-            items.append(Shape(id=f"z{i}-strip", kind="rect", x=z.x + r, y=z.y, w=z.w - 2 * r, h=5,
-                               fill=t.color(opts["strip"]), radius=2.5, role="zone"))
+        items: list = self._strip(i, z, zs, opts)
         for k, (p, (ix, iy, isz), (fw, fh)) in enumerate(zip(paths, geo["icons"], fits)):
             iy += (isz - fh) / 2  # centred in the header slot
             items.append(Shape(id=f"z{i}-icon" if k == 0 else f"z{i}-icon{k}", kind="rect", x=ix, y=iy, w=fw,
@@ -275,12 +274,25 @@ class _Builder:
             track = zd.get("label_tracking", 0) * size if upper else 0  # em → px, uppercase labels only
             lx, ly = geo["label"]
             items.append(self.text(f"z{i}-label", lx, ly, lab, t.font("body", wt, size, it), col,
-                                   letter_spacing=track))
-        right = max([z.x + 24] + [it.x + (it.width or 0) for it in items if isinstance(it, Text)] +
-                    [it.x + it.w for it in items if isinstance(it, Shape)])
-        self.headers[f"z{i}"] = (z.x, z.y, right - z.x, geo["bottom"] - z.y)
+                                   anchor=geo["anchor"], letter_spacing=track))
+        if opts["align"] == "right":  # mirrored: from the leftmost item to the right outline
+            left = min([z.x + z.w - 24] + [it.x - (it.width or 0) for it in items if isinstance(it, Text)] +
+                       [it.x for it in items if isinstance(it, Shape)])
+            self.headers[f"z{i}"] = (left, z.y, z.x + z.w - left, geo["bottom"] - z.y)
+        else:
+            right = max([z.x + 24] + [it.x + (it.width or 0) for it in items if isinstance(it, Text)] +
+                        [it.x + it.w for it in items if isinstance(it, Shape)])
+            self.headers[f"z{i}"] = (z.x, z.y, right - z.x, geo["bottom"] - z.y)
         self.content_tops[z.id or f"z{i}"] = geo["bottom"] + opts["gap"]
         return items
+
+    def _strip(self, i: int, z, zs: dict, opts: dict) -> list:
+        """The header accent bar along the top, clear of the rounded corners (``strip`` option)."""
+        if not opts["strip"]:
+            return []
+        r = min(z.w / 4, zs["radius"] if zs["radius"] is not None else self.t.defaults("zone").get("radius", 26))
+        return [Shape(id=f"z{i}-strip", kind="rect", x=z.x + r, y=z.y, w=z.w - 2 * r, h=5,
+                      fill=self.t.color(opts["strip"]), radius=2.5, role="zone")]
 
     def _note_variant(self, s: Shape, variant: str) -> None:
         """``card``: a white card with a primary accent bar; ``quote``: a tinted panel with a large quote mark."""

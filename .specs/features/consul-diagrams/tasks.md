@@ -52,7 +52,7 @@ Phase 5 wrap-up:        T28 → T29
 
 ## Task Breakdown
 
-### T1: Zone header align right and none
+### T1: Zone header align right and none ✅
 **What**: `Zone.header` accepts `"left"|"right"|"none"` (or `{"align": …}`); right mirrors the header, none draws no header and records no header rect.
 **Where**: `src/spinagram/engine/zones.py`, `src/spinagram/layout.py` (`zone_header`), `src/spinagram/model.py`
 **Depends on**: None · **Reuses**: `header_layout`, `header_options` · **Requirement**: HDR-06, HDR-07
