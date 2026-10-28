@@ -192,16 +192,26 @@ def test_header_crossing_hand_placed_only():
 #   with a blocker c = (340, 300, 40, 40): (0.65, 0.65) hits c; fd 0.35 (qx 240) → 313.9 in the band → hit;
 #                     fd 0.8 (qx 420) → x ≥ 360 in the band and 396.9 → 406 at y 300 → 340 (c is x 341 → 379): clear.
 #   WIDE header (label 50 chars → ends at 124 + 480 = 604): every anchor x (160 → 440) is under it → reroute.
+# Fraction order (two candidates clear, the order picks): zone "AZ1" at x 320 → header 320 → 372.8 (interior
+# x 321 → 371.8); a = (100, 80, 500, 60), b = (100, 400, 500, 60): an anchor at fraction f sits at x = 100 + 500 f.
+#   zone y 200 (band t 0.2346 → 0.3838), the destination decides. fs 0.5 (px 350):
+#     fd 0.5 (qx 350) → vertical at 350 → hit; fd 0.65 (qx 425) → x 367.6 at the band top → hit;
+#     fd 0.35 (qx 275) → 332.4 → 321.2 → hit; fd 0.8 (qx 500) → 385.2 → 407.6 → clear: (0.5, 0.8).
+#     fd 0.2 (qx 200) → 314.8 → 292.4 would also clear: 0.2 before 0.8 gives (0.5, 0.2).
+#   zone y 150 (header 150 → 190.8, interior y 151 → 189.8, band t 0.0423 → 0.1915), the source decides.
+#     fs 0.5 (px 350): every qx (175 → 525) keeps x within 350 ± 7.4 at the band top → all hit.
+#     fs 0.65 (px 425), fd 0.5 (qx 350) → 421.8 → 410.6 → clear: (0.65, 0.5).
+#     fs 0.35 (px 275), fd 0.5 → 278.2 → 289.4 would also clear: 0.35 before 0.65 gives (0.35, 0.5).
 WIDE = "Availability zone site-a · primary · consul server"   # 50 characters
 
 
-def _fix_scene(label=LONG, blocker=False, edge=("a.bottom", "b.top", {})):
+def _fix_scene(label=LONG, blocker=False, edge=("a.bottom", "b.top", {}), zx=X, zy=Y, bw=400):
     d = Diagram("Z", "Zones")
-    with d.zone(label, x=X, y=Y, w=W, h=H):
-        d.box("B", id="b", x=100, y=400, w=400, h=60)
+    with d.zone(label, x=zx, y=zy, w=W, h=H):
+        d.box("B", id="b", x=100, y=400, w=bw, h=60)
         if blocker:
             d.box("C", id="c", x=340, y=300, w=40, h=60)
-    d.box("A", id="a", x=100, y=80, w=400, h=60)
+    d.box("A", id="a", x=100, y=80, w=bw, h=60)
     src, dst, kw = edge
     d.edge(src, dst, **kw)
     return d
@@ -214,6 +224,10 @@ FIX_SCENARIOS = [  # (id, scene kwargs, expected fix)
     ("anchor-auto-sides", {"edge": ("a", "b", {})},
      {"op": "anchor", "edge": "e0", "src": "a.bottom@0.65", "dst": "b.top@0.65"}),
     ("reroute", {"label": WIDE}, {"op": "reroute", "edge": "e0", "route": "ortho"}),
+    ("fraction-order-destination", {"label": "AZ1", "zx": 320, "bw": 500},
+     {"op": "anchor", "edge": "e0", "src": "a.bottom@0.5", "dst": "b.top@0.8"}),
+    ("fraction-order-source", {"label": "AZ1", "zx": 320, "zy": 150, "bw": 500},
+     {"op": "anchor", "edge": "e0", "src": "a.bottom@0.65", "dst": "b.top@0.5"}),
     ("zone-end-no-fix", {"edge": ("a", "zone:z0.left@0.333333", {"via": [(140, 300)]})}, None),
     ("via-no-fix", {"edge": ("a", "b", {"via": [(300, 220), (300, 400)]})}, None),
 ]
@@ -222,10 +236,9 @@ FIX_SCENARIOS = [  # (id, scene kwargs, expected fix)
 @pytest.mark.parametrize("kw,fix", [s[1:] for s in FIX_SCENARIOS], ids=[s[0] for s in FIX_SCENARIOS])
 def test_header_crossing_fix(kw, fix):
     sc = build_scene(_fix_scene(**kw), THEME)
-    if kw.get("label") == WIDE:
-        assert sc.zone_headers["z0"][2] == pytest.approx(504)                   # header 100 → 604
-    else:
-        assert sc.zone_headers["z0"][2] == pytest.approx(254.4)                 # header 100 → 354.4
+    label = kw.get("label", LONG)    # header w = 24 + 9.6 per character: LONG 254.4, WIDE 504, AZ1 52.8
+    zx, zy = kw.get("zx", X), kw.get("zy", Y)
+    assert sc.zone_headers["z0"] == pytest.approx((zx, zy, 24 + 9.6 * len(label), 40.8))
     got = [i for i in check(sc) if i.kind == "edge-crosses-zone-header"]
     assert len(got) == 1 and got[0].fix == fix
 
