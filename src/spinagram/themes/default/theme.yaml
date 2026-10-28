@@ -38,7 +38,14 @@ fonts:
 
 # Icons: `dir` relative to the theme; `pattern` placeholders {name} and {variant}.
 # `variants` maps a background tone to the variant suffix to use on it.
+# `prefer_vendor_for_services: true` draws the cached vendor pack icon of a service named in a node title
+# instead of a generic icon (default false: `check` only hints it as `icon-generic-for-service`).
 icons: {dir: null, pattern: "{name}-{variant}.png", variants: {light: dark, dark: light}}
+#   prefer_vendor_for_services: false
+
+# Text: `glyph_map` replaces characters the fonts lack (char → replacement) in every text before layout,
+# merged through `extends`; `check` reports each replaced character as `glyph-mapped`. Default: none.
+# text: {glyph_map: {"→": "->", "✓": "OK"}}
 
 styles:
   node:
@@ -95,6 +102,9 @@ defaults:
   node: {radius: 22, stroke_width: 3, note_stroke_width: 2, padding: 22, title_size: 24, body_size: 18,
          icon_size: 44, icon_size_center: 40, icon_scale: 0.26, icon_max: 88, icon_gap: 14, title_leading: 1.15, body_leading: 1.32, title_body_gap: 10,
          auto: {min_w: 220, max_w: 360, min_h: 96}}   # size of nodes without w/h under `layout:`
+  # centred icons (align: center): `icon_text_gap` px between the icon and the title, `icon_min` the smallest
+  # size the icon shrinks to before the box grows (px). Defaults:
+  #   node: {icon_text_gap: 8, icon_min: 24}
   diamond: {title_size: 21, leading: 1.22, style: soft}
   edge: {width: 3.5, label_size: 17, arrow: true}
   zone: {radius: 26, opacity: 0.6, label_size: 16}
