@@ -15,7 +15,7 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
             "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1",
-            "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0"}
+            "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0", "icon-generic-for-service": "P2"}
 
 
 @dataclass
@@ -458,6 +458,8 @@ def check(scene: Scene) -> list[Issue]:
             issues.append(Issue(scene.id, "edges", "edge-crossings",
                                 f"{n} crossing(s); try route: ortho or swap anchor sides"))
     issues += icon_text_issues(scene)
+    issues += [Issue(scene.id, nid, "icon-generic-for-service", f"'{title}' matches {ref}; icon '{icon}' is generic")
+               for nid, (title, ref, icon) in scene.vendor_hints.items()]
     issues += contrast_issues(scene)
     if scene.version_mismatch:
         req, have = scene.version_mismatch

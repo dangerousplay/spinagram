@@ -29,6 +29,7 @@ def packs(tmp_path, monkeypatch):
     monkeypatch.setattr(icons, "fetch", no_fetch)
     monkeypatch.setattr(icons, "_get", no_fetch)
     vendor.clear_cache()
+    icons._INDEX_CACHE.clear()  # resolve() caches indexes by pack@version: keep the fakes out of other tests
     reg = icons.registry()
     for name, (names, aliases) in FAKE.items():
         p = reg[name]
@@ -39,6 +40,7 @@ def packs(tmp_path, monkeypatch):
             (p.dir / f"{name}__{n}.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
     yield reg
     vendor.clear_cache()
+    icons._INDEX_CACHE.clear()
 
 
 MATCHES = [  # (id, title, expected ref)
@@ -80,3 +82,57 @@ def test_ngrams():
     assert vendor.ngrams("AWS Lambda edge worker") == [
         "aws-lambda-edge", "lambda-edge-worker", "aws-lambda", "lambda-edge", "edge-worker", "lambda", "edge",
         "worker"]
+
+
+# ---- T17: hint and swap (VND-01, VND-04, VND-05) -------------------------------------------------------------------
+def _theme(tmp_path, prefer: bool):
+    from spinagram import Theme
+
+    root = tmp_path / ("prefer" if prefer else "plain")
+    (root / "icons").mkdir(parents=True)
+    (root / "icons" / "gear.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"/>')
+    (root / "theme.yaml").write_text(
+        "extends: default\nicons:\n  dir: icons\n  pattern: '{name}.svg'\n"
+        f"  prefer_vendor_for_services: {str(prefer).lower()}\n"
+        "  alias: {fn: gear, lam: 'aws:lambda'}\n"
+        "  fallback: {compute: [gear], serverless: ['aws:lambda']}\n")
+    return Theme.load(root)
+
+
+HINTS = [  # (id, icon, title, prefer, expected issue detail or None, expected drawn icon file)
+    ("icon-dir", "gear", "Lambda", False, "'Lambda' matches aws:lambda; icon 'gear' is generic", "gear.svg"),
+    ("theme-alias", "fn", "Lambda workers", False, "'Lambda workers' matches aws:lambda; icon 'fn' is generic",
+     "gear.svg"),
+    ("concept-chain", "concept:compute", "AWS Lambda", False,
+     "'AWS Lambda' matches aws:aws-lambda; icon 'concept:compute' is generic", "gear.svg"),
+    ("alias-to-the-service", "lam", "Lambda", False, None, "aws__aws-lambda.svg"),
+    ("concept-to-the-service", "concept:serverless", "Lambda", False, None, "aws__aws-lambda.svg"),
+    ("pack-ref-other-service", "gcp:cloud-run", "Lambda", False, None, "gcp__cloud-run.svg"),
+    ("pack-ref", "aws:lambda", "Lambda", False, None, "aws__aws-lambda.svg"),
+    ("no-service", "gear", "Consul server", False, None, "gear.svg"),
+    ("no-icon", None, "Lambda", False, None, None),
+    ("prefer-swaps", "gear", "Lambda", True, None, "aws__aws-lambda.svg"),
+    ("prefer-swaps-concept", "concept:compute", "Cloud Run", True, None, "gcp__cloud-run.svg"),
+    ("prefer-keeps-pack-ref", "gcp:cloud-run", "Lambda", True, None, "gcp__cloud-run.svg"),
+    ("prefer-no-service", "gear", "Consul", True, None, "gear.svg"),
+]
+
+
+@pytest.mark.parametrize("icon,title,prefer,detail,drawn", [h[1:] for h in HINTS], ids=[h[0] for h in HINTS])
+@pytest.mark.parametrize("laid_out", [False, True], ids=["hand", "engine"])
+def test_hint_and_swap(packs, tmp_path, icon, title, prefer, detail, drawn, laid_out):
+    from spinagram import Diagram, build_scene
+    from spinagram.qa import check
+
+    theme = _theme(tmp_path, prefer)
+    d = Diagram("V", "Vendor")
+    if laid_out:  # an engine-laid-out diagram: the hint runs on every scene
+        d.box(title, id="n", icon=icon)
+    else:
+        d.box(title, id="n", icon=icon, x=200, y=200, w=400, h=160)
+    sc = build_scene(d, theme)
+    assert sc.laid_out == laid_out
+    got = [(i.item, i.detail, i.severity) for i in check(sc) if i.kind == "icon-generic-for-service"]
+    assert got == ([("n", detail, "P2")] if detail else [])
+    s = sc.shapes()["n"]
+    assert (s.icon.path.name if s.icon else None) == drawn

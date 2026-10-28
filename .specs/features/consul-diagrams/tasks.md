@@ -171,7 +171,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT with a fake cached index (titles × expected ref/None, tie ordering); uncached pack never fetched (monkeypatched fetch asserts not called); gate passes.
 **Tests**: unit · **Gate**: quick · **Commit**: `feat(icons): match node titles to vendor services`
 
-### T17: Vendor hint and swap
+### T17: Vendor hint and swap ✅
 **What**: `icon-generic-for-service` (P2) in `qa`; theme `icons.prefer_vendor_for_services` swaps the icon in the builder.
 **Where**: `src/spinagram/layout.py`, `src/spinagram/qa.py`, `src/spinagram/scene.py`
 **Depends on**: T16 · **Reuses**: icon trace sources · **Requirement**: VND-01, VND-04, VND-05

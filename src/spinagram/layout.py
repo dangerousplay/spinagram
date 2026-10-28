@@ -31,6 +31,9 @@ LABEL_ROLES = {
 }
 
 
+_PACK_REF = re.compile(r"^[a-z0-9][a-z0-9_-]*:[^/\\]")  # ``pack:name`` (as ``Theme._source``)
+
+
 def slugify(text: str, max_len: int = 60) -> str:
     s = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:max_len].rstrip("-")
@@ -61,6 +64,7 @@ class _Builder:
         self.label_issues: list[tuple[str, str, str]] = []
         self.flush: set[str] = set()  # zones with a flush corner icon (AWS style)
         self.not_straight: list[str] = []  # straight=True edges whose boxes share no span
+        self.vendor_hints: dict[str, tuple[str, str, str]] = {}  # node id → (title, vendor ref, generic icon)
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -199,6 +203,7 @@ class _Builder:
         icon_path = self.t.icon(icon_name, st["tone"], self.d.base_dir)
         if n.icon and icon_path is None:
             warnings.warn(f"{self.d.id}: icon {n.icon!r} not found in theme {self.t.data.get('name')}", stacklevel=2)
+        icon_path = self.vendor_icon(n, icon_name, icon_path, st["tone"])
         brk = n.extra.get("break_on", nd.get("break_on"))
         brk = brk if brk is not None else textfit.BREAK_ON
 
@@ -254,6 +259,24 @@ class _Builder:
         self._decorate(s, cs.get(""))
         self.shapes[n.id] = s
         return s
+
+    def vendor_icon(self, n: Node, icon_name: str | None, icon_path: Path | None, tone: str) -> Path | None:
+        """A generic icon (theme alias, icon dir or ``concept:`` chain) on a node titled after a cached vendor
+        service: the vendor icon with ``icons.prefer_vendor_for_services``, else a hint for ``check`` (VND)."""
+        from .engine import vendor
+
+        if icon_path is None or not n.icon or (_PACK_REF.match(n.icon) and not n.icon.startswith("concept:")):
+            return icon_path
+        ref = vendor.match(n.title, self.t.icon_packs())
+        trace = getattr(self.t, "icon_trace", None) or {}
+        if ref is None or (trace.get(icon_name) or (None,))[0] == ref:  # it already draws that service
+            return icon_path
+        if (self.t.get("icons") or {}).get("prefer_vendor_for_services"):
+            swapped = self.t.icon(ref, tone, self.d.base_dir)
+            if swapped is not None:
+                return swapped
+        self.vendor_hints[n.id] = (" ".join(_as_list(n.title)), ref, n.icon)
+        return icon_path
 
     def zone_header(self, i: int, z, zs: dict, zcs: dict) -> list:
         """Header icon and label of zone ``i`` (see :func:`engine.zones.header_layout`)."""
@@ -665,6 +688,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.laid_out = bool(diagram.meta.get("laid_out"))
     scene.flush_headers = builder.flush
     scene.not_straight = builder.not_straight
+    scene.vendor_hints = builder.vendor_hints
     scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80),
                            "icon_text_gap": theme.defaults("node").get("icon_text_gap", 8)}
     glyphs.apply(scene, theme)
