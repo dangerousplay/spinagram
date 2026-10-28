@@ -206,7 +206,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT side combos × mid given/default → exact points; invalid route → `ValueError`; YAML row; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(route): elbow edges`
 
-### T22: Theme by name
+### T22: Theme by name ✅
 **What**: `SPINAGRAM_THEME_PATH` and `spinagram.themes` entry points in `_resolve_dir`; error lists searched places.
 **Where**: `src/spinagram/theme.py`
 **Depends on**: T21 · **Reuses**: `_resolve_dir` · **Requirement**: THM-01..04

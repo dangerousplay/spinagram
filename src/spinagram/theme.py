@@ -35,16 +35,70 @@ def _builtin(ref: str | Path) -> Path | None:
     return d if (d / "theme.yaml").is_file() else None
 
 
+ENTRY_POINTS = "spinagram.themes"  # installed theme packages: name = ``pkg`` (its directory) or ``pkg.mod:ATTR``
+
+
+def _is_name(ref: str) -> bool:
+    """A bare theme name (``brand``), not a path (``./brand``, ``~/brand``, ``/abs/brand``)."""
+    return ref not in (".", "..", "") and not any(c in ref for c in "/\\") and not ref.startswith("~")
+
+
+def _entry_point(name: str) -> tuple[Path | None, str]:
+    """The directory the ``spinagram.themes`` entry point ``name`` names, and how it reads in the search list."""
+    import importlib.metadata
+    import types
+
+    where = f"entry point {name!r} in group {ENTRY_POINTS!r}"
+    ep = next((e for e in importlib.metadata.entry_points(group=ENTRY_POINTS) if e.name == name), None)
+    if ep is None:
+        return None, f"{where} (none installed)"
+    try:
+        obj = ep.load()
+    except Exception as exc:  # noqa: BLE001 — a broken package is listed, not fatal: the search goes on
+        return None, f"{where} (failed to load: {exc})"
+    if isinstance(obj, types.ModuleType):  # ``pkg``: the package directory
+        d = Path(obj.__file__).parent if getattr(obj, "__file__", None) else Path(list(obj.__path__)[0])
+    else:  # ``pkg.mod:ATTR``: the path in ATTR
+        d = Path(obj).expanduser()
+    if (d / "theme.yaml").is_file():
+        return d, where
+    return None, f"{where} → {d} (no theme.yaml)"
+
+
 def _resolve_dir(ref: str | Path, relative_to: Path | None = None) -> Path:
-    if _builtin(ref):
-        return _builtin(ref)
-    p = Path(ref).expanduser()
-    if not p.is_absolute() and relative_to is not None and (relative_to / p).exists():
-        p = relative_to / p
-    if p.is_dir():
-        return p.resolve()
-    raise FileNotFoundError(f"theme {ref!r} not found (dir with theme.yaml, or built-in: "
-                            f"{', '.join(sorted(x.name for x in BUILTIN.iterdir()))})")
+    """A theme directory for ``ref``, searched in order (THM-01): built-in → a path (absolute, ``~``, relative to
+    the extending theme, then to the working directory) → each ``SPINAGRAM_THEME_PATH`` directory holding
+    ``<name>/theme.yaml`` → the ``spinagram.themes`` entry point ``<name>``. Not found: ``FileNotFoundError``
+    listing every place searched."""
+    name = str(ref)
+    searched: list[str] = []
+    is_name = _is_name(name)
+    if is_name:
+        if _builtin(name):
+            return _builtin(name)
+        names = sorted(x.name for x in BUILTIN.iterdir() if (x / "theme.yaml").is_file())
+        searched.append(f"built-in themes ({', '.join(names)})")
+    p = Path(name).expanduser()
+    tries = [(relative_to / p, " (relative to the extending theme)")] if not p.is_absolute() and relative_to else []
+    for cand, note in tries + [(p if p.is_absolute() else Path.cwd() / p, "")]:
+        if (cand / "theme.yaml").is_file():
+            return cand.resolve()
+        searched.append(f"{cand}{note}")
+    if is_name:
+        for entry in [e for e in os.environ.get("SPINAGRAM_THEME_PATH", "").split(os.pathsep) if e]:
+            d = Path(entry).expanduser()
+            if not d.is_dir():
+                searched.append(f"{d} (SPINAGRAM_THEME_PATH; directory missing, skipped)")
+                continue
+            if (d / name / "theme.yaml").is_file():
+                return (d / name).resolve()
+            searched.append(f"{d / name} (SPINAGRAM_THEME_PATH)")
+        found, where = _entry_point(name)
+        if found is not None:
+            return found.resolve()
+        searched.append(where)
+    raise FileNotFoundError(f"theme {name!r} not found; searched, in order:\n" +
+                            "\n".join(f"  {k}. {s}" for k, s in enumerate(searched, 1)))
 
 
 def _absolutize(data: dict, root: Path) -> dict:
