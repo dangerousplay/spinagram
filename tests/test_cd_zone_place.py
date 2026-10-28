@@ -122,3 +122,31 @@ def test_empty_zone_row_is_ignored():
     with d.zone("SG", id="sg", band=(330, 500)), d.row():
         pass
     assert _rects(d, ["z0"]) == [(80, 330, 1760, 170)]                 # builds; the zone keeps its band
+
+
+# Zone rows of items without w/h are sized from their content (BND-04), like any node without a size. Default
+# theme: title 24 px bold at 0.6 em = 14.4 px per character, padding 22, auto min_w 220 / max_w 360 / min_h 96.
+#   "Short": 5 × 14.4 = 72 + 2 × 22 + 4 = 120 → min_w 220; one line 24 × 1.15 = 27.6 + 44 = 71.6 → min_h 96.
+#   "A much longer card title": 24 × 14.4 = 345.6 + 48 = 393.6 → max_w 360; text width 360 − 44 = 316 holds
+#   "A much longer card" (259.2) but not the whole title (345.6) → 2 lines: 2 × 27.6 + 44 = 99.2.
+# Band (300, 600) → zone 80, 300, 1760 x 300: content x 104 … 1816 (1712), top 300 + 40.8 + 12 = 352.8, bottom 576
+# (223.2 tall). The block (row gap 20) is centred; its height is the tallest card's, cards share its top.
+CONTENT_SIZE_SCENARIOS = [  # (id, titles, expected (x, y, w, h) per card)
+    # block 220 + 20 + 360 = 600 → x 104 + 556 = 660; y 352.8 + (223.2 − 99.2) / 2 = 414.8
+    ("short-and-long", ["Short", "A much longer card title"], [(660, 414.8, 220, 96), (900, 414.8, 360, 99.2)]),
+    # x 104 + (1712 − 220) / 2 = 850; y 352.8 + (223.2 − 96) / 2 = 416.4
+    ("one-short", ["Short"], [(850, 416.4, 220, 96)]),
+]
+
+
+@pytest.mark.parametrize("titles,expected", [s[1:] for s in CONTENT_SIZE_SCENARIOS],
+                         ids=[s[0] for s in CONTENT_SIZE_SCENARIOS])
+def test_zone_row_without_sizes_gets_content_sizes(titles, expected):
+    d = Diagram("B", "Bands")
+    with d.zone("Secrets Manager", id="sm", band=(300, 600)):
+        nodes = d.row(titles)
+    assert [(n.w, n.h) for n in nodes] == [(0, 0)] * len(titles)          # sized at layout, not at build time
+    assert _rects(d, [n.id for n in nodes]) == [pytest.approx(r) for r in expected]
+    plain = Diagram("P", "Plain")                                              # the same titles, placed by hand
+    loose = [plain.box(t, x=100 + 400 * k, y=200) for k, t in enumerate(titles)]
+    assert [r[2:] for r in _rects(plain, [n.id for n in loose])] == [pytest.approx(r[2:]) for r in expected]
