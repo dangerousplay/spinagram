@@ -12,7 +12,8 @@ FAKE = {  # pack → (icon names, aliases); written as cached indexes
     "aws": (["aws-lambda", "amazon-ec2", "elastic-load-balancing", "amazon-simple-queue-service"],
             {"lambda": "aws-lambda", "ec2": "amazon-ec2", "load-balancing": "elastic-load-balancing",
              "sqs": "amazon-simple-queue-service"}),
-    "gcp": (["cloud-run", "cloud-load-balancing", "pub-sub", "spanner"], {"load-balancing": "cloud-load-balancing"}),
+    "gcp": (["cloud-run", "cloud-load-balancing", "pub-sub", "spanner", "bigtable", "cloud-storage"],
+            {"load-balancing": "cloud-load-balancing"}),  # the registry's curated gcp aliases add storage
     "logos": (["consul", "vault"], {}),  # registered, cached, but not a vendor pack (not in metadata.PROVIDERS)
 }
 
@@ -52,6 +53,9 @@ MATCHES = [  # (id, title, expected ref)
     ("tie-pack-a-z", "Load balancing", "aws:load-balancing"),       # aws and gcp both have it: aws first
     ("same-length-pack-a-z", "Spanner and Lambda", "aws:lambda"),   # equal length: pack A–Z, not title order
     ("one-hit", "Spanner and Consul", "gcp:spanner"),
+    ("leftmost-in-pack", "Bigtable to Spanner", "gcp:bigtable"),    # same length, same pack: leftmost n-gram
+    ("leftmost-in-pack-reversed", "Spanner to Bigtable", "gcp:spanner"),
+    ("curated-alias", "Storage bucket", "gcp:storage"),            # registry alias storage → cloud-storage
     ("short-ngram-ignored", "EC2 fleet", None),                     # "ec2" has 3 chars (< 4)
     ("short-alias-ignored", "SQS", None),
     ("no-match", "Consul server", None),

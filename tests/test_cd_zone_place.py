@@ -150,3 +150,10 @@ def test_zone_row_without_sizes_gets_content_sizes(titles, expected):
     plain = Diagram("P", "Plain")                                              # the same titles, placed by hand
     loose = [plain.box(t, x=100 + 400 * k, y=200) for k, t in enumerate(titles)]
     assert [r[2:] for r in _rects(plain, [n.id for n in loose])] == [pytest.approx(r[2:]) for r in expected]
+
+
+def test_headerless_zone_row_starts_at_the_zone_padding():  # BND-02: no header, so the content top is y + padding
+    d = Diagram("B", "Bands")
+    with d.zone("SG", id="sg", header="none", padding=40, band=(300, 600)):
+        nodes = d.row(["One", "Two"], align="start")
+    assert [r[1] for r in _rects(d, [n.id for n in nodes])] == [pytest.approx(340)] * 2

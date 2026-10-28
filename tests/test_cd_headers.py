@@ -142,6 +142,8 @@ CROSSING_SCENARIOS = [  # (id, (src, dst, edge kwargs), reported)
     ("straight-near", ("d", "c", {}), False),                 # x = 640, right of the header
     ("poly-through", ("d", "b", {"via": [(640, 220), (140, 220)]}), True),  # runs inside the header
     ("poly-near", ("d", "b", {"via": [(640, 300), (140, 300)]}), False),    # below the header
+    ("poly-inset-clear", ("d", "b", {"via": [(640, 240.3), (140, 240.3)]}), False),  # 0.5 px inside: in the 1 px inset
+    ("poly-inset-hit", ("d", "b", {"via": [(640, 239.3), (140, 239.3)]}), True),     # 1.5 px inside: past the inset
     ("curve-through", ("a", "b", {"curve": (300, 270)}), True),            # bulges into the header
     ("curve-near", ("d", "c", {"curve": (560, 270)}), False),
     ("own-zone-target", ("b", "zone:z0.top@0.0666667", {}), False),        # final segment to its zone border
@@ -230,6 +232,7 @@ FIX_SCENARIOS = [  # (id, scene kwargs, expected fix)
      {"op": "anchor", "edge": "e0", "src": "a.bottom@0.65", "dst": "b.top@0.5"}),
     ("zone-end-no-fix", {"edge": ("a", "zone:z0.left@0.333333", {"via": [(140, 300)]})}, None),
     ("via-no-fix", {"edge": ("a", "b", {"via": [(300, 220), (300, 400)]})}, None),
+    ("curve-no-fix", {"edge": ("a", "b", {"curve": (300, 270)})}, None),
 ]
 
 
