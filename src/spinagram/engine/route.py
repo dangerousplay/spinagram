@@ -51,22 +51,19 @@ def _clearance(box, rect) -> float | None:
 
 
 def _header_obstacles(a: Shape, b: Shape, c: Connector, headers: dict) -> tuple[list, float]:
-    """Header rects an edge must avoid (HDR-01): not those of zones it is bound to, nor any overlapping an end
-    box. Returns them with the route margin: a header closer than ``MARGIN`` to an end box (a card 12 px under
-    it) halves that gap, so the port stub stays clear of the header instead of the side being unreachable."""
+    """Header rects an edge must avoid (HDR-01): all but those of zones it is bound to, even one over an end box
+    (the route then leaves by a side clear of it). Returns them with the route margin: a header closer than
+    ``MARGIN`` to an end box (a card 12 px under it) halves that gap, so the port stub stays clear of the header
+    instead of the side being unreachable."""
     own = {e.shape_id for e in (c.src, c.dst) if e.target == "zone"}
     out, margin = [], MARGIN
     for zid, r in headers.items():
-        gaps = [_clearance(_box(s), r) for s in (a, b)]
-        if zid in own or any(g is None and _overlaps(_box(s), r) for g, s in zip(gaps, (a, b))):
+        if zid in own:
             continue
+        gaps = [_clearance(_box(s), r) for s in (a, b)]
         out.append(r)
         margin = min([margin] + [g / 2 for g in gaps if g is not None and 0 < g < MARGIN])
     return out, margin
-
-
-def _overlaps(p, q) -> bool:
-    return p[0] < q[0] + q[2] and q[0] < p[0] + p[2] and p[1] < q[1] + q[3] and q[1] < p[1] + p[3]
 
 
 def route_ortho(connectors: list[Connector], todo: list[int], shapes: dict[str, Shape],
