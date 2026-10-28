@@ -87,7 +87,7 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
                 meta=dict(data.get("meta") or {}), css=data.get("css"),
                 stylesheets=[str(x) for x in (data.get("stylesheets") or [])],
                 category=data.get("category"), output=data.get("output"), requires=data.get("requires"),
-                tags=data["tags"] if data.get("tags") is not None else [])
+                tags=data["tags"] if data.get("tags") is not None else [], origin=data.get("origin", "canvas"))
     if data.get("layout") is not None:
         lay = data["layout"]
         d.layout = {"engine": lay} if isinstance(lay, str) else dict(lay)
@@ -407,6 +407,8 @@ def dump(d: Diagram) -> dict[str, Any]:
             out[k] = getattr(d, k)
     if d.category is not None:
         out["category"] = d.category
+    if d.origin != "canvas":
+        out["origin"] = d.origin
     if d.tags:
         out["tags"] = list(d.tags)
     if d.meta:

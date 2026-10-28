@@ -185,7 +185,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT per text location × map → replaced in scene; issue count/detail; invalid key → `ValueError`; identity map → no issue; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(theme): glyph map for characters the brand font lacks`
 
-### T19: Safe-area origin
+### T19: Safe-area origin ✅
 **What**: `Diagram.origin` (`canvas|safe`), YAML `origin`, translation pass; nudge regression.
 **Where**: `src/spinagram/model.py`, `src/spinagram/engine/model_passes.py`, `src/spinagram/yaml_io.py`
 **Depends on**: T18 · **Reuses**: — · **Requirement**: ORG-01..04

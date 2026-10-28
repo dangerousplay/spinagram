@@ -353,6 +353,7 @@ class Snake:
 
 
 SNAKE_MODES = ("boustrophedon", "restart")
+ORIGINS = ("canvas", "safe")
 
 
 @dataclass
@@ -498,6 +499,7 @@ class Diagram:
     snakes: list[Snake] = field(default_factory=list)          # ``d.snake(steps, cols, ...)``
     output: str | None = None     # stable output file name (``<output>.svg``); None: ``<id>-<slugified title>``
     requires: str | None = None   # spinagram version specifier this spec was written for (``>=0.4,<0.5``)
+    origin: str = "canvas"        # canvas: coordinates from the canvas corner; safe: from the safe area (+margin)
 
     _open: list[Group] = field(default_factory=list, repr=False, compare=False)
     _sizes: list[tuple[float, float] | None] = field(default_factory=list, repr=False, compare=False)
@@ -508,6 +510,8 @@ class Diagram:
         if self.category is not None and not isinstance(self.category, str):
             raise ValueError(f"{self.id}: category must be a string, got {self.category!r}")
         self.tags = normalize_tags(self.tags, self.id)
+        if self.origin not in ORIGINS:
+            raise ValueError(f"{self.id}: origin {self.origin!r}; use {' or '.join(ORIGINS)}")
 
     @property
     def auto(self) -> bool:

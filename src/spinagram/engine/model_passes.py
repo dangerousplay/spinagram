@@ -186,6 +186,35 @@ def snakes(d: Diagram, theme: Theme) -> None:
                 e.via = [(src.x + src.w / 2, gy), (lane, gy), (lane, by)]
 
 
+def origin(d: Diagram, theme: Theme) -> None:
+    """``origin="safe"``: every hand-placed coordinate moves by the theme margin on both axes; the diagram is then
+    in canvas coordinates (ORG-01). A snake or band without ``x`` keeps its default, the margin."""
+    if d.origin != "safe":
+        return
+    m = (theme.get("canvas") or {}).get("margin", 80)
+
+    def pt(p):
+        return None if p is None else (p[0] + m, p[1] + m)
+
+    for o in [*d.nodes, *d.zones, *d.tables, *([d.legend] if d.legend else [])]:
+        o.x, o.y = o.x + m, o.y + m
+    for z in d.zones:
+        if z.band is not None:
+            z.band = (z.band[0] + m, z.band[1] + m)
+    for c in d.containers:
+        c.x, c.y = (None if c.x is None else c.x + m), (None if c.y is None else c.y + m)
+    for s in d.snakes:
+        s.x, s.y = (None if s.x is None else s.x + m), s.y + m
+    for e in d.edges:
+        e.src, e.dst = (e.src if isinstance(e.src, str) else pt(e.src)), (e.dst if isinstance(e.dst, str) else pt(e.dst))
+        e.via = None if e.via is None else [pt(p) for p in e.via]
+        e.curve, e.label_at = pt(e.curve), pt(e.label_at)
+    lg = d.annotations.legend
+    if lg is not None and lg.place is not None:
+        lg.place = (lg.place[0] + m, lg.place[1] + m, *lg.place[2:])
+    d.origin = "canvas"
+
+
 def _texts(d: Diagram, fn) -> None:
     """Every diagram text (GLM-01) through ``fn`` (value → value), in place."""
     for attr in ("title", "subtitle", "kicker", "source"):
@@ -260,12 +289,13 @@ def apply(d: Diagram, theme: Theme) -> Diagram:
         return d
     unsized = any(not (n.w and n.h) and n.kind not in SIZED_KINDS_SKIP for n in d.nodes)
     fitted = any(z.fit or z.equalize or z.band for z in d.zones)
-    if not unsized and not d.containers and not fitted and not d.constraints and not d.snakes:
+    if not (unsized or d.containers or fitted or d.constraints or d.snakes or d.origin == "safe"):
         return d
     from .zones import bands, fit_children
 
     if d is source:
         d = copy.deepcopy(d)
+    origin(d, theme)  # before snakes and bands: their defaults (the margin) are canvas coordinates
     snakes(d, theme)  # before bands: rows read the zone header height
     bands(d, theme)  # before containers: zone rows read the zone rect
     containers(d, theme)

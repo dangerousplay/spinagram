@@ -18,6 +18,7 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
     """A copy of ``d`` with every safe fix applied, plus (applied, skipped) issues. A fix that would leave an
     element outside the safe area is skipped and its issue kept (CHK-08)."""
     out = copy.deepcopy(d)
+    off = margin if out.origin == "safe" else 0  # fixes read scene (canvas) coordinates; the spec is in safe ones
     nodes = {n.id: n for n in out.nodes}
     applied, skipped = [], []
     done: set[tuple] = set()
@@ -37,7 +38,7 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
                 continue
             e = out.edges[idx]
             if op == "move-label":
-                e.label_at = (float(f["to"][0]), float(f["to"][1]))
+                e.label_at = (float(f["to"][0]) - off, float(f["to"][1]) - off)
             elif op == "anchor":
                 e.src, e.dst = f["src"], f["dst"]
             else:
@@ -51,7 +52,7 @@ def apply_to_diagram(d: Diagram, issues, canvas: tuple[float, float] = (1920, 10
         x, y, w, h = n.x, n.y, f.get("w", n.w), f.get("h", n.h)
         if op == "nudge":
             x, y = n.x + f.get("dx", 0), n.y + f.get("dy", 0)
-        if op in ("nudge", "resize") and not _inside(x, y, w, h, canvas, margin):
+        if op in ("nudge", "resize") and not _inside(x + off, y + off, w, h, canvas, margin):
             skipped.append(i)
             continue
         if op == "shrink-font":
