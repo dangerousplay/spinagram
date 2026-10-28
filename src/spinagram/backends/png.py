@@ -6,14 +6,15 @@ from pathlib import Path
 from typing import Sequence
 
 from ..scene import Scene
-from .svg import to_svg
+from .svg import check_fonts, to_svg
 
 
 class PngBackend:
     name = "png"
 
-    def __init__(self, scale: float = 2.0):
+    def __init__(self, scale: float = 2.0, fonts: str = "subset"):
         self.scale = scale
+        self.fonts = check_fonts(fonts)  # the SVG it renders embeds fonts the same way (FNT-07)
 
     def render(self, scenes: Sequence[Scene], out_dir: Path) -> list[Path]:
         try:
@@ -27,7 +28,7 @@ class PngBackend:
             browser = pw.chromium.launch()
             for sc in scenes:
                 src = Path(tmp) / f"{sc.slug}.svg"
-                src.write_text(to_svg(sc), encoding="utf-8")
+                src.write_text(to_svg(sc, fonts=self.fonts), encoding="utf-8")
                 page = browser.new_page(viewport={"width": int(sc.width), "height": int(sc.height)},
                                         device_scale_factor=self.scale)
                 page.goto(src.as_uri())

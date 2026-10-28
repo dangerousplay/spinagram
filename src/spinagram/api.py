@@ -57,8 +57,11 @@ def scenes(diagrams: Iterable[Diagram], theme: Theme | str | Path | None = None,
 
 def render(diagrams: Iterable[Diagram], out_dir: str | Path, *, theme: Theme | str | Path | None = None,
            formats: Sequence[str] = ("svg",), gallery: bool = False, layout: str | None = None,
-           name_from: str = "slug", **backend_options) -> list[Path]:
+           name_from: str = "slug", backend_options: dict | None = None, **options) -> list[Path]:
+    """Render to ``out_dir`` in each format. ``backend_options`` (or keyword arguments named after a format)
+    configure the backends: ``backend_options={"svg": {"fonts": "link"}}``."""
     out = Path(out_dir)
+    backend_options = {**options, **(backend_options or {})}
     scs = scenes(diagrams, theme, layout, name_from)
     written: list[Path] = []
     for fmt in formats:

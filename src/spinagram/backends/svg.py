@@ -1,4 +1,7 @@
-"""Self-contained SVG: fonts and images embedded as data URIs."""
+"""Self-contained SVG: fonts and images embedded as data URIs.
+
+Fonts (``fonts=``): ``subset`` (default) embeds each face cut down to the characters drawn in it, ``embed`` the
+whole font files (0.4 output), ``link`` no font data but one Google Fonts CSS2 ``@import`` per family."""
 from __future__ import annotations
 
 import base64
@@ -7,10 +10,19 @@ import html
 from functools import lru_cache
 from pathlib import Path
 from typing import Sequence
+from urllib.parse import quote_plus
 
-from ..scene import Cell, Connector, Icon, Image, Label, Line, Scene, Shape, TableGrid, Text, TextBlock
+from ..scene import Cell, Connector, Icon, Image, Label, Line, Run, Scene, Shape, TableGrid, Text, TextBlock
+from . import fontsubset
 
 DASH = ' stroke-dasharray="10 7"'
+FONT_MODES = ("subset", "embed", "link")
+
+
+def check_fonts(fonts: str) -> str:
+    if fonts not in FONT_MODES:
+        raise ValueError(f"fonts must be subset, embed or link, not {fonts!r}")
+    return fonts
 
 
 def _dash(dashed: bool, pattern: list[float] | None) -> str:
@@ -52,8 +64,10 @@ def _family(block: TextBlock) -> str:
 
 
 class _Svg:
-    def __init__(self, scene: Scene):
+    def __init__(self, scene: Scene, fonts: str = "subset"):
         self.s = scene
+        self.fonts = check_fonts(fonts)
+        self.chars: dict[tuple, set[str]] = {}  # (family, weight, italic) → characters drawn in that face
         self.defs: list[str] = []
         self.back: list[str] = []
         self.mid: list[str] = []
@@ -66,7 +80,15 @@ class _Svg:
                    letter_spacing: float = 0) -> None:
         f = block.font
 
+        def used(font, text: str) -> None:
+            self.chars.setdefault((font.family, font.weight, font.italic), set()).update(text)
+
         def content(i: int, line: str) -> str:
+            runs = block.runs[i] if block.runs else [Run(line, f)]
+            for r in runs:
+                used(r.font, r.text)
+            if not "".join(r.text for r in runs):
+                used(f, "\u00a0")  # an empty line draws a no-break space
             if not block.runs:
                 return _esc(line) or "&#160;"
             return "".join(_esc(r.text) if r.font is f else  # fallback glyphs: their own font
@@ -233,11 +255,7 @@ class _Svg:
                 self.image(self.front, it.path, it.x, it.y, it.w, it.h)
             elif isinstance(it, TableGrid):
                 self.table(it)
-        faces = []
-        for f in s.fonts():
-            if f.file:
-                faces.append(f"@font-face{{font-family:'{f.family}';src:url(data:{_mime(f.file)};base64,"
-                             f"{_b64(f.file)});font-weight:{f.weight};font-style:{'italic' if f.italic else 'normal'}}}")
+        faces = self.faces()
         W, H = s.width, s.height
         meta = ""
         if s.sources:
@@ -252,18 +270,49 @@ class _Svg:
         return f'{head}<metadata id="spinagram-hash">sha256:{digest}</metadata>{rest}'
 
 
-def to_svg(scene: Scene) -> str:
-    return _Svg(scene).render()
+    def faces(self) -> list[str]:
+        """The style rules for the fonts with files, by ``self.fonts`` (after the items are drawn)."""
+        fonts = [f for f in self.s.fonts() if f.file]
+        if self.fonts == "link":
+            # one CSS2 URL per family; the ital axis only when an italic face is used (0 = upright, 1 = italic)
+            axes: dict[str, set[tuple[int, int]]] = {}
+            for f in fonts:
+                axes.setdefault(f.family, set()).add((int(f.italic), f.weight))
+            out = []
+            for fam, used in axes.items():
+                spec = (f"ital,wght@{';'.join(f'{i},{w}' for i, w in sorted(used))}" if any(i for i, _ in used)
+                        else f"wght@{';'.join(str(w) for w in sorted({w for _, w in used}))}")
+                out.append(_esc(f"@import url('https://fonts.googleapis.com/css2?family={quote_plus(fam)}:{spec}"
+                                f"&display=swap');"))
+            return out
+        faces = []
+        for f in fonts:
+            if self.fonts == "subset":
+                data = base64.b64encode(fontsubset.subset(f.file, self.chars.get((f.family, f.weight, f.italic),
+                                                                                 ()))).decode()
+            else:
+                data = _b64(f.file)
+            faces.append(f"@font-face{{font-family:'{f.family}';src:url(data:{_mime(f.file)};base64,"
+                         f"{data});font-weight:{f.weight};font-style:{'italic' if f.italic else 'normal'}}}")
+        return faces
+
+
+def to_svg(scene: Scene, fonts: str = "subset") -> str:
+    """The scene as one self-contained SVG; ``fonts``: subset (default), embed or link."""
+    return _Svg(scene, fonts).render()
 
 
 class SvgBackend:
     name = "svg"
+
+    def __init__(self, fonts: str = "subset"):
+        self.fonts = check_fonts(fonts)
 
     def render(self, scenes: Sequence[Scene], out_dir: Path) -> list[Path]:
         out_dir.mkdir(parents=True, exist_ok=True)
         paths = []
         for sc in scenes:
             p = out_dir / f"{sc.slug}.svg"
-            p.write_text(to_svg(sc), encoding="utf-8")
+            p.write_text(to_svg(sc, self.fonts), encoding="utf-8")
             paths.append(p)
         return paths

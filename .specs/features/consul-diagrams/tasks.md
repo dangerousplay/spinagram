@@ -255,7 +255,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT on bundled Noto fonts: subset cmap == chars ∪ {space}; bytes identical across 2 runs and PYTHONHASHSEED 0..3; size ratio < 25 %; broken font → original bytes + warning; gate passes.
 **Tests**: unit · **Gate**: quick · **Commit**: `feat(svg): font subsetting`
 
-### T27: SVG font modes, CLI and PNG
+### T27: SVG font modes, CLI and PNG ✅
 **What**: `to_svg(fonts=)`, SVG backend option, `render --fonts`, link mode, PNG uses subset.
 **Where**: `src/spinagram/backends/svg.py`, `src/spinagram/backends/png.py` (if needed), `src/spinagram/cli.py`, `src/spinagram/api.py`
 **Depends on**: T26 · **Requirement**: FNT-01, FNT-03, FNT-04, FNT-07
