@@ -63,11 +63,17 @@ Keep the real, implementable template (an e-mail HTML with inline CSS, or an Ada
 ## Layout engine helpers (use these, not workarounds)
 
 - Zones: `d.zone(label, dash="dotted", stroke=..., icon=[...], fit="children", meaning=...)` used as `with`. The header insets its icons; never draw icon chips or header labels by hand, and never append empty `Group`s to style zones (CSS reaches `zone#id` / `zone.<style>`).
-- Rows: `with d.row(x=, y=, gap=, same_size=True):`; grids: `g = d.grid(cols=[...], rows=[...])` and `cell=g[c, r]`.
+- Rows: `with d.row(x=, y=, gap=, same_size=True):`; grids: `g = d.grid(cols=[...], rows=[...])` and `cell=g[c, r]`. Add `same_text_scale=True` so every card in a row keeps one text size (`check` reports `text-scale-mismatch` otherwise).
+- Phase bands: `with d.zone("Build", band=(y0, y1)): d.row(["A", "B", "C"], cols=4, align="start")` places the row in the zone's content area, below the header; never compute card x/y inside a zone by hand. YAML: zone `band: [y0, y1]`, `rows: [{zone: <id>, align, cols, nodes: [...]}]`.
+- Multi-row processes: `d.snake(steps, cols=4, y=, h=, zones=["Build", "Release"], mode="boustrophedon"|"restart")` (YAML `snakes:`) instead of hand-placed rows and turn edges. Never give a zone the id of a node inside it (a zone `id="build"` around a step titled "Build").
+- Zone headers: `header="right"` or `"none"`; edges to a point of a zone use `z.top` or `z.at_top(0.8)` (`zone:<id>.top@0.8`).
+- Centred icons: `align="auto"` picks centred (tall cards) or left (wide cards); a centred icon keeps `icon_text_gap` (8) above the text and shrinks to `icon_min` (24) first.
+- Helpers: `d["id"]` looks up a node or zone, `d.distribute(n, w, gap, within=(x0, x1))` spreads boxes, `route="elbow", mid=y` draws two bends, `Diagram(..., origin="safe")` measures coordinates from the safe area.
 - Icons: wordmarks keep their aspect ratio; `badges=[...]` puts up to 3 platform logos on a card; `icon="concept:<name>"` uses the theme's fallback chain.
 - Legend: `meaning=` on edges and zones, then `d.add_legend(items="auto", place=(x, y, w, h))`.
 - Outputs: `Diagram(..., output="name")` gives stable file names.
 - QA: `spinagram check --fix spec.yaml` writes `spec.fixed.yaml` (Python specs get suggested edits).
+- `check` kinds to act on: `edge-crosses-zone-header` and `icon-overlaps-text` (P0, `--fix` re-anchors, reroutes or resizes), `text-scale-mismatch`, `icon-generic-for-service` (use the vendor icon it names, or theme `icons: {prefer_vendor_for_services: true}`) and `glyph-mapped` (P2, informational: the theme's `text.glyph_map` replaced a character).
 
 ## Text rules
 
@@ -242,7 +248,7 @@ are not loaded as specs.
     - Call `upload_assets(fileKey, count=n, nodeIds=[...])`.
     - POST each file listed in `assets.json` to its URL.
   - **Edges (Design/Slides):** drawn as vectors, because the connector node is FigJam-only.
-- **SVG** is self-contained (fonts and images embedded). **PNG** is rendered at 2x (3840×2160) for slides.
+- **SVG** is self-contained (fonts subset to the characters drawn, and images embedded); `render --fonts embed` keeps whole fonts, `--fonts link` imports Google Fonts instead. **PNG** is rendered at 2x (3840×2160) for slides.
 - **Excalidraw:** `-f excalidraw` writes `<slug>.excalidraw` (open it in Excalidraw: File → Open, or drop it on the canvas).
   - Native, editable elements in a clean style (no hand-drawn roughness, theme colours): boxes, diamonds and pills are Excalidraw shapes; symbols (cylinder, document, …) are grouped polygons; arrows are bound to their boxes and follow them when moved.
   - Text keeps spinagram's line breaks in Excalidraw's fonts (Helvetica, or Cascadia for monospace themes), so widths can differ slightly. A one-paragraph label is bound into its box; a title + body label is grouped text.
@@ -275,7 +281,7 @@ skill: selectors, properties, recipes, layout hints for dense architecture slide
 
 ## Themes
 
-Use `extends: default` and override `colors` (tokens may alias tokens), `fonts` (with files, for metrics and embedding), `icons` (`dir` + `pattern` `{name}-{variant}.png`, variants per background tone), `styles.*` and `chrome` (bar, title, kicker template, footer logo). Keep brand themes **outside** the engine repository.
+Use `extends: default` and override `colors` (tokens may alias tokens), `fonts` (with files, for metrics and embedding), `icons` (`dir` + `pattern` `{name}-{variant}.png`, variants per background tone), `styles.*` and `chrome` (bar, title, kicker template, footer logo). Keep brand themes **outside** the engine repository: `--theme <name>` finds them in `SPINAGRAM_THEME_PATH` directories or through a package's `spinagram.themes` entry point. `text: {glyph_map: {"→": "->"}}` replaces characters the brand font lacks.
 
 ## Done when
 

@@ -262,7 +262,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT modes → embedded face bytes (embed == file), subset cmap, link `@import` URL text; CLI flag happy + invalid value; PNG test when chromium exists; gate passes.
 **Tests**: integration · **Gate**: build · **Commit**: `feat(svg): fonts subset, embed or link`
 
-### T28: Docs
+### T28: Docs ✅
 **What**: Reference pages for every new API/theme key/check kind, release notes "what's new in 0.5", CHANGELOG unreleased, agent skill notes if they list check kinds.
 **Where**: `docs/content/docs/**`, `CHANGELOG.md`, `src/spinagram/agent_skills/**`
 **Depends on**: T27 · **Requirement**: — (all, documentation)

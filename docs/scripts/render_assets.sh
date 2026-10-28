@@ -15,6 +15,7 @@ copy() {  # copy <dir> <dest folder>: <ID>-<slug>.svg → <dest>/<id>.svg (ids l
 }
 
 render docs/diagrams/ && cp "$OUT/docs/diagrams/S00-spinagram.svg" "$A/overview.svg"
+mkdir -p "$A/release-0-5" && cp "$OUT/docs/diagrams/release-0-5.svg" "$A/release-0-5/commit-to-production.svg"
 render examples/quickstart.py && cp "$OUT/examples/quickstart.py/Q01-web-app-on-aws.svg" "$A/quickstart.svg"
 mkdir -p "$A/demo" "$A/tutorial" "$A/gallery" "$A/examples"
 render examples/behavior/ && copy examples/behavior/ demo

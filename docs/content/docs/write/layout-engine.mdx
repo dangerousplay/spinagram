@@ -37,6 +37,13 @@ Noto Sans Math (OFL). `check` lists each one: `glyph-missing — '×' (U+00D7) i
 - `g = d.grid(cols=[80, 400, 1480], rows=[190, 760], gutter=40)` names grid lines; `cell=g[1, 0]` places a node
   or zone there (and sizes it to the cell when it has no size). YAML: `grid:` and `cell: [1, 0]`.
 - `d.align_x(a, b)`, `d.align_y(a, b)`, `d.center_on(a, b)` align centres after sizing.
+- `d["api"]` returns the node (or zone) with that id.
+- `d.distribute(3, w=300, gap=40, within=(80, 1840))` returns the x of 3 boxes 300 px wide, centred as a block;
+  without `w`, `xs, w = d.distribute(3, gap=40, within=(80, 1840))` fills the span with equal widths.
+- `same_text_scale=True` on a row or column gives its members one title and one body size (the smallest any
+  member needs), so a long title does not make one card's text smaller than its neighbours'.
+- `Diagram(..., origin="safe")` (YAML `origin: safe`) measures hand-placed coordinates from the safe area
+  (the canvas margin), so `x=0, y=0` is its top-left corner instead of the canvas corner.
 - `d.edge(a, b, straight=True)` anchors both ends on the boxes' shared span, so the edge is vertical or
   horizontal. `a.at_left(0.35)` returns the anchor `a.left@0.35`.
 
@@ -57,6 +64,62 @@ with d.zone("AZ site-a", dash="dotted", stroke="primary", fit="children",
 - **Size**: `fit: children` wraps the children (padding on three sides, the header on top), innermost first;
   `equalize: siblings` gives sibling zones one height (opt-in: blank space is never the default).
 - `zone.content_top` is the first free y below the header.
+- **Header side**: `header="right"` mirrors the header (icons end at the right outline, the label ends before
+  them); `header="none"` draws no header, so content starts `padding` (24 px) below the top. The long form is
+  `header: {align: left | right | none, ...}`.
+- **Bands**: `band=(y0, y1)` (YAML `band: [y0, y1]`) spans a zone from `y0` to `y1`; without `w` it takes the
+  safe width (canvas minus both margins). `band` and `fit="children"` exclude each other.
+
+### Rows inside zones
+
+Inside `with d.zone(...)`, a `row` or `column` without `x`/`y` is placed in the zone's content area: below the
+header, `padding` inside the outline, at most the content width wide.
+
+```python
+with d.zone("Observe", band=(560, 790)):
+    d.row(["Metrics", "Logs", "Traces"], same_size=True)          # centred in the content area
+with d.zone("Clusters", band=(820, 1000)):
+    d.row(["eu-1", "eu-2"], cols=4, align="start")                # each card 1/4 of the content width
+```
+
+| Option | Meaning |
+|---|---|
+| `align` | `center` (default), `start` or `end` in the content area; `start` also puts the row at the top |
+| `cols` | Each member takes 1/`cols` of the content width; more members than `cols` is an error |
+| `same_text_scale` | Members share the smallest title and body size the fit needs (default: `same_size`) |
+
+`d.row(items)` with no `w`/`h` returns the nodes and sizes them to their content; with `x`, `y`, `w` and `h`
+it is still the fixed row of earlier versions. Outside a zone, `x` and `y` are required; `align` and `cols`
+need a zone. In YAML, `rows: [{zone: <zone id>, align, cols, same_text_scale, nodes: [...]}]`.
+
+### Zone anchors
+
+`z.top`, `z.bottom`, `z.left`, `z.right` and `z.at_top(0.8)` (also `at_bottom`, `at_left`, `at_right`, or
+`z.at("left", 0.3)`) return the endpoint `zone:<id>.<side>[@frac]`, so an edge ends on that point of the
+outline: `d.edge(deploy, observe.at_top(0.8))`. In YAML, write the string: `deploy -> zone:observe.top@0.8`.
+
+## Snakes
+
+`d.snake(steps, cols, y=, h=)` lays a long process out in rows of `cols` cards and chains them. Turns between
+rows are routed around the cards and the zone headers.
+
+```python
+d.snake(["Commit", "Build", "Unit tests", "Image scan", "Stage deploy", "Smoke tests", "Approval", "Production"],
+        cols=4, y=170, h=100, zones=["Build", "Release"])
+```
+
+| Option | Meaning |
+|---|---|
+| `steps` | Titles, or dicts of node fields (`{"title": "Build", "icon": "logos:docker"}`) |
+| `cols`, `y`, `h` | Cards per row, top of the first row, card height |
+| `x`, `w` | Left edge and width (default: the canvas margin and the safe width) |
+| `gap`, `row_gap` | Space between cards (40) and between rows (60) |
+| `zones` | One zone per row: a label or a dict of zone fields; the cards sit in its content area |
+| `mode` | `boustrophedon` (default: odd rows run right to left) or `restart` (every row left to right) |
+| `chain` | `False` draws no edges between the steps |
+
+Other keyword arguments (`color`, `dashed`, …) apply to every chain edge. It returns the step nodes. YAML:
+`snakes: [{steps: [...], cols: 4, y: 170, h: 100, zones: [Build, Release]}]`.
 
 ## Icons
 
@@ -66,6 +129,16 @@ Icons keep their aspect ratio (fitted by height, up to four heights wide), so wo
 `icons: {fallback: {load-balancer: [logos:f5, network:loadbalancer]}}`, used as `icon="concept:load-balancer"`.
 `spinagram icons report specs/` lists every icon with its source (official, theme, fallback:n).
 
+A centred icon (`align="center"`) sits above the text: the text starts `icon_text_gap` (8 px) below the icon,
+and the icon shrinks, down to `icon_min` (24 px), before the text does. Set both in
+`defaults: {node: {icon_text_gap: 8, icon_min: 24}}`. `align="auto"` centres the icon when the box is taller
+than wide and the text fits under the icon at its normal size, and puts it on the left otherwise.
+
+With `icons: {prefer_vendor_for_services: true}` in the theme, a box with a generic icon (a theme icon, an icon
+file or a `concept:` chain) whose title names a cloud service gets the vendor icon instead (`Cloud Run service`
+→ `gcp:cloud-run`). Runs of one to three title words, at least four characters long, are matched against the
+vendor packs already in the cache (the longest wins); nothing is downloaded.
+
 ## Edges
 
 - **Labels** take the first clear spot among 15 candidates (midpoint, along the edge, then beside it), clear of
@@ -73,6 +146,10 @@ Icons keep their aspect ratio (fitted by height, up to four heights wide), so wo
 - **Zones as targets**: `d.edge(pool, net_zone)` or `"pool -> zone:net"` ends on the facing side, at the point
   nearest the source. `fan="bus"` adds a bar inside the zone. PowerPoint binds the connector to the zone.
 - **Routing**: `route="ortho"` (or `defaults.edge.route: ortho`) routes around boxes and avoids crossings.
+  Orthogonal routes also go around zone headers, except the header of a zone the edge starts or ends on.
+- **Elbows**: `route="elbow"` draws two bends with the middle segment at `mid`: a y when the edge leaves a top
+  or bottom side, an x when it leaves a left or right side. Without `mid`, the segment is halfway.
+  `d.edge(a.bottom, b.top, route="elbow", mid=520)`; YAML `{from: a.bottom, to: b.top, route: elbow, mid: 520}`.
 - **Trunks**: `d.bundle([e1, e2], trunk="bottom")` or `fan_in=True` joins edges into one target on a shared
   trunk with a single arrowhead.
 
@@ -85,14 +162,27 @@ and dash, or a mini outline. `place=(x, y, w, h)` draws the card in a cell, scal
 
 `spinagram check` also reports `icon-touches-border`, `header-overlap`, `icon-overflows-box`, `glyph-missing`,
 `zone-underused`, `zone-clips-child`, `outside-safe-area`, `low-contrast`, `edge-crossings`,
-`edge-through-box`, `label-collision`, `not-straight`, `icon-size-mismatch` and `version-mismatch`.
-Each issue has a severity (P0 to P2) and, when safe, a fix (`move-label`, `resize`, `nudge`, `shrink-font`):
+`edge-through-box`, `label-collision`, `not-straight`, `icon-size-mismatch`, `version-mismatch`,
+`edge-crosses-zone-header`, `icon-overlaps-text`, `text-scale-mismatch`, `icon-generic-for-service` and
+`glyph-mapped`. Each issue has a severity (P0 to P2) and, when safe, a fix (`move-label`, `resize`, `nudge`,
+`shrink-font`, `anchor`, `reroute`):
 
 ```bash
 spinagram check --json specs/             # issues with their fixes
 spinagram check --fix specs/runners.yaml  # writes runners.fixed.yaml; Python specs get suggested edits
 spinagram render --relayout specs/        # applies the safe fixes in memory
 ```
+
+| Kind | Severity | Reports | Fix |
+|---|---|---|---|
+| `edge-crosses-zone-header` | P0 | `crosses the header of zone 'z1'`; the header of a zone the edge ends on does not count | `anchor`: the first pair of side fractions (0.5, 0.65, 0.35, 0.8, 0.2, 0.85, 0.15) whose straight edge clears every header and box; else `reroute` to `ortho` |
+| `icon-overlaps-text` | P0 | `icon overlaps the first text line by 12px` | `resize`: a taller box, when it stays in the safe area |
+| `text-scale-mismatch` | P2 | `title sizes differ: [19, 24] px; use same_text_scale` in a row or column without `same_text_scale` (more than 10 %) | |
+| `icon-generic-for-service` | P2 | `'Cloud Run service' matches gcp:cloud-run; icon 'concept:serverless' is generic`; without `prefer_vendor_for_services` | |
+| `glyph-mapped` | P2 | `'→' (U+2192) replaced by '->' (theme glyph_map)`, including fact values | |
+
+`anchor` and `reroute` fixes apply to straight edges between two boxes. `zone-underused` counts nested zones as
+content (overlaps once), so a Region filled by its VPC is not reported for holding no boxes of its own.
 
 `low-contrast` flags near-invisible text and single-colour icons by default; raise it to WCAG AA with
 `defaults: {check: {contrast: {title: 3, body: 4.5, icon: 3}}}`.

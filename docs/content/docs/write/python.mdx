@@ -108,6 +108,8 @@ d.edge(api.bottom, cache.top, label="miss")
 d.edge(api.at("right", 0.25), db)        # a quarter of the way along the right side
 d.edge("api -> db: SQL")                 # YAML shorthand, by node id
 d.chain(a, b, c, d2)                     # a -> b -> c -> d2
+d.edge(api, d["db"])                     # d["id"]: a node or zone by id
+d.edge(api, vpc.at_top(0.3))             # a point on a zone's outline
 ```
 
 | Edge option | Meaning |
@@ -117,6 +119,8 @@ d.chain(a, b, c, d2)                     # a -> b -> c -> d2
 | `dashed` | Dashed line |
 | `arrow` | `end` (default), `start`, `both` or `none` |
 | `via` | Waypoints, `[(x, y), ...]` |
+| `route` | `ortho` (around boxes and zone headers) or `elbow` (two bends); see [Layout engine](/docs/write/layout-engine#edges) |
+| `mid` | With `route="elbow"`: the x or y of the middle segment (default: halfway) |
 
 ## Groups
 
