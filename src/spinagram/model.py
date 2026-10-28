@@ -17,6 +17,7 @@ Point = tuple[float, float]
 EndpointLike = "str | Node | Sequence[float]"
 
 SIDES = ("top", "bottom", "left", "right", "center")
+ZONE_SIDES = SIDES[:4]
 
 
 @dataclass
@@ -206,6 +207,42 @@ class Zone:
 
     def __exit__(self, *exc: Any) -> None:
         self.__dict__["_diagram"]._open_zones.pop()
+
+    # edge targets: ``d.edge(a, z.top)``, ``d.edge(a, z.at_left(0.3))`` → ``zone:<id>.<side>[@frac]``
+    def at(self, side: str, frac: float = 0.5) -> str:
+        if self.id is None:
+            raise ValueError(f"zone {self.label!r} has no id; create it with d.zone(...) or give it id=")
+        if side not in ZONE_SIDES:
+            raise ValueError(f"unknown zone side {side!r}; use one of {', '.join(ZONE_SIDES)}")
+        return f"zone:{self.id}.{side}" + ("" if frac == 0.5 else f"@{frac:g}")
+
+    @property
+    def top(self) -> str:
+        return self.at("top")
+
+    @property
+    def bottom(self) -> str:
+        return self.at("bottom")
+
+    @property
+    def left(self) -> str:
+        return self.at("left")
+
+    @property
+    def right(self) -> str:
+        return self.at("right")
+
+    def at_left(self, frac: float = 0.5) -> str:
+        return self.at("left", frac)
+
+    def at_right(self, frac: float = 0.5) -> str:
+        return self.at("right", frac)
+
+    def at_top(self, frac: float = 0.5) -> str:
+        return self.at("top", frac)
+
+    def at_bottom(self, frac: float = 0.5) -> str:
+        return self.at("bottom", frac)
 
     @property
     def content_top(self) -> float:

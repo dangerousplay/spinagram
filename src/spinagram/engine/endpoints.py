@@ -69,9 +69,12 @@ def resolve(ref, other, shapes: dict[str, Shape], diagram_id: str = "",
     if name.startswith(ZONE):
         z = _zone(name, zones or {}, diagram_id)
         ox, oy = center(other, shapes, zones)
+        explicit = bool(side)
         side = side or _zone_side(z, ox, oy)
         f = float(frac) if frac else _clamped_frac(z, side, ox, oy)
-        return z.anchor(side, f), Binding(z.id, side, f, "zone")
+        b = Binding(z.id, side, f, "zone")
+        b.__dict__["explicit"] = explicit  # ``zone:<id>.side``: the ortho router keeps the side and fraction
+        return z.anchor(side, f), b
     if name not in shapes:
         raise KeyError(f"{diagram_id}: edge refers to unknown node {name!r}")
     s = shapes[name]

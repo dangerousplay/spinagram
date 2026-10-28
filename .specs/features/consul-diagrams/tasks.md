@@ -129,7 +129,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: YAML parity rows for each key; fixture parity assertion; round-trip `dump → from_dict` equal; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(yaml): zone bands and zone rows`
 
-### T12: Zone anchors
+### T12: Zone anchors ✅
 **What**: `Zone.at/top/bottom/left/right/at_*`.
 **Where**: `src/spinagram/model.py`
 **Depends on**: T11 · **Reuses**: `Node.at` pattern, `endpoints.resolve` · **Requirement**: ZAN-01, ZAN-02, ZAN-03

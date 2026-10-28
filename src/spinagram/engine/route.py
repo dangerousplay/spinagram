@@ -89,11 +89,16 @@ def route_ortho(connectors: list[Connector], todo: list[int], shapes: dict[str, 
             return penalty * sum(crosses(p, q, *s) for s in drawn)
         sides = (c.src.side if c.src.target == "node" and c.src.__dict__.get("explicit") else None,
                  c.dst.side if c.dst.target == "node" and c.dst.__dict__.get("explicit") else None)
+        # a zone side chosen by the author (``z.at_top(0.8)``) keeps its side and fraction (ZAN-03)
+        zone_end = [e.target == "zone" and e.__dict__.get("explicit") for e in (c.src, c.dst)]
+        sides = tuple(e.side if z else s for e, z, s in zip((c.src, c.dst), zone_end, sides))
+        fracs = tuple(e.frac if z else None for e, z in zip((c.src, c.dst), zone_end))
         hdrs, margin = _header_obstacles(a, b, c, headers or {})
-        pts = route(_box(a), _box(b), obstacles + hdrs, margin=margin, sides=sides, penalty=cost, guides=guides)
+        pts = route(_box(a), _box(b), obstacles + hdrs, margin=margin, sides=sides, penalty=cost, guides=guides,
+                    fracs=fracs)
         c.points, c.route = [tuple(p) for p in pts], "poly"
-        c.src = Binding(c.src.shape_id, _side(pts[0], pts[1]), 0.5, c.src.target)
-        c.dst = Binding(c.dst.shape_id, _side(pts[-1], pts[-2]), 0.5, c.dst.target)
+        c.src = Binding(c.src.shape_id, _side(pts[0], pts[1]), 0.5 if fracs[0] is None else fracs[0], c.src.target)
+        c.dst = Binding(c.dst.shape_id, _side(pts[-1], pts[-2]), 0.5 if fracs[1] is None else fracs[1], c.dst.target)
         placed.append(segments(c))
 
 
