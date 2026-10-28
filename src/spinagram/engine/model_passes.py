@@ -132,12 +132,13 @@ def apply(d: Diagram, theme: Theme) -> Diagram:
     if d.auto or d.meta.get("laid_out"):
         return d
     unsized = any(not (n.w and n.h) and n.kind not in SIZED_KINDS_SKIP for n in d.nodes)
-    fitted = any(z.fit or z.equalize for z in d.zones)
+    fitted = any(z.fit or z.equalize or z.band for z in d.zones)
     if not unsized and not d.containers and not fitted and not d.constraints:
         return d
-    from .zones import fit_children
+    from .zones import bands, fit_children
 
     d = copy.deepcopy(d)
+    bands(d, theme)  # before containers: zone rows read the zone rect
     containers(d, theme)
     content_size(d, theme)
     constraints(d)

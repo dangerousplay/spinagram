@@ -101,7 +101,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (tall/wide × short/long text) → expected layout (icon x centred vs at padding); YAML row; gate passes.
 **Tests**: integration · **Gate**: build · **Commit**: `feat(layout): align auto for icon cards`
 
-### T8: Zone bands
+### T8: Zone bands ✅
 **What**: `Zone.band=(y0, y1)`; model pass sets y/h and x/w default to the safe width; `band` + `fit="children"` → `ValueError`.
 **Where**: `src/spinagram/model.py`, `src/spinagram/engine/zones.py` (`bands`), `src/spinagram/engine/model_passes.py` (`apply` order/trigger)
 **Depends on**: T7 · **Reuses**: theme margin · **Requirement**: BND-01

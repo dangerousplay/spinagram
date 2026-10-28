@@ -113,6 +113,19 @@ def _depth(zid: str, parents: dict[str, str]) -> int:
     return n
 
 
+def bands(d, theme: Theme) -> None:
+    """Zones with ``band=(y0, y1)`` span it vertically; without ``w`` they take the safe width (canvas − 2 margins)."""
+    m = (theme.get("canvas") or {}).get("margin", 80)
+    for z in d.zones:
+        if z.band is None:
+            continue
+        if z.fit == "children":
+            raise ValueError(f"{d.id}: zone {z.id!r} has both band and fit='children'; use one")
+        z.y, z.h = z.band[0], z.band[1] - z.band[0]
+        if not z.w:
+            z.x, z.w = m, theme.canvas[0] - 2 * m
+
+
 def fit_children(d, theme: Theme) -> None:
     """Zones with ``fit="children"`` wrap their children (padding on three sides, the header on top), innermost
     first; then sibling zones with ``equalize="siblings"`` take the tallest sibling's height."""

@@ -192,6 +192,7 @@ class Zone:
     fit: str | None = None    # "children": sized to its children
     padding: float | None = None
     equalize: str | None = None            # "siblings": same height as sibling zones
+    band: tuple[float, float] | None = None  # (y0, y1): y/h from the band; x/w default to the safe width
     children: list[str] = field(default_factory=list)  # node and zone ids inside (``with d.zone(...)``)
     meaning: str | None = None             # legend label for this zone style
     cls: str | None = None
