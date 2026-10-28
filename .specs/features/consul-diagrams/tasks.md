@@ -80,7 +80,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT: geometry where a fraction clears → exact anchor fix (first in order); where none clears → reroute; `check --fix` on YAML writes `.fixed.yaml` with the new src/dst or route and re-check has 0 of the kind; Python prints suggestion; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(fix): anchor and reroute fixes for header crossings`
 
-### T5: Centred icon reserves its height
+### T5: Centred icon reserves its height ✅
 **What**: Centred box with icon+text: label box starts at icon bottom + `icon_text_gap`; icon shrinks to `icon_min` before text shrinks.
 **Where**: `src/spinagram/layout.py` (`box`), `src/spinagram/engine/icons.py` (`centre_layout`)
 **Depends on**: T4 · **Reuses**: `textfit.fit_blocks`, `icon_fit.place` · **Requirement**: ICO-01, ICO-02, ICO-03, ICO-07 (theme keys)

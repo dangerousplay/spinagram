@@ -189,9 +189,8 @@ class _Builder:
             has_text = bool(_as_list(n.title)) or bool(n.lines) or bool(n.text)
             if center:
                 isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size_center", 40))
-                if has_text:
+                if has_text:  # provisional: centre_layout settles size and text top once the text is known
                     icon = icon_fit.place(icon_path, x, y + 16, isz, isz, center_x=x + w / 2)
-                    top = 16 + icon.size - 12
                 else:  # icon-only box: centred both ways
                     icon = icon_fit.place(icon_path, x, y, h, isz, max_width=w, center_x=x + w / 2)
             else:
@@ -224,6 +223,13 @@ class _Builder:
             col, wt, it = self._text(cs, "body", st["body"], 400)
             f = self.t.font("body", wt, bs, it or variant == "quote")
             specs.append(textfit.BlockSpec([str(b) for b in body], f, nd.get("body_leading", 1.32), col))
+        if center and icon is not None and specs:  # the icon reserves its height, shrinking before the text
+            brk = n.extra.get("break_on", nd.get("break_on"))
+            isz = icon.size
+            icon, top, _ = icon_fit.centre_layout(icon_path, (x, y, w, h), isz, min(isz, nd.get("icon_min", 24)),
+                                                  specs, avail, nd.get("icon_text_gap", 8),
+                                                  nd.get("title_body_gap", 10),
+                                                  brk if brk is not None else textfit.BREAK_ON)
         fitted = self.fit(n, specs, avail, h - top, nd.get("title_body_gap", 10))
         blocks = fitted.blocks
         h = max(h, fitted.height + top) if fitted.strategy == "grow" else h
