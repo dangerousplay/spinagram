@@ -339,3 +339,78 @@ def test_png_renders_the_svg_of_the_same_mode(tmp_path, monkeypatch, brand, args
             pytest.skip("chromium not installed for playwright")
         raise
     assert seen == [mode] and next((tmp_path / "out").glob("*.png")).stat().st_size > 0
+
+
+class _FakePage:
+    def __init__(self, log, viewport, scale):
+        self.log = log
+        log.append(("page", viewport, scale))
+
+    def goto(self, url):
+        from urllib.parse import unquote, urlparse
+        self.log.append(("svg", Path(unquote(urlparse(url).path)).read_text(encoding="utf-8")))
+
+    def evaluate(self, script):
+        self.log.append(("evaluate", script))
+
+    def screenshot(self, path, clip):
+        Path(path).write_bytes(b"\x89PNG fake")
+        self.log.append(("screenshot", clip))
+
+    def close(self):
+        pass
+
+
+def _fake_playwright(log):
+    """A ``playwright.sync_api`` stand-in: chromium launches a browser whose pages log what they load."""
+    import contextlib
+    import types
+
+    browser = types.SimpleNamespace(new_page=lambda viewport, device_scale_factor: _FakePage(log, viewport,
+                                                                                           device_scale_factor),
+                                    close=lambda: None)
+    pw = types.SimpleNamespace(chromium=types.SimpleNamespace(launch=lambda: browser))
+    mod = types.ModuleType("playwright.sync_api")
+    mod.sync_playwright = lambda: contextlib.nullcontext(pw)
+    return mod
+
+
+PNG_MODE_SCENARIOS = [  # (id, entry point, CLI args or backend kwargs, mode the SVG must use)
+    ("cli-default", "cli", [], "subset"),
+    ("cli-subset", "cli", ["--fonts", "subset"], "subset"),
+    ("cli-embed", "cli", ["--fonts", "embed"], "embed"),
+    ("cli-link", "cli", ["--fonts", "link"], "link"),
+    ("backend-default", "backend", {}, "subset"),
+    ("backend-embed", "backend", {"fonts": "embed"}, "embed"),
+    ("backend-link", "backend", {"fonts": "link"}, "link"),
+]
+
+
+@pytest.mark.parametrize("entry,args,mode", [s[1:] for s in PNG_MODE_SCENARIOS],
+                         ids=[s[0] for s in PNG_MODE_SCENARIOS])
+def test_png_font_mode_reaches_the_svg_without_a_browser(tmp_path, monkeypatch, brand, entry, args, mode):
+    from spinagram import load
+    from spinagram.backends import png
+    from spinagram.cli import main
+
+    log, seen = [], []
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", _fake_playwright(log))
+    real = png.to_svg
+
+    def spy(sc, fonts="subset"):
+        seen.append(fonts)
+        return real(sc, fonts=fonts)
+
+    monkeypatch.setattr(png, "to_svg", spy)
+    out = tmp_path / "out"
+    if entry == "cli":
+        assert main(["render", str(_spec(tmp_path)), "-t", str(brand.root), "-f", "png", "-o", str(out),
+                     "--no-gallery", *args]) == 0
+    else:
+        png.PngBackend(**args).render([build_scene(load(_spec(tmp_path))[0], brand)], out)
+    sc = build_scene(load(_spec(tmp_path))[0], brand)
+    assert seen == [mode]                                                    # FNT-07: the SVG of that mode
+    assert log == [("page", {"width": int(sc.width), "height": int(sc.height)}, 2.0),
+                   ("svg", to_svg(sc, fonts=mode)), ("evaluate", "document.fonts.ready"),
+                   ("screenshot", {"x": 0, "y": 0, "width": sc.width, "height": sc.height})]
+    assert [p.name for p in out.glob("*.png")] == [f"{sc.slug}.png"]
