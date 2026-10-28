@@ -59,7 +59,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT over (align × icons 0/1/2 × label short/long) asserts icon/label x and header rect; YAML `header: right` row; unknown value → `ValueError`; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(zones): header align right and none`
 
-### T2: edge-crosses-zone-header diagnostic
+### T2: edge-crosses-zone-header diagnostic ✅
 **What**: `qa` rule reporting edges whose segments enter a zone header rect (own-zone endpoint exempt), P0.
 **Where**: `src/spinagram/qa.py`
 **Depends on**: T1 · **Reuses**: `segment_hits`, `polyline`, `scene.zone_headers` · **Requirement**: HDR-02, HDR-03

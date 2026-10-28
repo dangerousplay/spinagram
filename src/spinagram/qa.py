@@ -14,7 +14,8 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "icon-touches-border": "P0", "header-overlap": "P0", "icon-overflows-box": "P0",
             "outside-safe-area": "P0", "zone-clips-child": "P0", "glyph-missing": "P1", "low-contrast": "P1",
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
-            "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1"}
+            "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1",
+            "edge-crosses-zone-header": "P0"}
 
 
 @dataclass
@@ -107,6 +108,22 @@ def edges_through_boxes(scene: Scene) -> list[Issue]:
                 continue
             if any(segment_hits(a, b, (s.x, s.y, s.w, s.h)) for a, b in zip(pts, pts[1:])):
                 out.append(Issue(scene.id, c.id, "edge-through-box", f"edge passes through {s.id!r}"))
+    return out
+
+
+def header_crossings(scene: Scene) -> list[Issue]:
+    """Edges entering a zone header (HDR-02); the segment that ends on that zone's own border is exempt (HDR-03).
+    One issue per (edge, zone)."""
+    out = []
+    for c in (i for i in scene.items if isinstance(i, Connector)):
+        pts = polyline(c)
+        segs = list(zip(pts, pts[1:]))
+        for zid, rect in scene.zone_headers.items():
+            own = [b is not None and b.target == "zone" and b.shape_id == zid for b in (c.src, c.dst)]
+            hits = [k for k, (a, b) in enumerate(segs) if segment_hits(a, b, rect)]
+            hits = [k for k in hits if not (k == 0 and own[0]) and not (k == len(segs) - 1 and own[1])]
+            if hits:
+                out.append(Issue(scene.id, c.id, "edge-crosses-zone-header", f"crosses the header of zone {zid!r}"))
     return out
 
 
@@ -375,6 +392,7 @@ def check(scene: Scene) -> list[Issue]:
     issues += _hidden_heads(scene)
     if not scene.laid_out:  # engines route their own edges and size groups; these check hand-placed diagrams
         issues += edges_through_boxes(scene)
+        issues += header_crossings(scene)
         issues += icon_issues(scene)
         issues += safe_area_issues(scene, scene.check_options.get("margin", 80))
         issues += zone_issues(scene)

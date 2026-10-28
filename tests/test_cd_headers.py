@@ -112,3 +112,70 @@ def test_yaml_header_align_parity(header):
     assert y.zones[0] == z
     a, b = build_scene(d, THEME), build_scene(y, THEME)
     assert a.zone_headers == b.zone_headers and a.zone_content_tops == b.zone_content_tops
+
+
+# edge-crosses-zone-header (HDR-02, HDR-03) -------------------------------------------------------------------
+from spinagram.qa import check  # noqa: E402
+
+LONG = "Availability zone site-a"   # header rect: x 100 → 124 + label width (> 300), y 200 → 240.8
+
+
+def _crossing_scene(edge):
+    """Zone z0 (100, 200, 600, 300) with a long header label; a above it, b inside it below the header,
+    c far right of the header, inside the zone."""
+    d = Diagram("Z", "Zones")
+    with d.zone(LONG, x=X, y=Y, w=W, h=H):
+        d.box("B", id="b", x=100, y=400, w=80, h=60)
+        d.box("C", id="c", x=600, y=400, w=80, h=60)
+    d.box("A", id="a", x=100, y=80, w=80, h=60)
+    d.box("D", id="d", x=600, y=80, w=80, h=60)
+    src, dst, kw = edge
+    d.edge(src, dst, **kw)
+    sc = build_scene(d, THEME)
+    hx, hy, hw, hh = sc.zone_headers["z0"]
+    assert (hx, hy) == (100, 200) and hx + hw > 300 and hx + hw < 590 and hh == pytest.approx(40.8)
+    return sc
+
+
+CROSSING_SCENARIOS = [  # (id, (src, dst, edge kwargs), reported)
+    ("straight-through", ("a", "b", {}), True),               # (140,140) → (140,400) through the header
+    ("straight-near", ("d", "c", {}), False),                 # x = 640, right of the header
+    ("poly-through", ("d", "b", {"via": [(640, 220), (140, 220)]}), True),  # runs inside the header
+    ("poly-near", ("d", "b", {"via": [(640, 300), (140, 300)]}), False),    # below the header
+    ("curve-through", ("a", "b", {"curve": (300, 270)}), True),            # bulges into the header
+    ("curve-near", ("d", "c", {"curve": (560, 270)}), False),
+    ("own-zone-target", ("b", "zone:z0.top@0.0666667", {}), False),        # final segment to its zone border
+    ("own-zone-source", ("zone:z0.top@0.0666667", "b", {}), False),        # first segment from its border
+    ("own-zone-earlier-segment", ("a", "zone:z0.left@0.333333", {"via": [(140, 300)]}), True),
+]
+
+
+@pytest.mark.parametrize("edge,reported", [s[1:] for s in CROSSING_SCENARIOS], ids=[s[0] for s in CROSSING_SCENARIOS])
+def test_edge_crosses_zone_header(edge, reported):
+    sc = _crossing_scene(edge)
+    got = [i for i in check(sc) if i.kind == "edge-crosses-zone-header"]
+    if not reported:
+        assert got == []
+        return
+    assert len(got) == 1                                                   # one issue per (edge, zone)
+    i = got[0]
+    assert i.item == "e0"
+    assert i.detail == "crosses the header of zone 'z0'"
+    assert i.severity == "P0"
+
+
+def test_header_crossing_one_issue_per_zone_and_edge():
+    d = Diagram("Z", "Zones")
+    d.zone(LONG, x=X, y=Y, w=W, h=H)
+    d.zone(LONG, x=X, y=600, w=W, h=300)
+    d.box("A", id="a", x=100, y=80, w=80, h=60)
+    d.box("B", id="b", x=100, y=950, w=80, h=60)
+    d.edge("a", "b", via=[(140, 220), (200, 220), (140, 620)])    # z0 header twice, z1 header once
+    got = [(i.item, i.detail) for i in check(build_scene(d, THEME)) if i.kind == "edge-crosses-zone-header"]
+    assert got == [("e0", "crosses the header of zone 'z0'"), ("e0", "crosses the header of zone 'z1'")]
+
+
+def test_header_crossing_hand_placed_only():
+    sc = _crossing_scene(("a", "b", {}))
+    sc.laid_out = True
+    assert not [i for i in check(sc) if i.kind == "edge-crosses-zone-header"]
