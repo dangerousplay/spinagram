@@ -94,7 +94,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT of forced overlaps (explicit `icon_size` larger than room, left-icon layouts that do not overlap) → exact detail `by Npx`; fix `h` clears the overlap after `apply_to_diagram`; gate passes.
 **Tests**: unit · **Gate**: full · **Commit**: `feat(check): report icons overlapping text`
 
-### T7: align auto
+### T7: align auto ✅
 **What**: `align="auto"` picks centred when `h > w` and the text fits at base size, left icon otherwise; YAML `align: auto`.
 **Where**: `src/spinagram/layout.py`, `src/spinagram/engine/icons.py`, `src/spinagram/model.py` (comment)
 **Depends on**: T6 · **Reuses**: `centre_layout` · **Requirement**: ICO-06, ICO-07

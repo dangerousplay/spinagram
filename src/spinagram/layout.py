@@ -179,11 +179,36 @@ class _Builder:
         x, y, w, h = n.x, n.y, n.w, n.h
         pad = nd.get("padding", 22)
         ts, bs = n.title_size or nd.get("title_size", 24), n.body_size or nd.get("body_size", 18)
-        center = n.align == "center"
+        variant = n.extra.get("variant") if n.kind == "note" else None
+        if variant == "quote":  # the quote reads larger than its attribution (theme sizes only; CSS or explicit win)
+            ts = n.title_size or nd.get("body_size", 18)
+            bs = n.body_size or nd.get("title_size", 24) - 2
+        specs = []
+        cs = self._css(f"node:{n.id}")
+        titles = _as_list(n.title)
+        if titles:
+            col, wt, it = self._text(cs, "title", st["title"], 700)
+            f = self.t.font("heading", wt, ts, it)
+            specs.append(textfit.BlockSpec(titles, f, nd.get("title_leading", 1.15), col))
+        body = n.lines if n.lines is not None else ([n.text] if n.text else [])
+        if body:
+            col, wt, it = self._text(cs, "body", st["body"], 400)
+            f = self.t.font("body", wt, bs, it or variant == "quote")
+            specs.append(textfit.BlockSpec([str(b) for b in body], f, nd.get("body_leading", 1.32), col))
         icon_name = n.icon if n.kind == "note" else icon_fit.variant_name(self.t, n.icon, n.extra.get("variant"))
         icon_path = self.t.icon(icon_name, st["tone"], self.d.base_dir)
         if n.icon and icon_path is None:
             warnings.warn(f"{self.d.id}: icon {n.icon!r} not found in theme {self.t.data.get('name')}", stacklevel=2)
+        brk = n.extra.get("break_on", nd.get("break_on"))
+        brk = brk if brk is not None else textfit.BREAK_ON
+
+        def centred(isz: float, avail: float):
+            return icon_fit.centre_layout(icon_path, (x, y, w, h), isz, min(isz, nd.get("icon_min", 24)), specs,
+                                          avail, nd.get("icon_text_gap", 8), nd.get("title_body_gap", 10), brk)
+        center = n.align == "center"
+        if n.align == "auto":  # ICO-06: centred when tall and the text fits under the icon (badges not counted)
+            center = icon_path is not None and bool(specs) and h > w and \
+                centred(n.icon_size or self._icon_size(h, nd, nd.get("icon_size_center", 40)), w - 2 * pad)[2]
         icon, offset, top = None, 0.0, 0.0
         if icon_path is not None:  # fitted by height, wordmarks keep their aspect ratio (up to 4 heights wide)
             has_text = bool(_as_list(n.title)) or bool(n.lines) or bool(n.text)
@@ -197,12 +222,8 @@ class _Builder:
                 isz = n.icon_size or self._icon_size(h, nd, nd.get("icon_size", 44))
                 icon = icon_fit.place(icon_path, x + pad, y, h, isz)
                 offset = icon.width + nd.get("icon_gap", 14)
-        variant = n.extra.get("variant") if n.kind == "note" else None
         if variant == "quote":
             offset += 46  # room for the quote mark
-            # the quote reads larger than its attribution (theme sizes only; CSS or explicit sizes win)
-            ts = n.title_size or nd.get("body_size", 18)
-            bs = n.body_size or nd.get("title_size", 24) - 2
         avail = w - 2 * pad - offset
         names = n.extra.get("badges") or []
         bpaths = [p for p in (self.t.icon(b, "light", self.d.base_dir) for b in names) if p is not None]
@@ -211,25 +232,8 @@ class _Builder:
             parts, left = icon_fit.badges(n.id, bpaths, (x, y, w, h), icon_fit.badge_size(main))
             self.extras.setdefault(n.id, []).extend(parts)
             avail = min(avail, left - icon_fit.BADGE_GAP - (x + pad + offset))
-        specs = []
-        cs = self._css(f"node:{n.id}")
-        titles = _as_list(n.title)
-        if titles:
-            col, wt, it = self._text(cs, "title", st["title"], 700)
-            f = self.t.font("heading", wt, ts, it)
-            specs.append(textfit.BlockSpec(titles, f, nd.get("title_leading", 1.15), col))
-        body = n.lines if n.lines is not None else ([n.text] if n.text else [])
-        if body:
-            col, wt, it = self._text(cs, "body", st["body"], 400)
-            f = self.t.font("body", wt, bs, it or variant == "quote")
-            specs.append(textfit.BlockSpec([str(b) for b in body], f, nd.get("body_leading", 1.32), col))
         if center and icon is not None and specs:  # the icon reserves its height, shrinking before the text
-            brk = n.extra.get("break_on", nd.get("break_on"))
-            isz = icon.size
-            icon, top, _ = icon_fit.centre_layout(icon_path, (x, y, w, h), isz, min(isz, nd.get("icon_min", 24)),
-                                                  specs, avail, nd.get("icon_text_gap", 8),
-                                                  nd.get("title_body_gap", 10),
-                                                  brk if brk is not None else textfit.BREAK_ON)
+            icon, top, _ = centred(icon.size, avail)
         fitted = self.fit(n, specs, avail, h - top, nd.get("title_body_gap", 10))
         blocks = fitted.blocks
         h = max(h, fitted.height + top) if fitted.strategy == "grow" else h

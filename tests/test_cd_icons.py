@@ -170,3 +170,49 @@ CLEAN = [  # no overlap: the left icon sits before the text; fitted centred card
 def test_no_icon_overlap(icon, title, body, kw):
     d = _overlap_diagram(title, body, icon=icon, **kw)
     assert [i for i in check(build_scene(d, THEME)) if i.kind == "icon-overlaps-text"] == []
+
+
+# align auto (ICO-06, ICO-07) ---------------------------------------------------------------------------------
+# tall 200 × 240: centred icon max(40, 0.26 × 240) = 62.4 at x X0 + 100 - 31.2; left icon max(44, 62.4) = 62.4 at
+# x X0 + 22 (padding). "API" (27.6 px) fits under the centred icon (240 - 86.4); 10 title lines (276 px) fit under
+# no icon size → left. Wide (300 × 120) and square boxes never centre (h > w is required).
+AUTO = [  # (id, w, h, title, expected layout)
+    ("tall-short", 200, 240, "API", "center"),
+    ("tall-long", 200, 240, GREEK * 2, "left"),
+    ("wide-short", 300, 120, "API", "left"),
+    ("wide-long", 300, 120, GREEK, "left"),
+    ("square", 200, 200, "API", "left"),
+]
+
+
+def _auto_icon_x(w, h, layout):
+    isz = max(40, 0.26 * h) if layout == "center" else max(44, 0.26 * h)
+    return (X0 + w / 2 - isz / 2) if layout == "center" else X0 + 22
+
+
+@pytest.mark.parametrize("w,h,title,layout", [s[1:] for s in AUTO], ids=[s[0] for s in AUTO])
+def test_align_auto_picks_the_layout(icon, w, h, title, layout):
+    d = Diagram("I", "Icons")
+    d.box(title, id="n", x=X0, y=Y0, w=w, h=h, icon=icon, align="auto")
+    s = next(i for i in build_scene(d, THEME).items if isinstance(i, Shape) and i.id == "n")
+    assert s.icon.x == pytest.approx(_auto_icon_x(w, h, layout))
+    assert s.label.align == layout
+
+
+@pytest.mark.parametrize("w,h,title,layout", [s[1:] for s in AUTO], ids=[s[0] for s in AUTO])
+def test_align_auto_matches_the_explicit_layout(icon, w, h, title, layout):
+    def shape(align):
+        d = Diagram("I", "Icons")
+        d.box(title, id="n", x=X0, y=Y0, w=w, h=h, icon=icon, align=align)
+        return next(i for i in build_scene(d, THEME).items if isinstance(i, Shape) and i.id == "n")
+    assert shape("auto") == shape(layout)
+
+
+def test_align_auto_yaml_parity(icon):
+    from spinagram.yaml_io import from_dict
+    d = Diagram("I", "Icons")
+    d.box("API", id="n", x=X0, y=Y0, w=200, h=240, icon=icon, align="auto")
+    y = from_dict({"id": "I", "title": "Icons", "nodes": [{"id": "n", "title": "API", "x": X0, "y": Y0, "w": 200,
+                                                          "h": 240, "icon": icon, "align": "auto"}]})
+    assert y.nodes[0].align == "auto"
+    assert build_scene(y, THEME).items == build_scene(d, THEME).items

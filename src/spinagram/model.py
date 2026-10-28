@@ -33,7 +33,7 @@ class Node:
     style: str | None = None
     icon: str | None = None
     icon_size: float | None = None  # px; default scales with the box (theme defaults.node.icon_*)
-    align: str = "left"  # left | center
+    align: str = "left"  # left | center | auto (centred when h > w and the text fits under the icon)
     title_size: float | None = None
     body_size: float | None = None
     radius: float | None = None
