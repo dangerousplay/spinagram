@@ -14,6 +14,7 @@ SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8"
 def cache(tmp_path, monkeypatch):
     monkeypatch.setenv("SPINAGRAM_CACHE", str(tmp_path / "cache"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.delenv("SPINAGRAM_OFFLINE", raising=False)  # local packs: fetched from disk on first use
     icons._INDEX_CACHE.clear()
     yield tmp_path
     icons._INDEX_CACHE.clear()
