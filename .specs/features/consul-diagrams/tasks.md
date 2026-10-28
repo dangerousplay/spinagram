@@ -192,7 +192,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT per element type × margin 30/40/80 → offset by margin and 0 `outside-safe-area`; default unchanged (golden); invalid → `ValueError`; 10 px overflow gets and applies nudge; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(dsl): coordinates relative to the safe area`
 
-### T20: Node lookup and distribute
+### T20: Node lookup and distribute ✅
 **What**: `Diagram.__getitem__`, `Diagram.distribute`.
 **Where**: `src/spinagram/model.py`
 **Depends on**: T19 · **Requirement**: HLP-01, HLP-02, HLP-03

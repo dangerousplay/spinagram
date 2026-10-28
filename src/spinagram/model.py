@@ -526,6 +526,34 @@ class Diagram:
                 return n
         raise KeyError(f"{self.id}: no node {node_id!r}")
 
+    def __getitem__(self, key: str) -> "Node | Zone":
+        """``d["api"]``: the node with that id, else the zone with that id."""
+        for o in (*self.nodes, *self.zones):
+            if o.id == key:
+                return o
+        raise KeyError(f"{self.id}: no node or zone {key!r}")
+
+    __iter__ = None  # ``d[...]`` is a lookup by id; a diagram is not a sequence
+
+    def distribute(self, n: int, w: float | None = None, gap: float = 0, *,
+                   within: tuple[float, float]) -> "list[float] | tuple[list[float], float]":
+        """``n`` x positions in ``within=(x0, x1)``: with ``w``, a block of ``n·w + (n−1)·gap`` centred in it;
+        without, ``n`` equal widths filling it, returned as ``(xs, w)``."""
+        if n < 1:
+            raise ValueError(f"{self.id}: distribute n {n}; use 1 or more")
+        x0, x1 = within
+        width = x1 - x0
+        fill = w is None
+        if fill:
+            w = (width - (n - 1) * gap) / n
+        block = n * max(w, 0) + (n - 1) * gap
+        if block > width + 1e-9 or w <= 0:
+            raise ValueError(f"{self.id}: distribute block {block:g}px does not fit within {tuple(within)} "
+                             f"({width:g}px)")
+        start = x0 if fill else x0 + (width - block) / 2
+        xs = [start + i * (w + gap) for i in range(n)]
+        return (xs, w) if fill else xs
+
     def _auto_id(self, title: Any) -> str:
         base = re.sub(r"[^a-z0-9]+", "-", str(title or "n").lower()).strip("-")[:24] or "n"
         ids = {n.id for n in self.nodes} | {g.id for g in self.groups}  # a box and a group never share an id
