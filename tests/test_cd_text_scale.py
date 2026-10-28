@@ -74,3 +74,65 @@ def test_flag_leaves_equal_rows_byte_identical(cards):
     on = to_svg(build_scene(_diagram(cards, same_text_scale=True), THEME))
     off = to_svg(build_scene(_diagram(cards, same_text_scale=False), THEME))
     assert on == off
+
+
+# TSC-03: text-scale-mismatch ----------------------------------------------------------------------------------------
+from spinagram.qa import Issue, check  # noqa: E402
+
+
+def _sized(axis="row", **kw):
+    """Cards with short text (no shrinking) at explicit sizes: ``sizes`` = [(title_size, body_size), ...]."""
+    sizes = kw.pop("sizes")
+    d = Diagram("R", "Row")
+    pos = {"row": {"x": 100, "y": 300}, "column": {"x": 100, "y": 200}}[axis]
+    with getattr(d, axis)(gap=20, **pos, **kw):
+        for i, (ts, bs) in enumerate(sizes):
+            d.box("Ok", text="x" if bs else None, id=f"n{i}", w=300, h=120, title_size=ts, body_size=bs)
+    return d
+
+
+MISMATCH = [  # (id, axis, container kwargs, (title, body) sizes, expected (item, detail) issues)
+    ("title-1.09-no", "row", {}, [(24, None), (22, None)], []),                     # 24 / 22 = 1.091
+    ("title-1.10-no", "row", {}, [(22, None), (20, None)], []),                     # 22 / 20 = 1.100, not above
+    ("title-1.11-yes", "row", {}, [(20, None), (18, None), (20, None)],             # 20 / 18 = 1.111
+     [("row0", "title sizes differ: [18, 20] px; use same_text_scale")]),
+    ("body-1.06-no", "row", {}, [(24, 18), (24, 17)], []),                          # 18 / 17 = 1.059
+    ("body-1.125-yes", "row", {}, [(24, 18), (24, 16)],                             # 18 / 16 = 1.125
+     [("row0", "body sizes differ: [16, 18] px; use same_text_scale")]),
+    ("both-roles", "row", {}, [(24, 18), (20, 16)],
+     [("row0", "title sizes differ: [20, 24] px; use same_text_scale"),
+      ("row0", "body sizes differ: [16, 18] px; use same_text_scale")]),
+    ("three-sizes", "row", {}, [(24, None), (21, None), (18, None)],
+     [("row0", "title sizes differ: [18, 21, 24] px; use same_text_scale")]),
+    ("column", "column", {}, [(24, None), (20, None)],
+     [("column0", "title sizes differ: [20, 24] px; use same_text_scale")]),
+    ("flag-on", "row", {"same_text_scale": True}, [(24, None), (20, None)], []),
+    ("same-size-on", "row", {"same_size": True}, [(24, None), (20, None)], []),
+]
+
+
+@pytest.mark.parametrize("axis,kw,sizes,want", [m[1:] for m in MISMATCH], ids=[m[0] for m in MISMATCH])
+def test_text_scale_mismatch(axis, kw, sizes, want):
+    issues = [i for i in check(build_scene(_sized(axis, sizes=sizes, **kw), THEME)) if i.kind == "text-scale-mismatch"]
+    assert [(i.item, i.detail) for i in issues] == want
+    assert all(i.severity == "P2" for i in issues)
+
+
+def test_text_scale_mismatch_severity():
+    assert Issue("R", "row0", "text-scale-mismatch", "x").severity == "P2"
+
+
+def test_scene_records_final_text_sizes():
+    sc = build_scene(_diagram([(LONG, None), ("Alpha", BODY)]), THEME)
+    assert sc.text_sizes == {"n0": (21, None), "n1": (22, 16)}
+
+
+def test_flagged_rows_are_listed():
+    d = Diagram("R", "Row")
+    with d.row(x=100, y=100, gap=20, same_text_scale=True):
+        d.box("A", w=200, h=100)
+    with d.row(x=100, y=400, gap=20):
+        d.box("B", w=200, h=100)
+    with d.column(x=1000, y=100, gap=20, same_size=True):
+        d.box("C", w=200, h=100)
+    assert build_scene(d, THEME).text_scale_rows == {"row0", "column2"}

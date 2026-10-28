@@ -241,7 +241,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (one long title / all equal / flag off / same_size default) → sizes; unchanged rows byte-identical; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(layout): shared text scale in rows`
 
-### T25: text-scale-mismatch diagnostic
+### T25: text-scale-mismatch diagnostic ✅
 **What**: P2 issue when siblings differ by > 10 % per role and the flag is off.
 **Where**: `src/spinagram/qa.py`, `src/spinagram/layout.py` (scene sizes)
 **Depends on**: T24 · **Requirement**: TSC-03

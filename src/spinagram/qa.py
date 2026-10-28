@@ -16,7 +16,7 @@ SEVERITY = {"overflow-x": "P0", "overflow-y": "P0", "overflow": "P0", "label-col
             "zone-underused": "P2", "edge-crossings": "P2", "icon-size-mismatch": "P2", "not-straight": "P2",
             "version-mismatch": "P2", "style": "P2", "edge-through-box": "P1",
             "edge-crosses-zone-header": "P0", "icon-overlaps-text": "P0", "icon-generic-for-service": "P2",
-            "glyph-mapped": "P2"}
+            "glyph-mapped": "P2", "text-scale-mismatch": "P2"}
 
 
 @dataclass
@@ -471,6 +471,24 @@ def zone_issues(scene: Scene) -> list[Issue]:
     return out
 
 
+TEXT_SCALE = 1.10  # largest max/min ratio of one text role across a row before it is reported (TSC-03)
+
+
+def text_scale_issues(scene: Scene) -> list[Issue]:
+    """Rows and columns without ``same_text_scale`` whose members' title (or body) sizes differ by > 10 %."""
+    out: list[Issue] = []
+    for name, ids, _ in scene.rows:
+        if name in scene.text_scale_rows:
+            continue
+        for role, label in enumerate(("title", "body")):
+            sizes = sorted({scene.text_sizes[i][role] for i in ids
+                            if i in scene.text_sizes and scene.text_sizes[i][role] is not None})
+            if len(sizes) > 1 and sizes[-1] / sizes[0] > TEXT_SCALE:
+                out.append(Issue(scene.id, name, "text-scale-mismatch", f"{label} sizes differ: "
+                                 f"[{', '.join(f'{v:g}' for v in sizes)}] px; use same_text_scale"))
+    return out
+
+
 def check(scene: Scene) -> list[Issue]:
     issues: list[Issue] = [Issue(scene.id, item, "behavior", msg) for item, msg in scene.model_issues]
     issues += [Issue(scene.id, "css", "style", msg) for msg in scene.style_warnings]
@@ -492,6 +510,7 @@ def check(scene: Scene) -> list[Issue]:
         issues += zone_issues(scene)
         from .engine.route import crossings
 
+        issues += text_scale_issues(scene)
         n = crossings([c for c in scene.items if isinstance(c, Connector)])
         if n:
             issues.append(Issue(scene.id, "edges", "edge-crossings",

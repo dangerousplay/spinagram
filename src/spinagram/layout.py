@@ -65,6 +65,7 @@ class _Builder:
         self.flush: set[str] = set()  # zones with a flush corner icon (AWS style)
         self.not_straight: list[str] = []  # straight=True edges whose boxes share no span
         self.vendor_hints: dict[str, tuple[str, str, str]] = {}  # node id → (title, vendor ref, generic icon)
+        self.text_sizes: dict[str, tuple[float | None, float | None]] = {}  # card id → final (title, body) size
 
     # css ----------------------------------------------------------------------
     def _css(self, key: str) -> dict:
@@ -147,17 +148,12 @@ class _Builder:
     def _fitted_sizes(self, n: Node) -> tuple[float | None, float | None]:
         """Final (title, body) sizes of ``n`` fitted alone, on a scratch builder (no effect on this one)."""
         scratch = copy.copy(self)
-        scratch.shapes, scratch.extras, scratch.fits, scratch.vendor_hints = {}, {}, {}, {}
+        scratch.shapes, scratch.extras, scratch.fits, scratch.vendor_hints, scratch.text_sizes = {}, {}, {}, {}, {}
         scratch.warnings = []
         with warnings.catch_warnings():  # the real build warns once
             warnings.simplefilter("ignore")
-            s = scratch.box(n)
-        sizes = [b.font.size for b in (s.label.blocks if s.label else [])]
-        if n.kind == "note" and n.extra.get("variant") == "quote" and len(sizes) == 2:
-            sizes.reverse()  # drawn quote first, attribution (the title) second
-        has_title = bool(_as_list(n.title))
-        has_body = bool(n.lines if n.lines is not None else n.text)
-        return (sizes[0] if has_title and sizes else None), (sizes[-1] if has_body and sizes else None)
+            scratch.box(n)
+        return scratch.text_sizes[n.id]
 
     def shared_text_scale(self) -> None:
         """TSC-02: members of a container with ``same_text_scale`` (None: its ``same_size``) take the smallest
@@ -286,6 +282,8 @@ class _Builder:
             icon, top, _ = centred(icon.size, avail)
         fitted = self.fit(n, specs, avail, h - top, nd.get("title_body_gap", 10))
         blocks = fitted.blocks
+        self.text_sizes[n.id] = (blocks[0].font.size if titles and blocks else None,
+                                 blocks[-1].font.size if body and blocks else None)
         h = max(h, fitted.height + top) if fitted.strategy == "grow" else h
         if variant == "quote" and len(blocks) == 2:  # the quote first, the title as its attribution
             title, body = blocks
@@ -739,11 +737,14 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.flush_headers = builder.flush
     scene.not_straight = builder.not_straight
     scene.vendor_hints = builder.vendor_hints
+    scene.text_sizes = builder.text_sizes
     scene.glyph_mapped = resolved.__dict__.get("_glyph_mapped") or {}
     scene.check_options = {**theme.defaults("check"), "margin": (theme.get("canvas") or {}).get("margin", 80),
                            "icon_text_gap": theme.defaults("node").get("icon_text_gap", 8)}
     glyphs.apply(scene, theme)
     scene.rows = [(f"{c.axis}{k}", list(c.children), c.same_icon_size) for k, c in enumerate(diagram.containers)]
+    scene.text_scale_rows = {f"{c.axis}{k}" for k, c in enumerate(diagram.containers)
+                             if (c.same_size if c.same_text_scale is None else c.same_text_scale)}
     shape_of = {(z.id or f"z{k}"): f"z{k}" for k, z in enumerate(diagram.zones)}
     scene.zone_children = {f"z{k}": [shape_of.get(c, c) for c in z.children]
                            for k, z in enumerate(diagram.zones) if z.children}
