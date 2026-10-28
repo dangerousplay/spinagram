@@ -138,6 +138,51 @@ class _Builder:
                      stroke=color, stroke_width=1.6, radius=h / 2, role="pill",
                      label=Label([blk], (x, y, w, h), align="center"))
 
+    # shared text scale (TSC) ---------------------------------------------------
+    @staticmethod
+    def _boxed(n: Node) -> bool:
+        """Whether :meth:`node` draws ``n`` with :meth:`box` (titled card text)."""
+        return n.kind not in ("pill", "text", "diamond") and n.kind not in shapes.KINDS
+
+    def _fitted_sizes(self, n: Node) -> tuple[float | None, float | None]:
+        """Final (title, body) sizes of ``n`` fitted alone, on a scratch builder (no effect on this one)."""
+        scratch = copy.copy(self)
+        scratch.shapes, scratch.extras, scratch.fits, scratch.vendor_hints = {}, {}, {}, {}
+        scratch.warnings = []
+        with warnings.catch_warnings():  # the real build warns once
+            warnings.simplefilter("ignore")
+            s = scratch.box(n)
+        sizes = [b.font.size for b in (s.label.blocks if s.label else [])]
+        if n.kind == "note" and n.extra.get("variant") == "quote" and len(sizes) == 2:
+            sizes.reverse()  # drawn quote first, attribution (the title) second
+        has_title = bool(_as_list(n.title))
+        has_body = bool(n.lines if n.lines is not None else n.text)
+        return (sizes[0] if has_title and sizes else None), (sizes[-1] if has_body and sizes else None)
+
+    def shared_text_scale(self) -> None:
+        """TSC-02: members of a container with ``same_text_scale`` (None: its ``same_size``) take the smallest
+        final title and body size any member reaches fitted alone. Changed nodes are copies on a copy of the
+        diagram; members already at the smallest size keep their own settings (TSC-04)."""
+        nodes = list(self.d.nodes)
+        at = {n.id: k for k, n in enumerate(nodes)}
+        for c in self.d.containers:
+            on = c.same_text_scale if c.same_text_scale is not None else c.same_size
+            members = [i for i in c.children if i in at and self._boxed(nodes[at[i]])]
+            if not on or len(members) < 2:
+                continue
+            sizes = {i: self._fitted_sizes(nodes[at[i]]) for i in members}
+            for role, attr in enumerate(("title_size", "body_size")):
+                low = min((sz[role] for sz in sizes.values() if sz[role] is not None), default=None)
+                for i, sz in sizes.items():
+                    if sz[role] is not None and sz[role] > low:
+                        k = at[i]
+                        if nodes[k] is self.d.nodes[k]:
+                            nodes[k] = copy.copy(nodes[k])
+                        setattr(nodes[k], attr, low)
+        if any(a is not b for a, b in zip(nodes, self.d.nodes)):
+            self.d = copy.copy(self.d)
+            self.d.nodes = nodes
+
     # elements -----------------------------------------------------------------
     def node(self, n: Node) -> Shape | Text:
         if n.kind == "pill":
@@ -521,6 +566,7 @@ class _Builder:
 
     # assembly -----------------------------------------------------------------
     def build(self) -> Scene:
+        self.shared_text_scale()
         t, d, W, H = self.t, self.d, self.W, self.H
         ch = t.get("chrome") or {}
         sc = Scene(id=d.id, title=d.title, slug=d.output or f"{d.id}-{slugify(d.title)}", width=W, height=H,

@@ -234,7 +234,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT nesting fixtures with hand-computed ratios; Account›Region›VPC clean; tiny child still reported; gate passes.
 **Tests**: unit · **Gate**: full · **Commit**: `fix(check): count child zones in zone-underused`
 
-### T24: Shared text scale
+### T24: Shared text scale ✅
 **What**: Builder pre-pass applying the smallest per-role size across members of containers with the flag.
 **Where**: `src/spinagram/layout.py`
 **Depends on**: T23 · **Reuses**: `_Builder.node`, `self.fits` · **Requirement**: TSC-01, TSC-02, TSC-04
