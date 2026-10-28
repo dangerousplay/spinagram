@@ -72,6 +72,22 @@ def _node_inside_child():
     return d
 
 
+def _node_mostly_inside_child():
+    d = Diagram("Z", "Mostly inside")
+    with d.zone("Account", x=100, y=100, w=1600, h=800):
+        d.zone("Region", x=140, y=180, w=800, h=400)
+        d.box("A", id="a", x=700, y=300, w=400, h=200)                     # 240 × 200 = 60 % inside Region
+    return d
+
+
+def _grandchild_sticking_out():
+    d = Diagram("Z", "Grandchild")
+    d.zone("Account", x=100, y=100, w=1600, h=800)
+    d.zone("Region", x=140, y=180, w=800, h=400)
+    d.zone("VPC", x=600, y=300, w=500, h=200)                              # 340 × 200 = 68 % inside Region
+    return d
+
+
 def _child_under_header():
     d = Diagram("Z", "Header")
     with d.zone("Account", x=100, y=100, w=1600, h=800):
@@ -95,6 +111,17 @@ FIXTURES = [  # (id, make, fill ratio per zone with content (limit 100 %), issue
     # 200 × 100 = 20,000 over 800 × 359.2 = 287,360 → 7.0 %.
     ("node-inside-child", _node_inside_child, {"z0": "26%", "z1": "7%"},
      [("z0", DETAIL.format("26%")), ("z1", DETAIL.format("7%"))]),
+    # Account: the box is mostly (60 %) inside Region, so it is Region's content, not Account's: 320,000 /
+    # 1,214,720 = 26.3 % (Region ∪ box = 320,000 + 80,000 − 48,000 = 352,000 → 29 % if it were counted). Region:
+    # the box clipped to Region's content (x 140 → 940, y 220.8 → 580): 240 × 200 = 48,000 over 800 × 359.2 =
+    # 287,360 → 16.7 %.
+    ("node-mostly-inside-child", _node_mostly_inside_child, {"z0": "26%", "z1": "17%"},
+     [("z0", DETAIL.format("26%")), ("z1", DETAIL.format("17%"))]),
+    # Account: VPC is mostly inside Region (68 %), so it is not a direct child of Account: Region alone 320,000 /
+    # 1,214,720 = 26.3 % (Region ∪ VPC = 320,000 + 100,000 − 68,000 = 352,000 → 29 % if VPC were a child too).
+    # Region: VPC clipped to Region's content: 340 × 200 = 68,000 / 287,360 = 23.7 %. VPC: no content.
+    ("grandchild-sticking-out", _grandchild_sticking_out, {"z0": "26%", "z1": "24%"},
+     [("z0", DETAIL.format("26%")), ("z1", DETAIL.format("24%"))]),
     # Account: Region clipped to the content area below the header: 800 × (500 − 140.8) = 287,360 → 23.7 %
     # (26 % unclipped).
     ("child-clipped-to-content", _child_under_header, {"z0": "24%"}, [("z0", DETAIL.format("24%"))]),
