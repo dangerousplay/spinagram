@@ -1,0 +1,27 @@
+# A03-like: zone bands and zone rows, no x on cards or zones (BND-09). Twin: tests/test_cd_yaml_bands.py
+id: A03
+title: Consul certificates
+zones:
+  - {id: sm, label: "Secrets Manager · <ENV>/consul/*", band: [330, 500]}
+  - {id: sg-servers, label: "SG consul-servers", band: [560, 760]}
+  - {id: sg-clients, label: "SG consul-clients", band: [800, 1000]}
+rows:
+  - zone: sm
+    same_size: true
+    gap: 20
+    nodes:
+      - {id: ca-cert, title: ca-cert, w: 300, h: 80}
+      - {id: cert, title: cert, w: 300, h: 80}
+      - {id: key, title: key, w: 300, h: 80}
+      - {id: ca-key, title: ca-key, w: 300, h: 80}
+  - zone: sg-servers
+    cols: 4
+    nodes:
+      - {id: server-1, title: server-1, w: 200, h: 90}
+      - {id: server-2, title: server-2, w: 200, h: 90}
+      - {id: server-3, title: server-3, w: 200, h: 90}
+  - zone: sg-clients
+    cols: 2
+    nodes:
+      - {id: client-a, title: client-a, w: 200, h: 90}
+      - {id: client-b, title: client-b, w: 200, h: 90}

@@ -122,7 +122,7 @@ Phase 5 wrap-up:        T28 → T29
 **Done when**: DDT (count × same_size × align × cols × padding × header icon) asserts card rects against hand-computed values; too-wide row raises `cannot fit`; gate passes.
 **Tests**: integration · **Gate**: full · **Commit**: `feat(layout): place rows in zone content areas`
 
-### T11: YAML bands/rows and A03 parity
+### T11: YAML bands/rows and A03 parity ✅
 **What**: YAML `band`, `rows[].zone/align/cols/same_text_scale`; `dump` round-trip; A03-like fixture vs hand-placed twin within 2 px.
 **Where**: `src/spinagram/yaml_io.py`, `tests/fixtures/`
 **Depends on**: T10 · **Reuses**: `from_dict`, `_CONTAINER_KEYS`, `dump` · **Requirement**: BND-08, BND-09
