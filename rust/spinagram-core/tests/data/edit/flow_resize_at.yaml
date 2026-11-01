@@ -1,0 +1,14 @@
+# Fixture: flow-style entries
+id: T02
+title: Flow fixture
+nodes:
+  - {id: a, title: Alpha, at: [40, 60, 300, 80]}   # first
+  # between
+  - {id: b, title: Beta, x: 240, y: 60}
+  - {id: c, title: "Gamma", at: [400, 60]}
+  - {id: d, title: Delta}
+edges:
+  - "a -> b"
+  - "b -> c: next"
+rows:
+  - {x: 0, y: 0, nodes: [b, c]}   # row comment

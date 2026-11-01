@@ -115,16 +115,18 @@ Patches are byte ranges taken from parser spans. Pick a crate per `rust/DEPENDEN
 
 **Done when**:
 
-- [ ] Test per operation on a commented fixture with both block and flow entries: the result equals a hand-written expected file, so every byte outside the patch is unchanged (OPS-02)
-- [ ] Test: unknown id, duplicate id on AddNode and Connect to a missing node are each rejected with a reason, and the input is returned unchanged (OPS-03)
-- [ ] Test: a batch with one invalid op changes nothing (OPS-04)
-- [ ] Test: every patched output re-parses as YAML; a patch that would not re-parse is rejected
-- [ ] Test: srcmap ranges slice exactly the entry text of each node, zone and edge
-- [ ] Rust gate passes
+- [x] Test per operation on a commented fixture with both block and flow entries: the result equals a hand-written expected file, so every byte outside the patch is unchanged (OPS-02)
+- [x] Test: unknown id, duplicate id on AddNode and Connect to a missing node are each rejected with a reason, and the input is returned unchanged (OPS-03)
+- [x] Test: a batch with one invalid op changes nothing (OPS-04)
+- [x] Test: every patched output re-parses as YAML; a patch that would not re-parse is rejected
+- [x] Test: srcmap ranges slice exactly the entry text of each node, zone and edge
+- [x] Rust gate passes
 
 **Tests**: unit
 **Gate**: rust
 **Commit**: `feat(rust): yaml edit operations with byte-range patches`
+
+**Notes**: Crate pick: `saphyr-parser` 0.3 event spans (see rust/DEPENDENCIES.md). Spans count characters, converted to bytes; a flow collection's end span runs over a trailing comment, so the end is found from the last child. Srcmap keys: node and zone ids, and `e0`, `e1`... for edges (the scene connector ids); ranges are byte offsets. Ops in JSON: move, resize, rename, delete, add_node, connect, disconnect. Delete removes entry lines only (a blank line or comment next to it stays).
 
 ---
 

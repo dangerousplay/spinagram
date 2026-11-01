@@ -3,6 +3,7 @@
 
 pub mod fit;
 pub mod css;
+pub mod edit;
 pub mod font;
 pub mod pyfmt;
 #[cfg(feature = "png")]
