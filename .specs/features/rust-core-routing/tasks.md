@@ -231,8 +231,8 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] `tests/test_rust_route.py` (importorskip `spinagram_core`): the binding equals the Python router (called with the core disabled) on one case per AC ROUTE-05..09 plus fixed `sides`, empty `guides`, and obstacles containing `src`/`dst` (edge cases)
-- [ ] Wheel gate + quick gate on that file pass
+- [x] `tests/test_rust_route.py` (importorskip `spinagram_core`): the binding equals the Python router (called with the core disabled) on one case per AC ROUTE-05..09 plus fixed `sides`, empty `guides`, and obstacles containing `src`/`dst` (edge cases)
+- [x] Wheel gate + quick gate on that file pass
 
 **Tests**: integration
 **Gate**: quick (after wheel gate)

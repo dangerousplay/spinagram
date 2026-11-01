@@ -5,6 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use spinagram_core::fit::{self, BlockSpec};
 use spinagram_core::font;
+use spinagram_core::route::{self as core_route, Crossings, Options, Pt, Rect, Side};
 use spinagram_core::text::{Font, Measurer};
 
 type FontArgs = (Option<String>, f64, u16);
@@ -68,6 +69,43 @@ fn fit_blocks(
     Ok((blocks, r.height, r.strategy, r.ok, r.size))
 }
 
+type Segments = Vec<(Pt, Pt)>;
+
+fn side(name: &str) -> PyResult<Side> {
+    Side::from_name(name).ok_or_else(|| PyValueError::new_err(format!("unknown side {name:?}")))
+}
+
+fn sides(names: Vec<String>) -> PyResult<Vec<Side>> {
+    names.iter().map(|n| side(n)).collect()
+}
+
+/// Orthogonal edge route, a port of `autolayout.route.route`. `crossing` is `(cost, drawn_segments)`.
+/// Returns the polyline as a list of `(x, y)`.
+#[pyfunction]
+#[pyo3(signature = (src, dst, obstacles, margin, sides_, busy_src, busy_dst, crossing, guides, fracs))]
+#[allow(clippy::too_many_arguments)]
+fn route(
+    py: Python<'_>,
+    src: Rect,
+    dst: Rect,
+    obstacles: Vec<Rect>,
+    margin: f64,
+    sides_: (Option<String>, Option<String>),
+    busy_src: Vec<String>,
+    busy_dst: Vec<String>,
+    crossing: Option<(f64, Segments)>,
+    guides: Vec<Pt>,
+    fracs: (Option<f64>, Option<f64>),
+) -> PyResult<Vec<Pt>> {
+    let fixed = (sides_.0.as_deref().map(side).transpose()?, sides_.1.as_deref().map(side).transpose()?);
+    let (busy_src, busy_dst) = (sides(busy_src)?, sides(busy_dst)?);
+    let crossing = crossing.map(|(cost, drawn)| Crossings { cost, drawn });
+    Ok(py.detach(|| {
+        let o = Options { margin, sides: fixed, busy_src: &busy_src, busy_dst: &busy_dst, crossing: crossing.as_ref(), guides: &guides, fracs };
+        core_route::route(src, dst, &obstacles, &o)
+    }))
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -76,5 +114,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(wrap_paragraphs, m)?)?;
     m.add_function(wrap_pyfunction!(wrap_fit, m)?)?;
     m.add_function(wrap_pyfunction!(fit_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(route, m)?)?;
     Ok(())
 }
