@@ -161,3 +161,95 @@ def test_every_element_of_every_example_survives_edits(name, tmp_path):
         hit = next((n for n in d.nodes if n.id == i), None)
         if hit is not None:
             assert hit.title == "T: x # y"
+
+
+# --- zone and container operations (T10): every patched fixture loads and has the expected structure ----------
+
+EDIT_DATA = ROOT / "rust" / "spinagram-core" / "tests" / "data" / "edit"
+
+
+def _fixture(name: str) -> str:
+    return (EDIT_DATA / f"{name}.yaml").read_text(encoding="utf-8")
+
+
+def _zone_children(d):
+    return {z.id: list(z.children) for z in d.zones}
+
+
+def _containers(d):
+    return [(c.axis, list(c.children), c.gap, c.x, c.y) for c in d.containers]
+
+
+def test_reparent_changes_zone_children_after_loading(tmp_path):
+    text = _fixture("zones_block")
+    assert _zone_children(_load(tmp_path, text)) == {"outer": ["inner", "n1"], "inner": ["n2"], "empty": []}
+    out = edit.apply_ops(text, [{"op": "reparent", "id": "n2", "parent": "empty"},
+                                {"op": "reparent", "id": "n1", "parent": None},
+                                {"op": "reparent", "id": "n3", "parent": "outer"}])
+    assert _zone_children(_load(tmp_path, out)) == {"outer": ["inner", "n3"], "inner": [], "empty": ["n2"]}
+    flow = edit.apply_ops(_fixture("zones_flow"), [{"op": "reparent", "id": "m2", "parent": "zb"}])
+    assert _zone_children(_load(tmp_path, flow)) == {"za": ["zb", "m1"], "zb": ["m2"]}
+
+
+def test_zone_into_its_descendant_is_rejected_with_the_spec_message():
+    with pytest.raises(EditError, match="A zone cannot contain itself"):
+        edit.apply_ops(_fixture("zones_block"), [{"op": "reparent", "id": "outer", "parent": "inner"}])
+
+
+def test_move_zone_moves_the_zone_and_its_children_after_loading(tmp_path):
+    text = _fixture("zones_block")
+    before = _load(tmp_path, text)
+    out = edit.apply_ops(text, [{"op": "move_zone", "id": "outer", "x": 30, "y": 40}])
+    after = _load(tmp_path, out)
+    zones = {z.id: (z.x, z.y) for z in after.zones}
+    assert zones == {"outer": (30, 40), "inner": (70, 100), "empty": (900, 20)}
+    boxes, was = _boxes(after), _boxes(before)
+    assert (boxes["n1"][0], boxes["n1"][1]) == (410, 120)
+    assert (boxes["n2"][0], boxes["n2"][1]) == (90, 140)
+    assert boxes["n3"] == was["n3"]
+    assert [b[2:] for b in boxes.values()] == [b[2:] for b in was.values()]
+
+
+def test_add_zone_loads_as_a_zone(tmp_path):
+    out = edit.apply_ops(_fixture("zones_flow"), [{"op": "add_zone", "id": "zc", "label": "C", "x": 1, "y": 2, "w": 300, "h": 200}])
+    zc = next(z for z in _load(tmp_path, out).zones if z.id == "zc")
+    assert (zc.label, zc.x, zc.y, zc.w, zc.h) == ("C", 1, 2, 300, 200)
+
+
+def test_group_add_remove_and_ungroup_after_loading(tmp_path):
+    text = _fixture("groups_block")
+    assert _containers(_load(tmp_path, text)) == [("row", ["e", "f", "g"], 30, 40, 500), ("column", ["h", "i"], 20, 800, 100)]
+    grouped = edit.apply_ops(text, [{"op": "group", "axis": "row", "ids": ["a", "b", "c"]}])
+    assert _containers(_load(tmp_path, grouped))[1] == ("row", ["b", "a", "c"], 20, 40, 60)
+    added = edit.apply_ops(text, [{"op": "add_to_container", "id": "row0", "node": "a", "index": 1}])
+    assert _containers(_load(tmp_path, added))[0][1] == ["e", "a", "f", "g"]
+    removed = _load(tmp_path, edit.apply_ops(text, [{"op": "remove_from_container", "id": "row0", "node": "f",
+                                                      "boxes": {"f": [10, 20, 100, 60]}}]))
+    assert _containers(removed)[0][1] == ["e", "g"]
+    assert _boxes(removed)["f"] == (10, 20, 100, 60)
+    dissolved = _load(tmp_path, edit.apply_ops(text, [{"op": "remove_from_container", "id": "column1", "node": "h",
+                                                        "boxes": {"h": [1, 2, 30, 40], "i": [5, 6, 70, 80]}}]))
+    assert _containers(dissolved) == [("row", ["e", "f", "g"], 30, 40, 500)]
+    assert (_boxes(dissolved)["h"], _boxes(dissolved)["i"]) == ((1, 2, 30, 40), (5, 6, 70, 80))
+    ungrouped = _load(tmp_path, edit.apply_ops(text, [{"op": "ungroup", "id": "row0", "boxes": {
+        "e": [40, 500, 100, 60], "f": [170, 500, 100, 60], "g": [300, 500, 100, 60]}}]))
+    assert [c[0] for c in _containers(ungrouped)] == ["column"]
+    assert _boxes(ungrouped)["g"] == (300, 500, 100, 60)
+
+
+def test_set_container_changes_gap_and_align(tmp_path):
+    out = edit.apply_ops(_fixture("groups_block"), [{"op": "set_container", "id": "row0", "gap": 44}])
+    assert _load(tmp_path, out).containers[0].gap == 44
+    zoned = ("id: t\ntitle: T\nzones: [{id: z, x: 0, y: 0, w: 600, h: 300}]\nnodes: [{id: a}, {id: b}]\n"
+             "rows:\n  - {zone: z, nodes: [a, b]}\n")
+    c = _load(tmp_path, edit.apply_ops(zoned, [{"op": "set_container", "id": "row0", "gap": 8, "align": "start"}])).containers[0]
+    assert (c.gap, c.align) == (8, "start")
+    with pytest.raises(EditError, match="placed in a zone"):
+        edit.apply_ops(_fixture("groups_block"), [{"op": "set_container", "id": "row0", "align": "start"}])
+
+
+def test_inline_container_members_become_nodes_on_ungroup(tmp_path):
+    text = "id: t\ntitle: T\nrows:\n  - x: 0\n    y: 0\n    nodes:\n      - {id: p, title: P}\n      - {id: q, title: Q}\n"
+    out = edit.apply_ops(text, [{"op": "ungroup", "id": "row0", "boxes": {"p": [10, 20, 100, 50], "q": [150, 20, 100, 50]}}])
+    d = _load(tmp_path, out)
+    assert d.containers == [] and _boxes(d) == {"p": (10, 20, 100, 50), "q": (150, 20, 100, 50)}

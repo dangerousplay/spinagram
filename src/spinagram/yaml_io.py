@@ -96,6 +96,8 @@ def from_dict(data: dict[str, Any], base_dir: Path | None = None) -> Diagram:
     _groups(d, data.get("groups") or [], None)
     for z in data.get("zones") or []:
         z = dict(z)
+        if z.get("children") is None:  # `children:` with nothing under it (the canvas leaves it after the last removal)
+            z.pop("children", None)
         if "class" in z:
             z["cls"] = z.pop("class")
         if z.get("band") is not None:  # band: [y0, y1]; the model pass sets y/h (and x/w unless given)

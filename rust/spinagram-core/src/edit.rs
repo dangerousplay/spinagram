@@ -36,6 +36,23 @@ pub enum Op {
     Connect { from: String, to: String, label: Option<String> },
     /// Remove the first edge from `from` to `to`.
     Disconnect { from: String, to: String },
+    /// Append a zone to `zones`.
+    AddZone { id: String, label: Option<String>, x: f64, y: f64, w: f64, h: f64 },
+    /// Put a node or zone into zone `parent` (`null`: out to the top level) through the zones' `children` lists.
+    Reparent { id: String, parent: Option<String> },
+    /// Move zone `id` to `x`/`y`, and every child node and child zone by the same offset.
+    MoveZone { id: String, x: f64, y: f64 },
+    /// Add a `row` or `column` container (`rows:`/`columns:`) holding `ids`, ordered by x (row) or y (column).
+    Group { axis: String, ids: Vec<String>, gap: Option<f64>, x: Option<f64>, y: Option<f64> },
+    /// Remove container `id` (`row0`, `column1`, ...); `boxes` gives each member's rendered `[x, y, w, h]`.
+    Ungroup { id: String, boxes: BTreeMap<String, [f64; 4]> },
+    /// Insert node `node` into container `id` before member `index` (the end when absent or past the end).
+    AddToContainer { id: String, node: String, index: Option<usize> },
+    /// Take `node` out of container `id`, placing it at `boxes[node]`. A container left with fewer than two
+    /// members is removed as in `Ungroup`, so `boxes` then holds every member.
+    RemoveFromContainer { id: String, node: String, boxes: BTreeMap<String, [f64; 4]> },
+    /// Set the `gap` and/or `align` of container `id` (`align` only for a container placed in a zone, as the loader requires).
+    SetContainer { id: String, gap: Option<f64>, align: Option<String> },
 }
 
 impl Op {
@@ -48,6 +65,14 @@ impl Op {
             Op::AddNode { .. } => "add_node",
             Op::Connect { .. } => "connect",
             Op::Disconnect { .. } => "disconnect",
+            Op::AddZone { .. } => "add_zone",
+            Op::Reparent { .. } => "reparent",
+            Op::MoveZone { .. } => "move_zone",
+            Op::Group { .. } => "group",
+            Op::Ungroup { .. } => "ungroup",
+            Op::AddToContainer { .. } => "add_to_container",
+            Op::RemoveFromContainer { .. } => "remove_from_container",
+            Op::SetContainer { .. } => "set_container",
         }
     }
 }
@@ -260,6 +285,9 @@ fn entries(root: &Node) -> Vec<Entry<'_>> {
 pub fn srcmap(yaml: &str) -> Result<BTreeMap<String, [usize; 2]>, String> {
     let root = parse_diagram(yaml)?;
     let mut map: BTreeMap<String, [usize; 2]> = entries(&root).into_iter().map(|e| (e.id.to_owned(), [e.node.start, e.node.end])).collect();
+    for c in containers(&root) {
+        map.insert(c.id, [c.node.start, c.node.end]);
+    }
     for (i, edge) in root.get("edges").map_or(&[][..], Node::items).iter().enumerate() {
         map.insert(format!("e{i}"), [edge.start, edge.end]);
     }
@@ -405,6 +433,11 @@ fn append_item(src: &str, root: &Node, key: &str, item: &str) -> Result<Vec<Patc
         let pad = " ".repeat(column(src, root.start));
         return Ok(vec![Patch { start: at, end: at, text: format!("\n{pad}{key}:\n{pad}  - {item}") }]);
     };
+    append_to_seq(src, k, seq, key, item)
+}
+
+/// Append `item` to the sequence `seq` held under key node `k` (flow or block; an empty value becomes a block list).
+fn append_to_seq(src: &str, k: &Node, seq: &Node, key: &str, item: &str) -> Result<Vec<Patch>, String> {
     match &seq.val {
         Val::Seq { items, flow: true } => Ok(vec![match items.last() {
             Some(last) => Patch { start: last.end, end: last.end, text: format!(", {item}") },
@@ -554,7 +587,365 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                 None => fail(format!("no edge from `{from}` to `{to}`")),
             }
         }
+        _ => zone_patches(src, root, op),
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Zones and containers
+
+fn num_of(n: &Node) -> Option<f64> {
+    n.text()?.trim().parse().ok()
+}
+
+/// The `(x, y)` of a node or zone entry, from `at` or from the `x`/`y` keys.
+fn position(e: &Node) -> Option<(f64, f64)> {
+    if let Some(at) = e.get("at") {
+        let it = at.items();
+        return Some((num_of(it.first()?)?, num_of(it.get(1)?)?));
+    }
+    Some((num_of(e.get("x")?)?, num_of(e.get("y")?)?))
+}
+
+/// Patches that set an entry's position, in whichever form it uses.
+fn move_to(src: &str, e: &Entry, x: f64, y: f64) -> Result<Vec<Patch>, String> {
+    match at_items(e.node)? {
+        Some(at) if !e.zone => patch_at(src, at, 0, [x, y]),
+        _ => set_keys(src, e.node, &[("x", num(x)?), ("y", num(y)?)]),
+    }
+}
+
+/// Patches that set an entry's whole box.
+fn box_patches(src: &str, e: &Entry, b: [f64; 4]) -> Result<Vec<Patch>, String> {
+    let v = [num(b[0])?, num(b[1])?, num(b[2])?, num(b[3])?];
+    match at_items(e.node)? {
+        Some(at) if !e.zone => {
+            let items = at.items();
+            if items.len() >= 4 {
+                Ok((0..4).map(|k| Patch { start: items[k].start, end: items[k].end, text: v[k].clone() }).collect())
+            } else {
+                Ok(vec![Patch { start: at.start, end: at.end, text: format!("[{}]", v.join(", ")) }])
+            }
+        }
+        _ => set_keys(src, e.node, &[("x", v[0].clone()), ("y", v[1].clone()), ("w", v[2].clone()), ("h", v[3].clone())]),
+    }
+}
+
+/// The ids in the `children` list of zone `z`.
+fn zone_kids(z: &Node) -> Vec<&str> {
+    z.get("children").map_or(&[][..], Node::items).iter().filter_map(Node::text).collect()
+}
+
+/// Every id below zone `id` (children, their children, ...).
+fn descendants<'a>(root: &'a Node, id: &str) -> Vec<&'a str> {
+    let zones: Vec<Entry<'a>> = entries(root).into_iter().filter(|e| e.zone).collect();
+    let mut out: Vec<&'a str> = Vec::new();
+    let mut todo = vec![id.to_owned()];
+    while let Some(cur) = todo.pop() {
+        for z in zones.iter().filter(|z| z.id == cur) {
+            for kid in zone_kids(z.node) {
+                if !out.contains(&kid) {
+                    out.push(kid);
+                    todo.push(kid.to_owned());
+                }
+            }
+        }
+    }
+    out
+}
+
+fn reparent(src: &str, root: &Node, id: &str, parent: Option<&str>) -> Result<Vec<Patch>, String> {
+    let e = find(root, id)?;
+    if !e.zone && e.node.get("in").is_some() {
+        return fail(format!("`{id}` is placed by a group (`in:`); ungroup it first"));
+    }
+    let target = match parent {
+        Some(p) => {
+            let t = find(root, p)?;
+            if !t.zone {
+                return fail(format!("`{p}` is not a zone"));
+            }
+            if p == id || descendants(root, id).contains(&p) {
+                return fail("A zone cannot contain itself");
+            }
+            Some(t)
+        }
+        None => None,
+    };
+    let mut patches = Vec::new();
+    let mut already = false;
+    for z in entries(root).into_iter().filter(|z| z.zone) {
+        let Some(list) = z.node.get("children") else { continue };
+        let hits: Vec<usize> = list.items().iter().enumerate().filter(|(_, n)| n.text() == Some(id)).map(|(i, _)| i).collect();
+        if hits.is_empty() {
+            continue;
+        }
+        if parent == Some(z.id) {
+            already = true;
+        } else {
+            patches.extend(remove_items(src, list, &hits));
+        }
+    }
+    if let (Some(t), false) = (target, already) {
+        patches.extend(push_to(src, t.node, "children", &scalar(id))?);
+    }
+    Ok(patches)
+}
+
+/// Append `item` to the list under `key` of `map`; the key is created (a flow list) when missing.
+fn push_to(src: &str, map: &Node, key: &str, item: &str) -> Result<Vec<Patch>, String> {
+    let Val::Map { pairs, .. } = &map.val else { return fail("entry is not a mapping") };
+    match pairs.iter().find(|(k, _)| k.text() == Some(key)) {
+        Some((k, seq)) => append_to_seq(src, k, seq, key, item),
+        None => set_keys(src, map, &[(key, format!("[{item}]"))]),
+    }
+}
+
+fn move_zone(src: &str, root: &Node, id: &str, x: f64, y: f64) -> Result<Vec<Patch>, String> {
+    let z = find(root, id)?;
+    if !z.zone {
+        return fail(format!("`{id}` is not a zone"));
+    }
+    let (cx, cy) = position(z.node).ok_or_else(|| format!("zone `{id}` has no x and y"))?;
+    let (dx, dy) = (x - cx, y - cy);
+    let mut patches = move_to(src, &z, x, y)?;
+    let kids = descendants(root, id);
+    let conts = containers(root);
+    let in_container = |kid: &str| conts.iter().any(|c| member_ids(c).iter().any(|m| m == kid));
+    for kid in &kids {
+        if in_container(kid) {
+            continue; // placed by its container, which moves below
+        }
+        let e = find(root, kid)?;
+        if let Some((kx, ky)) = position(e.node) {
+            patches.extend(move_to(src, &e, kx + dx, ky + dy)?);
+        }
+    }
+    for c in conts.iter().filter(|c| c.node.get("zone").is_none()) {
+        if !member_ids(c).iter().any(|m| kids.contains(&m.as_str())) {
+            continue;
+        }
+        if let (Some(px), Some(py)) = (c.node.get("x").and_then(num_of), c.node.get("y").and_then(num_of)) {
+            patches.extend(set_keys(src, c.node, &[("x", num(px + dx)?), ("y", num(py + dy)?)])?);
+        }
+    }
+    Ok(patches)
+}
+
+/// The zone and container operations of [`op_patches`].
+fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
+    match op {
+        Op::AddZone { id, label, x, y, w, h } => {
+            if exists(root, id) {
+                return fail(format!("duplicate id `{id}`"));
+            }
+            let mut fields = vec![format!("id: {}", scalar(id))];
+            if let Some(l) = label {
+                fields.push(format!("label: {}", quoted(l)));
+            }
+            for (k, v) in [("x", x), ("y", y), ("w", w), ("h", h)] {
+                fields.push(format!("{k}: {}", num(*v)?));
+            }
+            append_item(src, root, "zones", &format!("{{{}}}", fields.join(", ")))
+        }
+        Op::Reparent { id, parent } => reparent(src, root, id, parent.as_deref()),
+        Op::MoveZone { id, x, y } => move_zone(src, root, id, *x, *y),
+        Op::Group { axis, ids, gap, x, y } => group(src, root, axis, ids, *gap, *x, *y),
+        Op::Ungroup { id, boxes } => {
+            let c = container(root, id)?;
+            release(src, root, &c, &member_ids(&c), boxes, true)
+        }
+        Op::AddToContainer { id, node, index } => add_to_container(src, root, id, node, *index),
+        Op::RemoveFromContainer { id, node, boxes } => {
+            let c = container(root, id)?;
+            let members = member_ids(&c);
+            if !members.iter().any(|m| m == node) {
+                return fail(format!("`{node}` is not in container `{id}`"));
+            }
+            if members.len() <= 2 {
+                release(src, root, &c, &members, boxes, true)
+            } else {
+                release(src, root, &c, std::slice::from_ref(node), boxes, false)
+            }
+        }
+        Op::SetContainer { id, gap, align } => {
+            let c = container(root, id)?;
+            let mut pairs = Vec::new();
+            if let Some(g) = gap {
+                pairs.push(("gap", num(*g)?));
+            }
+            if let Some(a) = align {
+                if c.node.get("zone").is_none() {
+                    return fail("`align` applies to containers placed in a zone (`zone:`)");
+                }
+                pairs.push(("align", scalar(a)));
+            }
+            if pairs.is_empty() {
+                return fail("set_container needs `gap` or `align`");
+            }
+            set_keys(src, c.node, &pairs)
+        }
+        _ => fail("internal error: not a zone or container operation"),
+    }
+}
+
+/// A `rows`/`columns` entry. Its id is the one the scene gives it: `row0`, `column1`, ... counting every row
+/// container first, then every column container, in file order.
+struct Container<'a> {
+    id: String,
+    node: &'a Node,
+    list: &'a Node,
+    index: usize,
+}
+
+fn containers(root: &Node) -> Vec<Container<'_>> {
+    let mut out = Vec::new();
+    for axis in ["row", "column"] {
+        let Some(list) = root.get(if axis == "row" { "rows" } else { "columns" }) else { continue };
+        for (index, node) in list.items().iter().enumerate() {
+            out.push(Container { id: format!("{axis}{}", out.len()), node, list, index });
+        }
+    }
+    out
+}
+
+fn container<'a>(root: &'a Node, id: &str) -> Result<Container<'a>, String> {
+    containers(root).into_iter().find(|c| c.id == id).ok_or_else(|| format!("unknown container `{id}`"))
+}
+
+/// Member ids of a container, in order (a string entry, or the `id` of an inline mapping).
+fn member_ids(c: &Container) -> Vec<String> {
+    c.node.get("nodes").map_or(&[][..], Node::items).iter().filter_map(|n| n.text().or_else(|| n.get("id").and_then(Node::text))).map(str::to_owned).collect()
+}
+
+fn group(src: &str, root: &Node, axis: &str, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, String> {
+    if axis != "row" && axis != "column" {
+        return fail(format!("axis must be `row` or `column`, not `{axis}`"));
+    }
+    if ids.len() < 2 {
+        return fail("a group needs at least 2 nodes");
+    }
+    let conts = containers(root);
+    let mut members: Vec<(&String, f64, f64)> = Vec::new();
+    for id in ids {
+        let e = find(root, id)?;
+        if e.zone {
+            return fail(format!("`{id}` is a zone; only nodes can be grouped"));
+        }
+        if conts.iter().any(|c| member_ids(c).contains(id)) {
+            return fail(format!("`{id}` is already in a container"));
+        }
+        if members.iter().any(|m| m.0 == id) {
+            return fail(format!("`{id}` is listed twice"));
+        }
+        let (px, py) = position(e.node).unwrap_or((0.0, 0.0));
+        members.push((id, px, py));
+    }
+    let left = members.iter().map(|m| m.1).fold(f64::INFINITY, f64::min);
+    let top = members.iter().map(|m| m.2).fold(f64::INFINITY, f64::min);
+    if axis == "row" {
+        members.sort_by(|a, b| a.1.total_cmp(&b.1));
+    } else {
+        members.sort_by(|a, b| a.2.total_cmp(&b.2));
+    }
+    let names: Vec<String> = members.iter().map(|m| scalar(m.0)).collect();
+    let item = format!("{{x: {}, y: {}, gap: {}, nodes: [{}]}}", num(x.unwrap_or(left))?, num(y.unwrap_or(top))?, num(gap.unwrap_or(20.0))?, names.join(", "));
+    append_item(src, root, if axis == "row" { "rows" } else { "columns" }, &item)
+}
+
+fn add_to_container(src: &str, root: &Node, id: &str, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
+    let c = container(root, id)?;
+    let e = find(root, node)?;
+    if e.zone {
+        return fail(format!("`{node}` is a zone; only nodes can join a container"));
+    }
+    if containers(root).iter().any(|o| member_ids(o).iter().any(|m| m == node)) {
+        return fail(format!("`{node}` is already in a container"));
+    }
+    let item = scalar(node);
+    let Val::Map { pairs, .. } = &c.node.val else { return fail("container is not a mapping") };
+    let Some((k, list)) = pairs.iter().find(|(k, _)| k.text() == Some("nodes")) else { return push_to(src, c.node, "nodes", &item) };
+    match (&list.val, index) {
+        (Val::Seq { items, flow }, Some(i)) if i < items.len() => {
+            let at = &items[i];
+            if *flow {
+                Ok(vec![Patch { start: at.start, end: at.start, text: format!("{item}, ") }])
+            } else {
+                let from = line_start(src, at.start);
+                let lead = &src[from..from + leading_ws(&src[from..])];
+                Ok(vec![Patch { start: from, end: from, text: format!("{lead}- {item}\n") }])
+            }
+        }
+        _ => append_to_seq(src, k, list, "nodes", &item),
+    }
+}
+
+/// A flow-style copy of an inline container member (a mapping under the container's `nodes`) with its box set,
+/// for a member that leaves the container and becomes a top-level node.
+fn inline_entry(src: &str, m: &Node, b: [f64; 4]) -> Result<String, String> {
+    let Val::Map { pairs, .. } = &m.val else { return fail("container member is not a mapping") };
+    let mut parts = Vec::new();
+    for (k, v) in pairs {
+        let key = k.text().unwrap_or_default();
+        if matches!(key, "x" | "y" | "w" | "h" | "at") {
+            continue;
+        }
+        let text = &src[v.start..v.end];
+        if text.contains('\n') {
+            return fail(format!("member `{}` spans several lines; move it out of the container in the code", m.get("id").and_then(Node::text).unwrap_or("?")));
+        }
+        parts.push(format!("{key}: {text}"));
+    }
+    parts.push(format!("at: [{}, {}, {}, {}]", num(b[0])?, num(b[1])?, num(b[2])?, num(b[3])?));
+    Ok(format!("{{{}}}", parts.join(", ")))
+}
+
+/// Take `released` members out of container `c`, writing each one's box. With `dissolve` the whole container
+/// entry goes. Members declared inline in the container are copied to the top-level `nodes` list.
+fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &BTreeMap<String, [f64; 4]>, dissolve: bool) -> Result<Vec<Patch>, String> {
+    let list = c.node.get("nodes").ok_or("container has no members")?;
+    let mut patches = Vec::new();
+    let mut idxs = Vec::new();
+    let mut inline: Vec<String> = Vec::new();
+    for (i, m) in list.items().iter().enumerate() {
+        let Some(mid) = m.text().or_else(|| m.get("id").and_then(Node::text)) else { continue };
+        if !released.iter().any(|r| r == mid) {
+            continue;
+        }
+        let b = *boxes.get(mid).ok_or_else(|| format!("missing box for `{mid}`"))?;
+        idxs.push(i);
+        if m.text().is_some() {
+            patches.extend(box_patches(src, &find(root, mid)?, b)?);
+        } else {
+            inline.push(inline_entry(src, m, b)?);
+        }
+    }
+    if dissolve {
+        patches.extend(remove_items(src, c.list, &[c.index]));
+    } else {
+        patches.extend(remove_items(src, list, &idxs));
+    }
+    if !inline.is_empty() {
+        match root.get("nodes") {
+            Some(nodes) if matches!(nodes.val, Val::Seq { .. }) => {
+                let Val::Map { pairs, .. } = &root.val else { return fail("the diagram must be a YAML mapping") };
+                let k = pairs.iter().find(|(k, _)| k.text() == Some("nodes")).map(|(k, _)| k).ok_or("no nodes key")?;
+                for item in &inline {
+                    patches.extend(append_to_seq(src, k, nodes, "nodes", item)?);
+                }
+            }
+            Some(_) => return fail("`nodes` is not a list"),
+            None => {
+                let Val::Map { pairs, .. } = &root.val else { return fail("the diagram must be a YAML mapping") };
+                let key = pairs.iter().find(|(_, v)| std::ptr::eq(v, c.list)).map(|(k, _)| k).ok_or("container list key not found")?;
+                let at = line_start(src, key.start);
+                let pad = " ".repeat(column(src, root.start));
+                let lines = inline.iter().fold(String::new(), |acc, i| acc + &format!("{pad}  - {i}\n"));
+                patches.push(Patch { start: at, end: at, text: format!("{pad}nodes:\n{lines}") });
+            }
+        }
+    }
+    Ok(patches)
 }
 
 fn delete(src: &str, root: &Node, id: &str) -> Result<Vec<Patch>, String> {
@@ -883,5 +1274,280 @@ mod tests {
         reject("id: t\nnodes:\n  - id: a\n    at:\n      - 1\n      - 2\n", r#"[{"op":"move","id":"a","x":1,"y":1}]"#, "flow list");
         reject("id: t\nnodes:\n  - {id: a}\n", r#"[{"op":"move","id":"a","x":1e999,"y":1}]"#, "invalid operations");
         reject("---\nid: a\n---\nid: b\n", r#"[{"op":"delete","id":"a"}]"#, "several YAML documents");
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+    // zones and containers
+
+    /// `fixture` with each `(old, new)` replacement applied once, as the hand-written expected text; `old` must
+    /// occur exactly once so the expectation cannot silently match something else.
+    fn expect(fixture: &str, edits: &[(&str, &str)]) -> String {
+        let mut text = read(fixture);
+        for (old, new) in edits {
+            assert_eq!(text.matches(old).count(), 1, "{old:?} must occur once in {fixture}");
+            text = text.replacen(old, new, 1);
+        }
+        text
+    }
+
+    fn run(fixture: &str, json: &str) -> String {
+        let out = apply_ops(&read(fixture), &ops(json)).unwrap_or_else(|e| panic!("{json}: {e}"));
+        parse_diagram(&out).expect("the output re-parses");
+        out
+    }
+
+    #[test]
+    fn add_zone_appends_to_the_zones_list_in_both_styles() {
+        let json = r#"[{"op":"add_zone","id":"z2","label":"Z2","x":5,"y":6,"w":600,"h":400}]"#;
+        assert_eq!(
+            run("zones_block", json),
+            expect("zones_block", &[("    h: 300\n\nnodes:", "    h: 300\n  - {id: z2, label: \"Z2\", x: 5, y: 6, w: 600, h: 400}\n\nnodes:")])
+        );
+        assert_eq!(
+            run("zones_flow", r#"[{"op":"add_zone","id":"zc","label":"C","x":1,"y":2,"w":3,"h":4}]"#),
+            expect("zones_flow", &[("h: 200}]", "h: 200}, {id: zc, label: \"C\", x: 1, y: 2, w: 3, h: 4}]")])
+        );
+        reject(&read("zones_block"), r#"[{"op":"add_zone","id":"inner","x":0,"y":0,"w":1,"h":1}]"#, "duplicate id `inner`");
+        reject(&read("zones_block"), r#"[{"op":"add_zone","id":"n1","x":0,"y":0,"w":1,"h":1}]"#, "duplicate id `n1`");
+    }
+
+    #[test]
+    fn reparent_edits_the_children_lists_of_zones() {
+        let into_empty = "    w: 300\n    h: 300\n\nnodes:";
+        let with_kid = |k: &str| format!("    w: 300\n    h: 300\n    children: [{k}]\n\nnodes:");
+        let cases: [(&str, String); 5] = [
+            (r#"[{"op":"reparent","id":"n3","parent":"empty"}]"#, expect("zones_block", &[(into_empty, &with_kid("n3"))])),
+            (
+                r#"[{"op":"reparent","id":"n2","parent":"empty"}]"#,
+                expect("zones_block", &[("    children:\n      - n2\n", "    children:\n"), (into_empty, &with_kid("n2"))]),
+            ),
+            (r#"[{"op":"reparent","id":"n1","parent":null}]"#, expect("zones_block", &[("children: [inner, n1]", "children: [inner]")])),
+            (
+                r#"[{"op":"reparent","id":"n2","parent":"outer"}]"#,
+                expect("zones_block", &[("    children:\n      - n2\n", "    children:\n"), ("children: [inner, n1]", "children: [inner, n1, n2]")]),
+            ),
+            (
+                r#"[{"op":"reparent","id":"inner","parent":"empty"}]"#,
+                expect("zones_block", &[("children: [inner, n1]", "children: [n1]"), (into_empty, &with_kid("inner"))]),
+            ),
+        ];
+        for (json, want) in cases {
+            assert_eq!(run("zones_block", json), want, "{json}");
+        }
+        // dropping where it already is changes nothing
+        assert_eq!(run("zones_block", r#"[{"op":"reparent","id":"n1","parent":"outer"}]"#), read("zones_block"));
+        // flow zones: a missing children key is added in place, and a child leaves a flow list
+        assert_eq!(
+            run("zones_flow", r#"[{"op":"reparent","id":"m2","parent":"zb"}]"#),
+            expect("zones_flow", &[("w: 200, h: 200}", "w: 200, h: 200, children: [m2]}")])
+        );
+        assert_eq!(run("zones_flow", r#"[{"op":"reparent","id":"m1","parent":null}]"#), expect("zones_flow", &[("[zb, m1]", "[zb]")]));
+    }
+
+    #[test]
+    fn reparent_refuses_a_zone_inside_itself_or_a_descendant() {
+        let y = read("zones_block");
+        reject(&y, r#"[{"op":"reparent","id":"outer","parent":"inner"}]"#, "A zone cannot contain itself");
+        reject(&y, r#"[{"op":"reparent","id":"outer","parent":"outer"}]"#, "A zone cannot contain itself");
+        // a grandchild is a descendant too
+        let deep = "id: t\nzones:\n  - {id: a, x: 0, y: 0, w: 9, h: 9, children: [b]}\n  - {id: b, x: 0, y: 0, w: 9, h: 9, children: [c]}\n  - {id: c, x: 0, y: 0, w: 9, h: 9}\n";
+        reject(deep, r#"[{"op":"reparent","id":"a","parent":"c"}]"#, "A zone cannot contain itself");
+        // a sibling is fine
+        assert!(apply_ops_json(deep, r#"[{"op":"reparent","id":"c","parent":"a"}]"#).is_ok());
+        reject(&y, r#"[{"op":"reparent","id":"n1","parent":"n2"}]"#, "`n2` is not a zone");
+        reject(&y, r#"[{"op":"reparent","id":"n1","parent":"ghost"}]"#, "unknown id `ghost`");
+        reject(&y, r#"[{"op":"reparent","id":"ghost","parent":"outer"}]"#, "unknown id `ghost`");
+        reject("id: t\nzones:\n  - {id: z, x: 0, y: 0, w: 9, h: 9}\nnodes:\n  - {id: a, in: g}\n", r#"[{"op":"reparent","id":"a","parent":"z"}]"#, "placed by a group");
+    }
+
+    #[test]
+    fn move_zone_moves_children_by_the_same_offset_in_one_patch_set() {
+        assert_eq!(
+            run("zones_block", r#"[{"op":"move_zone","id":"outer","x":30,"y":40}]"#),
+            expect(
+                "zones_block",
+                &[
+                    ("    x: 20\n    y: 20\n", "    x: 30\n    y: 40\n"),
+                    ("    x: 60\n    y: 80\n", "    x: 70\n    y: 100\n"),
+                    ("at: [400, 100, 120, 60]", "at: [410, 120, 120, 60]"),
+                    ("    x: 80\n    y: 120\n", "    x: 90\n    y: 140\n"),
+                ]
+            )
+        );
+        // a zone without children moves alone
+        assert_eq!(run("zones_block", r#"[{"op":"move_zone","id":"empty","x":910,"y":30}]"#), expect("zones_block", &[("    x: 900\n    y: 20\n", "    x: 910\n    y: 30\n")]));
+        assert_eq!(
+            run("zones_flow", r#"[{"op":"move_zone","id":"za","x":10,"y":10}]"#),
+            expect("zones_flow", &[("label: A, x: 0, y: 0", "label: A, x: 10, y: 10"), ("x: 50, y: 50", "x: 60, y: 60"), ("at: [300, 100, 100, 50]", "at: [310, 110, 100, 50]")])
+        );
+        reject(&read("zones_block"), r#"[{"op":"move_zone","id":"n1","x":1,"y":1}]"#, "`n1` is not a zone");
+        reject(&read("zones_block"), r#"[{"op":"move_zone","id":"ghost","x":1,"y":1}]"#, "unknown id `ghost`");
+    }
+
+    #[test]
+    fn move_zone_shifts_a_container_that_holds_children_of_the_zone() {
+        let y = "id: t\nzones:\n  - {id: z, x: 100, y: 100, w: 500, h: 300, children: [a, b]}\nnodes:\n  - {id: a}\n  - {id: b}\nrows:\n  - {x: 120, y: 150, nodes: [a, b]}\n";
+        let out = apply_ops_json(y, r#"[{"op":"move_zone","id":"z","x":110,"y":90}]"#).unwrap();
+        assert_eq!(out, y.replace("x: 100, y: 100", "x: 110, y: 90").replace("x: 120, y: 150", "x: 130, y: 140"));
+    }
+
+    #[test]
+    fn group_adds_a_container_ordered_at_the_selections_top_left() {
+        assert_eq!(
+            run("groups_block", r#"[{"op":"group","axis":"row","ids":["a","b","c"]}]"#),
+            expect("groups_block", &[("      - g\ncolumns:", "      - g\n  - {x: 40, y: 60, gap: 20, nodes: [b, a, c]}\ncolumns:")])
+        );
+        assert_eq!(
+            run("groups_block", r#"[{"op":"group","axis":"column","ids":["b","a"]}]"#),
+            expect("groups_block", &[("    nodes: [h, i]\n", "    nodes: [h, i]\n  - {x: 40, y: 100, gap: 20, nodes: [a, b]}\n")])
+        );
+        assert_eq!(
+            run("groups_flow", r#"[{"op":"group","axis":"row","ids":["a","b"],"gap":8}]"#),
+            expect("groups_flow", &[("nodes: [d, e, f]}]", "nodes: [d, e, f]}, {x: 10, y: 10, gap: 8, nodes: [b, a]}]")])
+        );
+        // no rows key yet: the key is created at the end of the file
+        let out = apply_ops_json("id: t\nnodes:\n  - {id: p, at: [50, 10]}\n  - {id: q, at: [5, 40]}\n", r#"[{"op":"group","axis":"row","ids":["p","q"]}]"#).unwrap();
+        assert_eq!(out, "id: t\nnodes:\n  - {id: p, at: [50, 10]}\n  - {id: q, at: [5, 40]}\nrows:\n  - {x: 5, y: 10, gap: 20, nodes: [q, p]}\n");
+        // explicit position overrides the top-left
+        let out = apply_ops_json("id: t\nnodes: [{id: p}, {id: q}]\n", r#"[{"op":"group","axis":"column","ids":["p","q"],"x":7,"y":9}]"#).unwrap();
+        assert!(out.ends_with("columns:\n  - {x: 7, y: 9, gap: 20, nodes: [p, q]}\n"), "{out}");
+    }
+
+    #[test]
+    fn group_rejects_bad_selections() {
+        let y = read("groups_block");
+        reject(&y, r#"[{"op":"group","axis":"row","ids":["a","e"]}]"#, "`e` is already in a container");
+        reject(&y, r#"[{"op":"group","axis":"row","ids":["a"]}]"#, "at least 2");
+        reject(&y, r#"[{"op":"group","axis":"row","ids":["a","zzz"]}]"#, "unknown id `zzz`");
+        reject(&y, r#"[{"op":"group","axis":"row","ids":["a","a"]}]"#, "listed twice");
+        reject(&y, r#"[{"op":"group","axis":"diag","ids":["a","b"]}]"#, "axis");
+        reject(&read("zones_block"), r#"[{"op":"group","axis":"row","ids":["n1","outer"]}]"#, "is a zone");
+    }
+
+    #[test]
+    fn add_to_container_inserts_at_an_index() {
+        assert_eq!(
+            run("groups_block", r#"[{"op":"add_to_container","id":"row0","node":"a","index":1}]"#),
+            expect("groups_block", &[("      - e\n      - f\n", "      - e\n      - a\n      - f\n")])
+        );
+        assert_eq!(
+            run("groups_block", r#"[{"op":"add_to_container","id":"row0","node":"a","index":0}]"#),
+            expect("groups_block", &[("      - e\n", "      - a\n      - e\n")])
+        );
+        for json in [r#"[{"op":"add_to_container","id":"row0","node":"a"}]"#, r#"[{"op":"add_to_container","id":"row0","node":"a","index":9}]"#] {
+            assert_eq!(run("groups_block", json), expect("groups_block", &[("      - g\ncolumns:", "      - g\n      - a\ncolumns:")]), "{json}");
+        }
+        assert_eq!(run("groups_block", r#"[{"op":"add_to_container","id":"column1","node":"a","index":0}]"#), expect("groups_block", &[("nodes: [h, i]", "nodes: [a, h, i]")]));
+        assert_eq!(run("groups_flow", r#"[{"op":"add_to_container","id":"row0","node":"a","index":2}]"#), expect("groups_flow", &[("nodes: [d, e, f]", "nodes: [d, e, a, f]")]));
+        let y = read("groups_block");
+        reject(&y, r#"[{"op":"add_to_container","id":"row0","node":"e"}]"#, "already in a container");
+        reject(&y, r#"[{"op":"add_to_container","id":"row7","node":"a"}]"#, "unknown container `row7`");
+        reject(&y, r#"[{"op":"add_to_container","id":"row0","node":"ghost"}]"#, "unknown id `ghost`");
+    }
+
+    #[test]
+    fn remove_from_container_places_the_node_and_keeps_the_rest() {
+        let out = run("groups_block", r#"[{"op":"remove_from_container","id":"row0","node":"f","boxes":{"f":[10,20,100,60]}}]"#);
+        assert_eq!(
+            out,
+            expect("groups_block", &[("      - e\n      - f\n", "      - e\n"), ("    title: F\n", "    title: F\n    x: 10\n    y: 20\n    w: 100\n    h: 60\n")])
+        );
+        let out = run("groups_flow", r#"[{"op":"remove_from_container","id":"row0","node":"e","boxes":{"e":[1,2,3,4]}}]"#);
+        assert_eq!(out, expect("groups_flow", &[("nodes: [d, e, f]", "nodes: [d, f]"), ("{id: e}", "{id: e, x: 1, y: 2, w: 3, h: 4}")]));
+    }
+
+    #[test]
+    fn removing_the_second_to_last_member_dissolves_the_container() {
+        let both = r#"{"h":[1,2,30,40],"i":[5,6,70,80]}"#;
+        let want = expect(
+            "groups_block",
+            &[
+                ("columns:\n  - x: 800\n    y: 100\n    nodes: [h, i]\n", "columns:\n"),
+                ("    title: H\n", "    title: H\n    x: 1\n    y: 2\n    w: 30\n    h: 40\n"),
+                ("    title: I\n", "    title: I\n    x: 5\n    y: 6\n    w: 70\n    h: 80\n"),
+            ],
+        );
+        assert_eq!(run("groups_block", &format!(r#"[{{"op":"remove_from_container","id":"column1","node":"h","boxes":{both}}}]"#)), want);
+        // the same result as an explicit ungroup
+        assert_eq!(run("groups_block", &format!(r#"[{{"op":"ungroup","id":"column1","boxes":{both}}}]"#)), want);
+        // every member's box is needed when the container dissolves
+        reject(&read("groups_block"), r#"[{"op":"remove_from_container","id":"column1","node":"h","boxes":{"h":[1,2,3,4]}}]"#, "missing box for `i`");
+        reject(&read("groups_block"), r#"[{"op":"remove_from_container","id":"row0","node":"a","boxes":{"a":[1,2,3,4]}}]"#, "`a` is not in container `row0`");
+        reject(&read("groups_block"), r#"[{"op":"remove_from_container","id":"row0","node":"f","boxes":{}}]"#, "missing box for `f`");
+    }
+
+    #[test]
+    fn ungroup_writes_each_members_rendered_box() {
+        let out = run("groups_block", r#"[{"op":"ungroup","id":"row0","boxes":{"e":[40,500,100,60],"f":[170,500,100,60],"g":[300,500,100,60]}}]"#);
+        let want = expect(
+            "groups_block",
+            &[
+                ("rows:\n  # an existing row\n  - x: 40\n    y: 500\n    gap: 30\n    nodes:\n      - e\n      - f\n      - g\n", "rows:\n  # an existing row\n"),
+                ("    title: E\n", "    title: E\n    x: 40\n    y: 500\n    w: 100\n    h: 60\n"),
+                ("    title: F\n", "    title: F\n    x: 170\n    y: 500\n    w: 100\n    h: 60\n"),
+                ("    title: G\n", "    title: G\n    x: 300\n    y: 500\n    w: 100\n    h: 60\n"),
+            ],
+        );
+        assert_eq!(out, want);
+        let out = run("groups_flow", r#"[{"op":"ungroup","id":"row0","boxes":{"d":[0,300,50,50],"e":[60,300,50,50],"f":[120,300,50,50]}}]"#);
+        assert_eq!(
+            out,
+            expect(
+                "groups_flow",
+                &[
+                    ("rows: [{x: 0, y: 300, gap: 10, nodes: [d, e, f]}]", "rows: []"),
+                    ("{id: d}", "{id: d, x: 0, y: 300, w: 50, h: 50}"),
+                    ("{id: e}", "{id: e, x: 60, y: 300, w: 50, h: 50}"),
+                    ("{id: f}", "{id: f, x: 120, y: 300, w: 50, h: 50}"),
+                ]
+            )
+        );
+        // `at` lists are rewritten whole, also when short
+        let y = "id: t\nnodes:\n  - {id: p, at: [1, 2]}\n  - {id: q, at: [1, 2, 3, 4]}\nrows:\n  - nodes: [p, q]\n";
+        let out = apply_ops_json(y, r#"[{"op":"ungroup","id":"row0","boxes":{"p":[10,20,100,50],"q":[150,20,100,50]}}]"#).unwrap();
+        assert_eq!(out, "id: t\nnodes:\n  - {id: p, at: [10, 20, 100, 50]}\n  - {id: q, at: [150, 20, 100, 50]}\nrows:\n");
+        reject(&read("groups_block"), r#"[{"op":"ungroup","id":"row9","boxes":{}}]"#, "unknown container `row9`");
+    }
+
+    #[test]
+    fn ungroup_turns_inline_members_into_top_level_nodes() {
+        let y = "id: t\nrows:\n  - x: 0\n    y: 0\n    nodes:\n      - {id: p, title: P}\n      - {id: q, title: Q, at: [1, 2, 3, 4], icon: aws:s3}\n";
+        let out = apply_ops_json(y, r#"[{"op":"ungroup","id":"row0","boxes":{"p":[10,20,100,50],"q":[150,20,100,50]}}]"#).unwrap();
+        assert_eq!(out, "id: t\nnodes:\n  - {id: p, title: P, at: [10, 20, 100, 50]}\n  - {id: q, title: Q, icon: aws:s3, at: [150, 20, 100, 50]}\nrows:\n");
+        // with a nodes list already there the entries are appended to it
+        let y = "id: t\nnodes:\n  - {id: a}\nrows:\n  - nodes:\n      - {id: p}\n      - {id: q}\n";
+        let out = apply_ops_json(y, r#"[{"op":"ungroup","id":"row0","boxes":{"p":[1,2,3,4],"q":[5,6,7,8]}}]"#).unwrap();
+        assert_eq!(out, "id: t\nnodes:\n  - {id: a}\n  - {id: p, at: [1, 2, 3, 4]}\n  - {id: q, at: [5, 6, 7, 8]}\nrows:\n");
+    }
+
+    #[test]
+    fn set_container_sets_gap_and_align() {
+        assert_eq!(
+            run("groups_block", r#"[{"op":"set_container","id":"row0","gap":40}]"#),
+            expect("groups_block", &[("    gap: 30\n", "    gap: 40\n")])
+        );
+        assert_eq!(run("groups_block", r#"[{"op":"set_container","id":"column1","gap":25}]"#), expect("groups_block", &[("    nodes: [h, i]\n", "    nodes: [h, i]\n    gap: 25\n")]));
+        reject(&read("groups_flow"), r#"[{"op":"set_container","id":"row0","align":"center"}]"#, "applies to containers placed in a zone");
+        let zoned = "id: t\nzones: [{id: z, x: 0, y: 0, w: 9, h: 9}]\nnodes: [{id: a}, {id: b}]\nrows:\n  - {zone: z, nodes: [a, b]}\n";
+        let out = apply_ops_json(zoned, r#"[{"op":"set_container","id":"row0","align":"start"}]"#).unwrap();
+        assert_eq!(out, zoned.replace("nodes: [a, b]}", "nodes: [a, b], align: start}"));
+        reject(&read("groups_block"), r#"[{"op":"set_container","id":"row0"}]"#, "needs `gap` or `align`");
+        reject(&read("groups_block"), r#"[{"op":"set_container","id":"nope","gap":1}]"#, "unknown container `nope`");
+    }
+
+    #[test]
+    fn a_zone_batch_with_one_invalid_op_changes_nothing() {
+        let y = read("zones_block");
+        let err = apply_ops(&y, &ops(r#"[{"op":"move_zone","id":"outer","x":0,"y":0},{"op":"reparent","id":"outer","parent":"inner"}]"#)).unwrap_err();
+        assert_eq!(err.index, Some(1));
+        assert!(err.reason.contains("A zone cannot contain itself"));
+    }
+
+    #[test]
+    fn srcmap_includes_containers() {
+        let y = read("groups_block");
+        let map = srcmap(&y).unwrap();
+        assert_eq!(&y[map["row0"][0]..map["row0"][1]], "x: 40\n    y: 500\n    gap: 30\n    nodes:\n      - e\n      - f\n      - g");
+        assert_eq!(&y[map["column1"][0]..map["column1"][1]], "x: 800\n    y: 100\n    nodes: [h, i]");
     }
 }

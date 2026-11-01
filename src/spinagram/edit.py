@@ -11,6 +11,21 @@ Operations are dicts (``"op"`` names the kind)::
     {"op": "add_node", "id": "n", "title": "T", "x": 0, "y": 0, "w": 120, "h": 60}   (kind, title, geometry optional)
     {"op": "connect", "from": "a", "to": "b", "label": "calls"}   {"op": "disconnect", "from": "a", "to": "b"}
 
+Zones and containers (a container's id is ``row0``, ``column1``, ... counting every ``rows`` entry, then every
+``columns`` entry, in file order; ``boxes`` maps a member id to its rendered ``[x, y, w, h]``)::
+
+    {"op": "add_zone", "id": "z", "label": "Zone", "x": 0, "y": 0, "w": 600, "h": 400}
+    {"op": "reparent", "id": "n", "parent": "z"}              (parent null: out to the top level)
+    {"op": "move_zone", "id": "z", "x": 40, "y": 40}          (children move by the same offset)
+    {"op": "group", "axis": "row", "ids": ["a", "b"], "gap": 20, "x": 0, "y": 0}   (gap, x, y optional)
+    {"op": "ungroup", "id": "row0", "boxes": {"a": [0, 0, 100, 60], "b": [120, 0, 100, 60]}}
+    {"op": "add_to_container", "id": "row0", "node": "c", "index": 1}   (index optional: append)
+    {"op": "remove_from_container", "id": "row0", "node": "c", "boxes": {"c": [0, 0, 100, 60]}}
+    {"op": "set_container", "id": "row0", "gap": 30, "align": "start"}
+
+A container left with fewer than two members dissolves like ``ungroup`` (``boxes`` then holds every member).
+A zone cannot be placed inside itself or one of its descendants.
+
 The core has no pure-Python twin of these operations, so ``SPINAGRAM_RUST=0`` does not switch them off.
 """
 from __future__ import annotations

@@ -1,0 +1,40 @@
+# Fixture: containers, block style
+id: G01
+title: Groups block   # trailing comment
+
+nodes:
+  - id: a
+    title: A
+    at: [200, 100, 100, 60]
+  - id: b
+    title: B
+    at: [40, 120, 100, 60]
+  - id: c
+    title: C
+    x: 400
+    y: 60
+    w: 100
+    h: 60
+  - id: e
+    title: E
+  - id: f
+    title: F
+  - id: g
+    title: G
+  - id: h
+    title: H
+  - id: i
+    title: I
+rows:
+  # an existing row
+  - x: 40
+    y: 500
+    gap: 30
+    nodes:
+      - e
+      - f
+      - g
+columns:
+  - x: 800
+    y: 100
+    nodes: [h, i]

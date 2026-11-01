@@ -350,15 +350,17 @@ Ops JSON shapes are documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] Test per operation on commented block and flow fixtures: the output equals a hand-written expected file
-- [ ] Test: Reparent into a descendant zone is rejected with "A zone cannot contain itself"
-- [ ] Test: removing the second-to-last member dissolves the container and writes the members' boxes
-- [ ] Python test: every patched fixture loads through `yaml_io` and the diagram has the expected zone children and containers
-- [ ] Rust gate and full gate pass
+- [x] Test per operation on commented block and flow fixtures: the output equals a hand-written expected file
+- [x] Test: Reparent into a descendant zone is rejected with "A zone cannot contain itself"
+- [x] Test: removing the second-to-last member dissolves the container and writes the members' boxes
+- [x] Python test: every patched fixture loads through `yaml_io` and the diagram has the expected zone children and containers
+- [x] Rust gate and full gate pass
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(rust): zone and row/column edit operations`
+
+**Notes**: Ops JSON in `src/spinagram/edit.py`: `add_zone`, `reparent` (`parent` null = top level), `move_zone` (new x/y; children shift by the same offset, a container holding the zone's children shifts too), `group`, `ungroup` (`boxes`), `add_to_container` (`index`), `remove_from_container` (`boxes`), `set_container`. Container ids are positional like the scene's (`row0`, `column1`: every `rows` entry then every `columns` entry), and `srcmap` now lists them. SPEC_DEVIATION: a node's `in:` names a group, not a zone, so Reparent only edits zones' `children` lists and rejects a node that has `in:` ("placed by a group"). `align` is rejected for a container without `zone:` (the loader refuses it). Inline container members (mappings under `nodes:`) become flow-style top-level nodes on ungroup/remove. Outside `Where`: `yaml_io.py` now treats `children:` with an empty value as no children (the last removal from a block `children` list leaves it that way). Fixtures `zones_block/flow`, `groups_block/flow`; the expected text is hand-written in the tests as replacements of the fixture, each required to match once.
 
 ---
 
