@@ -36,6 +36,36 @@ when the file changes on disk, or a save finds the file changed since it was rea
 and asks: **Reload from disk** or **Keep mine** (then save to overwrite). Leaving the diagram or closing the
 page with unsaved edits asks for confirmation.
 
+## Edit on the canvas
+
+Press **Canvas** (or `c`) on a diagram that is a hand-placed YAML spec: one diagram per file, with coordinates
+(`x`/`y` or `at:`) and no `layout:` engine. Rows and columns are fine. Python specs, engine layouts and snakes keep
+the read-only view, and the page says so. Every canvas edit is a minimal patch of the YAML file, written through the
+same version-checked save as the code panel, so comments, key order and untouched entries stay as they were. Try
+it on `examples/showcase/editable_platform.yaml`.
+
+| Do this | Result |
+|---|---|
+| Click a node, zone header or row/column | Selects it; with the code panel open, its YAML entry is highlighted |
+| Shift+click, or drag on empty canvas | Adds to the selection, or draws a selection box (Alt+drag pans) |
+| Drag | Moves the selection, snapped to a 10 px grid; edges follow while you drag |
+| Drag onto a zone, or out of one | Puts the node or zone in the zone under its centre, or takes it out |
+| Drag a zone by its header | Moves the zone and everything inside it |
+| Ctrl/Cmd+G, **Group as row**, **Group as column** | Groups the selected nodes into a row or column (gap 20) |
+| Drop a node on a row or column, drag a member out | Inserts it at the gap its centre falls in, or removes it |
+| Select a row or column | **Ungroup**, and its **Gap** (and **Align**, for containers inside a zone) |
+| Double-click | Renames a node or a zone label |
+| `/` or Ctrl/Cmd+K | Focuses the palette; arrows move, Enter adds at the centre of the canvas |
+| Drag a palette item onto the canvas | Adds an icon node (`220 × 96`, centred on the drop point), a shape, or a zone |
+| Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z | Undoes and redoes the last 50 canvas edits of this page |
+| Delete / Backspace | Removes the selection with the edges that touch it |
+
+The palette searches the icons of every pack you have downloaded (names, aliases and pack names, with one typo
+tolerated), plus the node shapes, **Zone**, **Row** and **Column**. Packs not downloaded yet are listed under **Not
+downloaded** with a **Fetch** button; nothing is fetched until you press it. A zone cannot be dropped inside itself.
+If the file changes on disk while you edit, the edit is dropped with "File changed on disk; edit not applied" and
+the undo history is cleared.
+
 ## Open another folder
 
 **Open folder…** in the header browses folders on this machine, with the number of specs in each, and has a

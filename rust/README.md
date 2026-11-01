@@ -44,7 +44,7 @@ cannot be imported, spinagram warns once and runs the pure-Python engine.
 ## WebAssembly build
 
 `spinagram-wasm` is the Rust core in the browser (the rich editor: live edges while a node is dragged, edit
-operations on release). One-time setup, then a script builds it:
+operations on release; zone and row/column operations for dragging, grouping and the icon palette). One-time setup, then a script builds it:
 
 ```bash
 rustup target add wasm32-unknown-unknown
@@ -61,6 +61,17 @@ the `png` feature (`default-features = false`) and reads no files there: fonts a
 pure-Python writer, patched YAML and source maps from the PyO3 binding); `rust/bench/reroute_fixtures.py` does the
 same for the reroute tests. The wasm is about 1.9 MB (650 KB gzipped). In the browser `renderSvg` loads fonts by
 URL and leaves out the sources metadata and content hash; the drawn layers are byte-identical to the server's.
+
+### Edit operations
+
+`edit::apply_ops(yaml, ops)` patches the YAML text by byte ranges taken from parser spans, so comments, key order
+and flow/block style outside the edit are untouched, and a batch applies completely or not at all. The operations
+(JSON shapes in `src/spinagram/edit.py`): `move`, `resize`, `rename`, `delete`, `add_node` (with an optional `icon`),
+`connect`, `disconnect`; for zones `add_zone`, `reparent` (a zone cannot go inside itself or a descendant) and
+`move_zone` (children move by the same offset); for `rows`/`columns` containers (`row0`, `column1`: the ids the
+scene uses) `group`, `ungroup`, `add_to_container` (also reorders a member), `remove_from_container` (a container
+left with fewer than two members dissolves) and `set_container`. `srcmap` gives every node, zone, container and edge
+its byte range. The scene JSON lists `zones` and `containers` so the canvas knows what holds what.
 
 ## Slices
 

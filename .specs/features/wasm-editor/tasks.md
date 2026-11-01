@@ -530,9 +530,11 @@ Manual check (Chrome via claude-in-chrome, `spinagram serve` on a git-tracked sc
 
 **Done when**:
 
-- [ ] The rebuilt bundle is committed and CI's stale-bundle check passes locally
-- [ ] Full gate, Rust gate, WASM gate and web gate pass
+- [x] The rebuilt bundle is committed and CI's stale-bundle check passes locally
+- [x] Full gate, Rust gate, WASM gate and web gate pass
 
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: canvas editing guide and rebuilt ui bundle`
+
+**Notes**: Bundle rebuilt with `bash rust/spinagram-wasm/build.sh` then `bun run build` in web/ (a second build gives the same file names, so CI's stale check holds; the .wasm is 663 KB gzipped). Docs: new "Edit on the canvas" section in `docs/content/docs/tools/live-ui.mdx` (the live editor page: what is editable, shortcuts, palette, grouping, undo); `rust/README.md` has an "Edit operations" section; `spec.md` traceability updated (CTR-02, CTR-03, OPS-01, LRF-01, LRF-02, HST-01, coverage line). Gates: Rust 206 tests, clippy and deny clean; WASM build and bun 21; web bun 108 and build; pytest 2847 passed, 3 skipped per mode, ruff clean. The `taiki-e/install-action` wasm-bindgen step and `bun install --frozen-lockfile` with the hand-edited `web/bun.lock` run only in CI.
