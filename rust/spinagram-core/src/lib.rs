@@ -4,6 +4,7 @@
 pub mod fit;
 pub mod font;
 pub mod pyfmt;
+pub mod png;
 pub mod route;
 pub mod scene;
 pub mod svg;

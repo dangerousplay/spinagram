@@ -236,9 +236,9 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Rust test: a 300×200 SVG at scale 1.5 gives a 450×300 PNG (decode header) (PNG-03)
-- [ ] Rust test: text rendered with a given font file differs from the same text with a different font file (pixel comparison), proving the file is used (PNG-04)
-- [ ] Rust gate passes
+- [x] Rust test: a 300×200 SVG at scale 1.5 gives a 450×300 PNG (decode header) (PNG-03)
+- [x] Rust test: text rendered with a given font file differs from the same text with a different font file (pixel comparison), proving the file is used (PNG-04)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust
