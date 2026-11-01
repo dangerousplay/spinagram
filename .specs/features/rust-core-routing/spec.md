@@ -154,7 +154,7 @@ the two implementations cannot drift.
 | YAML-05 | P1: fast YAML | In Tasks | Pending |
 | YAML-06 | P1: fast YAML | In Tasks | Pending |
 | YAML-07 | P1: fast YAML | In Tasks | Pending |
-| YAML-08 | P1: fast YAML | In Tasks | Pending |
+| YAML-08 | P1: fast YAML | In Tasks | Implementing |
 | ROUTE-01 | P1: Rust routing | In Tasks | Pending |
 | ROUTE-02 | P1: Rust routing | In Tasks | Pending |
 | ROUTE-03 | P1: Rust routing | In Tasks | Pending |

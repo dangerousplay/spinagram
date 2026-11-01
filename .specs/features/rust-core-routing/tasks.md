@@ -75,9 +75,9 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] `bash rust/bench/render_all.sh OUT` renders 40 SVGs from the repo root
-- [ ] Running it twice into two directories gives `diff -r` with no output
-- [ ] Baseline captured: render at commit `5f33d46` (a `git worktree` under the session scratchpad) into a baseline directory for T5
+- [x] `bash rust/bench/render_all.sh OUT` renders 40 SVGs from the repo root
+- [x] Running it twice into two directories gives `diff -r` with no output
+- [x] Baseline captured: render at commit `5f33d46` (a `git worktree` under the session scratchpad) into a baseline directory for T5
 
 **Tests**: none
 **Gate**: build (ruff + the script run twice)
