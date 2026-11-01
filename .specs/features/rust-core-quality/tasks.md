@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/rust-core-quality/spec.md`
 **Design**: spec Assumptions table. Verus: `~/.local/verus/{verus,cargo-verus}` (add to `PATH`), toolchain `1.99.1-aarch64-apple-darwin` installed. Guide: https://verus-lang.github.io/verus/guide/cargo_verus.html
-**Status**: In Progress
+**Status**: Done
 
 ---
 

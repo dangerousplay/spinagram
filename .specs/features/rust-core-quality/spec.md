@@ -1,6 +1,6 @@
 # Rust core quality: crates first, clippy, cargo-deny and Verus proofs
 
-**Status:** In Tasks · **Size:** Large · **Branch:** `spike/rust-core`
+**Status:** Verified · **Size:** Large · **Branch:** `spike/rust-core`
 **Builds on:** `rust-core-css`; user directives 2026-11-01 (crates over handwritten code; clippy; cargo-deny; Verus)
 
 ## Problem Statement
@@ -104,24 +104,24 @@ any crate swap must keep every parity harness at 100 %.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| DEP-01 | P1: crates | In Tasks | Implementing |
-| DEP-02 | P1: crates | In Tasks | Implementing |
-| DEP-03 | P1: crates | In Tasks | Implementing |
-| LINT-01 | P1: policy | In Tasks | Implementing |
-| LINT-02 | P1: policy | In Tasks | Implementing |
-| DENY-01 | P1: policy | In Tasks | Implementing |
-| DENY-02 | P1: policy | In Tasks | Implementing |
-| VER-01 | P1: Verus | In Tasks | Implementing |
-| VER-02 | P1: Verus | In Tasks | Implementing |
-| VER-03 | P1: Verus | In Tasks | Implementing |
-| VER-04 | P1: Verus | In Tasks | Implementing |
-| VER-05 | P1: Verus | In Tasks | Implementing |
-| VER-06 | P1: Verus | In Tasks | Implementing |
-| VER-07 | P1: Verus | In Tasks | Implementing |
-| VER-08 | P1: Verus | In Tasks | Implementing |
-| VER-09 | P1: Verus | In Tasks | Implementing |
-| VER-10 | P1: Verus | In Tasks | Implementing |
-| VER-11 | P1: Verus | In Tasks | Implementing |
+| DEP-01 | P1: crates | Done | Verified |
+| DEP-02 | P1: crates | Done | Verified |
+| DEP-03 | P1: crates | Done | Verified |
+| LINT-01 | P1: policy | Done | Verified |
+| LINT-02 | P1: policy | Done | Verified |
+| DENY-01 | P1: policy | Done | Verified |
+| DENY-02 | P1: policy | Done | Verified |
+| VER-01 | P1: Verus | Done | Verified |
+| VER-02 | P1: Verus | Done | Verified |
+| VER-03 | P1: Verus | Done | Verified |
+| VER-04 | P1: Verus | Done | Verified |
+| VER-05 | P1: Verus | Done | Verified |
+| VER-06 | P1: Verus | Done | Verified |
+| VER-07 | P1: Verus | Done | Verified |
+| VER-08 | P1: Verus | Done | Verified |
+| VER-09 | P1: Verus | Done | Verified |
+| VER-10 | P1: Verus | Done | Verified |
+| VER-11 | P1: Verus | Done | Verified |
 
 **Coverage:** 18 total, 18 mapped to tasks, 0 unmapped.
 
