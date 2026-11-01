@@ -21,7 +21,7 @@ import {
 } from "./scene";
 import { byteToIndex, entryField, yamlRange } from "./srcmap";
 import { History, LIMIT } from "./history";
-import { PALETTE_OPEN_KEY, readPaletteOpen, writePaletteOpen } from "./paletteState";
+import { PALETTE_COLLAPSED_KEY, PALETTE_OPEN_KEY, readCollapsed, readPaletteOpen, writeCollapsed, writePaletteOpen } from "./paletteState";
 import {
   EMPTY_BURST,
   KEYMAP,
@@ -38,7 +38,7 @@ import {
 } from "./interaction";
 import { CONTAINER_ICON_NAMES, hasIcon, iconNameOf, ICON_NAMES } from "./icons";
 import { ACTIONS, CLICK_SLOP, TOOLS, connectOps, isPlaceTool, placeOps, toolAfterUse } from "./tools";
-import { SHAPE_KINDS, buildCorpus, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
+import { BUILTINS, SHAPE_KINDS, buildCorpus, categorize, categoryOf, defaultCollapsed, paletteRows, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
   width: 1000,
@@ -985,5 +985,88 @@ describe("toolbar tools (T26): canvas-editor EDG-01..03", () => {
       expect(shortcutRows().some((r) => r.keys === t.key.toUpperCase() && r.label.startsWith(t.label)), t.id).toBe(true);
     }
     expect(TOOLS.map((t) => t.key)).toEqual(["v", "h", "b", "t", "z", "c"]);
+  });
+});
+
+describe("palette categories (T27): canvas-editor PAL-01, PAL-06", () => {
+  const icons: IconEntry[] = [
+    { pack: "gcp", name: "bigquery", aliases: [] },
+    { pack: "aws", name: "amazon-s3", aliases: ["bucket"] },
+    { pack: "aws", name: "lambda", aliases: [] },
+  ];
+  const corpus = buildCorpus(icons);
+  const titles = (items: { title: string }[]) => items.map((i) => i.title);
+
+  test("Zone, Box, Text, Row, Column and Note are Basics, in that order; the other shape kinds are Shapes", () => {
+    const [basics, shapes] = categorize(corpus.items);
+    expect(basics.title).toBe("Basics");
+    expect(titles(basics.items)).toEqual(["Box", "Text", "Zone", "Row", "Column", "Note"]);
+    expect(shapes.title).toBe("Shapes");
+    expect(titles(shapes.items)).toEqual(titles(BUILTINS.filter((b) => b.type === "shape" && !["box", "text", "note"].includes(b.kind))));
+    expect(shapes.items.every((i) => i.type === "shape")).toBe(true);
+  });
+
+  test("icons sit under their own pack, one category per pack, after Basics and Shapes and sorted by pack name", () => {
+    const cats = categorize(corpus.items);
+    expect(cats.map((c) => c.id)).toEqual(["basics", "shapes", "pack:aws", "pack:gcp"]);
+    expect(titles(cats[2].items)).toEqual(["Amazon S3", "Lambda"]);
+    expect(titles(cats[3].items)).toEqual(["Bigquery"]);
+    expect(cats.reduce((n, c) => n + c.items.length, 0)).toBe(corpus.items.length);
+  });
+
+  test("a category with nothing in it is left out", () => {
+    expect(categorize(buildCorpus([]).items).map((c) => c.id)).toEqual(["basics", "shapes"]);
+    expect(categorize([]).length).toBe(0);
+  });
+
+  test("a search hit knows its category (the tag on its row)", () => {
+    for (const hit of search(corpus, "bucket")) expect(categoryOf(hit)).toEqual({ id: "pack:aws", title: "aws" });
+    expect(categoryOf({ type: "shape", kind: "diamond", title: "Diamond" })).toEqual({ id: "shapes", title: "Shapes" });
+    expect(categoryOf({ type: "shape", kind: "note", title: "Note" }).id).toBe("basics");
+    expect(categoryOf({ type: "zone", title: "Zone" }).id).toBe("basics");
+  });
+
+  test("rows: a header per category, items only under an open one; packs start collapsed", () => {
+    const cats = categorize(corpus.items);
+    const rows = paletteRows(cats, defaultCollapsed);
+    expect(rows.filter((r) => r.type === "header").map((r) => r.type === "header" && [r.cat.id, r.collapsed])).toEqual([
+      ["basics", false],
+      ["shapes", false],
+      ["pack:aws", true],
+      ["pack:gcp", true],
+    ]);
+    expect(rows.filter((r) => r.type === "item").length).toBe(cats[0].items.length + cats[1].items.length);
+    const open = paletteRows(cats, (id) => id !== "pack:aws");
+    expect(open.filter((r) => r.type === "item").map((r) => r.type === "item" && r.item.title)).toEqual(["Amazon S3", "Lambda"]);
+    expect(open.filter((r) => r.type === "header").every((r) => r.type === "header" && r.collapsed === (r.cat.id !== "pack:aws"))).toBe(true);
+    expect(open[0].type === "header" && open[0].cat.items.length).toBe(6); // the header carries the count
+  });
+
+  test("the collapsed state round-trips through storage", () => {
+    const data = new Map<string, string>();
+    const store = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+    expect(readCollapsed(store)).toEqual({});
+    writeCollapsed({ basics: true, "pack:aws": false }, store);
+    expect(readCollapsed(store)).toEqual({ basics: true, "pack:aws": false });
+  });
+
+  test("storage that throws, or holds something else, gives the defaults and never throws", () => {
+    const bad = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+    };
+    expect(readCollapsed(bad)).toEqual({});
+    expect(() => writeCollapsed({ basics: true }, bad)).not.toThrow();
+    expect(readCollapsed(null)).toEqual({});
+    for (const raw of ["not json", "[1,2]", "42", "null", '{"a":"yes","b":true}']) {
+      const s = { getItem: (k: string) => (k === PALETTE_COLLAPSED_KEY ? raw : null), setItem: () => undefined };
+      const got = readCollapsed(s);
+      expect(Object.values(got).every((v) => typeof v === "boolean")).toBe(true);
+    }
+    expect(readCollapsed({ getItem: () => '{"a":"yes","b":true}', setItem: () => undefined })).toEqual({ b: true });
   });
 });

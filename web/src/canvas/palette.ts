@@ -160,3 +160,55 @@ export function ghostOf(ops: Op[]): Ghost | null {
   const y = Math.min(...boxes.map((b) => b.y));
   return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y, label: boxes[0].label };
 }
+
+// --- categories ----------------------------------------------------------------------------------------------
+
+/** The palette items listed under Basics, in this order. */
+const BASICS: { type: PaletteItem["type"]; kind?: string }[] = [
+  { type: "shape", kind: "box" },
+  { type: "shape", kind: "text" },
+  { type: "zone" },
+  { type: "row" },
+  { type: "column" },
+  { type: "shape", kind: "note" },
+];
+
+export type Category = { id: string; title: string; items: PaletteItem[] };
+
+const basicIndex = (it: PaletteItem) => BASICS.findIndex((b) => b.type === it.type && (b.kind === undefined || (it.type === "shape" && it.kind === b.kind)));
+
+/** The category an item belongs to: Basics (Box, Text, Zone, Row, Column, Note), Shapes (every other shape kind) or
+ * the icon pack it comes from. Ids: `basics`, `shapes`, `pack:<name>`. */
+export function categoryOf(it: PaletteItem): { id: string; title: string } {
+  if (it.type === "icon") return { id: `pack:${it.pack}`, title: it.pack };
+  return basicIndex(it) >= 0 ? { id: "basics", title: "Basics" } : { id: "shapes", title: "Shapes" };
+}
+
+/** Items grouped for the palette when the search box is empty: Basics, Shapes, then one category per icon pack
+ * (by pack name). Empty categories are left out; items keep their order inside a category. */
+export function categorize(items: PaletteItem[]): Category[] {
+  const byId = new Map<string, Category>();
+  for (const it of items) {
+    const c = categoryOf(it);
+    let cat = byId.get(c.id);
+    if (!cat) byId.set(c.id, (cat = { ...c, items: [] }));
+    cat.items.push(it);
+  }
+  const basics = byId.get("basics");
+  basics?.items.sort((a, b) => basicIndex(a) - basicIndex(b));
+  const packs = [...byId.values()].filter((c) => c.id.startsWith("pack:")).sort((a, b) => a.title.localeCompare(b.title));
+  return [byId.get("basics"), byId.get("shapes"), ...packs].filter((c): c is Category => c !== undefined);
+}
+
+/** Icon packs start collapsed (they can hold thousands of items); Basics and Shapes start open. */
+export const defaultCollapsed = (id: string): boolean => id.startsWith("pack:");
+
+export type PaletteRow = { type: "header"; cat: Category; collapsed: boolean } | { type: "item"; item: PaletteItem; cat: Pick<Category, "id" | "title"> };
+
+/** The rows the panel draws: a header per category, and under an open one its items. */
+export function paletteRows(cats: Category[], collapsedOf: (id: string) => boolean): PaletteRow[] {
+  return cats.flatMap((cat): PaletteRow[] => {
+    const collapsed = collapsedOf(cat.id);
+    return [{ type: "header", cat, collapsed }, ...(collapsed ? [] : cat.items.map((item): PaletteRow => ({ type: "item", item, cat })))];
+  });
+}

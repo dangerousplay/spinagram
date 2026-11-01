@@ -27,3 +27,27 @@ export function writePaletteOpen(open: boolean, store: Store | null = defaultSto
     /* storage unavailable: the state still holds for this page */
   }
 }
+
+// Remembered collapsed state of the palette's categories: an object of category id -> collapsed. A category with no
+// entry (or a storage that is missing, throws or holds something else) takes its default (`defaultCollapsed`).
+export const PALETTE_COLLAPSED_KEY = "spinagram.palette.collapsed";
+
+export type CollapsedState = Record<string, boolean>;
+
+export function readCollapsed(store: Store | null = defaultStore()): CollapsedState {
+  try {
+    const raw = JSON.parse(store?.getItem(PALETTE_COLLAPSED_KEY) ?? "null");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    return Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "boolean")) as CollapsedState;
+  } catch {
+    return {};
+  }
+}
+
+export function writeCollapsed(state: CollapsedState, store: Store | null = defaultStore()): void {
+  try {
+    store?.setItem(PALETTE_COLLAPSED_KEY, JSON.stringify(state));
+  } catch {
+    /* storage unavailable: the state still holds for this page */
+  }
+}

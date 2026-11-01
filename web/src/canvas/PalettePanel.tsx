@@ -1,8 +1,14 @@
 // The icon palette panel of the canvas: fuzzy search over every cached pack, built-in shapes, Zone, Row and
-// Column; drag an item onto the canvas, or press Enter to add it at the centre (PAL-01..07).
+// Column; drag an item onto the canvas, or press Enter to add it at the centre (PAL-01..07). With the search box
+// empty the items are grouped into collapsible categories (Basics, Shapes, one per icon pack); with a query the
+// results are one ranked list, each row tagged with its category.
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Pack } from "../api";
-import { buildCorpus, noMatch, search, type IconEntry, type PaletteItem } from "./palette";
+import { EditorIcon, iconNameOf } from "./icons";
+import { buildCorpus, categorize, categoryOf, defaultCollapsed, noMatch, paletteRows, search, type IconEntry, type PaletteItem, type PaletteRow } from "./palette";
+import { readCollapsed, writeCollapsed, type CollapsedState } from "./paletteState";
 
 export const PALETTE_MIME = "application/x-spinagram-palette";
 
@@ -41,7 +47,16 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const list = useRef<HTMLUListElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [collapsed, setCollapsed] = useState<CollapsedState>(readCollapsed);
+  const isCollapsed = useCallback((id: string) => collapsed[id] ?? defaultCollapsed(id), [collapsed]);
+  const toggle = useCallback((id: string) => {
+    setCollapsed((c) => {
+      const next = { ...c, [id]: !(c[id] ?? defaultCollapsed(id)) };
+      writeCollapsed(next);
+      return next;
+    });
+  }, []);
 
   const refresh = useCallback(() => {
     api
@@ -74,9 +89,20 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
 
   const corpus = useMemo(() => buildCorpus(icons), [icons]);
   const results = useMemo(() => search(corpus, query), [corpus, query]);
+  const cats = useMemo(() => categorize(corpus.items), [corpus]);
+  const searching = query.trim() !== "";
+  const rows = useMemo<PaletteRow[]>(
+    () => (searching ? results.map((item): PaletteRow => ({ type: "item", item, cat: categoryOf(item) })) : paletteRows(cats, isCollapsed)),
+    [searching, results, cats, isCollapsed],
+  );
+  // the items in view, in order: what the arrow keys walk and Enter adds
+  const entries = useMemo(() => rows.flatMap((r, row) => (r.type === "item" ? [{ item: r.item, row }] : [])), [rows]);
+  const virt = useVirtualizer({ count: rows.length, getScrollElement: () => list.current, estimateSize: (i) => (rows[i]?.type === "header" ? 32 : 36), overscan: 8 });
   useEffect(() => setActive(0), [query]);
   useEffect(() => {
-    list.current?.children[active]?.scrollIntoView({ block: "nearest" });
+    const row = entries[active]?.row;
+    if (row !== undefined) virt.scrollToIndex(row, { align: "auto" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   const missing = packs?.packs.filter((p) => !p.fetched) ?? [];
@@ -91,13 +117,13 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
     e.stopPropagation(); // typing here must not trigger canvas shortcuts
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => Math.min(a + 1, results.length - 1));
+      setActive((a) => Math.min(a + 1, entries.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((a) => Math.max(a - 1, 0));
-    } else if (e.key === "Enter" && results[active]) {
+    } else if (e.key === "Enter" && entries[active]) {
       e.preventDefault();
-      onAdd(results[active]);
+      onAdd(entries[active].item);
     } else if (e.key === "Escape") {
       onClose();
     }
@@ -127,39 +153,70 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
         aria-label="Search the palette"
         className="m-2 mr-8 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
       />
-      <ul ref={list} className="min-h-0 flex-1 overflow-y-auto px-1 pb-1" role="listbox" aria-label="Palette results">
-        {results.map((it, i) => (
-          <li
-            key={`${it.type}-${"ref" in it ? it.ref : "kind" in it ? it.kind : it.type}`}
-            role="option"
-            aria-selected={i === active}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData(PALETTE_MIME, JSON.stringify(it));
-              e.dataTransfer.effectAllowed = "copy";
-            }}
-            onClick={() => setActive(i)}
-            onDoubleClick={() => onAdd(it)}
-            className={`flex cursor-grab items-center gap-2 rounded px-2 py-1 text-sm ${i === active ? "bg-blue-100 dark:bg-blue-900/50" : "hover:bg-slate-100 dark:hover:bg-slate-700"}`}
-          >
-            <span className="flex h-7 w-14 shrink-0 items-center justify-center">
-              {it.type === "icon" ? (
-                <img src={api.icon(it.pack, it.name)} alt="" loading="lazy" className="max-h-full max-w-full" />
-              ) : (
-                <span className="w-14 rounded border border-slate-400 px-1 text-center text-[10px] uppercase">{it.type === "shape" ? "box" : it.type}</span>
-              )}
-            </span>
-            <span className="min-w-0 flex-1 truncate">{it.title}</span>
-            <span className="shrink-0 font-mono text-[10px] text-slate-500">{it.type === "icon" ? it.pack : it.type === "shape" ? "shape" : "item"}</span>
-          </li>
-        ))}
-        {query.trim() !== "" && results.length === 0 && <li className="px-2 py-3 text-sm text-slate-500">{noMatch(query)}</li>}
-      </ul>
+      <div ref={list} className="min-h-0 flex-1 overflow-y-auto px-1 pb-1" role="listbox" aria-label="Palette results">
+        <div className="relative w-full" style={{ height: virt.getTotalSize() }}>
+          {virt.getVirtualItems().map((vr) => {
+            const r = rows[vr.index];
+            if (!r) return null;
+            const pos = { top: vr.start, height: vr.size };
+            if (r.type === "header")
+              return (
+                <button
+                  key={`h-${r.cat.id}`}
+                  type="button"
+                  aria-expanded={!r.collapsed}
+                  onClick={() => toggle(r.cat.id)}
+                  className="absolute inset-x-0 flex items-center gap-1 rounded px-1 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase hover:bg-slate-100 dark:hover:bg-slate-700"
+                  style={pos}
+                >
+                  {r.collapsed ? <ChevronRight size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+                  <span className="flex-1 truncate">{r.cat.title}</span>
+                  <span className="font-mono text-[10px] font-normal">{r.cat.items.length}</span>
+                </button>
+              );
+            const it = r.item;
+            const i = entries.findIndex((e) => e.row === vr.index);
+            const name = iconNameOf(it);
+            return (
+              <div
+                key={`i-${it.type}-${"ref" in it ? it.ref : "kind" in it ? it.kind : it.type}`}
+                role="option"
+                aria-selected={i === active}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(PALETTE_MIME, JSON.stringify(it));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
+                onClick={() => setActive(i)}
+                onDoubleClick={() => onAdd(it)}
+                className={`absolute inset-x-0 flex cursor-grab items-center gap-2 rounded px-2 text-sm ${i === active ? "bg-blue-100 dark:bg-blue-900/50" : "hover:bg-slate-100 dark:hover:bg-slate-700"}`}
+                style={pos}
+              >
+                <span className="flex h-7 w-8 shrink-0 items-center justify-center text-slate-600 dark:text-slate-300">
+                  {name ? <EditorIcon name={name} size={20} /> : it.type === "icon" ? <img src={api.icon(it.pack, it.name)} alt="" loading="lazy" className="max-h-full max-w-full" /> : null}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{it.title}</span>
+                {searching && <span className="shrink-0 font-mono text-[10px] text-slate-500">{r.cat.title}</span>}
+              </div>
+            );
+          })}
+        </div>
+        {searching && results.length === 0 && <p className="px-2 py-3 text-sm text-slate-500">{noMatch(query)}</p>}
+      </div>
       {error && <p className="px-3 py-1 text-xs text-red-600">{error}</p>}
       {missing.length > 0 && (
         <div className="border-t border-slate-200 px-3 py-2 text-xs dark:border-slate-700">
-          <p className="mb-1 font-medium text-slate-500">Not downloaded</p>
-          {missing.map((p) => (
+          <button
+            type="button"
+            aria-expanded={!isCollapsed("missing")}
+            onClick={() => toggle("missing")}
+            className="mb-1 flex w-full items-center gap-1 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase"
+          >
+            {isCollapsed("missing") ? <ChevronRight size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+            <span className="flex-1">Not downloaded</span>
+            <span className="font-mono text-[10px] font-normal">{missing.length}</span>
+          </button>
+          {!isCollapsed("missing") && missing.map((p) => (
             <div key={p.name} className="flex items-center justify-between py-0.5">
               <span className="truncate font-mono">{p.name}</span>
               <button

@@ -845,12 +845,14 @@ one ranked list, each row tagged with its category. Collapsed state is remembere
 
 **Done when**:
 
-- [ ] bun tests: category assignment (Zone/Box/Text in Basics, the shape kinds in Shapes, icons under their pack); search results keep their category tag; the collapsed state round-trips through storage and falls back when storage throws
-- [ ] Web gate passes
+- [x] bun tests: category assignment (Zone/Box/Text in Basics, the shape kinds in Shapes, icons under their pack); search results keep their category tag; the collapsed state round-trips through storage and falls back when storage throws
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): palette categories with item icons`
+
+**Notes**: `palette.ts` gained `categoryOf`, `categorize`, `paletteRows` and `defaultCollapsed`; `paletteState.ts` gained `readCollapsed`/`writeCollapsed` (an object of category id to collapsed, storage failures or foreign content give `{}`). Basics are Box, Text, Zone, Row, Column, Note in that order; packs start collapsed (they can hold thousands of items), Basics and Shapes open; "Not downloaded" is a collapsible footer section with the count and the Fetch buttons. The list is virtualized with `@tanstack/react-virtual` (headers and items as rows) and the arrow keys and Enter walk the items in view. A query gives one ranked list, each row tagged with its category title. Items draw `EditorIcon` (basics and shapes) or the pack image. Tests +7, six mutants checked in a scratch worktree (removed afterwards) and all killed. Gate: bun test 163 pass, build ok; checked in the browser (Basics 6, Shapes 12, packs below).
 
 ---
 
