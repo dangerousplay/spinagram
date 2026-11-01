@@ -1,0 +1,11 @@
+[package]
+name = "spinagram-core"
+description = "spinagram engine core: text measurement and fitting (spike)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+skrifa = "0.49"
+regex = "1.13"

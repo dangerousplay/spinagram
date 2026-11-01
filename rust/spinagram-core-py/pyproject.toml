@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "spinagram-core"
+description = "Rust core for spinagram (spike): text measurement and fitting"
+requires-python = ">=3.11"
+license = "MIT"
+dynamic = ["version"]
+
+[tool.maturin]
+python-source = "python"
+module-name = "spinagram_core._core"
+features = ["pyo3/extension-module"]

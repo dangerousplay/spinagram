@@ -5,8 +5,9 @@ import math
 import re
 from dataclasses import dataclass
 
+from ..rust import core, font_args
 from ..scene import TextBlock
-from ..text import measure, wrap_paragraphs
+from ..text import BUNDLED, measure, wrap_paragraphs
 from ..theme import FontRef
 
 BREAK_ON = "-./:·"
@@ -143,3 +144,21 @@ def fit_blocks(specs: list[BlockSpec], width: float, height: float, mode: str = 
                              first_width_fit[0].font.size)
         strategy = "grow"  # tried last: no size makes the lines fit the width, so height cannot help
     return FitResult(blocks, _height(blocks, gap), strategy, False, blocks[0].font.size)
+
+
+_CORE = core()
+if _CORE is not None:
+    _python_fit_blocks = fit_blocks
+    _FALLBACKS = [str(p) for _, p in BUNDLED if p.exists()]
+
+    def fit_blocks(specs: list[BlockSpec], width: float, height: float, mode: str = "shrink",  # noqa: F811
+                   min_scale: float = MIN_SCALE, break_on: str = BREAK_ON, gap: float = 10) -> FitResult:
+        """:func:`fit_blocks` run by the Rust core; same blocks, height, strategy and ok."""
+        specs = [sp for sp in specs if sp.paragraphs]
+        args = [(list(sp.paragraphs), font_args(sp.font), sp.leading) for sp in specs]
+        out, total, strategy, ok, size = _CORE.fit_blocks(args, width, height, mode, min_scale, break_on, gap,
+                                                          _FALLBACKS)
+        blocks = [TextBlock(lines=lines, paragraphs=sp.paragraphs,
+                            font=sp.font.with_size(sz) if sz != sp.font.size else sp.font, color=sp.color,
+                            leading=leading) for sp, (lines, sz, leading) in zip(specs, out)]
+        return FitResult(blocks, total, strategy, ok, size)
