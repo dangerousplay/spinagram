@@ -66,6 +66,39 @@ jobs:
       - run: uv sync --locked --all-extras
       - run: uv run pytest -q
 
+  rust:
+    name: Rust core (tests, wheel, suite with SPINAGRAM_RUST=1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.13"
+          enable-cache: true
+      - run: cargo test
+        working-directory: rust
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: rust
+      - name: Build the spinagram-core wheel
+        run: uvx maturin build --release -o ../target/wheels
+        working-directory: rust/spinagram-core-py
+      - run: uv sync --locked --all-extras
+      - name: Install the wheel
+        run: uv pip install --reinstall rust/target/wheels/spinagram_core-*.whl
+      - name: Python suite against the Rust core
+        run: SPINAGRAM_RUST=1 uv run --no-sync pytest -q
+      - name: Routing parity and speed
+        run: uv run --no-sync python rust/bench/route_parity.py
+      - name: Text parity and speed
+        run: uv run --no-sync python rust/bench/parity.py
+
   build:
     name: Build sdist + wheel (uv)
     needs: [web, lint, test]

@@ -293,10 +293,10 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] The workflow parses as YAML and the new job lists the steps above (PAR-03, PAR-04)
-- [ ] The `test` job is unchanged (PAR-05) - `git diff` shows only additions under a new job
-- [ ] Every command of the new job runs green locally in sequence
-- [ ] Build gate passes
+- [x] The workflow parses as YAML and the new job lists the steps above (PAR-03, PAR-04)
+- [x] The `test` job is unchanged (PAR-05) - `git diff` shows only additions under a new job
+- [x] Every command of the new job runs green locally in sequence
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

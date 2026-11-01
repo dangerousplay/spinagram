@@ -170,9 +170,9 @@ the two implementations cannot drift.
 | ROUTE-11 | P1: Rust routing | In Tasks | Implementing |
 | PAR-01 | P2: parity in CI | In Tasks | Implementing |
 | PAR-02 | P2: parity in CI | In Tasks | Implementing |
-| PAR-03 | P2: parity in CI | In Tasks | Pending |
-| PAR-04 | P2: parity in CI | In Tasks | Pending |
-| PAR-05 | P2: parity in CI | In Tasks | Pending |
+| PAR-03 | P2: parity in CI | In Tasks | Implementing |
+| PAR-04 | P2: parity in CI | In Tasks | Implementing |
+| PAR-05 | P2: parity in CI | In Tasks | Implementing |
 
 **Coverage:** 24 total, 24 mapped to tasks, 0 unmapped.
 
