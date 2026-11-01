@@ -383,3 +383,43 @@ Phase 3:  T10 -----→ T11 -----→ T12
 | T10 | bench script | none | none | ✅ |
 | T11 | CI config | none | none | ✅ |
 | T12 | docs | none | none | ✅ |
+
+---
+
+## Fix tasks (from validation iteration 1)
+
+### F1: Test YAML-05 on a cache hit
+
+**What**: In the cache and theme mutation tests, mutate the result of a cache-hit load (the second load) and assert that the next load still equals the original data.
+**Where**: `tests/test_yamlload.py`
+**Depends on**: None
+**Reuses**: existing tests at `tests/test_yamlload.py:56` and `:86`
+**Requirement**: YAML-05
+
+**Done when**:
+
+- [ ] With the deepcopy removed from the hit path of `yamlload.load_file` (scratch check, discarded), the new assertions fail
+- [ ] Quick gate passes on `tests/test_yamlload.py`
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(yaml): check cache-hit results cannot be mutated`
+
+---
+
+### F2: Pin the busy-side cost to 400 in the Rust tests
+
+**What**: Rust unit tests in which `BUSY = 400` decides the side: (a) a free detour that costs between 200 and 400 more than the busy side is chosen; (b) a detour that costs more than 400 more is not chosen, so the busy side is kept.
+**Where**: `rust/spinagram-core/src/route.rs`
+**Depends on**: F1
+**Reuses**: `busy_side_of_src_makes_the_route_pick_another`
+**Requirement**: ROUTE-07
+
+**Done when**:
+
+- [ ] With `BUSY` set to 200 (scratch check, discarded), case (a) fails; with `BUSY` set to 600, case (b) fails
+- [ ] Rust gate passes
+
+**Tests**: unit (Rust)
+**Gate**: rust
+**Commit**: `test(rust): pin the busy-side cost of the router`
