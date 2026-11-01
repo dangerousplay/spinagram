@@ -958,15 +958,17 @@ reference only icons that exist in the pack indexes.
 
 **Done when**:
 
-- [ ] Every style's icon resolves in its pack's index (`src/spinagram/icon_packs/*.yaml` or the icon registry API)
-- [ ] A zone with each style renders a header icon in the scene (except `aws-az`, which has none by convention)
-- [ ] Every style passes `spinagram check`
-- [ ] Each block carries its source URLs in a comment
-- [ ] Full gate passes
+- [x] Every style's icon resolves in its pack's index (`src/spinagram/icon_packs/*.yaml` or the icon registry API)
+- [x] A zone with each style renders a header icon in the scene (except `aws-az`, which has none by convention)
+- [x] Every style passes `spinagram check`
+- [x] Each block carries its source URLs in a comment
+- [x] Full gate passes
 
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat(theme): provider zone styles for aws, azure, gcp and kubernetes`
+
+**Notes**: 25 zone styles in `theme.yaml`, each block with its source URL in a comment: AWS 12 (`aws-subnet` is a YAML alias of `aws-private-subnet`; `aws-az` has no icon), Azure 5, Google Cloud 6, Kubernetes 2. Research limits, recorded in the comments: AWS publishes group rules and its icon deck (colours match the deck's category colours); Microsoft publishes no colour table for group boxes (Azure blue and the nesting of its reference diagrams are used); Google's area colours come from the public template deck as quoted by secondary sources (zone #E3F2FD, region #E8EAF6, subnetwork #FFF3E0), the official page is the icon set. Icon decisions: Google draws regions, zones and subnets as coloured areas (no icon; the network gets `gcp:virtual-private-cloud`, the cloud `gcp:cloud-generic`, the project `gcp:project`); the Kubernetes icon set has no cluster icon, so `k8s-cluster` is a plain blue outline and `k8s-namespace` carries `k8s:ns`. All referenced icons resolve in the cached packs (checked by the test against the real cache, skipped where a pack is not downloaded) and a render shows each header icon (looked at the PNG). Tests: `tests/test_provider_zones.py`, 7 (styles and icons per the expected table, alias, convention differences, packs registered, resolution in the real cache, a header icon per style with icons faked, `check` clean). A zone of each style also passes `spinagram check` through the CLI with the real icons. Gate: full (ruff clean; pytest 2854 passed, 3 skipped per mode).
 
 ---
 
