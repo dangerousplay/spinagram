@@ -15,6 +15,17 @@ def crosses(p, q, a, b) -> bool:
     return d1 * d2 < 0 and d3 * d4 < 0
 
 
+class Crossings:
+    """Route penalty as data: ``cost`` per strict crossing with the ``drawn`` segments. Callable as ``(p, q)``;
+    the Rust router reads ``cost`` and ``drawn`` instead of calling back into Python."""
+
+    def __init__(self, cost: float, drawn: list[tuple]):
+        self.cost, self.drawn = cost, drawn
+
+    def __call__(self, p, q):
+        return self.cost * sum(crosses(p, q, *s) for s in self.drawn)
+
+
 def segments(c: Connector) -> list[tuple]:
     from ..qa import polyline
 
@@ -81,9 +92,7 @@ def route_ortho(connectors: list[Connector], todo: list[int], shapes: dict[str, 
         drawn = [seg for segs in placed for seg in segs]
         guides = [(x + dx, y + dy) for seg in drawn for (x, y) in seg for dx, dy in ((-MARGIN, -MARGIN),
                                                                                     (MARGIN, MARGIN))]
-
-        def cost(p, q, drawn=drawn):
-            return penalty * sum(crosses(p, q, *s) for s in drawn)
+        cost = Crossings(penalty, drawn)
         sides = (c.src.side if c.src.target == "node" and c.src.__dict__.get("explicit") else None,
                  c.dst.side if c.dst.target == "node" and c.dst.__dict__.get("explicit") else None)
         # a zone side chosen by the author (``z.at_top(0.8)``) keeps its side and fraction (ZAN-03)

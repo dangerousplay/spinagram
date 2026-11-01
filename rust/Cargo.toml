@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = ["spinagram-core", "spinagram-core-py"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/dangerousplay/spinagram"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[workspace.lints.rust]
+# Verus ghost code is erased in a normal build; `verus_only` guards the imports that exist only while verifying
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(verus_only)'] }
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

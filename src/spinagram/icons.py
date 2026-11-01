@@ -44,6 +44,8 @@ from typing import Any, Iterable, Iterator
 
 import yaml
 
+from spinagram import yamlload
+
 BUILTIN_DIR = Path(__file__).parent / "icon_packs"
 EXTS = (".svg", ".png")
 
@@ -153,22 +155,31 @@ class Pack:
 
 # registry -----------------------------------------------------------------------------------------
 def _load_file(path: Path, origin: str) -> dict[str, Pack]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data = yamlload.load_file(path) or {}
     packs = data.get("packs", data) if isinstance(data, dict) else {}
     return {name: Pack.parse(name, d, origin) for name, d in packs.items()}
 
 
+_registry_cache: dict[tuple, dict[str, Pack]] = {}
+
+
 def registry(cwd: Path | None = None) -> dict[str, Pack]:
-    packs: dict[str, Pack] = {}
-    for f in sorted(BUILTIN_DIR.glob("*.yaml")):
-        packs.update(_load_file(f, "builtin"))
-    for f, origin in ((user_registry(), "user"), ((cwd or Path.cwd()) / PROJECT_REGISTRY, "project")):
-        if f.exists():
-            packs.update(_load_file(f, origin))
+    """Packs from every registry, built once until a registry file, the cwd or ``$SPINAGRAM_ICON_PACKS`` changes."""
+    cwd = cwd or Path.cwd()
     env = os.environ.get("SPINAGRAM_ICON_PACKS")
+    files = [(f, "builtin") for f in sorted(BUILTIN_DIR.glob("*.yaml"))]
+    files += [(f, o) for f, o in ((user_registry(), "user"), (cwd / PROJECT_REGISTRY, "project")) if f.exists()]
     if env and Path(env).exists():
-        packs.update(_load_file(Path(env), "env"))
-    return packs
+        files.append((Path(env), "env"))
+    key = (str(cwd), env, tuple((str(f), o, yamlload.stat_key(f)) for f, o in files))
+    hit = _registry_cache.get(key)
+    if hit is None:
+        packs: dict[str, Pack] = {}
+        for f, origin in files:
+            packs.update(_load_file(f, origin))
+        _registry_cache.clear()  # one live entry: older keys are stale
+        hit = _registry_cache[key] = packs
+    return dict(hit)
 
 
 def register(name: str, source: dict[str, Any], *, rules: list[dict] | None = None, strip: list[str] | None = None,

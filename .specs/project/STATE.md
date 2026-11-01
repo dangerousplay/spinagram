@@ -84,6 +84,18 @@
   writes the source (`<stem>.fixed.yaml`, suggestions for `.py`). low-contrast defaults: text < 2.0, icon < 1.5
   (user choice; theme raises to WCAG). Auto legend is `add_legend(items="auto")` (`Diagram.legend` is taken).
 
+- 2026-11-01 · Rust core port (`features/rust-core-routing/`): the engine moves to Rust one slice at a time as the
+  `spinagram-core` crate with PyO3 bindings (`rust/`), opt-in via `SPINAGRAM_RUST=1` (`src/spinagram/rust.py`). Python
+  stays the reference: a slice lands only when the Python suite passes in both modes, its parity harness is 100 %
+  and every example SVG is byte-identical. Python callbacks never cross into Rust hot loops: they become data
+  (e.g. `Crossings(cost, drawn)`). First slices: text (spike), then edge routing. YAML stays in Python on libyaml.
+
+- 2026-11-01 · Rust core quality (user directive, `features/rust-core-quality/`): crates over hand-written code (a
+  hand-written piece stays only when no crate keeps parity, recorded in `rust/DEPENDENCIES.md`); clippy `all` deny +
+  `pedantic` warn with `#[expect(..., reason)]` exceptions; `cargo deny` (permissive licences, crates.io only); Verus
+  `0.2026.10.26.d17fbd0` (toolchain 1.99.1) proves the core's discrete kernels in `spinagram-core/src/verified/`, which
+  production code calls (no drift); floating-point geometry stays covered by parity harnesses, not proofs.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).

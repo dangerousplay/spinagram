@@ -4,3 +4,7 @@ __pycache__/
 dist/
 out/
 .pytest_cache/
+
+# Rust build output, and the extension an editable install compiles into the package
+rust/target/
+src/spinagram/_core.*

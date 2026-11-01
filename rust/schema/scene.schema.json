@@ -1,0 +1,847 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scene",
+  "type": "object",
+  "properties": {
+    "background": {
+      "type": "string"
+    },
+    "height": {
+      "type": "number",
+      "format": "double"
+    },
+    "id": {
+      "type": "string"
+    },
+    "item_facts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Item"
+      }
+    },
+    "meta_tooltips": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "slug": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "items": true
+    },
+    "title": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "width": {
+      "type": "number",
+      "format": "double"
+    }
+  },
+  "required": [
+    "version",
+    "id",
+    "title",
+    "slug",
+    "width",
+    "height",
+    "background",
+    "items",
+    "item_facts",
+    "sources",
+    "meta_tooltips"
+  ],
+  "$defs": {
+    "Binding": {
+      "type": "object",
+      "properties": {
+        "frac": {
+          "type": "number",
+          "format": "double"
+        },
+        "shape_id": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape_id",
+        "side",
+        "frac",
+        "target"
+      ]
+    },
+    "Cell": {
+      "type": "object",
+      "properties": {
+        "block": {
+          "$ref": "#/$defs/TextBlock"
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "fill": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Icon"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pad_left": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "block",
+        "pad_left",
+        "bold"
+      ]
+    },
+    "Connector": {
+      "type": "object",
+      "properties": {
+        "arrow_end": {
+          "type": "boolean"
+        },
+        "arrow_start": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "string"
+        },
+        "dash": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "dashed": {
+          "type": "boolean"
+        },
+        "dst": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Binding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaggedShape"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "marker_end": {
+          "type": "string"
+        },
+        "marker_start": {
+          "type": "string"
+        },
+        "opacity": {
+          "type": "number",
+          "format": "double"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "route": {
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Binding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "width": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "points",
+        "route",
+        "color",
+        "width",
+        "dashed",
+        "arrow_start",
+        "arrow_end",
+        "marker_start",
+        "marker_end",
+        "opacity"
+      ]
+    },
+    "Font": {
+      "type": "object",
+      "properties": {
+        "fallback": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "figma_style": {
+          "type": "string"
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "number",
+          "format": "double"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "family",
+        "weight",
+        "italic",
+        "size",
+        "fallback",
+        "figma_style"
+      ]
+    },
+    "Icon": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number",
+          "format": "double"
+        },
+        "w": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "path",
+        "x",
+        "y",
+        "size"
+      ]
+    },
+    "Image": {
+      "type": "object",
+      "properties": {
+        "h": {
+          "type": "number",
+          "format": "double"
+        },
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "w": {
+          "type": "number",
+          "format": "double"
+        },
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "x",
+        "y",
+        "w",
+        "h"
+      ]
+    },
+    "Item": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "shape"
+            }
+          },
+          "$ref": "#/$defs/Shape",
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "connector"
+            }
+          },
+          "$ref": "#/$defs/Connector",
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "text"
+            }
+          },
+          "$ref": "#/$defs/Text",
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "line"
+            }
+          },
+          "$ref": "#/$defs/Line",
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "image"
+            }
+          },
+          "$ref": "#/$defs/Image",
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "table"
+            }
+          },
+          "$ref": "#/$defs/Table",
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "Label": {
+      "type": "object",
+      "properties": {
+        "align": {
+          "type": "string"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TextBlock"
+          }
+        },
+        "box": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "gap": {
+          "type": "number",
+          "format": "double"
+        },
+        "valign": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "blocks",
+        "box",
+        "align",
+        "gap",
+        "valign"
+      ]
+    },
+    "Line": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number",
+          "format": "double"
+        },
+        "x1": {
+          "type": "number",
+          "format": "double"
+        },
+        "x2": {
+          "type": "number",
+          "format": "double"
+        },
+        "y1": {
+          "type": "number",
+          "format": "double"
+        },
+        "y2": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "x1",
+        "y1",
+        "x2",
+        "y2",
+        "color",
+        "width"
+      ]
+    },
+    "Part": {
+      "type": "object",
+      "properties": {
+        "d": {
+          "type": "string"
+        },
+        "paint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "d",
+        "paint"
+      ]
+    },
+    "Run": {
+      "description": "A piece of a line drawn with one font. `base`: it uses the block's own font (no fallback span).",
+      "type": "object",
+      "properties": {
+        "base": {
+          "type": "boolean"
+        },
+        "font": {
+          "$ref": "#/$defs/Font"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "font",
+        "base"
+      ]
+    },
+    "Shape": {
+      "type": "object",
+      "properties": {
+        "cap": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dash": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "dashed": {
+          "type": "boolean"
+        },
+        "fill": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fill_opacity": {
+          "type": "number",
+          "format": "double"
+        },
+        "h": {
+          "type": "number",
+          "format": "double"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Icon"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Label"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "opacity": {
+          "type": "number",
+          "format": "double"
+        },
+        "parts": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Part"
+          }
+        },
+        "radius": {
+          "type": "number",
+          "format": "double"
+        },
+        "role": {
+          "type": "string"
+        },
+        "shadow": {
+          "description": "`(dx, dy, blur, colour, alpha)`",
+          "type": [
+            "array",
+            "null"
+          ],
+          "maxItems": 5,
+          "minItems": 5,
+          "prefixItems": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "number",
+              "format": "double"
+            }
+          ]
+        },
+        "stroke": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stroke_width": {
+          "type": "number",
+          "format": "double"
+        },
+        "w": {
+          "type": "number",
+          "format": "double"
+        },
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "x",
+        "y",
+        "w",
+        "h",
+        "stroke_width",
+        "radius",
+        "dashed",
+        "opacity",
+        "role",
+        "fill_opacity"
+      ]
+    },
+    "Table": {
+      "type": "object",
+      "properties": {
+        "border": {
+          "type": "string"
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Cell"
+            }
+          }
+        },
+        "col_widths": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "header_radius": {
+          "type": "number",
+          "format": "double"
+        },
+        "id": {
+          "type": "string"
+        },
+        "row_heights": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "x",
+        "y",
+        "col_widths",
+        "row_heights",
+        "cells",
+        "border",
+        "header_radius"
+      ]
+    },
+    "TaggedShape": {
+      "description": "A shape nested in another item carries its own `type` tag, as in the item list.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "shape"
+            }
+          },
+          "$ref": "#/$defs/Shape",
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "Text": {
+      "type": "object",
+      "properties": {
+        "anchor": {
+          "type": "string"
+        },
+        "block": {
+          "$ref": "#/$defs/TextBlock"
+        },
+        "id": {
+          "type": "string"
+        },
+        "letter_spacing": {
+          "description": "Kept as written (int or float): the SVG writer prints it with Python's `str`.",
+          "type": "number"
+        },
+        "width": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "x",
+        "y",
+        "block",
+        "anchor",
+        "letter_spacing"
+      ]
+    },
+    "TextBlock": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "font": {
+          "$ref": "#/$defs/Font"
+        },
+        "leading": {
+          "type": "number",
+          "format": "double"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "paragraphs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runs": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Run"
+            }
+          }
+        }
+      },
+      "required": [
+        "lines",
+        "paragraphs",
+        "font",
+        "color",
+        "leading"
+      ]
+    }
+  }
+}

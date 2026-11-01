@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from .rust import core, font_args
 from .theme import FontRef
 
 _HEURISTIC = {False: 0.53, True: 0.60}  # average advance / size; bold is wider
@@ -18,8 +19,9 @@ _HEURISTIC = {False: 0.53, True: 0.60}  # average advance / size; bold is wider
 def _pil_font(path: str, size_tenths: int):
     from PIL import ImageFont
 
-    # Measure at 10x and scale down: Pillow rounds advances to integer pixels.
-    return ImageFont.truetype(path, size_tenths)
+    # Measure at 10x and scale down: Pillow rounds advances to integer pixels. BASIC layout on every platform:
+    # Pillow's Linux wheels default to raqm, whose unrounded HarfBuzz advances would change widths per OS.
+    return ImageFont.truetype(path, size_tenths, layout_engine=ImageFont.Layout.BASIC)
 
 
 @lru_cache(maxsize=16)
@@ -98,6 +100,14 @@ def wrap_paragraphs(paragraphs: list[str], font: FontRef, width: float) -> list[
 def ascent(font: FontRef) -> float:
     """Distance from the top of the em box to the baseline (approximate, font-independent)."""
     return font.size * 0.8
+
+
+_CORE = core()
+if _CORE is not None:  # same widths as Pillow to the 1/64 px, measured in Rust
+    _FALLBACKS = [str(p) for _, p in BUNDLED if p.exists()]
+
+    def measure(text: str, font: FontRef) -> float:  # noqa: F811
+        return _CORE.measure(text, font_args(font), _FALLBACKS)
 
 
 __all__ = ["measure", "wrap", "wrap_paragraphs", "ascent", "Path"]

@@ -323,6 +323,7 @@ def test_png_renders_the_svg_of_the_same_mode(tmp_path, monkeypatch, brand, args
     from spinagram.backends import png
     from spinagram.cli import main
 
+    monkeypatch.setenv("SPINAGRAM_PNG", "chromium")  # these tests cover the Chromium path, also with the Rust core
     seen = []
     real = png.to_svg
 
@@ -394,6 +395,7 @@ def test_png_font_mode_reaches_the_svg_without_a_browser(tmp_path, monkeypatch, 
     from spinagram.cli import main
 
     log, seen = [], []
+    monkeypatch.setenv("SPINAGRAM_PNG", "chromium")  # these tests cover the Chromium path, also with the Rust core
     monkeypatch.setitem(sys.modules, "playwright.sync_api", _fake_playwright(log))
     real = png.to_svg
 

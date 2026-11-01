@@ -9,12 +9,15 @@ pseudo-elements ``::title``, ``::body``, ``::label``.
 from __future__ import annotations
 
 import difflib
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import tinycss2
 from PIL import ImageColor
+
+from .rust import core
 
 
 # parsing ----------------------------------------------------------------------------------------
@@ -424,6 +427,36 @@ def _substitute(value: str, custom: dict[str, str]) -> str:
     return value
 
 
+_CORE = core()  # the Rust matcher and cascade unless SPINAGRAM_RUST=0
+
+
+def _tree_json(els: list[El], inline: dict[El, list[Decl]]) -> str:
+    index = {id(e): i for i, e in enumerate(els)}
+    return json.dumps({"nodes": [
+        {"parent": None if e.parent is None else index[id(e.parent)], "type": e.type, "kinds": e.kinds, "id": e.id,
+         "classes": e.classes, "attrs": {k: str(v) for k, v in e.attrs.items()},
+         "inline": [{"name": d.name, "value": d.value, "important": d.important} for d in inline.get(e, [])]}
+        for e in els]})
+
+
+def _rules_json(rules: list[Rule]) -> str:
+    return json.dumps([{"selectors": [s.text for s in r.selectors], "order": r.order,
+                        "decls": [{"name": d.name, "value": d.value, "important": d.important} for d in r.decls]}
+                       for r in rules])
+
+
+def _rust_cascade(root: El, rules: list[Rule]):
+    """The cascade from the Rust core: (elements, inline declarations, result per element), or None when the core
+    cannot parse a selector Python accepts (the Python path then runs)."""
+    els = list(_walk(root))
+    inline = {e: _inline(e.inline) for e in els if e.inline}
+    try:
+        got = json.loads(_CORE.css_cascade(_tree_json(els, inline), _rules_json(rules)))
+    except ValueError:
+        return None
+    return {e: got[i] for i, e in enumerate(els)}, inline
+
+
 def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = None,
             trace: dict | None = None) -> dict[El, dict[str, dict]]:
     """Computed style per element and pseudo-element (``""``, ``"title"``, ``"body"``, ``"label"``).
@@ -436,36 +469,46 @@ def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = Non
     warnings = warnings if warnings is not None else []
     out: dict[El, dict[str, dict]] = {}
     warned: set[tuple] = set()
+    rust = _rust_cascade(root, rules) if _CORE is not None else None
 
     def warn(msg: str) -> None:
         if msg not in warned:
             warned.add(msg)
             warnings.append(msg)
 
-    def declared(el: El, pseudo: str | None) -> list[tuple[tuple, Decl, Rule | None, Selector | None]]:
+    def declared(el: El, pseudo: str | None) -> list[tuple[tuple, Decl, Rule | None, Selector | None, str | None]]:
+        if rust is not None:  # matching, order and var() come from the core
+            result, inline = rust
+            out_list = []
+            for ri, si, di, resolved in result[el][("", "title", "body", "label").index(pseudo or "")]:
+                r = rules[ri] if ri >= 0 else None
+                out_list.append((None, r.decls[di] if r else inline[el][di], r, r.selectors[si] if r else None, resolved))
+            return out_list
         found = []
         for r in rules:
             for sel in r.selectors:
                 if sel.pseudo_element == pseudo and matches(sel, el):
                     for i, d in enumerate(r.decls):
-                        found.append(((2 if d.important else 0, sel.specificity, r.order, i), d, r, sel))
+                        found.append(((2 if d.important else 0, sel.specificity, r.order, i), d, r, sel, None))
         if el.inline and pseudo is None:
             for i, d in enumerate(_inline(el.inline)):
-                found.append(((3 if d.important else 1, (0, 0, 0), 0, i), d, None, None))
+                found.append(((3 if d.important else 1, (0, 0, 0), 0, i), d, None, None, None))
         found.sort(key=lambda f: f[0])
         return found
 
     def resolve(el: El, pseudo: str | None, parent_vals: dict, parent_custom: dict,
                 parent_src: dict) -> tuple[dict, dict, dict]:
         decls = declared(el, pseudo)
-        custom = dict(parent_custom)
-        for _, d, _, _ in decls:
-            if d.name.startswith("--"):
-                custom[d.name] = d.value
+        custom = parent_custom
+        if rust is None:
+            custom = dict(parent_custom)
+            for _, d, _, _, _ in decls:
+                if d.name.startswith("--"):
+                    custom[d.name] = d.value
         vals = {k: v for k, v in parent_vals.items() if k in INHERITED}
         src = {k: v for k, v in parent_src.items() if k in vals}
         rec: list[dict] = []
-        for _, d, r, sel in decls:
+        for _, d, r, sel, resolved in decls:
             where = f"{r.origin}:{d.line}" if r else f"{el.key or el.id}: inline css"
             entry = {"property": d.name, "value": d.value, "resolved": d.value,
                      "origin": r.origin if r else "inline", "line": d.line if r else None, "rule_line": r.line if r else None,
@@ -480,7 +523,7 @@ def compute(root: El, rules: list[Rule], theme, warnings: list[str] | None = Non
                 warn(f"{where}: unknown property '{d.name}'{hint}")
                 entry.update(status="unknown", message=f"unknown property{hint}")
                 continue
-            raw = _substitute(d.value, custom)
+            raw = resolved if rust is not None else _substitute(d.value, custom)
             entry["resolved"] = raw
             if not raw.strip():
                 warn(f"{where}: empty value for '{d.name}' ignored")
@@ -649,6 +692,16 @@ def _walk(el: El):
         yield from _walk(c)
 
 
+def _rust_matches(els: list[El], sels: list[Selector]) -> list[list[int]] | None:
+    """Element indices matched by each selector, from the core; None when it is off or cannot parse one."""
+    if _CORE is None:
+        return None
+    try:
+        return json.loads(_CORE.css_select(_tree_json(els, {}), [s.text for s in sels]))
+    except ValueError:
+        return None
+
+
 def select(d, selector: str) -> list[str]:
     """Keys of the elements of ``d`` matching ``selector`` (pseudo-elements ignored); ValueError if invalid."""
     try:
@@ -656,7 +709,12 @@ def select(d, selector: str) -> list[str]:
     except _SelectorError as exc:
         raise ValueError(f"invalid selector {selector!r}: {exc}") from None
     root, _ = tree(d)
-    return [el.key for el in _walk(root) if any(matches(s, el) for s in sels)]
+    els = list(_walk(root))
+    found = _rust_matches(els, sels)
+    if found is not None:
+        hit = {i for indices in found for i in indices}
+        return [el.key for i, el in enumerate(els) if i in hit]
+    return [el.key for el in els if any(matches(s, el) for s in sels)]
 
 
 def _element(el, styles: dict, trace: dict) -> dict:
@@ -698,9 +756,13 @@ def inspect(d, theme, all_elements: bool = False) -> dict:
     comp = compute(root, rules, theme, report["warnings"], trace)
     els = list(_walk(root))
     report["elements"] = [_element(el, comp[el], trace[el]) for el in els]
+    own_sels = [sel for r in own for sel in r.selectors]
+    found = _rust_matches(els, own_sels)
+    used = [bool(f) for f in found] if found is not None else [any(matches(sel, el) for el in els) for sel in own_sels]
+    flags = iter(used)
     for r in own:
         for sel in r.selectors:
-            if not any(matches(sel, el) for el in els):
+            if not next(flags):
                 report["unused"].append({"origin": r.origin, "line": r.line, "selector": sel.text})
     return report
 

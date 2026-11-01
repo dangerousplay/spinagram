@@ -57,15 +57,26 @@ figjam = "spinagram.backends.figma:FigjamBackend"
 excalidraw = "spinagram.backends.excalidraw:ExcalidrawBackend"
 
 [build-system]
-requires = ["hatchling>=1.27"]  # PEP 639 license metadata
-build-backend = "hatchling.build"
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
 
-[tool.hatch.build.targets.sdist]
-# hatch reads only the root .gitignore: keep the JS apps' installs and builds out of the sdist
-exclude = ["**/node_modules", "docs/.next", "docs/.source", "docs/out", "web/dist"]
+# spinagram is a mixed Python/Rust package: the Rust engine in rust/ compiles to the spinagram._core extension.
+# Wheels are per platform (one abi3 wheel serves CPython 3.11+); elsewhere pip builds the sdist with Rust.
+[tool.maturin]
+manifest-path = "rust/spinagram-core-py/Cargo.toml"
+python-source = "src"
+module-name = "spinagram._core"
+features = ["pyo3/extension-module"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/spinagram"]
+[tool.uv]
+# `uv sync` rebuilds the extension when any Rust source changes
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "rust/Cargo.toml" },
+    { file = "rust/Cargo.lock" },
+    { file = "rust/*/Cargo.toml" },
+    { file = "rust/*/src/**/*.rs" },
+]
 
 [dependency-groups]
 dev = [

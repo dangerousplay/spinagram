@@ -62,11 +62,12 @@ def ensure_elkjs() -> Path:
         if _installed(base):  # another process finished first
             return base
         spec = f"elkjs@{ELKJS_VERSION}"
-        if shutil.which("npm"):
-            cmd = ["npm", "install", "--no-save", "--no-audit", "--no-fund", "--prefix", str(base), spec]
-        elif shutil.which("bun"):
+        # full paths: on Windows npm is npm.cmd, which a bare "npm" argv does not find
+        if npm := shutil.which("npm"):
+            cmd = [npm, "install", "--no-save", "--no-audit", "--no-fund", "--prefix", str(base), spec]
+        elif bun := shutil.which("bun"):
             (base / "package.json").exists() or (base / "package.json").write_text('{"private": true}\n')
-            cmd = ["bun", "add", "--exact", spec]
+            cmd = [bun, "add", "--exact", spec]
         else:
             raise RuntimeError(f"cannot install {spec}: neither npm nor bun on PATH. {HINT}")
         try:

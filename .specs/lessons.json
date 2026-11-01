@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 72,
+  "next_id": 77,
   "lessons": [
     {
       "id": "L-001",
@@ -1292,6 +1292,96 @@
       ],
       "created": "2026-10-21T03:22:25Z",
       "last_seen": "2026-10-21T03:22:25Z"
+    },
+    {
+      "id": "L-072",
+      "key": "surviving_mutant::test cache immutability by mutating a result returned on a cache hit not only the first miss",
+      "text": "Test cache immutability by mutating a result returned on a cache hit, not only the first miss",
+      "signal": "surviving_mutant",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "rust-core-routing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M5; tests/test_yamlload.py:56 (tests)"
+      ],
+      "created": "2026-11-01T02:48:45Z",
+      "last_seen": "2026-11-01T02:48:45Z"
+    },
+    {
+      "id": "L-073",
+      "key": "spec_precision_gap::when a spec fixes a cost constant add a test where only that exact value decides the outcome with cases just below and above it",
+      "text": "When a spec fixes a cost constant, add a test where only that exact value decides the outcome, with cases just below and above it",
+      "signal": "spec_precision_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "rust-core-routing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "ROUTE-07; validation.md M6 (tests)"
+      ],
+      "created": "2026-11-01T02:48:45Z",
+      "last_seen": "2026-11-01T02:48:45Z"
+    },
+    {
+      "id": "L-074",
+      "key": "spec_deviation::before swapping a parser for a faster one run the existing error path tests against it faster parsers can accept input the old one rejects",
+      "text": "Before swapping a parser for a faster one, run the existing error-path tests against it: faster parsers can accept input the old one rejects",
+      "signal": "spec_deviation",
+      "scope": "yaml",
+      "status": "candidate",
+      "features": [
+        "rust-core-routing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "T5; spec.md Assumptions spec files row (yaml)"
+      ],
+      "created": "2026-11-01T02:48:45Z",
+      "last_seen": "2026-11-01T02:48:45Z"
+    },
+    {
+      "id": "L-075",
+      "key": "ac_gap::when porting code that must match the interpreter byte for byte check every supported python version since builtins like sum change between versions",
+      "text": "When porting code that must match the interpreter byte for byte, check every supported Python version, since builtins like sum() change between versions",
+      "signal": "ac_gap",
+      "scope": "rust",
+      "status": "candidate",
+      "features": [
+        "rust-core-svg-png"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SVG-01; validation.md Fix 1 (rust)"
+      ],
+      "created": "2026-11-01T03:48:19Z",
+      "last_seen": "2026-11-01T03:48:19Z"
+    },
+    {
+      "id": "L-076",
+      "key": "spec_deviation::when a crate replaces a hand written parser list the grammar it rejects and route those inputs to the reference implementation with tests pinning the fallback",
+      "text": "When a crate replaces a hand-written parser, list the grammar it rejects and route those inputs to the reference implementation, with tests pinning the fallback",
+      "signal": "spec_deviation",
+      "scope": "rust",
+      "status": "candidate",
+      "features": [
+        "rust-core-css"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CSS-02; rust/spinagram-core/src/css.rs:8 (rust)"
+      ],
+      "created": "2026-11-01T04:17:28Z",
+      "last_seen": "2026-11-01T04:17:28Z"
     }
   ]
 }

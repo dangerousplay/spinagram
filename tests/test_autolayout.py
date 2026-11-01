@@ -345,3 +345,25 @@ def test_check_reports_an_edge_through_a_box():
     d.edge(a.right, b.left)  # straight over Mid
     issues = [i for i in check(scenes([d], _theme())[0]) if i.kind == "edge"]
     assert issues and "mid" in issues[0].detail
+
+
+@pytest.mark.parametrize("tool", ["npm", "bun"])
+def test_elkjs_install_runs_the_resolved_executable(tmp_path, monkeypatch, tool):
+    """On Windows npm is npm.cmd: the install must run the path shutil.which found, not a bare name."""
+    from spinagram.autolayout.engines import elk
+
+    found = str(tmp_path / f"{tool}.cmd")
+    monkeypatch.setenv("SPINAGRAM_ELK_DIR", str(tmp_path / "elk"))
+    monkeypatch.setattr(elk.shutil, "which", lambda name: found if name == tool else None)
+    ran = []
+
+    def fake_run(cmd, **kw):
+        ran.append(cmd)
+        pkg = tmp_path / "elk" / "node_modules" / "elkjs"
+        pkg.mkdir(parents=True)
+        (pkg / "package.json").write_text(f'{{"version": "{elk.ELKJS_VERSION}"}}')
+        return type("P", (), {"returncode": 0, "stderr": ""})()
+
+    monkeypatch.setattr(elk.subprocess, "run", fake_run)
+    elk.ensure_elkjs()
+    assert ran[0][0] == found
