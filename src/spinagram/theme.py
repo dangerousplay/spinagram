@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
+from spinagram import yamlload
 
 BUILTIN = Path(__file__).resolve().parent / "themes"
 
@@ -129,7 +129,7 @@ def _load_raw(ref: str | Path, relative_to: Path | None = None, seen: set[Path] 
     if root in seen:
         raise ValueError(f"theme inheritance cycle at {root}")
     seen.add(root)
-    raw = yaml.safe_load((root / "theme.yaml").read_text(encoding="utf-8")) or {}
+    raw = yamlload.load_file(root / "theme.yaml") or {}
     own = _absolutize(raw, root)
     parent = raw.get("extends")
     if parent:

@@ -143,10 +143,10 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: `Theme.load("default")` twice parses `theme.yaml` once (YAML-03)
-- [ ] Test: mutating `Theme.load(...).data` does not change the next `Theme.load(...).data` (YAML-05)
-- [ ] Existing theme tests pass
-- [ ] Quick gate passes
+- [x] Test: `Theme.load("default")` twice parses `theme.yaml` once (YAML-03)
+- [x] Test: mutating `Theme.load(...).data` does not change the next `Theme.load(...).data` (YAML-05)
+- [x] Existing theme tests pass
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick

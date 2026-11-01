@@ -71,3 +71,24 @@ def test_empty_file_returns_none(tmp_path):  # edge: same as safe_load
 def test_missing_file_raises_filenotfound(tmp_path):  # edge: same exception type as before
     with pytest.raises(FileNotFoundError):
         yamlload.load_file(tmp_path / "nope.yaml")
+
+
+def test_theme_load_parses_theme_yaml_once():  # YAML-03 (theme side)
+    from spinagram.theme import Theme
+
+    yamlload._cache.clear()
+    with mock.patch.object(yamlload, "parse", wraps=yamlload.parse) as spy:
+        Theme.load("default")
+        Theme.load("default")
+    assert spy.call_count == 1
+
+
+def test_theme_data_mutation_does_not_leak_to_next_load():  # YAML-05 (theme side)
+    from spinagram.theme import Theme
+
+    first = Theme.load("default")
+    before = yaml.safe_dump(first.data)
+    first.data["colors"] = {"mutated": "#123456"}
+    first.data["_css"].append("/nope.css")
+    first.data["added"] = 1
+    assert yaml.safe_dump(Theme.load("default").data) == before
