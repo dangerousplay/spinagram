@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/wasm-editor/spec.md`
-**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) ready
+**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) done; provider zone iteration (T30–T33) ready
 
 **MVP scope (decided by the orchestrator, 2026-11-01).** The full YAML → scene port is months of work and stays
 out of this MVP. The MVP proves the architecture end to end with the Rust pieces that exist plus one new one:
@@ -101,6 +101,12 @@ T17 → T18 → T19 → T20 → T21 → T22 → T23
 
 ```
 T23 → T24 → T25 → T26 → T27 → T28 → T29
+```
+
+### Phase 9: Provider zones
+
+```
+T29 → T30 → T31 → T32 → T33
 ```
 
 ---
@@ -911,3 +917,130 @@ tools and their keys, and the palette categories.
 **Commit**: `docs: canvas toolbar guide and rebuilt ui bundle`
 
 **Notes**: Rebuilt with bun 1.4.2 (`bash rust/spinagram-wasm/build.sh`, then `bunx bun@1.4.2 run build`; a second build gives the same file names). `live-ui.mdx` gained the toolbar, the tools and keys, Space-pan, Shift-keeps-the-tool, the category palette and the in-place update. Gates: cargo 209, clippy and deny clean; wasm bun 21; web bun 164 and build; pytest 2847 passed, 3 skipped per mode (`test_web_unit` passes separately); ruff clean.
+
+---
+
+## Provider zone iteration scope (orchestrator, 2026-11-01)
+
+User requirement: "For the zones make sure their icon are present and follow the cloud provider diagraming style. For
+example on AWS the VPC, Region, AWS Account have an icon."
+
+State at the start (checked): `src/spinagram/themes/default/theme.yaml` defines the zone styles `aws-cloud`,
+`aws-account`, `aws-region`, `aws-vpc`, `aws-az` and `aws-subnet`, with a flush corner icon from the `aws` pack
+(`header: {inset: false}`). A zone picks its style through its `color` field. There are no Azure, Google Cloud or
+Kubernetes zone styles. The cached packs hold the group icons (aws: `group-aws-cloud`, `group-aws-account`,
+`group-region`, `group-virtualprivatecloud-vpc`, `group-publicsubnet`, `group-privatesubnet`,
+`group-auto-scalinggroup`, `group-corporatedatacenter`, `group-spot-fleet`, `group-servercontents`,
+`group-ec2instancecontents`; azure: `management-groups`, `subscriptions`, `resource-groups`, `virtual-networks`; gcp:
+`project`, `cloud-generic`; k8s: `ns`). The showcase `editable_platform.yaml` uses custom classes, so its zones show no
+provider icons.
+
+---
+
+### T30: Provider zone styles in the theme
+
+**What**: Complete the zone styles of the default theme so each provider's groups look as in its own diagram guidance.
+Research each provider's official guidance (web search is fine) and cite the source URLs in a comment above each block;
+reference only icons that exist in the pack indexes.
+- **AWS** (AWS Architecture Icons group conventions: colour, dashed or solid outline, corner icon): add
+  `aws-public-subnet` (green) and `aws-private-subnet` (teal); keep `aws-subnet` as an alias of the private style; add
+  `aws-auto-scaling-group`, `aws-corporate-dc`, `aws-spot-fleet`, `aws-server-contents` and `aws-ec2-contents`.
+  `aws-az` stays without an icon, as in AWS's convention.
+- **Azure** (Microsoft architecture diagram conventions): `azure-management-group`, `azure-subscription`,
+  `azure-resource-group`, `azure-vnet`, `azure-subnet`.
+- **Google Cloud** (Google's architecture diagram conventions, coloured areas, icons mainly on project and cloud):
+  `gcp-cloud`, `gcp-project`, `gcp-region`, `gcp-zone`, `gcp-vpc`, `gcp-subnet`.
+- **Kubernetes:** `k8s-cluster`, `k8s-namespace`.
+**Where**: `src/spinagram/themes/default/theme.yaml`, `tests/test_provider_zones.py`
+**Depends on**: T29
+**Reuses**: the existing `aws-*` zone styles, `src/spinagram/icon_packs/*.yaml`, the scene output
+**Requirement**: user feedback (provider zone icons)
+
+**Done when**:
+
+- [ ] Every style's icon resolves in its pack's index (`src/spinagram/icon_packs/*.yaml` or the icon registry API)
+- [ ] A zone with each style renders a header icon in the scene (except `aws-az`, which has none by convention)
+- [ ] Every style passes `spinagram check`
+- [ ] Each block carries its source URLs in a comment
+- [ ] Full gate passes
+
+**Tests**: integration
+**Gate**: full
+**Commit**: `feat(theme): provider zone styles for aws, azure, gcp and kubernetes`
+
+---
+
+### T31: AddZone with a style, and SetZoneStyle
+
+**What**: The Rust `add_zone` op takes an optional `style` and writes the zone's style key (`color`) with the existing
+byte-preserving rules. A new `set_zone_style` op changes it on an existing zone (adds the key when absent, replaces
+it otherwise, keeps comments and key order). Both are exposed through the PyO3 and WASM bindings like the other ops and
+documented in `src/spinagram/edit.py`.
+**Where**: `rust/spinagram-core/src/edit.rs`, `rust/spinagram-wasm/`, `src/spinagram/edit.py`, `web/src/canvas/ops.ts`
+**Depends on**: T30
+**Reuses**: the `add_zone` and `set_container` patchers, the op golden tests
+**Requirement**: user feedback (provider zone icons)
+
+**Done when**:
+
+- [ ] Rust tests: `add_zone` with a style writes `color: <style>` and without one is byte-identical to today; `set_zone_style` changes, adds and (for an unknown id) refuses, leaving every other byte as it was
+- [ ] Python and WASM parity: the same batch gives the same text through both bindings
+- [ ] Rust gate and full gate pass
+
+**Tests**: unit, integration
+**Gate**: rust
+**Commit**: `feat(edit): add_zone takes a style and set_zone_style changes it`
+
+---
+
+### T32: Zones category in the palette and a style picker on the canvas
+
+**What**:
+- The palette gets a **Zones** category right after Basics: a generic Zone, then one sub-group per provider (AWS,
+  Azure, Google Cloud, Kubernetes). Each item shows its real header icon (the pack image) and the provider's colour
+  swatch. The list comes from the theme's style list, served by the server (add the field to an existing endpoint if
+  needed).
+- Dropping an item, or pressing Enter on it, adds the zone with that style. Search finds the items by name ("vpc",
+  "subscription", "project").
+- With one zone selected, the canvas bar shows a style dropdown with icons that sends `set_zone_style`.
+- The Zone toolbar tool keeps adding the generic zone.
+**Where**: `web/src/canvas/palette.ts`, `web/src/canvas/PalettePanel.tsx`, `web/src/canvas/CanvasBar.tsx`, `web/src/canvas/ops.ts`, `web/src/canvas/useCanvas.ts`, `web/src/api.ts`, `src/spinagram/ui/` (server endpoint), `web/src/canvas/canvas.test.ts`
+**Depends on**: T31
+**Reuses**: `categorize`, `dropOps`, `EditorIcon`, the palette virtual list
+**Requirement**: user feedback (provider zone icons)
+
+**Done when**:
+
+- [ ] bun tests: the Zones category contents and order built from a style list, the ops built for a styled drop and for the dropdown, the search hits for "vpc", "subscription" and "project", and the Zone tool still adding the generic zone
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): zones category and zone style picker`
+
+---
+
+### T33: AWS-convention showcase, bundle, docs and browser pass
+
+**What**:
+- Rework `examples/showcase/editable_platform.yaml` into AWS group conventions: AWS Cloud, AWS Account, Region, VPC,
+  public and private subnets, with Users outside the cloud. It stays canvas-editable and `spinagram check` reports 0
+  issues.
+- Regenerate the docs gallery SVG and update the css-skill mirror.
+- Rebuild the bundle with bun 1.4.2 and document the provider zones in `live-ui.mdx`.
+- Browser pass (port 8799, own tab): drop an AWS VPC and an Azure resource group from the palette, change a zone style
+  from the dropdown, and record the diffs.
+**Where**: `examples/showcase/editable_platform.yaml`, `docs/`, the css-skill mirror, `src/spinagram/ui/static/`, this file
+**Depends on**: T32
+**Reuses**: T29 steps
+**Requirement**: user feedback (provider zone icons), HST-01 (partial)
+
+**Done when**:
+
+- [ ] The showcase uses the AWS styles and renders the group icons; `spinagram check` reports 0 issues
+- [ ] The browser pass is recorded with each step's diff
+- [ ] Full and web gates pass
+
+**Tests**: none
+**Gate**: full
+**Commit**: `docs: aws group showcase, provider zones guide and rebuilt ui bundle`
