@@ -75,6 +75,20 @@ pub fn repr_f64(x: f64) -> String {
     format!("{sign}{body}")
 }
 
+/// Python's `sum()` of floats (3.12+): Neumaier compensated summation.
+pub fn py_sum(xs: &[f64]) -> f64 {
+    let (mut sum, mut c) = (0.0_f64, 0.0_f64);
+    for &x in xs {
+        let t = sum + x;
+        c += if sum.abs() >= x.abs() { (sum - t) + x } else { (x - t) + sum };
+        sum = t;
+    }
+    if c != 0.0 && c.is_finite() {
+        sum += c;
+    }
+    sum
+}
+
 fn escape(s: &str, quote: bool) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -150,6 +164,13 @@ mod tests {
                           (100.0, "100.0"), (0.1 + 0.2, "0.30000000000000004")] {
             assert_eq!(repr_f64(x), want, "repr({x:?})");
         }
+    }
+
+    #[test]
+    fn py_sum_is_compensated_like_python_3_12() {
+        assert_eq!(py_sum(&[0.1; 10]), 1.0); // Python 3.13: sum([0.1] * 10) == 1.0
+        assert_eq!(py_sum(&[27.6, 27.6, 27.6]), 82.80000000000001);
+        assert_eq!(py_sum(&[]), 0.0);
     }
 
     const TEXT: &str = "a & b < c > d \" e ' f é ✓ 日本";

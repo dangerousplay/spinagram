@@ -6,4 +6,5 @@ pub mod font;
 pub mod pyfmt;
 pub mod route;
 pub mod scene;
+pub mod svg;
 pub mod text;

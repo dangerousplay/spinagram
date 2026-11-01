@@ -194,10 +194,10 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Rust tests: one per item type, per marker kind (`arrow`, `open-arrow`, `diamond`, `open-diamond`, `circle`, `bar`), per `Part.paint` (`solid`, `stroke`, default) with expected fragments taken from the Python writer (L-020)
-- [ ] Rust tests: image data URI (SVG-04), marker/filter id and order (SVG-05), tooltip (SVG-06), chars per face incl. the empty-line no-break space (SVG-08)
-- [ ] Missing image path returns an error naming the path (edge case)
-- [ ] Rust gate passes
+- [x] Rust tests: one per item type, per marker kind (`arrow`, `open-arrow`, `diamond`, `open-diamond`, `circle`, `bar`), per `Part.paint` (`solid`, `stroke`, default) with expected fragments taken from the Python writer (L-020)
+- [x] Rust tests: image data URI (SVG-04), marker/filter id and order (SVG-05), tooltip (SVG-06), chars per face incl. the empty-line no-break space (SVG-08)
+- [x] Missing image path returns an error naming the path (edge case)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust
