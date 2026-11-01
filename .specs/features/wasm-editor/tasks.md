@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/wasm-editor/spec.md`
-**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) ready
+**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) ready
 
 **MVP scope (decided by the orchestrator, 2026-11-01).** The full YAML → scene port is months of work and stays
 out of this MVP. The MVP proves the architecture end to end with the Rust pieces that exist plus one new one:
@@ -95,6 +95,12 @@ T15 → T16 → T17
 
 ```
 T17 → T18 → T19 → T20 → T21 → T22 → T23
+```
+
+### Phase 8: Toolbar and smooth updates
+
+```
+T23 → T24 → T25 → T26 → T27 → T28 → T29
 ```
 
 ---
@@ -705,3 +711,169 @@ Browser pass (Chrome, `spinagram serve` on a git-tracked scratch copy of the who
 5. Refused zone drop: dragging the region header into the VPC showed "A zone cannot contain itself" at the pointer and left the file unchanged.
 6. Gallery card error: with `aws.css` removed from the scratch copy the three AWS cards show "[Errno 2] No such file or directory: 'aws.css'" (full text in the tooltip).
 Not exercised by hand: Esc in the middle of a pointer drag (the tool drags atomically; unit-tested through `escapeStep`), and the cursors.
+
+---
+
+## Toolbar iteration scope (orchestrator, 2026-11-01)
+
+User feedback on PR #8:
+1. **The diagram redraws while dragging an item from the palette.** Likely cause: every save replaces the whole
+   diagram's `innerHTML` (`web/src/DiagramView.tsx`, `dangerouslySetInnerHTML={{ __html: canvas.preview ?? svg }}`),
+   first with the WASM preview and then with the server SVG. That re-parses embedded fonts and images, so the
+   diagram flashes.
+2. **Add a toolbar with icons:** select/drag mode, pan, text and the other tools.
+3. **Give the palette items icons** (zone, box…) and group them into categories.
+
+Tools go through the existing Rust ops (AddNode, AddZone, Connect, Group). No new ops unless one is missing. The
+browser checks use their own `spinagram serve` port (8799) and their own tab. **Never touch the user's open tab or
+the server on port 8798**, nor the one on 8791.
+
+---
+
+### T24: Find and fix the redraw on palette drag and on saves
+
+**What**: Reproduce the flash first. Use HTML5 drag events dispatched with `new DataTransfer()` from the Chrome
+`javascript_tool`, plus a `MutationObserver` on the SVG host that counts subtree replacements and records frames
+where the host is empty or the old SVG was removed before the new one was ready. Then fix it:
+- No DOM change to the diagram during `dragover`.
+- A drop shows an immediate ghost at the drop point.
+- Updates after a save patch the existing SVG in place, morphing by element `id` or `data-id` with a small DOM-morph
+  library such as idiomorph or morphdom (record the pick). Swapping only after the new SVG is parsed is acceptable
+  if morphing is not.
+- No blank or unstyled frame at any point. Embedded fonts and images that did not change are not re-created.
+- The preview → server-render hand-off makes at most one visible update per edit.
+**Where**: `web/src/DiagramView.tsx`, `web/src/canvas/useCanvas.ts`, new `web/src/canvas/svgHost.ts(x)`, `web/src/canvas/canvas.test.ts`, `web/package.json`
+**Depends on**: T23
+**Reuses**: `canvas.preview`, the existing render hooks
+**Requirement**: DIF-02, DIF-04 (in spirit), user feedback 1
+
+**Done when**:
+
+- [ ] Before/after numbers recorded in notes (observer counts of host replacements and empty frames, for one palette drag-and-drop and one node drag)
+- [ ] bun tests for the host updater (jsdom or happy-dom): an update keeps unchanged nodes as the same DOM objects (identity check), changes the changed ones, and never leaves the host empty
+- [ ] Browser check after the fix: 0 empty frames, 0 full-host replacements during dragover, and at most 1 update batch per committed edit
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `fix(web): update the diagram in place instead of redrawing it`
+
+---
+
+### T25: Icon set for the editor
+
+**What**: Add an icon library (lucide-react, ISC, tree-shaken imports) and one `EditorIcon` mapping: select,
+hand/pan, box, text, zone, row, column, connect, note, diamond, pill, undo, redo, palette, group, ungroup, delete,
+and each built-in shape kind. Record it in the web dependencies notes. Keep `web/bun.lock` consistent with the
+installed bun; do not hand-edit it.
+**Where**: `web/src/canvas/icons.tsx`, `web/package.json`, `web/bun.lock`
+**Depends on**: T24
+**Reuses**: none
+**Requirement**: user feedback 2, 3
+
+**Done when**:
+
+- [ ] bun test: every palette item kind and every toolbar tool has an icon (derived from the same tables the palette and toolbar use)
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): icon set for canvas tools and palette items`
+
+---
+
+### T26: Canvas toolbar with tool modes
+
+**What**: A vertical toolbar on the canvas's left edge, with icon buttons, tooltips naming the tool and its key,
+and an active state. Tools:
+- **Select/drag (V):** today's behaviour.
+- **Hand/pan (H):** plain drag pans; holding Space pans temporarily in any tool.
+- **Box (B), Text (T), Zone (Z):** a click places the default size centred on the point; a drag draws the rectangle
+  (snapped). Text creates a `kind: text` node and opens the inline editor right away.
+- **Connect (C):** drag from one node to another sends Connect, with a live straight preview line. A release on
+  empty space, the same node or a zone adds nothing (canvas-editor EDG-02/03).
+- **Actions:** Group row, Group column, Ungroup, Undo, Redo, Palette toggle, `?`.
+
+After placing an item the tool returns to Select, unless the user held Shift to keep it. The tools join the single
+keymap table, so the `?` sheet lists them.
+**Where**: `web/src/canvas/Toolbar.tsx`, `web/src/canvas/tools.ts`, `web/src/canvas/useCanvas.ts`, `web/src/canvas/interaction.ts`, `web/src/DiagramView.tsx`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T25
+**Reuses**: `ops.ts`, `palette.ts` `newId`/`dropOps`, `History`, the keymap table
+**Requirement**: user feedback 2; canvas-editor EDG-01..03
+
+**Done when**:
+
+- [ ] bun tests: a click places the default box at the point and a drag places the drawn rectangle (snapped); a Text placement yields AddNode kind text and opens the editor; Connect rejects empty space, the same node and a zone; the tool falls back to Select unless Shift is held; the keymap holds every tool key
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): canvas toolbar with select, pan, box, text, zone and connect tools`
+
+---
+
+### T27: Palette categories with item icons
+
+**What**: When the search box is empty, the palette shows collapsible categories, each with a header and count:
+- **Basics:** Box, Text, Zone, Row, Column, Note.
+- **Shapes:** every other built-in shape kind.
+- **Icons**, one category per cached pack.
+- **Not downloaded:** with Fetch.
+
+Every item shows its icon: `EditorIcon` for basics and shapes, the pack image for icons. With a query, results stay
+one ranked list, each row tagged with its category. Collapsed state is remembered like the palette open state.
+**Where**: `web/src/canvas/PalettePanel.tsx`, `web/src/canvas/palette.ts`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T26
+**Reuses**: `buildCorpus`, `search`, `paletteState.ts`
+**Requirement**: user feedback 3; canvas-editor PAL-01, PAL-06
+
+**Done when**:
+
+- [ ] bun tests: category assignment (Zone/Box/Text in Basics, the shape kinds in Shapes, icons under their pack); search results keep their category tag; the collapsed state round-trips through storage and falls back when storage throws
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): palette categories with item icons`
+
+---
+
+### T28: Browser pass
+
+**What**: On a scratch copy of the whole `examples/showcase/` (port 8799, git-initialised for diffs), check each
+of the following and record the result and YAML diff in notes:
+- palette drag-and-drop of a Box and an icon, with dispatched DragEvents and the observer showing no flash;
+- each toolbar tool: Box click and drag, Text, Zone, Connect, and the Hand tool and Space-pan;
+- the category view, collapsing a category, and search.
+**Where**: this file (notes)
+**Depends on**: T27
+**Reuses**: T24 observer script
+**Requirement**: user feedback 1–3
+
+**Done when**:
+
+- [ ] Every step recorded with its diff; no flash recorded by the observer
+- [ ] Any bug found is fixed in this task with a test
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `test(web): toolbar and palette browser pass fixes`
+
+---
+
+### T29: Bundle and docs
+
+**What**: Rebuild and commit the UI bundle. Update `docs/content/docs/tools/live-ui.mdx` with the toolbar, the
+tools and their keys, and the palette categories.
+**Where**: `src/spinagram/ui/static/`, `docs/content/docs/tools/live-ui.mdx`
+**Depends on**: T28
+**Reuses**: T23 steps
+**Requirement**: HST-01 (partial)
+
+**Done when**:
+
+- [ ] The rebuilt bundle is committed; full, Rust, WASM and web gates pass
+
+**Tests**: none
+**Gate**: full
+**Commit**: `docs: canvas toolbar guide and rebuilt ui bundle`
