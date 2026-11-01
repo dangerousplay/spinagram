@@ -468,6 +468,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: CSS-02; rust/spinagram-core/src/css.rs:8 (rust)
 - last seen: 2026-11-01T04:17:28Z
 
+### L-077 - When a guard is unit-tested in isolation, also test that the public entry point calls it (inject a failing case through apply_ops), or a removed call survives.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `rust` · harmful: 0
+- features: wasm-editor
+- evidence: M3 rust/spinagram-core/src/edit.rs:611 (rust)
+- last seen: 2026-11-01T19:50:12Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

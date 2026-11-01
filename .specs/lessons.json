@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 77,
+  "next_id": 78,
   "lessons": [
     {
       "id": "L-001",
@@ -1382,6 +1382,24 @@
       ],
       "created": "2026-11-01T04:17:28Z",
       "last_seen": "2026-11-01T04:17:28Z"
+    },
+    {
+      "id": "L-077",
+      "key": "surviving_mutant::when a guard is unit tested in isolation also test that the public entry point calls it inject a failing case through apply ops or a removed call survives",
+      "text": "When a guard is unit-tested in isolation, also test that the public entry point calls it (inject a failing case through apply_ops), or a removed call survives.",
+      "signal": "surviving_mutant",
+      "scope": "rust",
+      "status": "candidate",
+      "features": [
+        "wasm-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M3 rust/spinagram-core/src/edit.rs:611 (rust)"
+      ],
+      "created": "2026-11-01T19:50:12Z",
+      "last_seen": "2026-11-01T19:50:12Z"
     }
   ]
 }
