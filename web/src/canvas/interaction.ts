@@ -1,6 +1,7 @@
 // Pure logic of the keyboard and pointer polish: one keymap table (the key handlers and the shortcut sheet both
 // read it), what Esc does, arrow-key nudging, cursors, and the selection frame.
 import { planMultiDrop, type DropPlan, type Item } from "./ops";
+import { TOOLS, type ToolId } from "./tools";
 import { boxOf, containerOf, zoneBox, zoneMoveShapes, type Box, type SceneJson, type Sel } from "./scene";
 
 
@@ -14,6 +15,7 @@ export type KeyAction =
   | { action: "palette" }
   | { action: "escape" }
   | { action: "help" }
+  | { action: "tool"; tool: ToolId }
   | { action: "nudge"; dx: number; dy: number };
 
 export type Binding = {
@@ -39,7 +41,20 @@ export const KEYMAP: Binding[] = [
   { action: "pointer", keys: "Drag", label: "Move; drop into a zone or row/column to put it there" },
   { action: "pointer", keys: "Drag on empty canvas", label: "Select with a box" },
   { action: "pointer", keys: "Alt+drag", label: "Pan" },
+  { action: "pointer", keys: "Space+drag", label: "Pan while Space is held, in any tool" },
+  { action: "pointer", keys: "Click or drag (Box, Text, Zone)", label: "Place the default size centred on the point, or draw the rectangle" },
+  { action: "pointer", keys: "Drag from node to node (Connect)", label: "Add an edge; nothing on empty canvas, the same node or a zone" },
+  { action: "pointer", keys: "Shift while placing", label: "Keep the tool (it returns to Select otherwise)" },
   { action: "pointer", keys: "Double-click", label: "Rename a node or zone" },
+  ...TOOLS.map(
+    (t): Binding => ({
+      action: "tool",
+      keys: t.key.toUpperCase(),
+      label: `${t.label} tool`,
+      match: (e) => (plain(e) && e.key.toLowerCase() === t.key ? { action: "tool", tool: t.id } : null),
+      sample: [ev(t.key), ev(t.key.toUpperCase(), { shiftKey: true })],
+    }),
+  ),
   {
     action: "delete",
     keys: "Delete / Backspace",
@@ -90,7 +105,7 @@ export const KEYMAP: Binding[] = [
   {
     action: "escape",
     keys: "Esc",
-    label: "Cancel a drag, then clear the selection, then close the palette",
+    label: "Cancel a drag, then clear the selection, then return to Select, then close the palette",
     match: (e) => (e.key === "Escape" ? { action: "escape" } : null),
     sample: [ev("Escape")],
   },
@@ -115,14 +130,15 @@ export function matchKey(e: KeyLike): KeyAction | null {
 /** What the `?` sheet lists: every row of the keymap table. */
 export const shortcutRows = (): { keys: string; label: string }[] => KEYMAP.map(({ keys, label }) => ({ keys, label }));
 
-export type EscapeState = { sheet: boolean; dragging: boolean; nudging: boolean; selected: number; palette: boolean };
+export type EscapeState = { sheet: boolean; dragging: boolean; nudging: boolean; selected: number; palette: boolean; /** a tool other than Select is active */ tool?: boolean };
 
 /** What one Esc press undoes, innermost first. */
-export function escapeStep(s: EscapeState): "sheet" | "drag" | "nudge" | "selection" | "palette" | null {
+export function escapeStep(s: EscapeState): "sheet" | "drag" | "nudge" | "selection" | "tool" | "palette" | null {
   if (s.sheet) return "sheet";
   if (s.dragging) return "drag";
   if (s.nudging) return "nudge";
   if (s.selected > 0) return "selection";
+  if (s.tool) return "tool";
   if (s.palette) return "palette";
   return null;
 }

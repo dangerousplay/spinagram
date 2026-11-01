@@ -95,12 +95,12 @@ export function takenIds(scene: SceneJson): string[] {
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
 
 /** The top-left of a `w` x `h` box centred on (px, py), snapped, kept inside the canvas. */
-function centred(scene: SceneJson, px: number, py: number, w: number, h: number): { x: number; y: number } {
+export function centred(scene: SceneJson, px: number, py: number, w: number, h: number): { x: number; y: number } {
   return { x: clamp(snap(px - w / 2), 0, scene.width - w), y: clamp(snap(py - h / 2), 0, scene.height - h) };
 }
 
 /** The innermost zone holding a point, or null. */
-function zoneAtPoint(scene: SceneJson, x: number, y: number): string | null {
+export function zoneAtPoint(scene: SceneJson, x: number, y: number): string | null {
   let best: { id: string; area: number } | null = null;
   for (const b of zoneBoxes(scene)) {
     if (x < b.x || x > b.x + b.w || y < b.y || y > b.y + b.h) continue;

@@ -817,12 +817,14 @@ keymap table, so the `?` sheet lists them.
 
 **Done when**:
 
-- [ ] bun tests: a click places the default box at the point and a drag places the drawn rectangle (snapped); a Text placement yields AddNode kind text and opens the editor; Connect rejects empty space, the same node and a zone; the tool falls back to Select unless Shift is held; the keymap holds every tool key
-- [ ] Web gate passes
+- [x] bun tests: a click places the default box at the point and a drag places the drawn rectangle (snapped); a Text placement yields AddNode kind text and opens the editor; Connect rejects empty space, the same node and a zone; the tool falls back to Select unless Shift is held; the keymap holds every tool key
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): canvas toolbar with select, pan, box, text, zone and connect tools`
+
+**Notes**: `tools.ts` holds the pure logic (`placeOps`, `connectOps`, `toolAfterUse`, `CLICK_SLOP` 8 px); `useCanvas` gained `tool`, `setTool`, `beginTool`, `drawing` and `connecting` (the live rectangle and the straight dashed line, with the target node highlighted); `move` and `end` route to them, and `end(shift)` takes the Shift state at release (Shift at the press also keeps the tool). A new `connect` op type in `ops.ts` (the Rust `Op::Connect` already existed). A placed Text opens the inline editor once the scene with the new node arrives. Connect released on nothing keeps the tool for another try. Space held pans in any tool (`DiagramView`); Hand pans with a plain drag. Esc order: sheet, drag/drawing, nudge, selection, tool back to Select, palette. Key `c`: with the canvas off it still turns it on; with it active it is the Connect tool (the global handler steps aside), and the Canvas button turns it off; the `?` footer says so. The floating "Palette" button is replaced by the toolbar's Palette action. Group, Ungroup and Delete are disabled without a matching selection. Tool keys V H B T Z C and the new pointer rows are in the keymap table and the `?` sheet. Tests +13 (placement, rectangle, minimum size, click slop, zone join, text edit flag, id uniqueness, connect accept and the four refusals, tool fallback, keymap), six mutants checked in a scratch worktree (removed afterwards) and all killed. Quick browser check on port 8799: Box tool click placed `new-box`, Connect drag db to bucket added `db -> bucket`. Gate: bun test 156 pass, build ok.
 
 ---
 

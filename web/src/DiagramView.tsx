@@ -5,6 +5,7 @@ import CodePanel from "./CodePanel";
 import CanvasBar from "./canvas/CanvasBar";
 import InlineEdit from "./canvas/InlineEdit";
 import ShortcutSheet from "./canvas/ShortcutSheet";
+import Toolbar from "./canvas/Toolbar";
 import SvgHost from "./canvas/svgHost";
 import { escapeStep, matchKey, selectionFrame } from "./canvas/interaction";
 import { readPaletteOpen, writePaletteOpen } from "./canvas/paletteState";
@@ -68,6 +69,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [canvasOn, setCanvasOn] = useState(false);
   const [tick, setTick] = useState(0); // bumped after a canvas edit: render and scene are read again
   const panGate = useRef<(e: PointerEvent) => boolean>(() => true);
+  const [space, setSpace] = useState(false); // Space held: any tool pans
   const { ref, view, fit, actual, zoomBy } = usePanZoom(size, (e) => panGate.current(e));
   const fitted = useRef(false);
   const [inspect, setInspect] = useState(() => stored(INSPECT_KEY));
@@ -130,14 +132,15 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     return { x: (e.clientX - r.left - view.x) / view.scale, y: (e.clientY - r.top - view.y) / view.scale };
   };
   // with the canvas on, a press on an element drags it and a press on empty canvas rubber-bands; Alt+drag pans
-  panGate.current = (e) => !canvas.active || e.altKey;
+  const panning = space || canvas.tool === "hand";
+  panGate.current = (e) => !canvas.active || e.altKey || panning;
   const onMove = (e: React.PointerEvent) => {
     if (canvas.dragging) {
       const p = sceneAt(e);
       canvas.move(p.x, p.y);
       return;
     }
-    if (canvas.active && !e.buttons) {
+    if (canvas.active && !e.buttons && canvas.tool === "select") {
       const p = sceneAt(e);
       canvas.hover(p.x, p.y);
     }
@@ -147,9 +150,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   };
   const onDown = (e: React.PointerEvent) => {
     press.current = { x: e.clientX, y: e.clientY };
-    if (canvas.active && e.button === 0 && !e.altKey) {
+    if (canvas.active && e.button === 0 && !e.altKey && !panning) {
       const p = sceneAt(e);
-      if (canvas.begin(p.x, p.y, e.shiftKey)) ref.current?.setPointerCapture(e.pointerId);
+      if (canvas.tool !== "select") {
+        if (canvas.beginTool(p.x, p.y, e.shiftKey)) ref.current?.setPointerCapture(e.pointerId);
+      } else if (canvas.begin(p.x, p.y, e.shiftKey)) ref.current?.setPointerCapture(e.pointerId);
       else if (!canvas.hits(p.x, p.y)) {
         canvas.beginBand(p.x, p.y, e.shiftKey);
         ref.current?.setPointerCapture(e.pointerId);
@@ -159,7 +164,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const onUp = (e: React.PointerEvent) => {
     if (canvas.dragging) {
       press.current = null;
-      canvas.end();
+      canvas.end(e.shiftKey);
       return;
     }
     const p0 = press.current;
@@ -212,7 +217,9 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   useKey("-", () => zoomBy(0.8));
   useKey("i", toggleInspect);
   useKey("e", toggleCode);
-  useKey("c", () => setCanvasOn((on) => !on));
+  useKey("c", () => {
+    if (!canvas.active) setCanvasOn((on) => !on); // with the canvas active, c is the Connect tool (the keymap)
+  });
   // every canvas key goes through the keymap table (canvas/interaction.ts), which also feeds the `?` sheet
   const [sheet, setSheet] = useState(false);
   const keys = useRef({ canvas, paletteOpen, sheet, openPalette, setPaletteOpen });
@@ -237,6 +244,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
           return k.openPalette();
         case "help":
           return setSheet((v) => !v);
+        case "tool":
+          return k.canvas.setTool(hit.tool);
         case "nudge":
           return k.canvas.nudge(hit.dx, hit.dy);
         case "escape": {
@@ -246,6 +255,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             nudging: k.canvas.nudging,
             selected: k.canvas.selected.length,
             palette: k.paletteOpen,
+            tool: k.canvas.tool !== "select",
           });
           if (step === "sheet") setSheet(false);
           else if (step === "drag") k.canvas.cancelDrag();
@@ -265,6 +275,24 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     return () => {
       window.removeEventListener("keydown", on);
       window.removeEventListener("keyup", up);
+    };
+  }, []);
+  useEffect(() => {
+    // Space held pans in any tool; it also stops the page and a focused button from reacting to the key
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !keys.current.canvas.active || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
+      e.preventDefault();
+      setSpace(true);
+    };
+    const up = (e: KeyboardEvent) => e.code === "Space" && setSpace(false);
+    const blur = () => setSpace(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, []);
   useEffect(() => {
@@ -296,7 +324,15 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       <div
         ref={ref}
         className={`absolute inset-0 touch-none select-none ${
-          canvas.active ? CURSORS[canvas.cursor] : inspect && hover ? "cursor-pointer" : "cursor-grab"
+          canvas.active
+            ? panning
+              ? "cursor-grab"
+              : canvas.tool === "select"
+                ? CURSORS[canvas.cursor]
+                : "cursor-crosshair"
+            : inspect && hover
+              ? "cursor-pointer"
+              : "cursor-grab"
         }`}
         onPointerMove={onMove}
         onPointerDown={onDown}
@@ -357,6 +393,40 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
                 }}
               />
             )}
+            {canvas.drawing && (
+              <div
+                className="pointer-events-none absolute border-2 border-dashed border-blue-600 bg-blue-500/10"
+                style={{
+                  left: Math.min(canvas.drawing.x0, canvas.drawing.x1),
+                  top: Math.min(canvas.drawing.y0, canvas.drawing.y1),
+                  width: Math.abs(canvas.drawing.x1 - canvas.drawing.x0),
+                  height: Math.abs(canvas.drawing.y1 - canvas.drawing.y0),
+                }}
+              />
+            )}
+            {canvas.connecting && (
+              <>
+                {canvas.connecting.target && (
+                  <div
+                    className="pointer-events-none absolute rounded-sm border-2 border-emerald-500 bg-emerald-500/10"
+                    style={{ left: canvas.connecting.target.x, top: canvas.connecting.target.y, width: canvas.connecting.target.w, height: canvas.connecting.target.h }}
+                  />
+                )}
+                <svg className="pointer-events-none absolute top-0 left-0 overflow-visible" width={size?.w} height={size?.h} aria-hidden>
+                  <line
+                    x1={canvas.connecting.x0}
+                    y1={canvas.connecting.y0}
+                    x2={canvas.connecting.x1}
+                    y2={canvas.connecting.y1}
+                    stroke={canvas.connecting.target ? "#10b981" : "#2563eb"}
+                    strokeWidth={3}
+                    strokeDasharray="8 6"
+                    strokeLinecap="round"
+                  />
+                  <circle cx={canvas.connecting.x1} cy={canvas.connecting.y1} r={5} fill={canvas.connecting.target ? "#10b981" : "#2563eb"} />
+                </svg>
+              </>
+            )}
             {canvas.dropBox && (
               <div
                 className="pointer-events-none absolute rounded-sm border-2 border-dashed border-emerald-500 bg-emerald-500/10"
@@ -378,16 +448,13 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         )}
       </div>
 
-      {canvas.active && !paletteOpen && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={openPalette}
-          className="absolute top-3 left-3 z-10 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-lg ring-1 ring-black/10 hover:bg-white dark:bg-slate-800/95 dark:text-slate-200"
-          title="Show the palette ( / or Ctrl/Cmd+K )"
-        >
-          Palette
-        </button>
-      )}
+      <Toolbar
+        canvas={canvas}
+        paletteOpen={paletteOpen}
+        sheetOpen={sheet}
+        onPalette={() => (paletteOpen ? setPaletteOpen(false) : openPalette())}
+        onHelp={() => setSheet((v) => !v)}
+      />
       <CanvasBar canvas={canvas} />
       {canvas.active && sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
       {canvas.toast && (

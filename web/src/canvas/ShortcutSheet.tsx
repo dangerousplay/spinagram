@@ -32,7 +32,7 @@ export default function ShortcutSheet({ onClose }: { onClose: () => void }) {
             ))}
           </tbody>
         </table>
-        <p className="mt-2 text-xs text-slate-500">Canvas on/off: c. Esc closes this sheet.</p>
+        <p className="mt-2 text-xs text-slate-500">Canvas on/off: the Canvas button, or c while it is off. Esc closes this sheet.</p>
       </div>
     </div>
   );

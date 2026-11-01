@@ -1,5 +1,9 @@
-// The canvas tools and toolbar actions: ids, labels and keys. The toolbar (Toolbar.tsx) and the key table
+// The canvas tools and toolbar actions: ids, labels and keys, and the pure logic of using a tool: what a click or a
+// drag with Box, Text or Zone adds, and what a Connect drag sends. The toolbar (Toolbar.tsx) and the key table
 // (interaction.ts) are built from these, and icons.tsx maps every id here to an icon.
+import type { Op } from "./ops";
+import { NODE_H, NODE_W, ZONE_H, ZONE_W, centred, newId, takenIds, zoneAtPoint } from "./palette";
+import { boxOf, hitTest, snap, type SceneJson } from "./scene";
 
 /** A tool is a mode of the pointer. */
 export const TOOLS = [
@@ -26,3 +30,55 @@ export const ACTIONS = [
 ] as const;
 
 export type ActionId = (typeof ACTIONS)[number]["id"];
+
+export type Point = { x: number; y: number };
+export type PlaceTool = "box" | "text" | "zone";
+export const isPlaceTool = (t: ToolId): t is PlaceTool => t === "box" || t === "text" || t === "zone";
+
+/** A press that travels less than this (scene px) in both directions is a click, not a drawn rectangle. */
+export const CLICK_SLOP = 8;
+/** The smallest rectangle a drag can draw (scene px). */
+const MIN_SIZE: Record<PlaceTool, [number, number]> = { box: [40, 30], text: [40, 30], zone: [80, 60] };
+
+export type Placement = { ops: Op[]; id: string; /** the inline editor opens on the new item at once */ edit: boolean };
+
+/** What a click or a drag with Box, Text or Zone adds. A click puts the default size centred on the point; a drag
+ * draws the rectangle between the two points, snapped to the grid and kept on the canvas. A box or text joins the
+ * zone its centre is in. Text is a `kind: text` node whose title is edited right away. */
+export function placeOps(scene: SceneJson, tool: PlaceTool, a: Point, b: Point): Placement {
+  const taken = takenIds(scene);
+  const click = Math.abs(b.x - a.x) < CLICK_SLOP && Math.abs(b.y - a.y) < CLICK_SLOP;
+  const [dw, dh] = tool === "zone" ? [ZONE_W, ZONE_H] : [NODE_W, NODE_H];
+  let rect: { x: number; y: number; w: number; h: number };
+  if (click) {
+    rect = { ...centred(scene, a.x, a.y, dw, dh), w: dw, h: dh };
+  } else {
+    const [mw, mh] = MIN_SIZE[tool];
+    const x0 = snap(Math.min(a.x, b.x));
+    const y0 = snap(Math.min(a.y, b.y));
+    const w = Math.min(Math.max(mw, snap(Math.max(a.x, b.x)) - x0), scene.width);
+    const h = Math.min(Math.max(mh, snap(Math.max(a.y, b.y)) - y0), scene.height);
+    rect = { x: Math.max(0, Math.min(x0, scene.width - w)), y: Math.max(0, Math.min(y0, scene.height - h)), w, h };
+  }
+  if (tool === "zone") {
+    const id = newId("Zone", taken);
+    return { ops: [{ op: "add_zone", id, label: "Zone", ...rect }], id, edit: false };
+  }
+  const title = tool === "text" ? "New text" : "New box";
+  const id = newId(title, taken);
+  const add: Op = { op: "add_node", id, title, kind: tool, ...rect };
+  const zone = zoneAtPoint(scene, rect.x + rect.w / 2, rect.y + rect.h / 2);
+  return { ops: zone ? [add, { op: "reparent", id, parent: zone }] : [add], id, edit: tool === "text" };
+}
+
+/** The edge a Connect drag from node `from` released at (x, y) adds: to the node under the point. A release on empty
+ * canvas, on the same node or on a zone adds nothing (canvas-editor EDG-02, EDG-03); an edge that already exists is
+ * added again, parallel edges being valid (EDG-04). */
+export function connectOps(scene: SceneJson, from: string, x: number, y: number): Op[] | null {
+  if (!boxOf(scene, from)) return null;
+  const to = hitTest(scene, x, y);
+  return to && to !== from ? [{ op: "connect", from, to }] : null;
+}
+
+/** The tool in use after one use of `tool`: back to Select, unless Shift was held to keep it. */
+export const toolAfterUse = (tool: ToolId, keep: boolean): ToolId => (keep ? tool : "select");

@@ -11,6 +11,7 @@ import { History } from "./history";
 import { dropOps, ghostOf, type Ghost, type PaletteItem } from "./palette";
 import { cursorFor, EMPTY_BURST, nudgeMoves, nudgeOps, pressNudge, TOAST_MS, type Burst, type Cursor } from "./interaction";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
+import { connectOps, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
 
 export const CHANGED_ON_DISK = "File changed on disk; edit not applied";
 
@@ -31,6 +32,9 @@ export type Band = { x0: number; y0: number; x1: number; y1: number };
 /** The inline editor of a node's title or a zone's label. */
 /** An error from an edit operation, shown for a moment at the place the pointer was. */
 export type Toast = { message: string; x: number; y: number; nonce: number };
+/** A rectangle being drawn with Box, Text or Zone, and an edge being drawn with Connect (with the node under the end). */
+export type Drawing = { tool: "box" | "text" | "zone"; x0: number; y0: number; x1: number; y1: number };
+export type Connecting = { from: string; x0: number; y0: number; x1: number; y1: number; target: Box | null };
 export type Editing = { id: string; kind: "node" | "zone"; box: Box; text: string };
 
 export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Options) {
@@ -48,6 +52,14 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const [editing, setEditing] = useState<Editing | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [hovering, setHovering] = useState(false);
+  const [tool, setToolState] = useState<ToolId>("select");
+  const [drawing, setDrawing] = useState<Drawing | null>(null);
+  const [connecting, setConnecting] = useState<Connecting | null>(null);
+  const toolRef = useRef<ToolId>("select");
+  toolRef.current = tool;
+  const drawRef = useRef<(Drawing & { keep: boolean }) | null>(null);
+  const connRef = useRef<{ from: string; x0: number; y0: number; keep: boolean } | null>(null);
+  const pendingEdit = useRef<{ id: string; title: string } | null>(null); // a placed Text, edited once it is in the scene
   const [nudging, setNudging] = useState(false);
   const pointer = useRef({ x: 0, y: 0 });
   const burst = useRef<Burst>(EMPTY_BURST);
@@ -78,6 +90,12 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       .then(async (doc) => {
         setEditable(doc.editable);
         setScene(doc.scene as SceneJson);
+        const pe = pendingEdit.current;
+        const pb = pe ? boxOf(doc.scene as SceneJson, pe.id) : null;
+        if (pe && pb) {
+          pendingEdit.current = null;
+          setEditing({ id: pe.id, kind: "node", box: pb, text: pe.title });
+        }
         if (!doc.editable) return;
         client.current ??= new CanvasClient(new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }));
         await client.current.call({ t: "load", scene: JSON.stringify(doc.scene), files: doc.files, fontBase: api.fontBase });
@@ -94,6 +112,12 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     setSelected([]);
     setDrag(null);
     setPreview(null);
+    drawRef.current = null;
+    connRef.current = null;
+    pendingEdit.current = null;
+    setDrawing(null);
+    setConnecting(null);
+    setToolState("select");
   }, [enabled]);
   useEffect(() => () => {
     client.current?.dispose();
@@ -279,9 +303,67 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     setBand({ x0: x, y0: y, x1: x, y1: y });
   }, []);
 
+  const abortTool = useCallback(() => {
+    drawRef.current = null;
+    connRef.current = null;
+    setDrawing(null);
+    setConnecting(null);
+  }, []);
+
+  /** Pick the tool the pointer works as. A drawing or edge in progress is dropped. */
+  const setTool = useCallback(
+    (t: ToolId) => {
+      if (!active) return;
+      abortTool();
+      setToolState(t);
+    },
+    [active, abortTool],
+  );
+
+  /** A press with Box, Text, Zone or Connect at a scene point. Returns whether the press started something (so the
+   * caller captures the pointer): a rectangle for the placing tools, an edge from the node pressed for Connect. */
+  const beginTool = useCallback(
+    (x: number, y: number, shift = false): boolean => {
+      const t = toolRef.current;
+      const sc = sceneRef.current;
+      pointer.current = { x, y };
+      if (!sc) return false;
+      if (isPlaceTool(t)) {
+        drawRef.current = { tool: t, x0: x, y0: y, x1: x, y1: y, keep: shift };
+        setDrawing({ tool: t, x0: x, y0: y, x1: x, y1: y });
+        return true;
+      }
+      if (t === "connect") {
+        const from = hitTest(sc, x, y);
+        const fb = from ? boxOf(sc, from) : null;
+        if (!from || !fb) return false;
+        const [cx, cy] = [fb.x + fb.w / 2, fb.y + fb.h / 2];
+        connRef.current = { from, x0: cx, y0: cy, keep: shift };
+        setConnecting({ from, x0: cx, y0: cy, x1: x, y1: y, target: null });
+        return true;
+      }
+      return false;
+    },
+    [],
+  );
+
   const move = useCallback(
     (x: number, y: number) => {
       pointer.current = { x, y };
+      const dw = drawRef.current;
+      if (dw) {
+        drawRef.current = { ...dw, x1: x, y1: y };
+        setDrawing({ tool: dw.tool, x0: dw.x0, y0: dw.y0, x1: x, y1: y });
+        return;
+      }
+      const cn = connRef.current;
+      if (cn) {
+        const sc = sceneRef.current;
+        const over = sc ? hitTest(sc, x, y) : null;
+        const target = sc && over && over !== cn.from ? boxOf(sc, over) : null;
+        setConnecting({ from: cn.from, x0: cn.x0, y0: cn.y0, x1: x, y1: y, target });
+        return;
+      }
       const b = bandRef.current;
       if (b && sceneRef.current) {
         setBand({ x0: b.x0, y0: b.y0, x1: x, y1: y });
@@ -304,7 +386,28 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
 
   /** The release. A band ends. A click only selects; a drag commits its batch: Move (MoveZone for a zone) to the
    * snapped corner, Reparent when dropped into another zone, container insertions and removals (see `planDrop`). */
-  const end = useCallback(() => {
+  const end = useCallback((shift = false) => {
+    const dw = drawRef.current;
+    const cn = connRef.current;
+    const sc = sceneRef.current;
+    if (dw || cn) {
+      abortTool();
+      if (!sc) return;
+      const keep = shift || (dw ?? cn)!.keep;
+      const t = toolRef.current;
+      if (dw) {
+        const place = placeOps(sc, dw.tool, { x: dw.x0, y: dw.y0 }, { x: dw.x1, y: dw.y1 } as Point);
+        setToolState(toolAfterUse(t, keep));
+        if (place.edit) pendingEdit.current = { id: place.id, title: "New text" };
+        void commit(place.ops);
+      } else if (cn) {
+        const ops = connectOps(sc, cn.from, pointer.current.x, pointer.current.y);
+        if (!ops) return; // nothing added: the tool stays for another try
+        setToolState(toolAfterUse(t, keep));
+        void commit(ops);
+      }
+      return;
+    }
     if (bandRef.current) {
       bandRef.current = null;
       setBand(null);
@@ -337,10 +440,11 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       void client.current!.call({ t: "drag", moves }).then(setPreview).catch(() => undefined);
     } else setPreview(null);
     void commit(plan.ops);
-  }, [commit, showToast]);
+  }, [commit, showToast, abortTool]);
 
   /** Esc during a drag: drop it without any operation; the server render (the pre-drag scene) shows again. */
   const cancelDrag = useCallback(() => {
+    abortTool();
     dragRef.current = null;
     bandRef.current = null;
     setDrag(null);
@@ -351,7 +455,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     }
     latest.current = null;
     setPreview(null);
-  }, []);
+  }, [abortTool]);
 
   /** Whether the pointer is over something the canvas grabs; sets the `grab` cursor. */
   const hover = useCallback(
@@ -567,7 +671,12 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     band,
     dropBox,
     editing,
-    dragging: drag !== null || band !== null,
+    dragging: drag !== null || band !== null || drawing !== null || connecting !== null,
+    tool,
+    drawing,
+    connecting,
+    setTool,
+    beginTool,
     preview,
     ghost,
     clearPreview: useCallback(() => {

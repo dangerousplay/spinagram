@@ -25,7 +25,8 @@ export type Op =
   | { op: "remove_from_container"; id: string; node: string; boxes: Record<string, Rect> }
   | { op: "set_container"; id: string; gap?: number; align?: string }
   | { op: "add_node"; id: string; title?: string; kind?: string; icon?: string; x?: number; y?: number; w?: number; h?: number }
-  | { op: "add_zone"; id: string; label?: string; x: number; y: number; w: number; h: number };
+  | { op: "add_zone"; id: string; label?: string; x: number; y: number; w: number; h: number }
+  | { op: "connect"; from: string; to: string; label?: string };
 
 export type Rect = [number, number, number, number];
 

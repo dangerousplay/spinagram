@@ -37,7 +37,7 @@ import {
   type KeyLike,
 } from "./interaction";
 import { CONTAINER_ICON_NAMES, hasIcon, iconNameOf, ICON_NAMES } from "./icons";
-import { ACTIONS, TOOLS } from "./tools";
+import { ACTIONS, CLICK_SLOP, TOOLS, connectOps, isPlaceTool, placeOps, toolAfterUse } from "./tools";
 import { SHAPE_KINDS, buildCorpus, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
@@ -787,6 +787,13 @@ describe("escape", () => {
     expect(escapeStep(base)).toBeNull();
   });
 
+  test("with a tool active Esc returns to Select once the selection is clear, before the palette closes", () => {
+    expect(escapeStep({ ...base, tool: true, selected: 1, palette: true })).toBe("selection");
+    expect(escapeStep({ ...base, tool: true, palette: true })).toBe("tool");
+    expect(escapeStep({ ...base, tool: true, dragging: true })).toBe("drag");
+    expect(escapeStep({ ...base, palette: true })).toBe("palette");
+  });
+
   test("a cancelled drag sends no operation: the move map of the drag is dropped and the pre-drag scene stays", () => {
     // the drag in progress holds a move map; the cancel step is "drag", never a commit
     const d = dragTo(startDrag(n("n1"), 100, 100), 160, 130);
@@ -819,7 +826,7 @@ describe("cursors and selection frame", () => {
 });
 
 describe("keymap table and the shortcut sheet", () => {
-  const ALL: KeyAction["action"][] = ["delete", "nudge", "group-row", "undo", "redo", "palette", "escape", "help"];
+  const ALL: KeyAction["action"][] = ["tool", "delete", "nudge", "group-row", "undo", "redo", "palette", "escape", "help"];
 
   test("every key binding fires its own action for each of its sample events", () => {
     for (const b of KEYMAP.filter((x) => x.match)) {
@@ -883,5 +890,100 @@ describe("editor icons (T25)", () => {
     const keys = TOOLS.map((t) => t.key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const k of keys) expect(k).toMatch(/^[a-z]$/);
+  });
+});
+
+describe("toolbar tools (T26): canvas-editor EDG-01..03", () => {
+  const at = (x: number, y: number) => ({ x, y });
+  const add = (ops: ReturnType<typeof placeOps>["ops"]) => ops[0] as { op: string; id: string; title?: string; kind?: string; x: number; y: number; w: number; h: number; label?: string };
+
+  test("a click with Box adds the default box centred on the point, snapped, outside any zone", () => {
+    const p = placeOps(zscene, "box", at(700, 600), at(702, 601));
+    expect(p.ops).toHaveLength(1);
+    expect(add(p.ops)).toMatchObject({ op: "add_node", title: "New box", kind: "box", x: 590, y: 550, w: 220, h: 96 });
+    expect(p.edit).toBe(false);
+  });
+
+  test("a click inside a zone puts the new box in the innermost zone", () => {
+    const p = placeOps(zscene, "box", at(200, 200), at(200, 200));
+    expect(p.ops[1]).toEqual({ op: "reparent", id: p.id, parent: "inner" });
+  });
+
+  test("a drag with Box adds the drawn rectangle snapped, whichever way it is dragged", () => {
+    const forward = placeOps(zscene, "box", at(414, 543), at(606, 628));
+    const backward = placeOps(zscene, "box", at(606, 628), at(414, 543));
+    expect(add(forward.ops)).toMatchObject({ x: 410, y: 540, w: 200, h: 90 });
+    expect(add(backward.ops)).toMatchObject({ x: 410, y: 540, w: 200, h: 90 });
+  });
+
+  test("a drawn rectangle is never smaller than the tool's minimum and stays on the canvas", () => {
+    expect(add(placeOps(zscene, "box", at(100, 100), at(115, 110)).ops)).toMatchObject({ x: 100, y: 100, w: 40, h: 30 });
+    expect(add(placeOps(zscene, "zone", at(100, 100), at(115, 110)).ops)).toMatchObject({ w: 80, h: 60 });
+    const edge = add(placeOps(zscene, "box", at(1290, 790), at(1400, 900)).ops);
+    expect(edge.x + edge.w).toBeLessThanOrEqual(zscene.width);
+    expect(edge.y + edge.h).toBeLessThanOrEqual(zscene.height);
+  });
+
+  test("a press that moves less than the click slop is a click", () => {
+    const tiny = placeOps(zscene, "box", at(700, 600), at(700 + CLICK_SLOP - 1, 600));
+    expect(add(tiny.ops)).toMatchObject({ w: 220, h: 96 });
+    const drag = placeOps(zscene, "box", at(700, 600), at(700 + CLICK_SLOP, 600));
+    expect(add(drag.ops).w).not.toBe(220);
+  });
+
+  test("Text adds a text-kind node and asks for the inline editor; Box and Zone do not", () => {
+    const t = placeOps(zscene, "text", at(700, 600), at(700, 600));
+    expect(add(t.ops)).toMatchObject({ op: "add_node", kind: "text", title: "New text" });
+    expect(t.edit).toBe(true);
+    expect(placeOps(zscene, "box", at(700, 600), at(700, 600)).edit).toBe(false);
+    expect(placeOps(zscene, "zone", at(700, 600), at(700, 600)).edit).toBe(false);
+  });
+
+  test("Zone adds a zone: default size centred on a click, the drawn rectangle on a drag", () => {
+    const c = placeOps(zscene, "zone", at(650, 400), at(650, 400));
+    expect(add(c.ops)).toMatchObject({ op: "add_zone", label: "Zone", x: 350, y: 200, w: 600, h: 400 });
+    expect(add(c.ops).id).toBe(c.id);
+    const d = placeOps(zscene, "zone", at(100, 600), at(400, 780));
+    expect(add(d.ops)).toMatchObject({ op: "add_zone", x: 100, y: 600, w: 300, h: 180 });
+  });
+
+  test("new ids avoid the ones in the scene", () => {
+    const first = placeOps(zscene, "box", at(700, 600), at(700, 600)).id;
+    const withIt: SceneJson = { ...zscene, items: [...zscene.items, shape(first, "node", 0, 0, 10, 10)] };
+    expect(placeOps(withIt, "box", at(700, 600), at(700, 600)).id).not.toBe(first);
+  });
+
+  test("Connect from a node to another node sends Connect, again when the edge exists", () => {
+    const want = [{ op: "connect", from: "n1", to: "n2" }];
+    expect(connectOps(zscene, "n1", 100, 130)).toEqual(want);
+    expect(connectOps(zscene, "n1", 100, 130)).toEqual(want); // parallel edges are valid (EDG-04)
+  });
+
+  test("Connect adds nothing on empty canvas, on the same node, on a zone, or from something that is not a node", () => {
+    expect(connectOps(zscene, "n1", 700, 700)).toBeNull(); // empty canvas
+    expect(connectOps(zscene, "n1", 410, 110)).toBeNull(); // the same node
+    expect(connectOps(zscene, "n1", 100, 330)).toBeNull(); // inside a zone only
+    expect(connectOps(zscene, "n1", 1100, 100)).toBeNull(); // the empty zone
+    expect(connectOps(zscene, "outer", 100, 130)).toBeNull(); // a zone is no source
+    expect(connectOps(zscene, "missing", 100, 130)).toBeNull();
+  });
+
+  test("a tool returns to Select after use unless Shift keeps it", () => {
+    for (const t of TOOLS) {
+      expect(toolAfterUse(t.id, false)).toBe("select");
+      expect(toolAfterUse(t.id, true)).toBe(t.id);
+    }
+    expect(TOOLS.filter((t) => isPlaceTool(t.id)).map((t) => t.id)).toEqual(["box", "text", "zone"]);
+  });
+
+  test("the keymap holds the key of every tool, and the sheet lists them", () => {
+    const mk = (key: string, m: Partial<KeyLike> = {}): KeyLike => ({ key, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...m });
+    for (const t of TOOLS) {
+      expect(matchKey(mk(t.key))).toEqual({ action: "tool", tool: t.id });
+      expect(matchKey(mk(t.key.toUpperCase(), { shiftKey: true }))).toEqual({ action: "tool", tool: t.id });
+      expect(matchKey(mk(t.key, { ctrlKey: true }))?.action).not.toBe("tool");
+      expect(shortcutRows().some((r) => r.keys === t.key.toUpperCase() && r.label.startsWith(t.label)), t.id).toBe(true);
+    }
+    expect(TOOLS.map((t) => t.key)).toEqual(["v", "h", "b", "t", "z", "c"]);
   });
 });
