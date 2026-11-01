@@ -6,6 +6,13 @@
     "background": {
       "type": "string"
     },
+    "containers": {
+      "description": "Row and column containers. Written only when there are some.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContainerInfo"
+      }
+    },
     "height": {
       "type": "number",
       "format": "double"
@@ -52,6 +59,13 @@
     "width": {
       "type": "number",
       "format": "double"
+    },
+    "zones": {
+      "description": "Zones with the ids the spec declares. Written only when there are zones.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ZoneInfo"
+      }
     }
   },
   "required": [
@@ -232,6 +246,39 @@
         "marker_start",
         "marker_end",
         "opacity"
+      ]
+    },
+    "ContainerInfo": {
+      "description": "A `rows`/`columns` container (`row0`, `column1`, ...): axis, member node ids in order, and the box\n`[x, y, w, h]` enclosing the members.",
+      "type": "object",
+      "properties": {
+        "axis": {
+          "type": "string"
+        },
+        "box": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "id": {
+          "type": "string"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "axis",
+        "members",
+        "box"
       ]
     },
     "Font": {
@@ -845,6 +892,29 @@
         "font",
         "color",
         "leading"
+      ]
+    },
+    "ZoneInfo": {
+      "description": "A zone: the id the edit operations use, the id of its shape in `items`, and its declared children.",
+      "type": "object",
+      "properties": {
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "shape_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "shape_id",
+        "children"
       ]
     }
   }

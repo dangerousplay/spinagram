@@ -206,6 +206,31 @@ pub struct Scene {
     pub item_facts: BTreeMap<String, Vec<String>>,
     pub sources: Vec<Value>,
     pub meta_tooltips: BTreeMap<String, String>,
+    /// Zones with the ids the spec declares. Written only when there are zones.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub zones: Vec<ZoneInfo>,
+    /// Row and column containers. Written only when there are some.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub containers: Vec<ContainerInfo>,
+}
+
+/// A zone: the id the edit operations use, the id of its shape in `items`, and its declared children.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ZoneInfo {
+    pub id: String,
+    pub shape_id: String,
+    pub children: Vec<String>,
+}
+
+/// A `rows`/`columns` container (`row0`, `column1`, ...): axis, member node ids in order, and the box
+/// `[x, y, w, h]` enclosing the members.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ContainerInfo {
+    pub id: String,
+    pub axis: String,
+    pub members: Vec<String>,
+    #[serde(rename = "box")]
+    pub bbox: [f64; 4],
 }
 
 #[derive(Deserialize)]

@@ -374,14 +374,16 @@ Ops JSON shapes are documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] Test: a hand-placed YAML with a row is editable; Python and engine layouts still are not
-- [ ] Test: scene JSON lists containers (id, axis, members, box) and zone children, and validates against the schema
-- [ ] Rust `scene_roundtrip` still round-trips every example scene byte-for-byte
-- [ ] Full gate passes
+- [x] Test: a hand-placed YAML with a row is editable; Python and engine layouts still are not
+- [x] Test: scene JSON lists containers (id, axis, members, box) and zone children, and validates against the schema
+- [x] Rust `scene_roundtrip` still round-trips every example scene byte-for-byte
+- [x] Full gate passes
 
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat: canvas editing for diagrams with rows and columns`
+
+**Notes**: Scene JSON gained `zones` (`{id: declared id, shape_id: z0.., children: declared ids}`) and `containers` (`{id: row0/column1.., axis, members, box}`), each written only when non-empty so older scenes still round-trip equal; Rust `scene.rs` has `ZoneInfo`/`ContainerInfo` (serde default), the schema is regenerated, and `Scene.zone_ids` (python) carries the declared zone ids. A container's box is the union of its member shapes. The test `rows.yaml#RW` in tests/test_ui.py flipped from not editable to editable (the new requirement); a new `rowsauto.yaml` (rows plus `layout: {engine: flex}`) stays not editable. 2842 passed, 3 skipped per mode; cargo 202.
 
 ---
 

@@ -508,15 +508,41 @@ def test_scene_endpoint_says_whether_the_diagram_is_canvas_editable(env):
     specs = env / "specs"
     (specs / "spec.py").write_text("from spinagram import Diagram\nd = Diagram('PY', 'py')\nd.add('box', 'A', x=10, y=10, w=100, h=60)\n")
     (specs / "rows.yaml").write_text("id: RW\ntitle: rows\nrows:\n  - {x: 100, y: 100, nodes: [{id: a, title: A, w: 100, h: 60}]}\n")
+    (specs / "rowsauto.yaml").write_text("id: RA\ntitle: rows\nlayout: {engine: flex}\nrows:\n  - {x: 100, y: 100, nodes: [{id: a, title: A, w: 100, h: 60}]}\n")
     node = "  nodes:\n    - {id: a, x: 100, y: 200, w: 300, h: 120, title: A}\n"
     (specs / "multi.yaml").write_text(f"- id: M1\n  title: m1\n{node}- id: M2\n  title: m2\n{node}")
     c = client(Workspace([specs]))
     editable = {k: c.get(f"/api/diagrams/{k.replace('#', '%23')}.scene").json()["editable"]
-                for k in ("one.yaml#D1", "auto.yaml#AU", "spec.py#PY", "rows.yaml#RW")}
-    assert editable == {"one.yaml#D1": True, "auto.yaml#AU": False, "spec.py#PY": False, "rows.yaml#RW": False}
+                for k in ("one.yaml#D1", "auto.yaml#AU", "spec.py#PY", "rows.yaml#RW", "rowsauto.yaml#RA")}
+    # a hand-placed YAML with a row is editable (T11); Python specs and engine layouts still are not
+    assert editable == {"one.yaml#D1": True, "auto.yaml#AU": False, "spec.py#PY": False, "rows.yaml#RW": True,
+                        "rowsauto.yaml#RA": False}
     ws = Workspace([specs])
     multi = [k for k in ws.all_keys() if k.startswith("multi.yaml")]
     assert len(multi) == 2 and not any(c.get(f"/api/diagrams/{k.replace('#', '%23')}.scene").json()["editable"] for k in multi)
+
+
+def test_scene_endpoint_lists_containers_and_zone_children(env):
+    (env / "specs" / "zr.yaml").write_text(
+        "id: ZR\ntitle: zr\nzones:\n  - {id: outer, label: O, x: 20, y: 20, w: 800, h: 500, children: [inner, a]}\n"
+        "  - {id: inner, label: I, x: 60, y: 80, w: 300, h: 300, children: [b]}\n"
+        "nodes:\n  - {id: a, title: A, at: [400, 100, 120, 60]}\n  - {id: b, title: B, at: [80, 120, 120, 60]}\n"
+        "  - {id: c, title: C}\n  - {id: d, title: D}\n"
+        "rows:\n  - {x: 100, y: 600, gap: 30, nodes: [c, d]}\n")
+    body = client(Workspace([env / "specs"])).get("/api/diagrams/zr.yaml%23ZR.scene").json()
+    assert body["editable"] is True
+    errors = list(_scene_schema_validator().iter_errors(body["scene"]))
+    assert not errors, errors[0].message
+    scene = body["scene"]
+    assert [(z["id"], z["children"]) for z in scene["zones"]] == [("outer", ["inner", "a"]), ("inner", ["b"])]
+    shapes = {i["id"]: i for i in scene["items"] if i["type"] == "shape"}
+    assert all(shapes[z["shape_id"]]["role"] == "zone" for z in scene["zones"])
+    (row,) = scene["containers"]
+    assert (row["id"], row["axis"], row["members"]) == ("row0", "row", ["c", "d"])
+    x0, y0 = min(shapes[m]["x"] for m in "cd"), min(shapes[m]["y"] for m in "cd")
+    x1 = max(shapes[m]["x"] + shapes[m]["w"] for m in "cd")
+    y1 = max(shapes[m]["y"] + shapes[m]["h"] for m in "cd")
+    assert row["box"] == [x0, y0, x1 - x0, y1 - y0] and row["box"][0] == 100 and row["box"][1] == 600
 
 
 def test_scene_endpoint_unknown_key_is_404_and_a_broken_spec_is_422(env):

@@ -483,12 +483,13 @@ class Workspace:
             return out
 
     def canvas_editable(self, key: str) -> bool:
-        """Whether the canvas can edit the diagram: a hand-placed diagram alone in its YAML file. Python specs, engine
-        layouts (``layout:`` or no coordinates), row/column containers, snakes and multi-diagram files are not."""
+        """Whether the canvas can edit the diagram: a hand-placed diagram alone in its YAML file, row and column
+        containers included. Python specs, engine layouts (``layout:`` or no coordinates), snakes and multi-diagram
+        files are not."""
         with self._lock:
             sf, d = self.find(key)
             return (d is not None and sf.path.suffix in (".yaml", ".yml") and len(sf.diagrams) == 1 and not d.auto
-                    and not d.containers and not d.snakes)
+                    and not d.snakes)
 
     def scene(self, key: str, layout: str | None = None) -> dict:
         """The scene of one diagram for the canvas: ``scene`` (:mod:`spinagram.scene_json`), ``editable``, and the
