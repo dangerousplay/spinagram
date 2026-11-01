@@ -767,6 +767,8 @@ describe("keyboard nudge (SEL-02 polish)", () => {
   test("row and column members are placed by their container, so a nudge leaves them alone", () => {
     const burst = pressNudge(EMPTY_BURST, 10, 0);
     expect(nudgeOps(gscene, [{ id: "a", kind: "node" }], burst)).toBeNull();
+    // even a long burst that would carry the member out of its row is not turned into a removal
+    expect(nudgeOps(gscene, [{ id: "a", kind: "node" }], pressNudge(EMPTY_BURST, 0, 200))).toBeNull();
     const plan = nudgeOps(gscene, [{ id: "a", kind: "node" }, { id: "f1", kind: "node" }], burst);
     expect(plan?.ops.map((o) => ("id" in o ? o.id : null))).toEqual(["f1"]);
   });
