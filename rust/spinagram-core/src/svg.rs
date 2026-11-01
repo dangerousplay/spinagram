@@ -171,6 +171,29 @@ impl<'a> Writer<'a> {
         }
     }
 
+    fn mark(&self) -> [usize; 3] {
+        [self.back.len(), self.mid.len(), self.front.len()]
+    }
+
+    /// Group what an item drew since `mark` per layer as `<g data-id>` (CTR-01). The first layer written carries
+    /// the item id; later layers add `@mid` or `@front` so every `data-id` is unique.
+    fn wrap(&mut self, item_id: &str, mark: [usize; 3]) {
+        let mut first = true;
+        for (i, name) in ["back", "mid", "front"].into_iter().enumerate() {
+            let layer = match i {
+                0 => &mut self.back,
+                1 => &mut self.mid,
+                _ => &mut self.front,
+            };
+            if layer.len() > mark[i] {
+                let key = if first { item_id.to_string() } else { format!("{item_id}@{name}") };
+                first = false;
+                let inner: String = layer.drain(mark[i]..).collect();
+                layer.push(format!("<g data-id=\"{}\">{inner}</g>", attr(&key)));
+            }
+        }
+    }
+
     fn used(&mut self, font: &Font, text: &str) {
         self.chars.entry((font.family.clone(), font.weight, font.italic)).or_default().extend(text.chars());
     }
@@ -308,6 +331,13 @@ impl<'a> Writer<'a> {
     }
 
     fn shape(&mut self, s: &Shape) -> Result<(), DrawError> {
+        let mark = self.mark();
+        self.shape_body(s)?;
+        self.wrap(&s.id, mark);
+        Ok(())
+    }
+
+    fn shape_body(&mut self, s: &Shape) -> Result<(), DrawError> {
         let layer = match s.role.as_str() {
             "zone" | "chrome" => Layer::Back,
             "pill" | "swatch" => Layer::Front,
@@ -381,8 +411,10 @@ impl<'a> Writer<'a> {
             let _ = write!(ends, " marker-start=\"url(#{})\"", self.marker(&c.color, &c.marker_start));
         }
         let op = if c.opacity < 1.0 { format!(" opacity=\"{}\"", g(c.opacity)) } else { String::new() };
+        let mark = self.mark();
         self.mid.push(format!("<path d=\"{d}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"{}{op}{ends}/>",
                               c.color, g(c.width), dash(c.dashed, c.dash.as_deref())));
+        self.wrap(&c.id, mark);
         if let Some(crate::scene::TaggedShape::Shape(label)) = &c.label {
             self.shape(label)?;
         }
@@ -390,6 +422,13 @@ impl<'a> Writer<'a> {
     }
 
     fn table(&mut self, t: &Table) -> Result<(), DrawError> {
+        let mark = self.mark();
+        self.table_body(t)?;
+        self.wrap(&t.id, mark);
+        Ok(())
+    }
+
+    fn table_body(&mut self, t: &Table) -> Result<(), DrawError> {
         let x0 = t.x;
         let total = py_sum(&t.col_widths, self.compensated_sum);
         let mut y = t.y;
@@ -430,6 +469,12 @@ impl<'a> Writer<'a> {
     }
 
     fn text_item(&mut self, it: &Text) {
+        let mark = self.mark();
+        self.text_item_body(it);
+        self.wrap(&it.id, mark);
+    }
+
+    fn text_item_body(&mut self, it: &Text) {
         let layer = if it.id.starts_with('z') { Layer::Back } else { Layer::Front };
         let ls = match it.letter_spacing.as_f64() {
             Some(v) if v != 0.0 => match it.letter_spacing.as_i64() {
@@ -454,10 +499,18 @@ impl<'a> Writer<'a> {
                 Item::Shape(s) => self.shape(s)?,
                 Item::Connector(c) => self.connector(c)?,
                 Item::Text(t) => self.text_item(t),
-                Item::Line(l) => self.front.push(format!(
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\"/>",
-                    f1(l.x1), f1(l.y1), f1(l.x2), f1(l.y2), l.color, g(l.width))),
-                Item::Image(i) => self.image(Layer::Front, &i.path, i.x, i.y, i.w, i.h)?,
+                Item::Line(l) => {
+                    let mark = self.mark();
+                    self.front.push(format!(
+                        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\"/>",
+                        f1(l.x1), f1(l.y1), f1(l.x2), f1(l.y2), l.color, g(l.width)));
+                    self.wrap(&l.id, mark);
+                }
+                Item::Image(i) => {
+                    let mark = self.mark();
+                    self.image(Layer::Front, &i.path, i.x, i.y, i.w, i.h)?;
+                    self.wrap(&i.id, mark);
+                }
                 Item::Table(t) => self.table(t)?,
             }
         }
@@ -533,8 +586,27 @@ mod tests {
 
     const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
-    fn drawn(json: &str) -> Drawn {
+    fn drawn_grouped(json: &str) -> Drawn {
         draw(&scene::parse(&json.replace("@ROOT@", ROOT)).unwrap(), true).unwrap()
+    }
+
+    /// Removes the `<g data-id>` wrappers (CTR-01, pinned by the `groups_*` tests) so the drawing tests below
+    /// keep comparing the bytes of the drawn elements.
+    fn ungroup(s: &str) -> String {
+        let mut out = s.to_string();
+        while let Some(i) = out.find("<g data-id=\"") {
+            let j = i + out[i..].find("\">").unwrap() + 2;
+            out.replace_range(i..j, "");
+        }
+        out.replace("</g>", "")
+    }
+
+    fn drawn(json: &str) -> Drawn {
+        let mut d = drawn_grouped(json);
+        d.back = ungroup(&d.back);
+        d.mid = ungroup(&d.mid);
+        d.front = ungroup(&d.front);
+        d
     }
 
     fn chars(d: &Drawn) -> String {
@@ -696,5 +768,15 @@ second</title></polygon>"##);
             Err(DrawError::NotFound(p)) => assert_eq!(p, "/no/such/file.png"),
             other => panic!("expected NotFound, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn groups_carry_the_item_id_and_split_by_layer() {  // CTR-01
+        let d = drawn_grouped(r##"{"version": 1, "id": "S", "title": "T", "slug": "s", "width": 400, "height": 300, "background": "#fff", "items": [{"type": "shape", "id": "z<1", "kind": "rect", "x": 1, "y": 2, "w": 30, "h": 40, "fill": "#eee", "stroke": null, "stroke_width": 0, "radius": 0, "dashed": false, "opacity": 1.0, "role": "zone", "icon": {"path": "@ROOT@/examples/icons/acme.svg", "x": 16, "y": 28, "size": 24, "w": null}, "parts": null, "dash": null, "shadow": null, "fill_opacity": 1.0, "cap": null}, {"type": "line", "id": "l", "x1": 0, "y1": 0, "x2": 5, "y2": 5, "color": "#fff", "width": 1}], "item_facts": {}, "sources": [], "meta_tooltips": {}}"##);
+        assert!(d.back.starts_with("<g data-id=\"z&lt;1\"><rect "), "{}", d.back);
+        assert!(d.back.ends_with("</g>"));
+        assert!(d.front.starts_with("<g data-id=\"z&lt;1@front\"><image "), "{}", d.front);
+        assert!(d.front.contains("<g data-id=\"l\"><line "));
+        assert_eq!(d.mid, "");
     }
 }

@@ -163,7 +163,26 @@ class _Svg:
         return el[:-2] + f">{tip}</{tag}>" if tip and el.endswith("/>") else el
 
     # items --------------------------------------------------------------------
+    def _mark(self) -> tuple[int, int, int]:
+        return len(self.back), len(self.mid), len(self.front)
+
+    def _wrap(self, item_id: str, mark: tuple[int, int, int]) -> None:
+        """Group what an item drew since ``mark`` per layer as ``<g data-id>`` (CTR-01). The first layer written
+        carries the item id; later layers add ``@mid`` or ``@front`` so every ``data-id`` is unique."""
+        first = True
+        for layer, name, start in ((self.back, "back", mark[0]), (self.mid, "mid", mark[1]),
+                                   (self.front, "front", mark[2])):
+            if len(layer) > start:
+                key = item_id if first else f"{item_id}@{name}"
+                first = False
+                layer[start:] = [f'<g data-id="{_attr(key)}">' + "".join(layer[start:]) + "</g>"]
+
     def shape(self, s: Shape) -> None:
+        mark = self._mark()
+        self._shape(s)
+        self._wrap(s.id, mark)
+
+    def _shape(self, s: Shape) -> None:
         layer = self.back if s.role in ("zone", "chrome") else (self.front if s.role in ("pill", "swatch") else self.mid)
         stroke = (f' stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"' if s.stroke and s.stroke_width
                   else "")
@@ -206,12 +225,19 @@ class _Svg:
         ends = (f' marker-end="url(#{self.marker(c.color, c.marker_end)})"' if c.arrow_end else "") + (
             f' marker-start="url(#{self.marker(c.color, c.marker_start)})"' if c.arrow_start else "")
         op = f' opacity="{c.opacity:g}"' if c.opacity < 1 else ""
+        mark = self._mark()
         self.mid.append(f'<path d="{d}" fill="none" stroke="{c.color}" stroke-width="{c.width:g}"'
                         f'{_dash(c.dashed, c.dash)}{op}{ends}/>')
+        self._wrap(c.id, mark)
         if c.label:
             self.shape(c.label)
 
     def table(self, t: TableGrid) -> None:
+        mark = self._mark()
+        self._table(t)
+        self._wrap(t.id, mark)
+
+    def _table(self, t: TableGrid) -> None:
         x0, total = t.x, t.w
         y = t.y
         for r, (rh, row) in enumerate(zip(t.row_heights, t.cells)):
@@ -250,16 +276,22 @@ class _Svg:
             elif isinstance(it, Connector):
                 self.connector(it)
             elif isinstance(it, Text):
+                mark = self._mark()
                 layer = self.back if it.id.startswith("z") else self.front
                 self.text_lines(layer, it.block, it.x, it.y, it.anchor, it.letter_spacing)
                 tip = self.tip(it.id)
                 if tip:
                     layer[-1] = layer[-1].replace("</text>", f"{tip}</text>", 1)
+                self._wrap(it.id, mark)
             elif isinstance(it, Line):
+                mark = self._mark()
                 self.front.append(f'<line x1="{it.x1:.1f}" y1="{it.y1:.1f}" x2="{it.x2:.1f}" y2="{it.y2:.1f}" '
                                   f'stroke="{it.color}" stroke-width="{it.width:g}"/>')
+                self._wrap(it.id, mark)
             elif isinstance(it, Image):
+                mark = self._mark()
                 self.image(self.front, it.path, it.x, it.y, it.w, it.h)
+                self._wrap(it.id, mark)
             elif isinstance(it, TableGrid):
                 self.table(it)
 

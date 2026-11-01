@@ -1101,13 +1101,15 @@ tests that pin SVG bytes. Exports to PPTX, Figma and Excalidraw are unaffected; 
 
 **Done when**:
 
-- [ ] Test, Python and Rust: every node, zone, edge and label of `examples/decision.yaml` is inside an element whose `data-id` equals its scene id, and no two elements share a `data-id`
-- [ ] Every parity harness passes, and SVG parity is 48/48 in all three font modes
-- [ ] Full, Rust and WASM gates pass
+- [x] Test, Python and Rust: every node, zone, edge and label of `examples/decision.yaml` is inside an element whose `data-id` equals its scene id, and no two elements share a `data-id`
+- [x] Every parity harness passes, and SVG parity is 48/48 in all three font modes
+- [x] Full, Rust and WASM gates pass
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(svg): tag every drawn element group with its diagram id`
+
+**Notes**: Each drawn item is wrapped per layer in `<g data-id="<scene id>">`; the first layer an item writes carries the plain id and the others add `@mid` or `@front` (a node: `n0` for the box, `n0@front` for icon and title; a zone: `z0` and `z0@front`), so every `data-id` is unique (checked over all example scenes). An edge's label is its own shape item, so it gets its own group (`e0` holds only the path). Both writers (`svg.py`, `svg.rs`) share the rule; tables, lines, images and texts are wrapped too. Parity: 49 of 49 identical in subset, embed and link; parity, css_parity and route_parity pass. Goldens: the three wasm `*.body.svg` regenerated; `tests/test_css.py` `UNSTYLED_GOLDEN` re-taken, and `test_golden_change_is_only_the_hash_metadata` now strips the groups and keeps its old hash (proof that only the wrappers were added). Rust unit tests compare through an `ungroup` helper (the drawn bytes are unchanged) and a new test pins the groups. Gates: cargo 212, clippy and deny clean; wasm bun 23; pytest 2861 passed, 3 skipped per mode; ruff clean.
 
 ---
 
