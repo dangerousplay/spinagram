@@ -147,3 +147,57 @@ The mutants ran in a scratch worktree, which was removed afterwards; the porcela
    it adds a diff character.
 5. **Fragile example:** the example loads `showcase.css` and `aws.css` from its folder, so a copy without them
    fails with "No such file". That's expected, but the gallery card says only "preview unavailable".
+
+---
+
+# Validation, polish iteration (T18–T23)
+
+**Result**: PASS. 1 surviving mutant (P8) fixed by the verifier's tests; 2 equivalent mutants.
+**Verifier:** orchestrator session. The author was a separate Sonnet sub-agent.
+**Diff range:** `01edcfb..6ec24bf`, 6 commits, one per task, plus the verifier's commits `06e8442` and `5a0ca8a`.
+
+## Gates (re-run independently)
+
+| Gate | Result |
+|---|---|
+| cargo | 209 passed; clippy `-D warnings` and `cargo deny` clean |
+| ruff | clean |
+| pytest, Rust default / `SPINAGRAM_RUST=0` | 2848 passed, 3 skipped / 2848 passed, 3 skipped |
+| wasm `bun test` | 21 pass |
+| web `bun test` + build | 126 pass, 127 after the verifier's test; the rebuilt bundle equals the committed one |
+
+## Golden drift (reported by the author)
+
+I regenerated the wasm goldens with `SPINAGRAM_RUST=0` in a scratch worktree. The only difference was the new
+top-level `zones` key that T11 added to scene JSON. Drawn bodies, op results and srcmaps were unchanged. The four
+scene goldens were refreshed in `06e8442`.
+
+## Discrimination sensor
+
+| Mutant | Result |
+|---|---|
+| P1 YAML 1.1 booleans/nulls written plain | killed |
+| P2 no `f64` parse check | survived: **equivalent** (the `numeric` fallback at `rust/spinagram-core/src/edit.rs:383` rejects every case the `f64` parse would) |
+| P3 flow characters allowed in flow entries | killed |
+| P4 `": "` allowed plain | killed |
+| P5 palette open by default | killed |
+| P6 palette open when storage throws | killed |
+| P7 gallery error line not truncated | killed |
+| P8 nudge moves row/column members | **survived**; killed after `5a0ca8a` (a 200 px burst on a member must stay null) |
+| P9 zero-press burst not rejected | survived: **equivalent** (a burst with no presses has a zero offset) |
+
+## Browser check (independent; scratch git copy of the whole `examples/showcase/`)
+
+| Step | Result |
+|---|---|
+| Open the canvas | the palette starts as a collapsed "Palette" tab; the showcase has straight edges and no shared runs |
+| `?` | the shortcuts sheet lists every binding; Esc closes it |
+| Select Reports, Shift+→ twice | one save: `at: [1380, 628, …]` → `[1400, 628, …]` |
+| Cmd+Z | the file is byte-identical to the original |
+
+Not exercised by hand: Esc during a pointer drag, and the cursor shapes. Both are covered by unit tests only.
+
+## Open item
+
+`web/bun.lock` was hand-edited in T14. It can't be verified with local bun 1.3.14, which fails on `main` too. CI is
+the first check.
