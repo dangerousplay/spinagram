@@ -14,6 +14,7 @@ Python and ports edge routing to the Rust core behind the existing `SPINAGRAM_RU
 ## Goals
 
 - [ ] Warm in-process build of all examples is at least 25 % faster with the YAML changes alone (pure Python).
+      _Measured after T4: 1545 → 1273 ms (18 %). Missed: after caching, YAML is negligible and routing dominates; the remaining gain comes from the Rust router._
 - [ ] With `SPINAGRAM_RUST=1`, edge routing returns exactly the polylines the Python router returns, and the
       routing step is at least 10x faster on the recorded example corpus.
 - [ ] Python stays the reference: the full test suite passes with and without the Rust core, and every
@@ -39,6 +40,7 @@ Python and ports edge routing to the Rust core behind the existing `SPINAGRAM_RU
 | How Rust gets the crossing penalty | A structured penalty object (`Crossings(cost, drawn_segments)`) that is still callable from Python; Rust reads its fields | The only caller (`engine/route.py`) always means "fixed cost per strict crossing with drawn segments"; a Python callback per A* step would erase the gain | y (only one caller, verified with `git grep penalty=`) |
 | `route()` called with any other callable penalty | Runs the Python router | Keeps the public signature working for any caller | y |
 | YAML loader | `yaml.CSafeLoader` when `yaml.__with_libyaml__`, else `yaml.SafeLoader` | Same YAML 1.1 semantics as `safe_load`, C speed | y |
+| Spec files (`yaml_io`) | Keep `yaml.safe_load` (pure-Python `SafeLoader`); libyaml only for theme and icon-registry files | Found in T5: libyaml accepts input SafeLoader rejects (`title: Why?` inside a flow mapping), so switching spec parsing changes behaviour and breaks `test_yaml_pitfalls_are_reported`. Spec files are parsed once per load and cost ~8 ms over all examples | y (orchestrator, 2026-11-01; behaviour-preserving option) |
 | YAML error messages | User-facing errors that spinagram formats itself keep their text; the parser's own message text may differ between the C and Python loaders | libyaml words some parse errors differently; existing tests are the arbiter | y |
 | File parse cache key | Absolute path + `st_mtime_ns` + `st_size`; callers get a deep copy | The live UI edits files while running; a copy keeps callers from mutating the cache | y |
 | Icon registry cache | Cache `registry()` per process keyed by the registry files' (path, mtime_ns, size), the cwd and `$SPINAGRAM_ICON_PACKS` | Same invalidation rule as files | y |
@@ -61,7 +63,7 @@ and live preview are faster without installing anything new.
 
 **Acceptance Criteria**:
 
-1. WHERE libyaml is available (`yaml.__with_libyaml__` is True) the system SHALL parse YAML with `yaml.CSafeLoader`. <!-- optional-feature --> (YAML-01)
+1. WHERE libyaml is available (`yaml.__with_libyaml__` is True) the system SHALL parse theme and icon-registry YAML files with `yaml.CSafeLoader`, and SHALL keep parsing diagram spec files with `yaml.SafeLoader`. <!-- optional-feature --> (YAML-01)
 2. IF libyaml is not available THEN the system SHALL parse YAML with `yaml.SafeLoader` and return the same data. <!-- unwanted --> (YAML-02)
 3. WHEN the same theme or icon registry file is loaded twice in one process without changing on disk THEN the system SHALL parse it once. <!-- event --> (YAML-03)
 4. WHEN a cached file changes on disk (different `st_mtime_ns` or `st_size`) THEN the system SHALL parse it again on the next load. <!-- event --> (YAML-04)
@@ -178,6 +180,6 @@ the two implementations cannot drift.
 
 ## Success Criteria
 
-- [ ] Warm in-process build of all examples (pure Python) is at least 25 % faster than before the YAML change.
+- [ ] Warm in-process build of all examples (pure Python) is at least 25 % faster than before the YAML change. _(18 % measured after T4; see Goals.)_
 - [ ] `route_parity.py`: 100 % identical results; Rust routing at least 10x faster than Python on the corpus.
 - [ ] Full pytest suite passes with and without `SPINAGRAM_RUST=1`; all example SVGs byte-identical across modes.

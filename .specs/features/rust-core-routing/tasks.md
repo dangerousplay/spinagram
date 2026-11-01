@@ -154,24 +154,25 @@ T10 → T11 → T12
 
 ---
 
-### T5: Parse spec files with libyaml and check byte identity
+### T5: Pin spec parsing to the strict loader ~~Parse spec files with libyaml~~
 
-**What**: `yaml_io` uses `yamlload.parse` instead of `yaml.safe_load` (both call sites).
-**Where**: `src/spinagram/yaml_io.py`
+**What**: Dropped the libyaml switch for spec files (SPEC_DEVIATION, see spec Assumptions: libyaml accepts `title: Why?` in a flow mapping, SafeLoader rejects it). Instead, add a test that `yaml_io` still parses spec files with `yaml.SafeLoader` (the second clause of YAML-01), and confirm byte identity and the speed measurement.
+**Where**: `tests/test_yamlload.py`
 **Depends on**: T4
-**Reuses**: `yamlload.parse`
+**Reuses**: existing `tests/test_engine.py::test_yaml_pitfalls_are_reported` (must keep passing, untouched)
 **Requirement**: YAML-01, YAML-08
 
 **Done when**:
 
-- [ ] Existing YAML spec tests pass, including error-message tests (assumption: parser wording may differ, spinagram's own messages must not)
+- [ ] Test: loading a spec file through `yaml_io` uses `yaml.SafeLoader`, not `CSafeLoader` (spy), even with libyaml available (YAML-01 clause 2)
+- [ ] `src/spinagram/yaml_io.py` unchanged; `test_yaml_pitfalls_are_reported` passes
 - [ ] `bash rust/bench/render_all.sh` output equals the T1 baseline (`diff -r` empty) (YAML-08)
-- [ ] Warm in-process build time of all examples measured before (at `5f33d46`) and after, best of 3; numbers noted in the commit body (goal: ≥ 25 % faster)
+- [ ] Speed measured and recorded in the commit body: 1545 ms at `5f33d46` → after T4 (best of 3, warm)
 - [ ] Build gate passes (full pytest, pure Python)
 
-**Tests**: unit (existing YAML tests; no new behaviour)
+**Tests**: unit
 **Gate**: build
-**Commit**: `perf(yaml): parse spec files with libyaml`
+**Commit**: `test(yaml): pin spec files to the strict yaml loader`
 
 ---
 
