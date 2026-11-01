@@ -1,6 +1,6 @@
 # Rust core: CSS selector matching and cascade
 
-**Status:** In Tasks · **Size:** Large · **Branch:** `spike/rust-core`
+**Status:** Verified · **Size:** Large · **Branch:** `spike/rust-core`
 **Builds on:** `rust-core-svg-png`, STATE.md 2026-11-01 (Rust core port pattern)
 
 ## Problem Statement
@@ -104,17 +104,17 @@ diagrams stay fast, with exactly the same look.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| CSS-01 | P1 | In Tasks | Implementing |
-| CSS-02 | P1 | In Tasks | Implementing |
-| CSS-03 | P1 | In Tasks | Implementing |
-| CSS-04 | P1 | In Tasks | Implementing |
-| CSS-05 | P1 | In Tasks | Implementing |
-| CSS-06 | P1 | In Tasks | Implementing |
-| CSS-07 | P1 | In Tasks | Implementing |
-| CSS-08 | P1 | In Tasks | Implementing |
-| CSS-09 | P1 | In Tasks | Implementing |
-| PAR-21 | P2 | In Tasks | Implementing |
-| PAR-22 | P2 | In Tasks | Implementing |
+| CSS-01 | P1 | Done | Verified |
+| CSS-02 | P1 | Done | Verified |
+| CSS-03 | P1 | Done | Verified |
+| CSS-04 | P1 | Done | Verified |
+| CSS-05 | P1 | Done | Verified |
+| CSS-06 | P1 | Done | Verified |
+| CSS-07 | P1 | Done | Verified |
+| CSS-08 | P1 | Done | Verified |
+| CSS-09 | P1 | Done | Verified |
+| PAR-21 | P2 | Done | Verified |
+| PAR-22 | P2 | Done | Verified |
 
 **Coverage:** 11 total, 11 mapped to tasks, 0 unmapped.
 

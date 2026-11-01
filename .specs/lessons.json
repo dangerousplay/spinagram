@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 76,
+  "next_id": 77,
   "lessons": [
     {
       "id": "L-001",
@@ -1364,6 +1364,24 @@
       ],
       "created": "2026-11-01T03:48:19Z",
       "last_seen": "2026-11-01T03:48:19Z"
+    },
+    {
+      "id": "L-076",
+      "key": "spec_deviation::when a crate replaces a hand written parser list the grammar it rejects and route those inputs to the reference implementation with tests pinning the fallback",
+      "text": "When a crate replaces a hand-written parser, list the grammar it rejects and route those inputs to the reference implementation, with tests pinning the fallback",
+      "signal": "spec_deviation",
+      "scope": "rust",
+      "status": "candidate",
+      "features": [
+        "rust-core-css"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CSS-02; rust/spinagram-core/src/css.rs:8 (rust)"
+      ],
+      "created": "2026-11-01T04:17:28Z",
+      "last_seen": "2026-11-01T04:17:28Z"
     }
   ]
 }

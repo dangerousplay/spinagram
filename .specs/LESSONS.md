@@ -462,6 +462,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: SVG-01; validation.md Fix 1 (rust)
 - last seen: 2026-11-01T03:48:19Z
 
+### L-076 - When a crate replaces a hand-written parser, list the grammar it rejects and route those inputs to the reference implementation, with tests pinning the fallback
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `rust` · harmful: 0
+- features: rust-core-css
+- evidence: CSS-02; rust/spinagram-core/src/css.rs:8 (rust)
+- last seen: 2026-11-01T04:17:28Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

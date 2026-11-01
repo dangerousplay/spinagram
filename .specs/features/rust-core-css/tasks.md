@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/rust-core-css/spec.md`
 **Design**: inline (spec Assumptions table). Boundary: Python → JSON (tree + rules) → Rust → per element/pseudo matched declarations in cascade order with resolved values → Python typing/warnings/trace.
-**Status**: In Progress
+**Status**: Done
 
 ---
 
