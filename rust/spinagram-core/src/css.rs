@@ -235,9 +235,377 @@ pub fn canon(sel: &Selector) -> String {
     format!("{}~{}~({a},{b},{c})~{}", sel.text, sel.pseudo_element.as_deref().unwrap_or("-"), parts.join(""))
 }
 
+// matching ---------------------------------------------------------------------------------------
+
+/// A declaration as the stylesheet or an inline `css=` gave it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Decl {
+    pub name: String,
+    pub value: String,
+    pub important: bool,
+}
+
+/// One element of the style tree: the diagram, a group, a node, an edge...
+#[derive(Clone, Debug, Default)]
+pub struct Node {
+    pub parent: Option<usize>,
+    pub children: Vec<usize>,
+    pub typ: String,
+    /// Extra type names it answers to (node kind).
+    pub kinds: Vec<String>,
+    pub id: Option<String>,
+    pub classes: Vec<String>,
+    pub attrs: std::collections::HashMap<String, String>,
+    pub inline: Vec<Decl>,
+}
+
+/// Elements in pre-order; index 0 is the root. Children are listed in document order.
+#[derive(Clone, Debug, Default)]
+pub struct Tree {
+    pub nodes: Vec<Node>,
+}
+
+impl Tree {
+    /// Link `children` from each node's `parent` (nodes must be in pre-order).
+    pub fn link(&mut self) {
+        for n in &mut self.nodes {
+            n.children.clear();
+        }
+        for i in 0..self.nodes.len() {
+            if let Some(p) = self.nodes[i].parent {
+                self.nodes[p].children.push(i);
+            }
+        }
+    }
+}
+
+fn match_compound(comp: &Compound, tree: &Tree, el: usize) -> bool {
+    let node = &tree.nodes[el];
+    if let Some(t) = comp.typ.as_deref().filter(|t| *t != "*") {
+        if node.typ != t && !node.kinds.iter().any(|k| k == t) {
+            return false;
+        }
+    }
+    if let Some(id) = &comp.id {
+        if node.id.as_ref() != Some(id) {
+            return false;
+        }
+    }
+    if comp.classes.iter().any(|c| !node.classes.contains(c)) {
+        return false;
+    }
+    for (name, val) in &comp.attrs {
+        match node.attrs.get(name) {
+            None => return false,
+            Some(have) if val.as_ref().is_some_and(|v| v != have) => return false,
+            _ => {}
+        }
+    }
+    for p in &comp.pseudos {
+        let only = [el];
+        let sibs: &[usize] = match node.parent {
+            Some(par) => &tree.nodes[par].children,
+            None => &only,
+        };
+        match p {
+            Pseudo::FirstChild if sibs.first() != Some(&el) => return false,
+            Pseudo::LastChild if sibs.last() != Some(&el) => return false,
+            Pseudo::Root if node.parent.is_some() => return false,
+            Pseudo::Not(list) if list.iter().any(|s| matches(s, tree, el)) => return false,
+            _ => {}
+        }
+    }
+    true
+}
+
+/// Right-to-left match of a selector (its pseudo-element is the caller's concern).
+pub fn matches(sel: &Selector, tree: &Tree, el: usize) -> bool {
+    fn at(sel: &Selector, tree: &Tree, i: usize, node: Option<usize>) -> bool {
+        let Some(node) = node else { return false };
+        if !match_compound(&sel.parts[i].1, tree, node) {
+            return false;
+        }
+        if i == 0 {
+            return true;
+        }
+        if sel.parts[i].0 == Comb::Child {
+            return at(sel, tree, i - 1, tree.nodes[node].parent);
+        }
+        let mut anc = tree.nodes[node].parent;
+        while let Some(a) = anc {
+            if at(sel, tree, i - 1, Some(a)) {
+                return true;
+            }
+            anc = tree.nodes[a].parent;
+        }
+        false
+    }
+    at(sel, tree, sel.parts.len() - 1, Some(el))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Match expectations come from Python's `matches` over the same tree (see `fixture`).
+    fn node(parent: Option<usize>, typ: &str, kinds: &[&str], id: Option<&str>, classes: &[&str], attrs: &[(&str, &str)]) -> Node {
+        Node {
+            parent,
+            typ: typ.into(),
+            kinds: kinds.iter().map(|k| k.to_string()).collect(),
+            id: id.map(String::from),
+            classes: classes.iter().map(|c| c.to_string()).collect(),
+            attrs: attrs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            ..Node::default()
+        }
+    }
+
+    fn tree(nodes: Vec<Node>) -> Tree {
+        let mut t = Tree { nodes };
+        t.link();
+        t
+    }
+
+    fn match_set(text: &str, tree: &Tree) -> Vec<usize> {
+        let sels = parse_selectors(text).unwrap();
+        (0..tree.nodes.len()).filter(|&i| sels.iter().any(|s| matches(s, tree, i))).collect()
+    }
+
+    fn fixture() -> Tree {
+        tree(vec![
+        node(None, "diagram", &[], Some("d"), &[], &[]),
+        node(Some(0), "group", &["group"], Some("g1"), &["a"], &[("label", "Net")]),
+        node(Some(1), "node", &["box"], Some("n1"), &["hot", "a"], &[("kind", "box"), ("label", "a b"), ("icon", "x")]),
+        node(Some(1), "node", &["decision"], Some("n2"), &[], &[("kind", "decision")]),
+        node(Some(1), "region", &["group", "aws"], Some("r1"), &[], &[]),
+        node(Some(4), "node", &["state"], Some("n3"), &["hot"], &[("kind", "state")]),
+        node(Some(1), "node", &["text", "label"], None, &[], &[("label", "x y")]),
+        node(Some(0), "node", &["box", "chip"], Some("n5"), &["b"], &[("kind", "box")]),
+        node(Some(0), "edge", &[], None, &[], &[("from", "n1"), ("to", "n2")]),
+        node(Some(0), "edge", &[], None, &["hot"], &[("label", "a b")]),
+        ])
+    }
+
+    fn lone_root() -> Tree {
+        tree(vec![
+        node(None, "diagram", &[], Some("d"), &[], &[]),
+        ])
+    }
+
+    #[test]
+    fn match_type_node() {
+        assert_eq!(match_set(r####"node"####, &fixture()), vec![2, 3, 5, 6, 7]);
+    }
+
+    #[test]
+    fn match_type_kind() {
+        assert_eq!(match_set(r####"state"####, &fixture()), vec![5]);
+    }
+
+    #[test]
+    fn match_type_kind_alias() {
+        assert_eq!(match_set(r####"chip"####, &fixture()), vec![7]);
+    }
+
+    #[test]
+    fn match_type_group_alias() {
+        assert_eq!(match_set(r####"group"####, &fixture()), vec![1, 4]);
+    }
+
+    #[test]
+    fn match_universal() {
+        assert_eq!(match_set(r####"*"####, &fixture()), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn match_class() {
+        assert_eq!(match_set(r####".hot"####, &fixture()), vec![2, 5, 9]);
+    }
+
+    #[test]
+    fn match_two_classes() {
+        assert_eq!(match_set(r####".a.b"####, &fixture()), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn match_id() {
+        assert_eq!(match_set(r####"#n1"####, &fixture()), vec![2]);
+    }
+
+    #[test]
+    fn match_type_id_class() {
+        assert_eq!(match_set(r####"node#n1.hot"####, &fixture()), vec![2]);
+    }
+
+    #[test]
+    fn match_attr_presence() {
+        assert_eq!(match_set(r####"[icon]"####, &fixture()), vec![2]);
+    }
+
+    #[test]
+    fn match_attr_unquoted() {
+        assert_eq!(match_set(r####"[kind=box]"####, &fixture()), vec![2, 7]);
+    }
+
+    #[test]
+    fn match_attr_double_quoted() {
+        assert_eq!(match_set(r####"[label="a b"]"####, &fixture()), vec![2, 9]);
+    }
+
+    #[test]
+    fn match_attr_single_quoted() {
+        assert_eq!(match_set(r####"[label='x y']"####, &fixture()), vec![6]);
+    }
+
+    #[test]
+    fn match_attr_value_mismatch() {
+        assert_eq!(match_set(r####"[kind=nope]"####, &fixture()), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn match_attr_spaces() {
+        assert_eq!(match_set(r####"[ kind = decision ]"####, &fixture()), vec![3]);
+    }
+
+    #[test]
+    fn match_descendant() {
+        assert_eq!(match_set(r####"group node"####, &fixture()), vec![2, 3, 5, 6]);
+    }
+
+    #[test]
+    fn match_descendant_skips_levels() {
+        assert_eq!(match_set(r####"diagram node"####, &fixture()), vec![2, 3, 5, 6, 7]);
+    }
+
+    #[test]
+    fn match_child() {
+        assert_eq!(match_set(r####"group > node"####, &fixture()), vec![2, 3, 5, 6]);
+    }
+
+    #[test]
+    fn match_child_tight() {
+        assert_eq!(match_set(r####"group>node"####, &fixture()), vec![2, 3, 5, 6]);
+    }
+
+    #[test]
+    fn match_child_not_grandchild() {
+        assert_eq!(match_set(r####"diagram > node"####, &fixture()), vec![7]);
+    }
+
+    #[test]
+    fn match_three_levels() {
+        assert_eq!(match_set(r####"diagram group > node.hot"####, &fixture()), vec![2, 5]);
+    }
+
+    #[test]
+    fn match_list() {
+        assert_eq!(match_set(r####"edge, .a"####, &fixture()), vec![1, 2, 8, 9]);
+    }
+
+    #[test]
+    fn match_first_child() {
+        assert_eq!(match_set(r####"node:first-child"####, &fixture()), vec![2, 5]);
+    }
+
+    #[test]
+    fn match_last_child() {
+        assert_eq!(match_set(r####"node:last-child"####, &fixture()), vec![5, 6]);
+    }
+
+    #[test]
+    fn match_root() {
+        assert_eq!(match_set(r####":root"####, &fixture()), vec![0]);
+    }
+
+    #[test]
+    fn match_root_type() {
+        assert_eq!(match_set(r####"diagram:root"####, &fixture()), vec![0]);
+    }
+
+    #[test]
+    fn match_root_not_child() {
+        assert_eq!(match_set(r####"node:root"####, &fixture()), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn match_not_simple() {
+        assert_eq!(match_set(r####"node:not(.hot)"####, &fixture()), vec![3, 6, 7]);
+    }
+
+    #[test]
+    fn match_not_list() {
+        assert_eq!(match_set(r####"node:not(.a, #n5)"####, &fixture()), vec![3, 5, 6]);
+    }
+
+    #[test]
+    fn match_not_nested() {
+        assert_eq!(match_set(r####"node:not(:not(.hot))"####, &fixture()), vec![2, 5]);
+    }
+
+    #[test]
+    fn match_not_with_combinator() {
+        assert_eq!(match_set(r####"node:not(group node)"####, &fixture()), vec![7]);
+    }
+
+    #[test]
+    fn match_not_pseudo_class() {
+        assert_eq!(match_set(r####"node:not(:first-child)"####, &fixture()), vec![3, 6, 7]);
+    }
+
+    #[test]
+    fn match_pe_title_ignored() {
+        assert_eq!(match_set(r####"node::title"####, &fixture()), vec![2, 3, 5, 6, 7]);
+    }
+
+    #[test]
+    fn match_pe_label_alone() {
+        assert_eq!(match_set(r####"::label"####, &fixture()), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn match_complex() {
+        assert_eq!(match_set(r####"group > node[kind=box]:first-child:not(#n9)"####, &fixture()), vec![2]);
+    }
+
+    #[test]
+    fn match_universal_child() {
+        assert_eq!(match_set(r####"* > *"####, &fixture()), vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn match_last_child_group() {
+        assert_eq!(match_set(r####"group:last-child"####, &fixture()), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn match_descendant_backtracks() {
+        assert_eq!(match_set(r####"group group node"####, &fixture()), vec![5]);
+    }
+
+    #[test]
+    fn match_edge_attr() {
+        assert_eq!(match_set(r####"edge[from=n1]"####, &fixture()), vec![8]);
+    }
+
+    #[test]
+    fn match_lone_first_child() {
+        assert_eq!(match_set(r####"node:first-child"####, &lone_root()), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn match_lone_last_child() {
+        assert_eq!(match_set(r####"diagram:last-child"####, &lone_root()), vec![0]);
+    }
+
+    #[test]
+    fn match_lone_root() {
+        assert_eq!(match_set(r####":root"####, &lone_root()), vec![0]);
+    }
+
+    #[test]
+    fn match_lone_not_root() {
+        assert_eq!(match_set(r####":not(:root)"####, &lone_root()), Vec::<usize>::new());
+    }
 
     // Expected strings come from Python's parse_selectors (structure and specificity), see canon().
 

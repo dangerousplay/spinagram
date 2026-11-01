@@ -85,8 +85,8 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Rust tests: one per selector feature and edge case (root element siblings, `:root`, `:not(list)`, attr presence vs value, quoted/unquoted) with expected match sets from Python
-- [ ] Rust gate passes
+- [x] Rust tests: one per selector feature and edge case (root element siblings, `:root`, `:not(list)`, attr presence vs value, quoted/unquoted) with expected match sets from Python
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust

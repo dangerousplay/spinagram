@@ -105,7 +105,7 @@ diagrams stay fast, with exactly the same look.
 |---|---|---|---|
 | CSS-01 | P1 | In Tasks | Pending |
 | CSS-02 | P1 | In Tasks | Implementing |
-| CSS-03 | P1 | In Tasks | Pending |
+| CSS-03 | P1 | In Tasks | Implementing |
 | CSS-04 | P1 | In Tasks | Pending |
 | CSS-05 | P1 | In Tasks | Pending |
 | CSS-06 | P1 | In Tasks | Pending |
