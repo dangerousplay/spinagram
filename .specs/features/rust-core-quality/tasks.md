@@ -273,7 +273,7 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Verus proves VER-07; `route_parity.py` 100 %; Build gate passes (all harnesses, both suite modes)
+- [x] Verus proves VER-07; `route_parity.py` 100 %; Build gate passes (all harnesses, both suite modes)
 
 **Tests**: proof + unit
 **Gate**: build

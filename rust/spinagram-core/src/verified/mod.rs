@@ -7,6 +7,7 @@ use vstd::prelude::*;
 pub mod bisect;
 pub mod brackets;
 pub mod cascade;
+pub mod grid;
 pub mod segments;
 
 verus! {

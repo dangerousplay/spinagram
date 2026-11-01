@@ -8,6 +8,7 @@ use std::cmp::{Ordering, Reverse};
 use std::collections::BinaryHeap;
 
 use crate::verified::bisect::{lower_bound, order_key};
+use crate::verified::grid::neighbour;
 
 pub type Pt = (f64, f64);
 /// `(x, y, w, h)`
@@ -165,7 +166,6 @@ fn dir_index(d: Dir) -> usize {
     }
 }
 
-#[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty: Option<&Crossings>, guides: &[Pt]) -> Option<(f64, Vec<Pt>)> {
     let ((sx, sy), (sdx, sdy)) = sport;
     let ((tx, ty), (tdx, tdy)) = dport;
@@ -224,11 +224,7 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
             break;
         }
         for (di, dj) in [(1i32, 0i32), (-1, 0), (0, 1), (0, -1)] {
-            let (ni, nj) = (i as i64 + i64::from(di), j as i64 + i64::from(dj));
-            if ni < 0 || nj < 0 || ni >= nx as i64 || nj >= ny as i64 {
-                continue;
-            }
-            let (ni, nj) = (ni as usize, nj as usize);
+            let Some((ni, nj)) = neighbour(i, j, di, dj, nx, ny) else { continue };
             if blocked[ni * ny + nj] || !seg_ok(i, j, ni, nj) {
                 continue;
             }
