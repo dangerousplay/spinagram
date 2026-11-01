@@ -143,10 +143,10 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Test: for every example diagram and every fixture in `tests/test_css*.py`, `compute` values, warnings and trace equal across modes (CSS-01)
-- [ ] Test: core inactive → core never called (CSS-08)
-- [ ] Test: unresolvable colour raises the same message in both modes (CSS-09)
-- [ ] Build gate passes (both modes, SVGs byte-identical)
+- [x] Test: for every example diagram and every fixture in `tests/test_css*.py`, `compute` values, warnings and trace equal across modes (CSS-01)
+- [x] Test: core inactive → core never called (CSS-08)
+- [x] Test: unresolvable colour raises the same message in both modes (CSS-09)
+- [x] Build gate passes (both modes, SVGs byte-identical)
 
 **Tests**: integration
 **Gate**: build

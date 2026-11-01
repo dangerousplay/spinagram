@@ -30,3 +30,14 @@ def example_scenes() -> tuple:
         return tuple(sc for t in targets() for sc in api.scenes(cli._collect([t], None), Theme.load(None)))
     finally:
         os.chdir(cwd)
+
+
+@lru_cache(maxsize=None)
+def example_diagrams() -> tuple:
+    """Every diagram of the examples (the same targets as ``example_scenes``)."""
+    cwd = os.getcwd()
+    os.chdir(ROOT)
+    try:
+        return tuple(d for t in targets() for d in cli._collect([t], None))
+    finally:
+        os.chdir(cwd)
