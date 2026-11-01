@@ -162,9 +162,9 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] `cargo verus verify -p spinagram-core` → 0 errors (VER-01)
-- [ ] `cargo build --workspace` on stable and the maturin wheel build succeed; `import spinagram_core` works (VER-09)
-- [ ] `cargo deny check` still passes with `vstd`
+- [x] `cargo verus verify -p spinagram-core` → 0 errors (VER-01)
+- [x] `cargo build --workspace` on stable and the maturin wheel build succeed; `import spinagram_core` works (VER-09)
+- [x] `cargo deny check` still passes with `vstd`
 
 **Tests**: proof (Verus)
 **Gate**: build

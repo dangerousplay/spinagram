@@ -12,6 +12,10 @@ repository = "https://github.com/dangerousplay/spinagram"
 lto = "thin"
 codegen-units = 1
 
+[workspace.lints.rust]
+# Verus ghost code is erased in a normal build; `verus_only` guards the imports that exist only while verifying
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(verus_only)'] }
+
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "warn", priority = -1 }

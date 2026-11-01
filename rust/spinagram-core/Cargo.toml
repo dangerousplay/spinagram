@@ -19,6 +19,10 @@ cssparser = "0.38"
 precomputed-hash = "0.1"
 html-escape = "0.2"
 compensated-summation = "0.3"
+vstd = "=0.0.0-2026-10-25-0158"
+
+[package.metadata.verus]
+verify = true
 
 [lints]
 workspace = true
