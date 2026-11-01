@@ -139,7 +139,7 @@ that Rust reads so that I can draw spinagram diagrams without Python.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| SCN-01 | P1: scene | In Tasks | Pending |
+| SCN-01 | P1: scene | In Tasks | Implementing |
 | SCN-02 | P1: scene | In Tasks | Pending |
 | SCN-03 | P1: scene | In Tasks | Pending |
 | SCN-04 | P1: scene | In Tasks | Pending |

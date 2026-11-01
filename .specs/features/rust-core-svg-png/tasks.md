@@ -73,10 +73,10 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: `version == 1` and each of the 6 item types appears with its tag and fields for a scene built to contain all of them (L-020) (SCN-01)
-- [ ] Test: width, height, background, title, sources, item_facts, meta_tooltips present with their values (SCN-01, one assertion each, L-014)
-- [ ] Baseline for the Build gate rendered: `render_all.sh` at the commit before T1 into the scratchpad (pure Python, `fonts` default)
-- [ ] Quick gate passes
+- [x] Test: `version == 1` and each of the 6 item types appears with its tag and fields for a scene built to contain all of them (L-020) (SCN-01)
+- [x] Test: width, height, background, title, sources, item_facts, meta_tooltips present with their values (SCN-01, one assertion each, L-014)
+- [x] Baseline for the Build gate rendered: `render_all.sh` at the commit before T1 into the scratchpad (pure Python, `fonts` default)
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick
