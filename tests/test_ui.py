@@ -557,7 +557,7 @@ def test_the_editable_showcase_example_is_canvas_editable(tmp_path):
     assert [z["id"] for z in scene["zones"]] == ["region", "vpc", "app", "data"]
     assert {c["id"]: c["axis"] for c in scene["containers"]} == {"row0": "row", "column1": "column"}
     nodes = [i for i in scene["items"] if i["type"] == "shape" and i["role"] == "node"]
-    assert len(nodes) == 10 and sum(1 for i in scene["items"] if i["type"] == "connector") == 9
+    assert len(nodes) == 10 and sum(1 for i in scene["items"] if i["type"] == "connector") == 8  # T22: no two edges share a trunk
 
 
 def test_scene_endpoint_unknown_key_is_404_and_a_broken_spec_is_422(env):

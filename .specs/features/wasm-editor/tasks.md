@@ -661,13 +661,15 @@ Keep it canvas-editable with the same features (nested zones, a row, a column, i
 
 **Done when**:
 
-- [ ] `spinagram check` reports 0 issues and 0 label collisions
-- [ ] Visual review of the rendered PNG: no shared trunks, even spacing (record a short note)
-- [ ] Full gate passes (example tests, css-skill mirror test)
+- [x] `spinagram check` reports 0 issues and 0 label collisions
+- [x] Visual review of the rendered PNG: no shared trunks, even spacing (record a short note)
+- [x] Full gate passes (example tests, css-skill mirror test)
 
 **Tests**: integration
 **Gate**: full
 **Commit**: `style(examples): tidy the editable showcase layout`
+
+**Notes**: Same features (3 nested zones, one row, one column, 10 icon nodes) with 8 edges instead of 9. The old trunk (publish, consume, reports and metrics all ran along one vertical) is gone: nodes sit on three shared rows (y centres 524, 676, 828) so five of the edges are straight horizontals (sessions, SQL, export, metrics, consume) and `origin` leaves CloudFront at the bottom and enters the load balancer at the top (`cdn.bottom -> alb.top`). Column members render 266 px wide, so the app tier is 346 px wide (the first draft clipped `worker`, which `spinagram check` caught); the column gap is 56 px so `forward` fits. Zone padding: 40 px at the sides and bottom, 60 px under the header. `spinagram check`: 0 issues (label collisions and zone clips included). Visual review of the rendered PNG: no shared trunk, no label on a node or another edge, even zone padding; the right side of the region is wider than the content by about 120 px. Dropped the unused `edge.metrics` rule from the css. Outside `Where`: the css skill mirror in `src/spinagram/agent_skills/spinagram-css/examples/` and `tests/test_ui.py` (connector count 9 -> 8). Gate: pytest 2847 passed, 3 skipped per mode, ruff clean.
 
 ---
 
