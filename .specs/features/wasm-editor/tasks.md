@@ -474,12 +474,14 @@ Ops JSON shapes are documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] bun tests: the 50-step cap; redo cleared after a new edit; undo restores the exact prior text
-- [ ] Web gate passes
+- [x] bun tests: the 50-step cap; redo cleared after a new edit; undo restores the exact prior text
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): undo and redo for canvas edits`
+
+**Notes**: `history.ts` keeps whole-file before/after texts (50 steps); `useCanvas.travel` saves the earlier or later text through `api.save` with the current version, after checking the file still holds the text the edit produced or left (otherwise, like a 409, the history is cleared, the notice "File changed on disk; edit not applied" shows and the diagram reloads). Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z and Ctrl+Y work while the canvas is on and focus is not in a field or the code editor. bun 104 -> 108.
 
 ---
 

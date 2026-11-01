@@ -7,6 +7,7 @@ import { CanvasClient } from "./client";
 import { dragMoves, dragTo, startDrag, type Drag } from "./drag";
 import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps, type Item, type Op } from "./ops";
 import { boxOf, containerAt, containerBox, hitTest, hitZone, rubberBand, zoneBox, zoneMoveShapes, type Box, type Kind, type SceneJson, type Sel } from "./scene";
+import { History } from "./history";
 import { dropOps, type PaletteItem } from "./palette";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
 
@@ -43,6 +44,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const [editing, setEditing] = useState<Editing | null>(null);
   const client = useRef<CanvasClient | null>(null);
   const dragRef = useRef<Drag | null>(null);
+  const history = useRef(new History());
   const dragItems = useRef<Item[]>([]);
   const bandRef = useRef<{ x0: number; y0: number; shift: boolean; base: Sel[] } | null>(null);
   const selectedRef = useRef<Sel[]>([]);
@@ -92,6 +94,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     setSelected([]);
     setPreview(null);
     setEditable(null);
+    history.current.clear();
   }, [diagramKey]);
   useEffect(() => {
     if (!notice) return;
@@ -130,11 +133,14 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         const src = (await api.source(diagramKey)).files[0];
         const patched = await client.current!.call({ t: "ops", yaml: src.text, ops: JSON.stringify(ops) });
         await api.save(src.path, patched, src.version);
+        history.current.record({ path: src.path, before: src.text, after: patched });
         reload();
       } catch (e) {
         setPreview(null);
-        if (e instanceof ApiError && e.status === 409) setNotice(CHANGED_ON_DISK);
-        else setNotice(e instanceof Error ? e.message : String(e));
+        if (e instanceof ApiError && e.status === 409) {
+          history.current.clear();
+          setNotice(CHANGED_ON_DISK);
+        } else setNotice(e instanceof Error ? e.message : String(e));
         reload();
       } finally {
         committing.current = false;
@@ -142,6 +148,38 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     },
     [diagramKey, reload],
   );
+
+  /** Undo or redo the last canvas edit of this session as a new save through the version-checked path. The file
+   * must still be the text that edit produced (or left); anything else (a 409, or an edit made elsewhere) clears
+   * the history and reloads (SEL-09). */
+  const travel = useCallback(
+    async (dir: "undo" | "redo") => {
+      if (committing.current) return;
+      const entry = dir === "undo" ? history.current.undo() : history.current.redo();
+      if (!entry) return;
+      committing.current = true;
+      try {
+        const src = (await api.source(diagramKey)).files[0];
+        const expected = dir === "undo" ? entry.after : entry.before;
+        if (src.path !== entry.path || src.text !== expected) {
+          history.current.clear();
+          setNotice(CHANGED_ON_DISK);
+        } else {
+          await api.save(src.path, dir === "undo" ? entry.before : entry.after, src.version);
+        }
+      } catch (e) {
+        history.current.clear();
+        setNotice(e instanceof ApiError && e.status === 409 ? CHANGED_ON_DISK : e instanceof Error ? e.message : String(e));
+      } finally {
+        committing.current = false;
+        setPreview(null);
+        reload();
+      }
+    },
+    [diagramKey, reload],
+  );
+  const undo = useCallback(() => active && void travel("undo"), [active, travel]);
+  const redo = useCallback(() => active && void travel("redo"), [active, travel]);
 
   const pick = useCallback((sel: Sel[]) => {
     setSelected(sel);
@@ -422,6 +460,8 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     end,
     remove,
     add,
+    undo,
+    redo,
     group,
     ungroup,
     setContainer,

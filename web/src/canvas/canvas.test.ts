@@ -20,6 +20,7 @@ import {
   type SceneJson,
 } from "./scene";
 import { byteToIndex, entryField, yamlRange } from "./srcmap";
+import { History, LIMIT } from "./history";
 import { buildCorpus, displayName, dropOps, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
@@ -602,5 +603,56 @@ describe("palette search speed (PAL-01)", () => {
     console.log(`palette search over ${big.items.length} items: p50 ${times[times.length >> 1].toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${times[times.length - 1].toFixed(1)} ms`);
     expect(big.items.length).toBeGreaterThanOrEqual(10_000);
     expect(p95).toBeLessThanOrEqual(100);
+  });
+});
+
+// --- undo and redo (T15): canvas-editor SEL-09 -------------------------------------------------------------------
+describe("history", () => {
+  const edit = (i: number) => ({ path: "d.yaml", before: `text ${i}\n`, after: `text ${i + 1}\n` });
+
+  test("keeps 50 steps: the oldest are dropped, the newest undone first", () => {
+    expect(LIMIT).toBe(50);
+    const h = new History();
+    for (let i = 0; i < 60; i++) h.record(edit(i));
+    const undone: string[] = [];
+    for (let e = h.undo(); e; e = h.undo()) undone.push(e.before);
+    expect(undone).toHaveLength(50);
+    expect(undone[0]).toBe("text 59\n");
+    expect(undone[49]).toBe("text 10\n"); // edits 0..9 were dropped
+    expect(h.canUndo).toBe(false);
+    expect(h.undo()).toBeUndefined();
+  });
+
+  test("a new edit clears the redo stack", () => {
+    const h = new History();
+    h.record(edit(0));
+    h.record(edit(1));
+    h.undo();
+    expect(h.canRedo).toBe(true);
+    h.record(edit(5));
+    expect(h.canRedo).toBe(false);
+    expect(h.redo()).toBeUndefined();
+  });
+
+  test("undo gives the exact prior text, redo the text after, and they alternate", () => {
+    const h = new History();
+    const before = "id: t   # keep\nnodes:\n  - {id: a, at: [1, 2, 3, 4]}\n\n";
+    const after = "id: t   # keep\nnodes:\n  - {id: a, at: [10, 20, 3, 4]}\n\n";
+    h.record({ path: "d.yaml", before, after });
+    expect(h.undo()).toEqual({ path: "d.yaml", before, after });
+    expect(h.canUndo).toBe(false);
+    expect(h.redo()?.after).toBe(after);
+    expect(h.canUndo).toBe(true);
+    expect(h.undo()?.before).toBe(before);
+  });
+
+  test("an edit that changed nothing is not recorded; clear forgets both stacks", () => {
+    const h = new History();
+    h.record({ path: "d.yaml", before: "a", after: "a" });
+    expect(h.canUndo).toBe(false);
+    h.record(edit(0));
+    h.undo();
+    h.clear();
+    expect(h.canUndo || h.canRedo).toBe(false);
   });
 });

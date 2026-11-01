@@ -191,6 +191,23 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   }, [canvas.group]);
   useKey("/", () => canvas.active && paletteFocus.current?.());
   useEffect(() => {
+    // Ctrl/Cmd+Z undoes and Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes a canvas edit; the code editor keeps its own undo
+    const on = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || !canvas.active || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z") {
+        e.preventDefault();
+        if (e.shiftKey) canvas.redo();
+        else canvas.undo();
+      } else if (k === "y" && !e.shiftKey) {
+        e.preventDefault();
+        canvas.redo();
+      }
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [canvas.active, canvas.undo, canvas.redo]);
+  useEffect(() => {
     // Ctrl/Cmd+K focuses the palette search
     const on = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "k" || !canvas.active) return;
