@@ -82,3 +82,68 @@ L-077 recorded.
   - the endpoint shape `{scene, editable, files}`;
   - reroute limits: zone headers are not obstacles, bundles and edges with a free end are skipped;
   - edit operations ignore `SPINAGRAM_RUST=0`.
+
+---
+
+# Validation, second iteration (T9–T17)
+
+**Result**: PASS. 2 surviving mutants found; fixed by the verifier's test commit on this branch (`test(web): cover overlapping zone headers…`).
+**Verifier:** orchestrator session. The author was a separate Sonnet sub-agent.
+**Diff range:** `857ec70..b99a21a`, 9 commits, one per task, plus the verifier's test commit.
+
+## Gates (re-run independently)
+
+| Gate | Result |
+|---|---|
+| `cargo test` | 206 passed |
+| clippy `-D warnings`, `cargo deny` | clean |
+| ruff | clean |
+| pytest, Rust default / `SPINAGRAM_RUST=0` | 2848 passed, 3 skipped / 2848 passed, 3 skipped |
+| wasm build + `bun test` | 21 pass |
+| web `bun test` + build | 108 pass (109 after the verifier's tests); the rebuilt bundle equals the committed one |
+| `bun install --frozen-lockfile` | Fails locally on this branch **and on `main`** with local bun 1.3.14, so the cause is the local version, not the hand edit of `web/bun.lock`. CI's pinned bun is the real check |
+
+## Evidence (behaviour, from tests)
+
+- **Reparent, zone cycles:** `rust/spinagram-core/src/edit.rs:1366`, `:1399` ("A zone cannot contain itself").
+- **MoveZone:** `edit.rs:1415`, and `:1439` for a container inside the zone.
+- **Group:** `edit.rs:1446`, `:1468`.
+- **Remove from container, dissolve:** `edit.rs:1526`, `:1537`.
+- **Canvas logic:** `web/src/canvas/canvas.test.ts` (drop target, zone move map, rubber band, grouping order,
+  insertion index, palette ranking and ids, history cap and redo).
+
+## Discrimination sensor
+
+The mutants ran in a scratch worktree, which was removed afterwards; the porcelain is unchanged.
+
+| Mutant | Result |
+|---|---|
+| N1 cycle check only refuses the zone itself | killed |
+| N2 container dissolves at 1 member instead of 2 | killed |
+| N3 Group does not order members | killed |
+| N4 MoveZone leaves children in place | killed |
+| N5 history has no 50-step cap | killed |
+| N6 redo survives a new edit | killed |
+| N7 new id never suffixed | killed |
+| N8 `hitZone` picks the outermost zone | **survived**, then killed after the verifier's test (overlapping header bands) |
+| N9 rubber band ignores the far-side bounds | **survived**, then killed after the verifier's test (band below and right of every node) |
+| M3 (iteration 1) re-parse guard skipped | killed by T9 |
+
+## Browser check (independent; scratch git copy of `examples/showcase/editable_platform.yaml`)
+
+| Step | YAML diff |
+|---|---|
+| Double-click rename "Reports" → "Report store" | the `title` of `bucket` only |
+| Rubber band over three nodes, then Group as column | one new `columns:` entry, `{x: 960, y: 570, gap: 20, nodes: [queue, bucket, monitor]}`, flow style like its neighbours |
+| Cmd+Z twice | the file is byte-identical to the original |
+
+## UX findings (not blocking, for the next iteration)
+
+1. **Palette open by default:** it covers about a third of the diagram at 68 % zoom.
+2. **Palette reopens itself:** after collapsing it, it opens again after the next canvas save (its collapsed state
+   is lost on re-render).
+3. **Badge overflow:** the "COLUMN" badge text overflows its chip in the palette list.
+4. **Unneeded quotes:** a rename writes a quoted scalar (`"Report store"`) where a plain one would do. Valid, but
+   it adds a diff character.
+5. **Fragile example:** the example loads `showcase.css` and `aws.css` from its folder, so a copy without them
+   fails with "No such file". That's expected, but the gallery card says only "preview unavailable".
