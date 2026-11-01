@@ -137,6 +137,47 @@ The YAML work is smaller than planned because routing dominates the build; the R
 Spec files stay on PyYAML's `SafeLoader` (libyaml accepts input it rejects); themes and icon registries use libyaml
 and a stat-keyed parse cache.
 
+## Quality: clippy, cargo-deny, crates first and Verus
+
+- **Clippy**: the workspace lint table denies `clippy::all` and warns on `pedantic`; CI runs
+  `cargo clippy --workspace --all-targets -- -D warnings`. Every exception is an `#[expect(..., reason = "...")]`; no
+  `#[allow(clippy::...)]` remains.
+- **cargo-deny**: `rust/deny.toml` (advisories, permissive licences plus MPL-2.0, duplicate versions warn, crates.io
+  only). Run `cargo deny check` in `rust/`; CI runs it too.
+- **Crates first**: `DEPENDENCIES.md` lists every hand-written component with the crates tried and the evidence (a
+  parity number or the first differing case). Replaced so far: HTML escaping (`html-escape`) and the compensated
+  `sum()` (`compensated-summation`).
+- **Plain `cargo build --workspace`**: `rust/.cargo/config.toml` adds the `dynamic_lookup` link flags the extension
+  module needs on macOS (maturin passes them itself).
+
+### Verus proofs
+
+The discrete kernels of the core are proved with [Verus](https://verus-lang.github.io/verus/guide/) and live in
+`spinagram-core/src/verified/`. They are the production code: `text`, `css` and `route` call them, the ghost code is
+erased by a normal `cargo build` and the maturin wheel, and the parity harnesses stay at 100 %.
+
+Set up Verus once (release `0.2026.10.26.d17fbd0`, Rust toolchain `1.99.1`; the CI `verus` job does the same on x86
+Linux):
+
+```bash
+# download verus-0.2026.10.26.d17fbd0-<platform>.zip from the verus-lang/verus releases into ~/.local/verus
+rustup toolchain install 1.99.1
+cd rust && PATH=$HOME/.local/verus:$PATH cargo verus verify -p spinagram-core   # "N verified, 0 errors"
+```
+
+| Module | Proved (`ensures`) | Used by |
+|---|---|---|
+| `segments` | `cuts` returns exactly the valid cut offsets of a token (strictly increasing, inside `0..len`, after a break character, outside every IPv4/CIDR range); `bounds` gives contiguous non-empty pieces from 0 to `len` that concatenate to the token | `text::segments` |
+| `brackets` | `scan_close` stays in bounds, has positive depth before its result, and returns the length or an index where the depth is back to 0; the loop terminates | `css::substitute` (`var()`) |
+| `bisect` | `bisect_left` on sorted integer keys: every key before the result is below `x`, every key from it on is at least `x` | router grid lookup (`order_key` maps `f64` to an order-preserving `u64`, tested not proved) |
+| `cascade` | the key `(level, specificity, rule order, declaration index)` is a total order (reflexive, antisymmetric, transitive, total); `stable_order` returns a permutation sorted by key with equal keys in input order | `css::cascade` |
+| `grid` | the A* neighbour step returns only cells inside the grid, and `None` exactly when the step leaves it | `route::search` |
+
+No `assume`, `admit` or `#[verifier::external_body]` appears in `verified/`. Not proved, on purpose: floating-point
+geometry (A* costs, text widths, PNG size), the Python-semantics number formatting in `pyfmt`, the SVG writer
+(string and float heavy; Python-derived tests and the parity harnesses cover them) and `:not()` specificity, which
+the `selectors` crate computes (see `DEPENDENCIES.md`).
+
 ## Parity rule
 
 The Python implementation and its tests are the spec. Every ported slice must give identical results:

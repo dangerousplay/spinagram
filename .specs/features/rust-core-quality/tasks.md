@@ -290,9 +290,9 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Workflow parses; `verus` job present; other jobs unchanged (VER-10)
-- [ ] `grep -rnE "assume\(|admit\(|external_body" rust/spinagram-core/src/verified` is empty (VER-11)
-- [ ] Build gate passes
+- [x] Workflow parses; `verus` job present; other jobs unchanged (VER-10)
+- [x] `grep -rnE "assume\(|admit\(|external_body" rust/spinagram-core/src/verified` is empty (VER-11)
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

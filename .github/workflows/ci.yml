@@ -109,6 +109,25 @@ jobs:
       - name: Text parity and speed
         run: uv run --no-sync python rust/bench/parity.py
 
+  verus:
+    name: Verus proofs (spinagram-core)
+    runs-on: ubuntu-latest
+    env:
+      VERUS_VERSION: "0.2026.10.26.d17fbd0"
+      VERUS_TOOLCHAIN: "1.99.1"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Verus's pinned Rust toolchain
+        run: rustup toolchain install "$VERUS_TOOLCHAIN" --profile minimal
+      - name: Download Verus
+        run: |
+          curl -fsSL -o verus.zip "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+          unzip -q verus.zip -d "$HOME/verus-dl"
+          echo "$(dirname "$(find "$HOME/verus-dl" -name cargo-verus -type f | head -1)")" >> "$GITHUB_PATH"
+      - name: Verify spinagram-core
+        run: cargo verus verify -p spinagram-core
+        working-directory: rust
+
   build:
     name: Build sdist + wheel (uv)
     needs: [web, lint, test]

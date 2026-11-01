@@ -120,8 +120,8 @@ any crate swap must keep every parity harness at 100 %.
 | VER-07 | P1: Verus | In Tasks | Implementing |
 | VER-08 | P1: Verus | In Tasks | Implementing |
 | VER-09 | P1: Verus | In Tasks | Implementing |
-| VER-10 | P1: Verus | In Tasks | Pending |
-| VER-11 | P1: Verus | In Tasks | Pending |
+| VER-10 | P1: Verus | In Tasks | Implementing |
+| VER-11 | P1: Verus | In Tasks | Implementing |
 
 **Coverage:** 18 total, 18 mapped to tasks, 0 unmapped.
 
