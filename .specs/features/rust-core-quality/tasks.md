@@ -126,8 +126,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Every row names candidates and either "replace" (with parity evidence) or "keep" (with the first differing case) (DEP-01, DEP-03)
-- [ ] Rejected experiments are discarded (scratch only)
+- [x] Every row names candidates and either "replace" (with parity evidence) or "keep" (with the first differing case) (DEP-01, DEP-03)
+- [x] Rejected experiments are discarded (scratch only)
 
 **Tests**: none (evaluation document)
 **Gate**: rust
