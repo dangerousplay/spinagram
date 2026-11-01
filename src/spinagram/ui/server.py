@@ -174,6 +174,9 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
     async def theme_list(_: Request) -> Response:
         return JSONResponse(await run_in_threadpool(themes.list_themes, ws.theme_ref), headers=NO_STORE)
 
+    async def zone_styles(_: Request) -> Response:
+        return JSONResponse(await run_in_threadpool(themes.zone_styles, ws.theme_ref), headers=NO_STORE)
+
     async def theme_sheet(req: Request) -> Response:
         try:
             return JSONResponse(await run_in_threadpool(themes.theme_sheet, req.path_params["ref"], ws.theme_ref),
@@ -258,6 +261,7 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         Route("/api/fonts/{name}", font),
         Route("/api/diagrams/{key:path}.source", source),
         Route("/api/files", save, methods=["PUT"]),
+        Route("/api/zone-styles", zone_styles),
         Route("/api/themes", theme_list),
         Route("/api/themes/{ref}", theme_sheet),
         Route("/api/themes/{ref}/thumbnail.svg", theme_thumbnail),

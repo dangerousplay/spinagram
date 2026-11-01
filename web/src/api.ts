@@ -76,6 +76,7 @@ export type StyleReport = {
   size: [number, number];
 };
 
+export type ZoneStyle = { name: string; icon: string | null; fill: string | null; stroke: string | null; label: string; dashed: boolean };
 export type ThemeEntry = { ref: string; name: string; builtin: boolean; active: boolean; error: string | null };
 export type ColorToken = { token: string; value: string; hex: string | null; via: string | null };
 export type FontFile = { key: string; weight: number; italic: boolean; format: string; available: boolean };
@@ -181,6 +182,8 @@ export const api = {
   },
   /** Where the browser loads the fonts a scene names (``renderSvg``'s font base). */
   fontBase: "api/fonts/",
+  /** The zone styles of the active theme: name, corner icon ref and resolved colours. */
+  zoneStyles: () => json<ZoneStyle[]>("api/zone-styles"),
   themes: () => json<ThemeEntry[]>("api/themes"),
   theme: (ref: string) => json<ThemeSheet>(`api/themes/${enc(ref)}`),
   /** The theme's sample diagram as an image URL. */

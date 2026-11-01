@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { CanvasClient, type Port, type Response } from "./client";
 import { dragMoves, dragTo, startDrag } from "./drag";
-import { CYCLE_MESSAGE, deleteOps, dropTarget, groupOps, moveOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps } from "./ops";
+import { CYCLE_MESSAGE, zoneStyleOps, deleteOps, dropTarget, groupOps, moveOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps } from "./ops";
 import {
   boxOf,
   containerAt,
@@ -38,7 +38,7 @@ import {
 } from "./interaction";
 import { CONTAINER_ICON_NAMES, hasIcon, iconNameOf, ICON_NAMES } from "./icons";
 import { ACTIONS, CLICK_SLOP, TOOLS, connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse } from "./tools";
-import { BUILTINS, SHAPE_KINDS, buildCorpus, categorize, categoryOf, defaultCollapsed, paletteRows, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
+import { BUILTINS, SHAPE_KINDS, ZONE_TITLES, buildCorpus, zoneStyleItems, categorize, categoryOf, defaultCollapsed, paletteRows, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
   width: 1000,
@@ -1078,5 +1078,123 @@ describe("palette categories (T27): canvas-editor PAL-01, PAL-06", () => {
       expect(Object.values(got).every((v) => typeof v === "boolean")).toBe(true);
     }
     expect(readCollapsed({ getItem: () => '{"a":"yes","b":true}', setItem: () => undefined })).toEqual({ b: true });
+  });
+});
+
+describe("Zones category and the zone style picker (T32)", () => {
+  const style = (name: string, icon: string | null = null, stroke: string | null = "#123456", dashed = false) => ({ name, icon, fill: null, stroke, label: "#000000", dashed });
+  // as `/api/zone-styles` lists them: theme order, every zone style including the non-provider and alias ones
+  const styles = [
+    style("soft"),
+    style("warning"),
+    style("aws-cloud", "aws:group-aws-cloud"),
+    style("aws-vpc", "aws:group-virtualprivatecloud-vpc"),
+    style("aws-subnet", "aws:group-privatesubnet"),
+    style("aws-private-subnet", "aws:group-privatesubnet"),
+    style("azure-subscription", "azure:subscriptions"),
+    style("azure-resource-group", "azure:resource-groups", "#50A0DC", true),
+    style("gcp-project", "gcp:project"),
+    style("gcp-vpc", "gcp:virtual-private-cloud", "#4285F4", true),
+    style("k8s-namespace", "k8s:ns", "#326CE5", true),
+  ];
+  const corpus = buildCorpus([{ pack: "aws", name: "amazon-s3", aliases: [] }], styles);
+  const zoneItems = (q: string) => search(corpus, q).filter((i) => i.type === "zoneStyle");
+  const titleOf = (i: { title: string }) => i.title;
+
+  test("only provider styles become items, grouped AWS, Azure, Google Cloud, Kubernetes, the older alias left out", () => {
+    const items = zoneStyleItems(styles);
+    expect(items.map((i) => i.type === "zoneStyle" && `${i.provider}:${i.style}`)).toEqual([
+      "AWS:aws-cloud",
+      "AWS:aws-vpc",
+      "AWS:aws-private-subnet",
+      "Azure:azure-subscription",
+      "Azure:azure-resource-group",
+      "Google Cloud:gcp-project",
+      "Google Cloud:gcp-vpc",
+      "Kubernetes:k8s-namespace",
+    ]);
+    expect(items.map(titleOf)).toEqual(["AWS Cloud", "VPC", "Private subnet", "Subscription", "Resource group", "Project", "VPC network", "Namespace"]);
+  });
+
+  test("each item carries its real header icon ref and its colours", () => {
+    const vpc = zoneStyleItems(styles).find((i) => i.type === "zoneStyle" && i.style === "aws-vpc");
+    expect(vpc).toMatchObject({ icon: "aws:group-virtualprivatecloud-vpc", stroke: "#123456", dashed: false });
+    const rg = zoneStyleItems(styles).find((i) => i.type === "zoneStyle" && i.style === "azure-resource-group");
+    expect(rg).toMatchObject({ icon: "azure:resource-groups", stroke: "#50A0DC", dashed: true });
+  });
+
+  test("Zones comes right after Basics, with the generic Zone first and Basics keeping its Zone", () => {
+    const cats = categorize(corpus.items);
+    expect(cats.map((c) => c.id)).toEqual(["basics", "zones", "shapes", "pack:aws"]);
+    expect(cats[1].items[0]).toEqual({ type: "zone", title: "Zone" });
+    expect(cats[1].items.slice(1).every((i) => i.type === "zoneStyle")).toBe(true);
+    expect(cats[0].items.map(titleOf)).toContain("Zone");
+  });
+
+  test("without zone styles there is no Zones category", () => {
+    expect(categorize(buildCorpus([], []).items).map((c) => c.id)).toEqual(["basics", "shapes"]);
+  });
+
+  test("rows: the generic Zone, then a sub-header per provider before its items", () => {
+    const rows = paletteRows(categorize(corpus.items), () => false);
+    const at = rows.findIndex((r) => r.type === "header" && r.cat.id === "zones");
+    const zoneRows = rows.slice(at + 1, rows.findIndex((r, i) => i > at && r.type === "header"));
+    expect(zoneRows.map((r) => (r.type === "subheader" ? `# ${r.title}` : r.type === "item" ? r.item.title : "?"))).toEqual([
+      "Zone",
+      "# AWS",
+      "AWS Cloud",
+      "VPC",
+      "Private subnet",
+      "# Azure",
+      "Subscription",
+      "Resource group",
+      "# Google Cloud",
+      "Project",
+      "VPC network",
+      "# Kubernetes",
+      "Namespace",
+    ]);
+    const closed = paletteRows(categorize(corpus.items), (id) => id === "zones");
+    expect(closed.some((r) => r.type === "subheader")).toBe(false);
+  });
+
+  test("search finds the items by name: vpc, subscription, project, namespace", () => {
+    expect(zoneItems("vpc").map(titleOf).sort()).toEqual(["VPC", "VPC network"]);
+    expect(zoneItems("subscription").map(titleOf)).toEqual(["Subscription"]);
+    expect(zoneItems("project").map(titleOf)).toEqual(["Project"]);
+    expect(zoneItems("namespace").map(titleOf)).toEqual(["Namespace"]);
+    expect(zoneItems("aws").length).toBeGreaterThanOrEqual(3); // by provider name too
+    for (const hit of zoneItems("vpc")) expect(categoryOf(hit)).toEqual({ id: "zones", title: "Zones" });
+  });
+
+  test("dropping a zone style adds a zone with that style, its title as label, placed like a plain zone", () => {
+    const item = zoneStyleItems(styles).find((i) => i.type === "zoneStyle" && i.style === "aws-vpc")!;
+    expect(dropOps(zscene, item, 100, 600)).toEqual([{ op: "add_zone", id: "vpc", label: "VPC", style: "aws-vpc", x: 100, y: 400, w: 600, h: 400 }]);
+    const plain = dropOps(zscene, { type: "zone", title: "Zone" }, 100, 600)[0];
+    expect("style" in plain).toBe(false);
+    const again = dropOps({ ...zscene, zones: [...(zscene.zones ?? []), { id: "vpc", shape_id: "zv", children: [] }] }, item, 0, 0)[0] as { id: string };
+    expect(again.id).toBe("vpc-2");
+  });
+
+  test("the drop ghost of a styled zone is the zone rectangle", () => {
+    const item = zoneStyleItems(styles)[0];
+    const ops = dropOps(zscene, item, 100, 100);
+    expect(ghostOf(ops)).toMatchObject({ x: 100, y: 100, w: 600, h: 400, label: "AWS Cloud" });
+  });
+
+  test("the Zone tool still adds the generic zone", () => {
+    const op = placeOps(zscene, "zone", { x: 650, y: 400 }, { x: 650, y: 400 }).ops[0];
+    expect(op.op).toBe("add_zone");
+    expect("style" in op).toBe(false);
+  });
+
+  test("the picker sends set_zone_style for the zone", () => {
+    expect(zoneStyleOps("outer", "azure-vnet")).toEqual([{ op: "set_zone_style", id: "outer", style: "azure-vnet" }]);
+    expect(zoneStyleOps("outer", "soft")).toEqual([{ op: "set_zone_style", id: "outer", style: "soft" }]);
+  });
+
+  test("every provider zone style of the theme has a palette title", () => {
+    for (const name of Object.keys(ZONE_TITLES)) expect(/^(aws|azure|gcp|k8s)-/.test(name), name).toBe(true);
+    expect(Object.keys(ZONE_TITLES)).toHaveLength(25);
   });
 });

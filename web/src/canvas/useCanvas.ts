@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { CanvasClient } from "./client";
 import { dragMoves, dragTo, startDrag, type Drag } from "./drag";
-import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps, type Item, type Op } from "./ops";
+import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps, zoneStyleOps, type Item, type Op } from "./ops";
 import { boxOf, containerAt, containerBox, hitTest, hitZone, rubberBand, zoneBox, zoneMoveShapes, type Box, type Kind, type SceneJson, type Sel } from "./scene";
 import { History } from "./history";
 import { dropOps, ghostOf, type Ghost, type PaletteItem } from "./palette";
@@ -28,6 +28,8 @@ type Options = {
 export type Selection = { id: string; kind: Kind; nonce: number };
 /** Properties of a selected container, read from its YAML entry: `gap`, and `align` where the loader accepts it. */
 export type ContainerProps = { id: string; gap: string; align: string | null };
+/** The style of a lone selected zone, read from its YAML entry (`color`, `soft` when absent). */
+export type ZoneProps = { id: string; style: string };
 export type Band = { x0: number; y0: number; x1: number; y1: number };
 /** The inline editor of a node's title or a zone's label. */
 /** An error from an edit operation, shown for a moment at the place the pointer was. */
@@ -45,6 +47,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const [nonce, setNonce] = useState(0);
   const [band, setBand] = useState<Band | null>(null);
   const [props, setProps] = useState<ContainerProps | null>(null);
+  const [zoneProps, setZoneProps] = useState<ZoneProps | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [ghost, setGhost] = useState<Ghost | null>(null); // the box of a just-dropped item, until its render arrives
@@ -638,6 +641,36 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     };
   }, [active, lone, diagramKey, srcmap, scene]);
 
+  // the style picker of a lone selected zone: its `color` from the YAML entry
+  const loneZone = selected.length === 1 && selected[0].kind === "zone" ? selected[0].id : null;
+  useEffect(() => {
+    setZoneProps(null);
+    if (!active || !loneZone) return;
+    let live = true;
+    void (async () => {
+      try {
+        const src = (await api.source(diagramKey)).files[0];
+        const r = yamlRange(src.text, await srcmap(src.text), loneZone);
+        if (!r || !live) return;
+        setZoneProps({ id: loneZone, style: entryField(src.text.slice(r.from, r.to), "color") ?? "soft" });
+      } catch {
+        /* the picker just stays hidden */
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [active, loneZone, diagramKey, srcmap, scene]);
+
+  /** Give the selected zone another style (the zone picker of the canvas bar). */
+  const setZoneStyle = useCallback(
+    (style: string) => {
+      const z = selectedRef.current.length === 1 && selectedRef.current[0].kind === "zone" ? selectedRef.current[0] : null;
+      if (active && z) void commit(zoneStyleOps(z.id, style));
+    },
+    [active, commit],
+  );
+
   // the boxes of the selection, following the pointer while the drag goes on
   const selectedBoxes: Box[] = [];
   if (active && scene) {
@@ -668,6 +701,8 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     selected,
     selectedBoxes,
     containerProps: props,
+    zoneProps,
+    setZoneStyle,
     band,
     dropBox,
     editing,

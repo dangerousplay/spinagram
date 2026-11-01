@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type StyleReport } from "./api";
+import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type StyleReport, type ZoneStyle } from "./api";
 import { href, typingIn, useKey, usePanZoom } from "./hooks";
 import CodePanel from "./CodePanel";
 import CanvasBar from "./canvas/CanvasBar";
@@ -92,6 +92,18 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     setPaletteOpen(true);
     setTimeout(() => paletteFocus.current?.(), 50);
   }, [setPaletteOpen]);
+  const [zoneStyles, setZoneStyles] = useState<ZoneStyle[]>([]); // the theme's zone styles, for the zone style picker
+  useEffect(() => {
+    if (!canvasOn) return;
+    let live = true;
+    api
+      .zoneStyles()
+      .then((s) => live && setZoneStyles(s))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [canvasOn, rev]);
   const reloadDiagram = useCallback(() => setTick((t) => t + 1), []);
   const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, tick, reload: reloadDiagram });
 
@@ -456,7 +468,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         onPalette={() => (paletteOpen ? setPaletteOpen(false) : openPalette())}
         onHelp={() => setSheet((v) => !v)}
       />
-      <CanvasBar canvas={canvas} />
+      <CanvasBar canvas={canvas} zoneStyles={zoneStyles} />
       {canvas.active && sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
       {canvas.toast && (
         <div

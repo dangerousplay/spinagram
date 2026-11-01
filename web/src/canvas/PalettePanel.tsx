@@ -5,7 +5,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type Pack } from "../api";
+import { api, type Pack, type ZoneStyle } from "../api";
 import { EditorIcon, iconNameOf } from "./icons";
 import { buildCorpus, categorize, categoryOf, defaultCollapsed, noMatch, paletteRows, search, type IconEntry, type PaletteItem, type PaletteRow } from "./palette";
 import { readCollapsed, writeCollapsed, type CollapsedState } from "./paletteState";
@@ -39,10 +39,32 @@ async function loadIcons(packs: Pack[]): Promise<IconEntry[]> {
   return out;
 }
 
+/** The colour swatch of a provider zone: its outline colour (dashed where the style is), and its fill. */
+export function ZoneSwatch({ item }: { item: { stroke: string | null; fill: string | null; dashed: boolean } }) {
+  return (
+    <span
+      aria-hidden
+      className="size-3.5 shrink-0 rounded-[2px]"
+      style={{ background: item.fill ?? "transparent", border: `1.5px ${item.dashed ? "dashed" : "solid"} ${item.stroke ?? "#94a3b8"}` }}
+    />
+  );
+}
+
+/** The real header icon of a zone style (its pack image), or the generic zone icon in the outline colour when the
+ * style has none or the pack is not downloaded. */
+export function ZoneStyleIcon({ item, size }: { item: { icon: string | null; stroke: string | null }; size: number }) {
+  const [failed, setFailed] = useState(false);
+  const [pack, name] = item.icon?.split(":", 2) ?? [];
+  if (pack && name && !failed)
+    return <img src={api.icon(pack, name)} alt="" loading="lazy" width={size} height={size} onError={() => setFailed(true)} className="max-h-full max-w-full" />;
+  return <span style={{ color: item.stroke ?? undefined }}><EditorIcon name="zone" size={size - 2} /></span>;
+}
+
 // Rendered only while open: DiagramView owns the open state, so a save (which re-renders the canvas) keeps it.
 export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
   const [packs, setPacks] = useState<{ offline: boolean; packs: Pack[] } | null>(null);
   const [icons, setIcons] = useState<IconEntry[]>([]);
+  const [zoneStyles, setZoneStyles] = useState<ZoneStyle[]>([]);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +85,7 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
       .packs()
       .then(async (r) => {
         setPacks(r);
+        setZoneStyles(await api.zoneStyles().catch(() => []));
         setIcons(await loadIcons(r.packs));
         setError(null);
       })
@@ -87,7 +110,7 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
     };
   }, [focusRef]);
 
-  const corpus = useMemo(() => buildCorpus(icons), [icons]);
+  const corpus = useMemo(() => buildCorpus(icons, zoneStyles), [icons, zoneStyles]);
   const results = useMemo(() => search(corpus, query), [corpus, query]);
   const cats = useMemo(() => categorize(corpus.items), [corpus]);
   const searching = query.trim() !== "";
@@ -97,7 +120,7 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
   );
   // the items in view, in order: what the arrow keys walk and Enter adds
   const entries = useMemo(() => rows.flatMap((r, row) => (r.type === "item" ? [{ item: r.item, row }] : [])), [rows]);
-  const virt = useVirtualizer({ count: rows.length, getScrollElement: () => list.current, estimateSize: (i) => (rows[i]?.type === "header" ? 32 : 36), overscan: 8 });
+  const virt = useVirtualizer({ count: rows.length, getScrollElement: () => list.current, estimateSize: (i) => (rows[i]?.type === "item" ? 36 : 32), overscan: 8 });
   useEffect(() => setActive(0), [query]);
   useEffect(() => {
     const row = entries[active]?.row;
@@ -159,6 +182,12 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
             const r = rows[vr.index];
             if (!r) return null;
             const pos = { top: vr.start, height: vr.size };
+            if (r.type === "subheader")
+              return (
+                <div key={`s-${vr.index}`} className="absolute inset-x-0 flex items-end px-3 pb-0.5 text-[10px] font-semibold tracking-wide text-slate-400 uppercase" style={pos}>
+                  {r.title}
+                </div>
+              );
             if (r.type === "header")
               return (
                 <button
@@ -179,7 +208,7 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
             const name = iconNameOf(it);
             return (
               <div
-                key={`i-${it.type}-${"ref" in it ? it.ref : "kind" in it ? it.kind : it.type}`}
+                key={`i-${r.cat.id}-${it.type}-${"ref" in it ? it.ref : "style" in it ? it.style : "kind" in it ? it.kind : it.type}`}
                 role="option"
                 aria-selected={i === active}
                 draggable
@@ -193,9 +222,16 @@ export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
                 style={pos}
               >
                 <span className="flex h-7 w-8 shrink-0 items-center justify-center text-slate-600 dark:text-slate-300">
-                  {name ? <EditorIcon name={name} size={20} /> : it.type === "icon" ? <img src={api.icon(it.pack, it.name)} alt="" loading="lazy" className="max-h-full max-w-full" /> : null}
+                  {it.type === "zoneStyle" ? (
+                    <ZoneStyleIcon item={it} size={22} />
+                  ) : name ? (
+                    <EditorIcon name={name} size={20} />
+                  ) : it.type === "icon" ? (
+                    <img src={api.icon(it.pack, it.name)} alt="" loading="lazy" className="max-h-full max-w-full" />
+                  ) : null}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{it.title}</span>
+                {it.type === "zoneStyle" && <ZoneSwatch item={it} />}
                 {searching && <span className="shrink-0 font-mono text-[10px] text-slate-500">{r.cat.title}</span>}
               </div>
             );

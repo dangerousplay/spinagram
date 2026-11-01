@@ -1015,12 +1015,14 @@ documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] bun tests: the Zones category contents and order built from a style list, the ops built for a styled drop and for the dropdown, the search hits for "vpc", "subscription" and "project", and the Zone tool still adding the generic zone
-- [ ] Web gate passes
+- [x] bun tests: the Zones category contents and order built from a style list, the ops built for a styled drop and for the dropdown, the search hits for "vpc", "subscription" and "project", and the Zone tool still adding the generic zone
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): zones category and zone style picker`
+
+**Notes**: New endpoint `GET /api/zone-styles` (`themes.zone_styles`: every zone style of the session's theme with its icon ref, resolved fill, outline and label colours, and `dashed`; pytest +1). The web side keeps the provider grouping and the display titles (`ZONE_PROVIDERS`, `ZONE_TITLES`, the alias `aws-subnet` hidden). New `zoneStyle` palette item; `buildCorpus(icons, zoneStyles)`; the Zones category follows Basics (the generic Zone, then a sub-header and the items per provider; it is omitted when the theme has no provider styles and is open by default); search matches title, style name and provider ("vpc" gives VPC and VPC network, "subscription", "project", "namespace", "aws"). A drop (or Enter) sends `add_zone` with `style` and the title as the label. Each item shows the pack image of its real header icon (a generic zone icon in the outline colour where the style has none or the pack is not downloaded) and a swatch of its outline and fill. With one zone selected the canvas bar shows a picker (current style with icon, then every provider style grouped, plus Generic zone = `soft`) that sends `set_zone_style` (`zoneStyleOps`); the current style is read from the zone's `color` in the YAML. The Zone toolbar tool is unchanged (generic zone, tested). Tests +11 (175 web), six mutants (alias filter, generic first, sub-headers, style in the drop, category order, search text) checked in a scratch worktree (removed) and killed. Gates: web bun 175 and build; pytest 2856 passed, 3 skipped per mode; ruff clean.
 
 ---
 

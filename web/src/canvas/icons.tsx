@@ -78,7 +78,7 @@ export const hasIcon = (name: string): boolean => name in ICONS;
 
 /** The icon name of a palette item, or null for an icon-pack item (it shows its pack image). */
 export function iconNameOf(item: PaletteItem): string | null {
-  return item.type === "icon" ? null : item.type === "shape" ? item.kind : item.type;
+  return item.type === "icon" ? null : item.type === "shape" ? item.kind : item.type === "zoneStyle" ? "zone" : item.type;
 }
 
 export function EditorIcon({ name, size = 16, className }: { name: string; size?: number; className?: string }) {

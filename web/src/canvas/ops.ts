@@ -148,4 +148,7 @@ export function ungroupOps(scene: SceneJson, id: string): Op[] | null {
   return Object.keys(boxes).length ? [{ op: "ungroup", id, boxes }] : null;
 }
 
+/** Change the style of zone `id` (the theme's zone style name, written as its `color`). */
+export const zoneStyleOps = (id: string, style: string): Op[] => [{ op: "set_zone_style", id, style }];
+
 export const setContainerOps = (id: string, props: { gap?: number; align?: string }): Op[] => [{ op: "set_container", id, ...props }];

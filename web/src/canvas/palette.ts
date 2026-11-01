@@ -1,6 +1,7 @@
 // The icon palette: a searchable list of icons, shapes and containers to add to the diagram (canvas-editor PAL-*).
 // Pure logic: the corpus, fuzzy search, ids, and the operations a drop sends. The panel is PalettePanel.tsx.
 import uFuzzy from "@leeoniya/ufuzzy";
+import type { ZoneStyle } from "../api";
 import { type Op } from "./ops";
 import { snap, zoneBoxes, type SceneJson } from "./scene";
 
@@ -10,6 +11,7 @@ export type PaletteItem =
   | { type: "icon"; pack: string; name: string; ref: string; title: string; aliases: string[] }
   | { type: "shape"; kind: string; title: string }
   | { type: "zone"; title: string }
+  | { type: "zoneStyle"; style: string; title: string; provider: string; icon: string | null; stroke: string | null; fill: string | null; dashed: boolean }
   | { type: "row"; title: string }
   | { type: "column"; title: string };
 
@@ -39,6 +41,67 @@ export const BUILTINS: PaletteItem[] = [
   ...SHAPE_KINDS.map((kind): PaletteItem => ({ type: "shape", kind, title: displayName(kind) })),
 ];
 
+export type { ZoneStyle };
+
+/** The provider groups of the Zones category, in order; a zone style belongs to the one its name starts with. */
+export const ZONE_PROVIDERS = [
+  { prefix: "aws", title: "AWS" },
+  { prefix: "azure", title: "Azure" },
+  { prefix: "gcp", title: "Google Cloud" },
+  { prefix: "k8s", title: "Kubernetes" },
+] as const;
+
+/** What each provider zone style is called in the palette and on the zone it adds. */
+export const ZONE_TITLES: Record<string, string> = {
+  "aws-cloud": "AWS Cloud",
+  "aws-account": "AWS Account",
+  "aws-region": "Region",
+  "aws-vpc": "VPC",
+  "aws-az": "Availability Zone",
+  "aws-public-subnet": "Public subnet",
+  "aws-private-subnet": "Private subnet",
+  "aws-auto-scaling-group": "Auto Scaling group",
+  "aws-corporate-dc": "Corporate data center",
+  "aws-spot-fleet": "Spot Fleet",
+  "aws-server-contents": "Server contents",
+  "aws-ec2-contents": "EC2 instance contents",
+  "azure-management-group": "Management group",
+  "azure-subscription": "Subscription",
+  "azure-resource-group": "Resource group",
+  "azure-vnet": "Virtual network",
+  "azure-subnet": "Subnet",
+  "gcp-cloud": "Google Cloud",
+  "gcp-project": "Project",
+  "gcp-region": "Region",
+  "gcp-zone": "Zone",
+  "gcp-vpc": "VPC network",
+  "gcp-subnet": "Subnet",
+  "k8s-cluster": "Cluster",
+  "k8s-namespace": "Namespace",
+};
+
+/** Styles that only repeat another one under an older name (`aws-subnet` is the private subnet). */
+const ZONE_ALIASES = new Set(["aws-subnet"]);
+
+/** The Zones items for the styles the theme has: provider by provider in `ZONE_PROVIDERS` order, each keeping the
+ * theme's order. A style that is not a provider group (soft, warning, ...) is not offered. */
+export function zoneStyleItems(styles: ZoneStyle[]): PaletteItem[] {
+  return ZONE_PROVIDERS.flatMap((p) =>
+    styles
+      .filter((s) => s.name.startsWith(`${p.prefix}-`) && !ZONE_ALIASES.has(s.name))
+      .map((s): PaletteItem => ({
+        type: "zoneStyle",
+        style: s.name,
+        title: ZONE_TITLES[s.name] ?? displayName(s.name.slice(p.prefix.length + 1)),
+        provider: p.title,
+        icon: s.icon,
+        stroke: s.stroke,
+        fill: s.fill,
+        dashed: s.dashed,
+      })),
+  );
+}
+
 export function iconItem(e: IconEntry): PaletteItem {
   return { type: "icon", pack: e.pack, name: e.name, ref: `${e.pack}:${e.name}`, title: displayName(e.name), aliases: e.aliases };
 }
@@ -50,6 +113,8 @@ export const haystackOf = (it: PaletteItem): string => {
       return [it.name, ...it.aliases, it.pack].join(" ").toLowerCase();
     case "shape":
       return `${it.kind} shape`;
+    case "zoneStyle":
+      return `${it.title} ${it.style} ${it.provider} zone`.toLowerCase();
     default:
       return it.type;
   }
@@ -57,8 +122,8 @@ export const haystackOf = (it: PaletteItem): string => {
 
 export type Corpus = { items: PaletteItem[]; haystack: string[] };
 
-export function buildCorpus(icons: IconEntry[]): Corpus {
-  const items = [...BUILTINS, ...icons.map(iconItem)];
+export function buildCorpus(icons: IconEntry[], zoneStyles: ZoneStyle[] = []): Corpus {
+  const items = [...BUILTINS, ...zoneStyleItems(zoneStyles), ...icons.map(iconItem)];
   return { items, haystack: items.map(haystackOf) };
 }
 
@@ -121,6 +186,12 @@ export function dropOps(scene: SceneJson, item: PaletteItem, px: number, py: num
       const y = clamp(snap(py), 0, scene.height - ZONE_H);
       return [{ op: "add_zone", id, label: "Zone", x, y, w: ZONE_W, h: ZONE_H }];
     }
+    case "zoneStyle": {
+      const id = newId(item.title, taken);
+      const x = clamp(snap(px), 0, scene.width - ZONE_W);
+      const y = clamp(snap(py), 0, scene.height - ZONE_H);
+      return [{ op: "add_zone", id, label: item.title, style: item.style, x, y, w: ZONE_W, h: ZONE_H }];
+    }
     case "row":
     case "column": {
       const first = newId("New box", taken);
@@ -181,6 +252,7 @@ const basicIndex = (it: PaletteItem) => BASICS.findIndex((b) => b.type === it.ty
  * the icon pack it comes from. Ids: `basics`, `shapes`, `pack:<name>`. */
 export function categoryOf(it: PaletteItem): { id: string; title: string } {
   if (it.type === "icon") return { id: `pack:${it.pack}`, title: it.pack };
+  if (it.type === "zoneStyle") return { id: "zones", title: "Zones" };
   return basicIndex(it) >= 0 ? { id: "basics", title: "Basics" } : { id: "shapes", title: "Shapes" };
 }
 
@@ -196,19 +268,32 @@ export function categorize(items: PaletteItem[]): Category[] {
   }
   const basics = byId.get("basics");
   basics?.items.sort((a, b) => basicIndex(a) - basicIndex(b));
+  const zones = byId.get("zones");
+  const generic = items.find((i) => i.type === "zone");
+  if (zones && generic) zones.items.unshift(generic); // the plain Zone leads the provider groups
   const packs = [...byId.values()].filter((c) => c.id.startsWith("pack:")).sort((a, b) => a.title.localeCompare(b.title));
-  return [byId.get("basics"), byId.get("shapes"), ...packs].filter((c): c is Category => c !== undefined);
+  return [byId.get("basics"), byId.get("zones"), byId.get("shapes"), ...packs].filter((c): c is Category => c !== undefined);
 }
 
 /** Icon packs start collapsed (they can hold thousands of items); Basics and Shapes start open. */
 export const defaultCollapsed = (id: string): boolean => id.startsWith("pack:");
 
-export type PaletteRow = { type: "header"; cat: Category; collapsed: boolean } | { type: "item"; item: PaletteItem; cat: Pick<Category, "id" | "title"> };
+export type PaletteRow =
+  | { type: "header"; cat: Category; collapsed: boolean }
+  | { type: "subheader"; title: string }
+  | { type: "item"; item: PaletteItem; cat: Pick<Category, "id" | "title"> };
 
 /** The rows the panel draws: a header per category, and under an open one its items. */
 export function paletteRows(cats: Category[], collapsedOf: (id: string) => boolean): PaletteRow[] {
   return cats.flatMap((cat): PaletteRow[] => {
     const collapsed = collapsedOf(cat.id);
-    return [{ type: "header", cat, collapsed }, ...(collapsed ? [] : cat.items.map((item): PaletteRow => ({ type: "item", item, cat })))];
+    if (collapsed) return [{ type: "header", cat, collapsed }];
+    const rows: PaletteRow[] = [{ type: "header", cat, collapsed }];
+    let provider: string | null = null;
+    for (const item of cat.items) {
+      if (item.type === "zoneStyle" && item.provider !== provider) rows.push({ type: "subheader", title: (provider = item.provider) });
+      rows.push({ type: "item", item, cat });
+    }
+    return rows;
   });
 }

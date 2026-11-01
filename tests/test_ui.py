@@ -42,6 +42,21 @@ def client(ws: Workspace, **kw) -> TestClient:
     return TestClient(create_app(ws, watch=False, **kw), base_url="http://127.0.0.1")
 
 
+def test_zone_styles_endpoint_lists_the_theme_zone_styles(env):
+    ws = Workspace([env / "specs"])
+    with client(ws) as c:
+        r = c.get("/api/zone-styles")
+        assert r.status_code == 200
+        by = {s["name"]: s for s in r.json()}
+        assert by["aws-vpc"]["icon"] == "aws:group-virtualprivatecloud-vpc"
+        assert by["aws-vpc"]["stroke"] == "#8C4FFF" and by["aws-vpc"]["fill"] is None and not by["aws-vpc"]["dashed"]
+        assert by["aws-region"]["dashed"] is True
+        assert by["azure-resource-group"]["icon"] == "azure:resource-groups"
+        assert by["aws-az"]["icon"] is None and by["soft"]["icon"] is None
+        assert {"gcp-project", "k8s-namespace", "aws-subnet"} <= set(by)
+        assert by["aws-subnet"] == {**by["aws-private-subnet"], "name": "aws-subnet"}
+
+
 # workspace ----------------------------------------------------------------------------------------
 def test_workspace_lists_and_renders(env):
     ws = Workspace([env / "specs"])
