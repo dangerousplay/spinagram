@@ -190,6 +190,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         onPointerMove={onMove}
         onPointerDown={onDown}
         onPointerUp={onUp}
+        onDoubleClick={(e) => {
+          if (!canvas.active) return;
+          const p = sceneAt(e);
+          void canvas.beginEdit(p.x, p.y);
+        }}
         onPointerLeave={() => setHover(null)}
       >
         {svg && (
@@ -204,6 +209,34 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
               <div
                 className="pointer-events-none absolute rounded-sm border-2 border-blue-500 bg-blue-500/10"
                 style={{ left: canvas.selectedBox.x, top: canvas.selectedBox.y, width: canvas.selectedBox.w, height: canvas.selectedBox.h }}
+              />
+            )}
+            {canvas.dropBox && (
+              <div
+                className="pointer-events-none absolute rounded-sm border-2 border-dashed border-emerald-500 bg-emerald-500/10"
+                style={{ left: canvas.dropBox.x, top: canvas.dropBox.y, width: canvas.dropBox.w, height: canvas.dropBox.h }}
+              />
+            )}
+            {canvas.editing && (
+              <input
+                autoFocus
+                aria-label={canvas.editing.kind === "zone" ? "Zone label" : "Node title"}
+                defaultValue={canvas.editing.text}
+                className="absolute z-10 rounded border-2 border-blue-500 bg-white px-2 text-sm text-slate-900 shadow-lg outline-none"
+                style={{
+                  left: canvas.editing.box.x,
+                  top: canvas.editing.box.y + (canvas.editing.kind === "zone" ? 0 : canvas.editing.box.h / 2 - 16),
+                  width: Math.max(160, Math.min(canvas.editing.box.w, 420)),
+                  height: 32,
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") canvas.commitEdit(e.currentTarget.value);
+                  else if (e.key === "Escape") canvas.cancelEdit();
+                }}
+                onBlur={canvas.cancelEdit}
               />
             )}
             {inspect && report && <Overlay report={report} hover={hover} selected={selected} scale={view.scale} />}
@@ -280,7 +313,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             canvasOn ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-slate-100 dark:hover:bg-slate-700"
           }`}
           onClick={() => setCanvasOn((on) => !on)}
-          title="Canvas (c): click a node to select it, drag to move it, Delete removes it (hand-placed YAML specs)"
+          title="Canvas (c): click a node or zone header to select it, drag to move it (drop into a zone to move it there), double-click to rename, Delete removes it (hand-placed YAML specs)"
           aria-pressed={canvasOn}
         >
           Canvas

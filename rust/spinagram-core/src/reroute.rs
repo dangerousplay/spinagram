@@ -198,7 +198,7 @@ pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), String> {
     if moves.is_empty() {
         return Ok(());
     }
-    // 1. move the shapes and their own parts (accent bar, quote mark, badges)
+    // 1. move the shapes and their own parts (accent bar, quote mark, badges; a zone's label, icons and strip)
     for (id, m) in moves {
         let at = scene.items.iter().position(|it| matches!(it, Item::Shape(s) if &s.id == id)).ok_or_else(|| format!("unknown shape `{id}`"))?;
         let Item::Shape(s) = &scene.items[at] else { unreachable!("matched a shape above") };
@@ -212,12 +212,14 @@ pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), String> {
         }
         let (dx, dy) = (x - s.x, y - s.y);
         let own = Regex::new(&format!("^{}-(accent|badge[0-9]+(-halo)?)$", regex::escape(id))).map_err(|e| e.to_string())?;
-        let mark = format!("{id}-mark");
+        let zone_own = Regex::new(&format!("^{}-(icon[0-9]*|strip)$", regex::escape(id))).map_err(|e| e.to_string())?;
+        let (mark, label) = (format!("{id}-mark"), format!("{id}-label"));
         for it in &mut scene.items {
             match it {
                 Item::Shape(p) if p.id == *id => place(p, x, y, w, h),
                 Item::Shape(p) if p.role == "node-part" && own.is_match(&p.id) => shift_shape(p, dx, dy),
-                Item::Text(t) if t.id == mark => {
+                Item::Shape(p) if p.role == "zone" && zone_own.is_match(&p.id) => shift_shape(p, dx, dy), // header icons, accent strip
+                Item::Text(t) if t.id == mark || t.id == label => {
                     t.x += dx;
                     t.y += dy;
                 }
@@ -482,5 +484,44 @@ mod tests {
         assert!(reroute(&s, r#"{"std": [1, 2, -3, 4]}"#).unwrap_err().contains("non-negative"));
         assert!(reroute(&s, "[1]").unwrap_err().contains("invalid moves"));
         assert!(reroute("{}", "{}").is_err());
+    }
+
+    /// Equal JSON up to 1e-9 on numbers (a zone moved by an offset against a render at the moved coordinates).
+    fn close_json(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Number(x), Value::Number(y)) => (x.as_f64().unwrap() - y.as_f64().unwrap()).abs() < 1e-9,
+            (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| close_json(p, q)),
+            (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| close_json(v, w))),
+            _ => a == b,
+        }
+    }
+
+    #[test]
+    fn moving_a_zone_with_its_children_equals_a_render_of_the_moved_yaml() {
+        // the zone and both children by (+60, +40): its label moves with it, and the edges follow
+        let out = reroute(&fixture("zone"), r#"{"z0": [60, 40], "a": [60, 40], "b": [60, 40]}"#).unwrap();
+        let (got, want): (Value, Value) = (serde_json::from_str(&out).unwrap(), serde_json::from_str(&fixture("zone_moved")).unwrap());
+        let items = |v: &Value| v["items"].as_array().unwrap().clone();
+        let (g, w) = (items(&got), items(&want));
+        assert_eq!(g.len(), w.len());
+        for (gi, wi) in g.iter().zip(&w) {
+            assert!(close_json(gi, wi), "item {} differs:\n{gi}\n{wi}", wi["id"]);
+        }
+        // the label is its own text item and must have moved
+        let label = |v: &[Value]| v.iter().find(|i| i["id"] == "z0-label").unwrap().clone();
+        assert_ne!(label(&g)["x"], label(&items(&serde_json::from_str(&fixture("zone")).unwrap()))["x"]);
+    }
+
+    #[test]
+    fn moving_only_the_zone_leaves_children_and_their_edges_alone() {
+        let before = scene::parse(&fixture("zone")).unwrap();
+        let after = moved("zone", r#"{"z0": [60, 40]}"#);
+        assert_eq!((shape(&after, "z0").x, shape(&after, "z0").y), (shape(&before, "z0").x + 60.0, shape(&before, "z0").y + 40.0));
+        for id in ["a", "b", "c"] {
+            assert_eq!((shape(&after, id).x, shape(&after, id).y), (shape(&before, id).x, shape(&before, id).y), "{id}");
+        }
+        for (x, y) in connectors(&before).into_iter().zip(connectors(&after)) {
+            assert_eq!(x.points, y.points, "nothing touching the zone's own shape moved a connector");
+        }
     }
 }

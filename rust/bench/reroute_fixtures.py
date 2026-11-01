@@ -24,6 +24,9 @@ CASES = {  # name: (source yaml, [(old text, new text)])
     "ortho": (OUT / "ortho.yaml", []),
     "ortho_b": (OUT / "ortho.yaml", [("at: [500, 100, 120, 60]", "at: [500, 300, 120, 60]")]),
     "ortho_a": (OUT / "ortho.yaml", [("at: [100, 100, 120, 60]", "at: [100, 300, 120, 60]")]),
+    "zone": (OUT / "zone.yaml", []),  # a zone with two children, moved by (+60, +40) together with them
+    "zone_moved": (OUT / "zone.yaml", [("x: 60, y: 120", "x: 120, y: 160"), ("at: [100, 220, 160, 70]", "at: [160, 260, 160, 70]"),
+                                       ("at: [380, 220, 160, 70]", "at: [440, 260, 160, 70]")]),
 }
 
 

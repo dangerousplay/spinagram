@@ -18,3 +18,19 @@ export function yamlRange(text: string, map: SrcMap, id: string): { from: number
   const r = map[id];
   return r ? { from: byteToIndex(text, r[0]), to: byteToIndex(text, r[1]) } : null;
 }
+
+/** The value of `key` (`title`, `label`) in the text of one YAML entry (block or flow), or null. Quoted values are
+ * decoded; the entry text comes from the source map. */
+export function entryField(entry: string, key: string): string | null {
+  const m = entry.match(new RegExp(`(?:^|[\\s{,])${key}:[ \\t]*("(?:[^"\\\\]|\\\\.)*"|'(?:[^']|'')*'|[^,}\\n#]+)`));
+  if (!m) return null;
+  const v = m[1].trim();
+  if (v.startsWith('"')) {
+    try {
+      return JSON.parse(v) as string;
+    } catch {
+      return v.slice(1, -1);
+    }
+  }
+  return v.startsWith("'") ? v.slice(1, -1).replace(/''/g, "'") : v;
+}

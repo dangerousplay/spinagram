@@ -1,0 +1,11 @@
+id: ZN
+title: Zone move
+zones:
+  - {id: z, label: Inside, x: 60, y: 120, w: 600, h: 300, children: [a, b]}
+nodes:
+  - {id: a, title: A, at: [100, 220, 160, 70]}
+  - {id: b, title: B, at: [380, 220, 160, 70]}
+  - {id: c, title: C, at: [800, 220, 160, 70]}
+edges:
+  - a -> b
+  - b -> c
