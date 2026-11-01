@@ -688,9 +688,20 @@ Record the results in notes.
 
 **Done when**:
 
-- [ ] The browser pass is recorded, with each step's YAML diff where it applies
-- [ ] Full, Rust, WASM and web gates pass
+- [x] The browser pass is recorded, with each step's YAML diff where it applies
+- [x] Full, Rust, WASM and web gates pass
 
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: canvas polish shortcuts and rebuilt ui bundle`
+
+**Notes**: Bundle rebuilt (`bash rust/spinagram-wasm/build.sh`, then `bun run build`; a second build gives the same file names; wasm 665 KB gzipped). `live-ui.mdx` gained the palette behaviour, nudge, Esc, `?`, the refusal toast and plain-scalar notes. Gates: cargo 209, clippy and deny clean; wasm bun 21; web bun 126 and build; pytest 2847 passed, 3 skipped per mode; `test_web_unit` passes; ruff clean.
+
+Browser pass (Chrome, `spinagram serve` on a git-tracked scratch copy of the whole `examples/showcase/`, port 8796; diffs from `git diff`):
+1. Palette: collapsed on first Canvas-on; stays collapsed through saves (T18 check; still collapsed after the edits below).
+2. Rename: double-click Reports, type "Report store", Enter: `title: Reports` -> `title: Report store` (plain, no quotes); the typed text went into the field (focus fix).
+3. Arrow nudge: ArrowDown x3 and Shift+ArrowRight sent together: one save, `at: [1380, 628, ...]` -> `[1390, 631, ...]`. Ctrl/Cmd+Z restored `[1380, 628, ...]`, leaving the rename.
+4. Esc cleared the selection; `?` opened the shortcut sheet listing every row of the keymap; Esc closed it.
+5. Refused zone drop: dragging the region header into the VPC showed "A zone cannot contain itself" at the pointer and left the file unchanged.
+6. Gallery card error: with `aws.css` removed from the scratch copy the three AWS cards show "[Errno 2] No such file or directory: 'aws.css'" (full text in the tooltip).
+Not exercised by hand: Esc in the middle of a pointer drag (the tool drags atomically; unit-tested through `escapeStep`), and the cursors.

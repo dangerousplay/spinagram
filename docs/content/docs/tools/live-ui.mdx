@@ -55,14 +55,17 @@ it on `examples/showcase/editable_platform.yaml`.
 | Drop a node on a row or column, drag a member out | Inserts it at the gap its centre falls in, or removes it |
 | Select a row or column | **Ungroup**, and its **Gap** (and **Align**, for containers inside a zone) |
 | Double-click | Renames a node or a zone label |
-| `/` or Ctrl/Cmd+K | Focuses the palette; arrows move, Enter adds at the centre of the canvas |
+| `/` or Ctrl/Cmd+K | Opens the palette (it starts collapsed, next to the diagram, and remembers its state) and focuses the search; arrows move, Enter adds at the centre of the canvas; Esc closes it |
 | Drag a palette item onto the canvas | Adds an icon node (`220 × 96`, centred on the drop point), a shape, or a zone |
 | Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z | Undoes and redoes the last 50 canvas edits of this page |
 | Delete / Backspace | Removes the selection with the edges that touch it |
+| Arrow keys, Shift+arrow | Nudges the selection 1 px, or 10 px; keys pressed in one burst are one save and one undo step |
+| Esc | Cancels a drag in progress, then clears the selection, then closes the palette |
+| `?` | Opens the list of every canvas shortcut |
 
 The palette searches the icons of every pack you have downloaded (names, aliases and pack names, with one typo
 tolerated), plus the node shapes, **Zone**, **Row** and **Column**. Packs not downloaded yet are listed under **Not
-downloaded** with a **Fetch** button; nothing is fetched until you press it. A zone cannot be dropped inside itself.
+downloaded** with a **Fetch** button; nothing is fetched until you press it. A zone cannot be dropped inside itself: the reason appears next to the pointer for three seconds. New titles and labels are written as plain YAML text unless they need quotes (a colon and space, a leading symbol, `yes`/`no`/`null`, a number, or a comma inside a one-line entry).
 If the file changes on disk while you edit, the edit is dropped with "File changed on disk; edit not applied" and
 the undo history is cleared.
 
