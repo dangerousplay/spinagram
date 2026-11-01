@@ -96,6 +96,15 @@
   `0.2026.10.26.d17fbd0` (toolchain 1.99.1) proves the core's discrete kernels in `spinagram-core/src/verified/`, which
   production code calls (no drift); floating-point geometry stays covered by parity harnesses, not proofs.
 
+- 2026-11-01 · Rich editor platform (user decisions, `features/wasm-editor/`): the canvas edits YAML only (Python
+  specs convert one way through `yaml_io.dump`; Python stays in code editing and preview). The Rust core grows into
+  the whole YAML → scene pipeline and runs in a Web Worker (wasm-bindgen), with the server render as fallback.
+  Targets: local `serve` and a static web playground. Edit operations and the YAML patch that keeps comments live in
+  Rust, shared by canvas, MCP, CLI and Python. The worker sends scene diffs keyed by element id; React updates only
+  those SVG elements. First features: live reflow + smart edges, code↔canvas sync + live QA, AI edits via the same
+  operations. RustPython and Pyodide dropped (no user Python in the browser). See
+  `research/web-editor-wasm-runtime.md` §8.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).
