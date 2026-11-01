@@ -9,6 +9,8 @@ from __future__ import annotations
 import heapq
 from bisect import bisect_left
 
+from ..rust import core
+
 Box = tuple[float, float, float, float]
 Point = tuple[float, float]
 
@@ -31,6 +33,15 @@ def _inside(px: float, py: float, b: Box, pad: float = 0.5) -> bool:
     return x + pad < px < x + w - pad and y + pad < py < y + h - pad
 
 
+_CORE = core()
+
+
+def _is_crossings(penalty) -> bool:
+    from ..engine.route import Crossings  # engine.route imports this module
+
+    return isinstance(penalty, Crossings)
+
+
 def route(src: Box, dst: Box, obstacles: list[Box], *, margin: float = MARGIN,
           sides: tuple[str | None, str | None] = (None, None),
           busy: dict[Box, set[str]] | None = None, penalty=None, guides: list[Point] = (),
@@ -43,7 +54,15 @@ def route(src: Box, dst: Box, obstacles: list[Box], *, margin: float = MARGIN,
     ``penalty(a, b)`` adds a cost to a grid segment (e.g. per crossing with edges already routed);
     ``guides`` add grid lines through points so a route can pass around such edges; ``fracs`` put the
     ports at that fraction of their side instead of the middle.
+
+    With the Rust core active the route is computed there when ``penalty`` is None or an
+    ``engine.route.Crossings``; any other callable runs the Python router below.
     """
+    if _CORE is not None and (penalty is None or _is_crossings(penalty)):
+        busy = busy or {}
+        return _CORE.route(src, dst, list(obstacles), margin, tuple(sides), sorted(busy.get(src, ())),
+                           sorted(busy.get(dst, ())), None if penalty is None else (penalty.cost, penalty.drawn),
+                           list(guides), tuple(fracs))
     obs = [b for b in obstacles if b != src and b != dst] + [src, dst]
     sp, dp = _ports(src, fracs[0]), _ports(dst, fracs[1])
     s_sides = [sides[0]] if sides[0] else list(sp)

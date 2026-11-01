@@ -250,11 +250,11 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: with the core active and `penalty=None`, the core's `route` is called (spy) and its result returned (ROUTE-01, clause None)
-- [ ] Test: with the core active and a `Crossings` penalty, the core is called with `(cost, drawn)` (ROUTE-01, clause Crossings)
-- [ ] Test: with the core active and a plain lambda penalty, the core is not called and the Python result is returned (ROUTE-02)
-- [ ] Test: with the core inactive, the core is never called (ROUTE-03)
-- [ ] Build gate passes: full suite in both modes = baseline counts (+ new tests); `render_all.sh` with `SPINAGRAM_RUST=1` equals the T1 baseline (ROUTE-04)
+- [x] Test: with the core active and `penalty=None`, the core's `route` is called (spy) and its result returned (ROUTE-01, clause None)
+- [x] Test: with the core active and a `Crossings` penalty, the core is called with `(cost, drawn)` (ROUTE-01, clause Crossings)
+- [x] Test: with the core active and a plain lambda penalty, the core is not called and the Python result is returned (ROUTE-02)
+- [x] Test: with the core inactive, the core is never called (ROUTE-03)
+- [x] Build gate passes: full suite in both modes = baseline counts (+ new tests); `render_all.sh` with `SPINAGRAM_RUST=1` equals the T1 baseline (ROUTE-04)
 
 **Tests**: integration
 **Gate**: build

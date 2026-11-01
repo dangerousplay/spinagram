@@ -71,3 +71,52 @@ class TestBinding:
     def test_obstacles_containing_src_and_dst(self, python_router):  # edge case
         src, dst = (0, 0, 80, 40), (300, 100, 80, 40)
         self.check(python_router, src, dst, [src, dst, (150, 20, 60, 100)])
+
+
+# dispatch ---------------------------------------------------------------------------------------------------------
+class FakeCore:
+    def __init__(self):
+        self.calls = []
+
+    def route(self, *args):
+        self.calls.append(args)
+        return [(1.0, 2.0), (3.0, 4.0)]
+
+
+SRC, DST = (0, 0, 40, 40), (300, 0, 40, 40)
+
+
+@pytest.fixture
+def fake(monkeypatch):
+    f = FakeCore()
+    monkeypatch.setattr(pyroute, "_CORE", f, raising=False)
+    return f
+
+
+def test_core_active_without_penalty_uses_the_core(fake):  # ROUTE-01 (None)
+    assert pyroute.route(SRC, DST, []) == [(1.0, 2.0), (3.0, 4.0)]
+    assert len(fake.calls) == 1
+    assert fake.calls[0][-3] is None  # crossing
+
+
+def test_core_active_with_crossings_passes_cost_and_drawn(fake):  # ROUTE-01 (Crossings)
+    drawn = [((120, -100), (120, 100))]
+    assert pyroute.route(SRC, DST, [], penalty=Crossings(120.0, drawn)) == [(1.0, 2.0), (3.0, 4.0)]
+    assert fake.calls[0][-3] == (120.0, drawn)
+
+
+def test_core_active_passes_busy_sides_of_src_and_dst(fake):  # ROUTE-01 (busy lookup)
+    pyroute.route(SRC, DST, [], busy={SRC: {"right"}, DST: {"left"}, (9, 9, 9, 9): {"top"}})
+    args = fake.calls[0]
+    assert (args[5], args[6]) == (["right"], ["left"])
+
+
+def test_plain_callable_penalty_stays_in_python(fake):  # ROUTE-02
+    got = pyroute.route(SRC, DST, [], penalty=lambda p, q: 0.0)
+    assert fake.calls == []
+    assert got == [(40.0, 20.0), (300.0, 20.0)]
+
+
+def test_core_inactive_never_calls_the_core(python_router):  # ROUTE-03
+    got = pyroute.route(SRC, DST, [], penalty=Crossings(120.0, []))
+    assert got == [(40.0, 20.0), (300.0, 20.0)]
