@@ -109,8 +109,8 @@ diagrams stay fast, with exactly the same look.
 | CSS-03 | P1 | In Tasks | Implementing |
 | CSS-04 | P1 | In Tasks | Implementing |
 | CSS-05 | P1 | In Tasks | Implementing |
-| CSS-06 | P1 | In Tasks | Pending |
-| CSS-07 | P1 | In Tasks | Pending |
+| CSS-06 | P1 | In Tasks | Implementing |
+| CSS-07 | P1 | In Tasks | Implementing |
 | CSS-08 | P1 | In Tasks | Implementing |
 | CSS-09 | P1 | In Tasks | Implementing |
 | PAR-21 | P2 | In Tasks | Pending |

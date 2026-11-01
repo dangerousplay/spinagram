@@ -692,6 +692,16 @@ def _walk(el: El):
         yield from _walk(c)
 
 
+def _rust_matches(els: list[El], sels: list[Selector]) -> list[list[int]] | None:
+    """Element indices matched by each selector, from the core; None when it is off or cannot parse one."""
+    if _CORE is None:
+        return None
+    try:
+        return json.loads(_CORE.css_select(_tree_json(els, {}), [s.text for s in sels]))
+    except ValueError:
+        return None
+
+
 def select(d, selector: str) -> list[str]:
     """Keys of the elements of ``d`` matching ``selector`` (pseudo-elements ignored); ValueError if invalid."""
     try:
@@ -699,7 +709,12 @@ def select(d, selector: str) -> list[str]:
     except _SelectorError as exc:
         raise ValueError(f"invalid selector {selector!r}: {exc}") from None
     root, _ = tree(d)
-    return [el.key for el in _walk(root) if any(matches(s, el) for s in sels)]
+    els = list(_walk(root))
+    found = _rust_matches(els, sels)
+    if found is not None:
+        hit = {i for indices in found for i in indices}
+        return [el.key for i, el in enumerate(els) if i in hit]
+    return [el.key for el in els if any(matches(s, el) for s in sels)]
 
 
 def _element(el, styles: dict, trace: dict) -> dict:
@@ -741,9 +756,13 @@ def inspect(d, theme, all_elements: bool = False) -> dict:
     comp = compute(root, rules, theme, report["warnings"], trace)
     els = list(_walk(root))
     report["elements"] = [_element(el, comp[el], trace[el]) for el in els]
+    own_sels = [sel for r in own for sel in r.selectors]
+    found = _rust_matches(els, own_sels)
+    used = [bool(f) for f in found] if found is not None else [any(matches(sel, el) for el in els) for sel in own_sels]
+    flags = iter(used)
     for r in own:
         for sel in r.selectors:
-            if not any(matches(sel, el) for el in els):
+            if not next(flags):
                 report["unused"].append({"origin": r.origin, "line": r.line, "selector": sel.text})
     return report
 

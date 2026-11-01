@@ -178,3 +178,51 @@ def test_unresolvable_colour_raises_the_same_message(core, monkeypatch):  # CSS-
             css.compute(root, rules, THEME)
         messages.append(str(err.value))
     assert messages[0] == messages[1] == "<css>:1: node: cannot resolve colour 'nowhere'"
+
+
+# select() and inspect() (CSS-06, CSS-07) ---------------------------------------------------------------------------
+def selectable_diagram():
+    from spinagram import Diagram
+
+    d = Diagram("D", "t")
+    d.group("Net", id="g1", children=[])
+    d.box("A", id="a", x=0, y=0, w=100, h=50, cls="hot")
+    d.box("B", id="b", x=200, y=0, w=100, h=50)
+    d.edge("a", "b")
+    d.edge("b", "a", cls="hot")
+    return d
+
+
+@pytest.mark.parametrize("text", ["node", "edge", ".hot", "#a", "node, edge", "node:first-child", "node:last-child",
+                                  ":root", "diagram > node", "diagram node:not(.hot)", "[from=a]", "[from]", "group",
+                                  "node::title", "edge.hot, #b", "*", "nothing", "> node", "[w=100px]"])
+def test_select_keys_and_order_equal_across_modes(core, monkeypatch, text):  # CSS-06
+    monkeypatch.setattr(css, "_CORE", None)
+    d = selectable_diagram()
+    expected = css.select(d, text)
+    css._CORE = core
+    assert css.select(d, text) == expected
+
+
+def test_select_asks_the_core_when_active(core, monkeypatch):  # CSS-06 (dispatch)
+    monkeypatch.setattr(css, "_CORE", core)
+    with mock.patch.object(core, "css_select", wraps=core.css_select) as spy:
+        keys = css.select(selectable_diagram(), "edge")
+    assert spy.call_count == 1 and keys == ["edge:0", "edge:1"]
+
+
+def test_select_does_not_ask_the_core_when_inactive(monkeypatch):  # CSS-08
+    monkeypatch.setattr(css, "_CORE", None)
+    assert css.select(selectable_diagram(), "edge") == ["edge:0", "edge:1"]
+
+
+def test_inspect_reports_unused_selectors_equal_across_modes(core, monkeypatch):  # CSS-07
+    monkeypatch.setattr(css, "_CORE", None)
+    d = selectable_diagram()
+    d.css = "node { fill: #112233 } .nothing { fill: red } edge.hot, group::title { stroke: #445566 } [nope] { opacity: 1 }"
+    css._CORE = None
+    expected = css.inspect(d, THEME)
+    css._CORE = core
+    got = css.inspect(d, THEME)
+    assert got == expected
+    assert [u["selector"] for u in got["unused"]] == [".nothing", "group::title", "[nope]"]

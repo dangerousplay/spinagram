@@ -164,9 +164,9 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Test: `select()` keys equal across modes for every selector feature (CSS-06)
-- [ ] Test: `inspect()` report equal across modes for every example (CSS-07)
-- [ ] Build gate passes
+- [x] Test: `select()` keys equal across modes for every selector feature (CSS-06)
+- [x] Test: `inspect()` report equal across modes for every example (CSS-07)
+- [x] Build gate passes
 
 **Tests**: integration
 **Gate**: build
