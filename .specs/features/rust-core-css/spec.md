@@ -38,6 +38,7 @@ and inheritance of typed values. Output stays identical.
 | Custom-property scope | Custom properties inherit from the parent element; pseudo-element declarations see the element's custom properties plus their own | Mirrors `resolve()` | y |
 | Equality of output | `compute()` result (values per element/pseudo), the warnings list and the `trace` structure compared with `==`, plus `inspect()` JSON | The user-visible contract | y |
 | Benchmark diagram | Synthetic: 500 nodes in 20 groups, 200 rules mixing every selector feature, generated with a fixed seed | Repeatable | y |
+| Crates over handwritten code | cssparser for tokenizing; selectors crate for matching if it reproduces the grammar exactly, else minimal glue with a recorded reason | User directive 2026-11-01 | y |
 
 **Open questions:** none - all resolved or logged above.
 
