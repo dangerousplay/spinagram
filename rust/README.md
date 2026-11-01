@@ -67,7 +67,7 @@ URL and leaves out the sources metadata and content hash; the drawn layers are b
 `edit::apply_ops(yaml, ops)` patches the YAML text by byte ranges taken from parser spans, so comments, key order
 and flow/block style outside the edit are untouched, and a batch applies completely or not at all. The operations
 (JSON shapes in `src/spinagram/edit.py`): `move`, `resize`, `rename`, `delete`, `add_node` (with an optional `icon`),
-`connect`, `disconnect`; for zones `add_zone`, `reparent` (a zone cannot go inside itself or a descendant) and
+`connect`, `disconnect`; for zones `add_zone` (with an optional `style`, written as the zone's `color`), `set_zone_style`, `reparent` (a zone cannot go inside itself or a descendant) and
 `move_zone` (children move by the same offset); for `rows`/`columns` containers (`row0`, `column1`: the ids the
 scene uses) `group`, `ungroup`, `add_to_container` (also reorders a member), `remove_from_container` (a container
 left with fewer than two members dissolves) and `set_container`. `srcmap` gives every node, zone, container and edge

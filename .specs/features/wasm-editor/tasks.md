@@ -985,13 +985,15 @@ documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] Rust tests: `add_zone` with a style writes `color: <style>` and without one is byte-identical to today; `set_zone_style` changes, adds and (for an unknown id) refuses, leaving every other byte as it was
-- [ ] Python and WASM parity: the same batch gives the same text through both bindings
-- [ ] Rust gate and full gate pass
+- [x] Rust tests: `add_zone` with a style writes `color: <style>` and without one is byte-identical to today; `set_zone_style` changes, adds and (for an unknown id) refuses, leaving every other byte as it was
+- [x] Python and WASM parity: the same batch gives the same text through both bindings
+- [x] Rust gate and full gate pass
 
 **Tests**: unit, integration
 **Gate**: rust
 **Commit**: `feat(edit): add_zone takes a style and set_zone_style changes it`
+
+**Notes**: `Op::AddZone` gained `style: Option<String>` (written as `color: <style>` after `label`; absent gives the bytes of before) and `Op::SetZoneStyle { id, style }` (replaces or appends `color` through `set_keys`, refuses a node with "`id` is not a zone", an unknown id, and an empty style). PyO3 and WASM take ops as JSON, so neither binding changed beyond the rebuilt wasm; `web/src/canvas/ops.ts` got both op types for T32. Documented in `src/spinagram/edit.py` and `rust/README.md`. The generic zone is `soft` (the model's default), so the picker's "generic" choice sends `set_zone_style` with `soft`. Tests: Rust +2 (styled and plain add in block and flow files; add, change, comment kept, three refusals), WASM bun +2 (21 to 23, same bytes as Rust), pytest +1 (loads with the right `color`, the node refusal, bytes equal to Rust's). Three mutants (key position, missing zone check, wrong key name) checked in a scratch worktree (removed) and all killed. Gates: cargo 211, clippy and deny clean; wasm bun 23; web bun 164 and typecheck; ruff clean; pytest 2855 passed, 3 skipped per mode.
 
 ---
 

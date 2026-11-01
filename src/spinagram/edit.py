@@ -15,7 +15,9 @@ Operations are dicts (``"op"`` names the kind)::
 Zones and containers (a container's id is ``row0``, ``column1``, ... counting every ``rows`` entry, then every
 ``columns`` entry, in file order; ``boxes`` maps a member id to its rendered ``[x, y, w, h]``)::
 
-    {"op": "add_zone", "id": "z", "label": "Zone", "x": 0, "y": 0, "w": 600, "h": 400}
+    {"op": "add_zone", "id": "z", "label": "Zone", "x": 0, "y": 0, "w": 600, "h": 400}   (optional "style": "aws-vpc",
+                                                                       written as the zone's ``color:``; a zone style of the theme)
+    {"op": "set_zone_style", "id": "z", "style": "azure-vnet"}    (sets or adds the zone's ``color:``; nothing else changes)
     {"op": "reparent", "id": "n", "parent": "z"}              (parent null: out to the top level)
     {"op": "move_zone", "id": "z", "x": 40, "y": 40}          (children move by the same offset)
     {"op": "group", "axis": "row", "ids": ["a", "b"], "gap": 20, "x": 0, "y": 0}   (gap, x, y optional)

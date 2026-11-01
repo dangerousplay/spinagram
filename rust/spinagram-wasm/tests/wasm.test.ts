@@ -120,6 +120,22 @@ describe("fonts", () => {
   });
 });
 
+describe("zone styles (the same bytes as the PyO3 binding and the Rust tests)", () => {
+  const flow = "id: Z02\ntitle: Zones flow\nzones: [{id: za, label: A, x: 0, y: 0, w: 500, h: 400}, {id: zb, label: B, x: 50, y: 50, w: 200, h: 200}]\nnodes: [{id: m1, title: M1, x: 300, y: 100}]\n";
+  test("add_zone writes the style as the zone's color, and nothing extra without one", () => {
+    const styled = wasm.applyOps(flow, JSON.stringify([{ op: "add_zone", id: "zc", style: "azure-resource-group", x: 1, y: 2, w: 3, h: 4 }]));
+    expect(styled).toBe(flow.replace("h: 200}]", "h: 200}, {id: zc, color: azure-resource-group, x: 1, y: 2, w: 3, h: 4}]"));
+    const plain = wasm.applyOps(flow, JSON.stringify([{ op: "add_zone", id: "zc", x: 1, y: 2, w: 3, h: 4 }]));
+    expect(plain).toBe(flow.replace("h: 200}]", "h: 200}, {id: zc, x: 1, y: 2, w: 3, h: 4}]"));
+  });
+  test("set_zone_style adds the key, then replaces it, and refuses a node", () => {
+    const once = wasm.applyOps(flow, JSON.stringify([{ op: "set_zone_style", id: "zb", style: "k8s-namespace" }]));
+    expect(once).toBe(flow.replace("h: 200}]", "h: 200, color: k8s-namespace}]"));
+    expect(wasm.applyOps(once, JSON.stringify([{ op: "set_zone_style", id: "zb", style: "aws-vpc" }]))).toBe(once.replace("k8s-namespace", "aws-vpc"));
+    expect(() => wasm.applyOps(flow, JSON.stringify([{ op: "set_zone_style", id: "m1", style: "aws-vpc" }]))).toThrow(/not a zone/);
+  });
+});
+
 test("the golden directory has what the tests read", () => {
   expect(readdirSync(join(G, "icons")).length).toBeGreaterThan(0);
 });

@@ -224,6 +224,21 @@ def test_add_zone_loads_as_a_zone(tmp_path):
     assert (zc.label, zc.x, zc.y, zc.w, zc.h) == ("C", 1, 2, 300, 200)
 
 
+def test_add_zone_style_and_set_zone_style_load_as_the_zone_color(tmp_path):
+    out = edit.apply_ops(_fixture("zones_flow"), [
+        {"op": "add_zone", "id": "zc", "label": "C", "style": "aws-vpc", "x": 1, "y": 2, "w": 300, "h": 200},
+        {"op": "set_zone_style", "id": "zb", "style": "azure-vnet"},
+    ])
+    zones = {z.id: z for z in _load(tmp_path, out).zones}
+    assert (zones["zc"].color, zones["zb"].color) == ("aws-vpc", "azure-vnet")
+    assert zones["za"].color == "soft"  # untouched zones keep the default
+    with pytest.raises(EditError, match="not a zone"):
+        edit.apply_ops(_fixture("zones_flow"), [{"op": "set_zone_style", "id": "m1", "style": "aws-vpc"}])
+    # the Python and the Rust results agree with the Rust unit tests on the bytes
+    assert edit.apply_ops(_fixture("zones_flow"), [{"op": "set_zone_style", "id": "zb", "style": "k8s-namespace"}]) == \
+        _fixture("zones_flow").replace("h: 200}]", "h: 200, color: k8s-namespace}]")
+
+
 def test_group_add_remove_and_ungroup_after_loading(tmp_path):
     text = _fixture("groups_block")
     assert _containers(_load(tmp_path, text)) == [("row", ["e", "f", "g"], 30, 40, 500), ("column", ["h", "i"], 20, 800, 100)]

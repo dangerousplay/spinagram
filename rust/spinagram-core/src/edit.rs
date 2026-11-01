@@ -37,8 +37,10 @@ pub enum Op {
     Connect { from: String, to: String, label: Option<String> },
     /// Remove the first edge from `from` to `to`.
     Disconnect { from: String, to: String },
-    /// Append a zone to `zones`.
-    AddZone { id: String, label: Option<String>, x: f64, y: f64, w: f64, h: f64 },
+    /// Append a zone to `zones`. `style` (a zone style of the theme, such as `aws-vpc`) is written as the zone's `color`.
+    AddZone { id: String, label: Option<String>, style: Option<String>, x: f64, y: f64, w: f64, h: f64 },
+    /// Set the style (`color`) of zone `id`: replace the value, or append the key when the zone has none.
+    SetZoneStyle { id: String, style: String },
     /// Put a node or zone into zone `parent` (`null`: out to the top level) through the zones' `children` lists.
     Reparent { id: String, parent: Option<String> },
     /// Move zone `id` to `x`/`y`, and every child node and child zone by the same offset.
@@ -67,6 +69,7 @@ impl Op {
             Op::Connect { .. } => "connect",
             Op::Disconnect { .. } => "disconnect",
             Op::AddZone { .. } => "add_zone",
+            Op::SetZoneStyle { .. } => "set_zone_style",
             Op::Reparent { .. } => "reparent",
             Op::MoveZone { .. } => "move_zone",
             Op::Group { .. } => "group",
@@ -769,7 +772,7 @@ fn move_zone(src: &str, root: &Node, id: &str, x: f64, y: f64) -> Result<Vec<Pat
 /// The zone and container operations of [`op_patches`].
 fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
     match op {
-        Op::AddZone { id, label, x, y, w, h } => {
+        Op::AddZone { id, label, style, x, y, w, h } => {
             if exists(root, id) {
                 return fail(format!("duplicate id `{id}`"));
             }
@@ -777,10 +780,26 @@ fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             if let Some(l) = label {
                 fields.push(format!("label: {}", text_scalar(l, true)));
             }
+            if let Some(st) = style {
+                if st.trim().is_empty() {
+                    return fail("a zone style cannot be empty");
+                }
+                fields.push(format!("color: {}", text_scalar(st, true)));
+            }
             for (k, v) in [("x", x), ("y", y), ("w", w), ("h", h)] {
                 fields.push(format!("{k}: {}", num(*v)?));
             }
             append_item(src, root, "zones", &format!("{{{}}}", fields.join(", ")))
+        }
+        Op::SetZoneStyle { id, style } => {
+            let z = find(root, id)?;
+            if !z.zone {
+                return fail(format!("`{id}` is not a zone"));
+            }
+            if style.trim().is_empty() {
+                return fail("a zone style cannot be empty");
+            }
+            set_keys(src, z.node, &[("color", text_scalar(style, true))])
         }
         Op::Reparent { id, parent } => reparent(src, root, id, parent.as_deref()),
         Op::MoveZone { id, x, y } => move_zone(src, root, id, *x, *y),
@@ -1390,6 +1409,46 @@ mod tests {
         );
         reject(&read("zones_block"), r#"[{"op":"add_zone","id":"inner","x":0,"y":0,"w":1,"h":1}]"#, "duplicate id `inner`");
         reject(&read("zones_block"), r#"[{"op":"add_zone","id":"n1","x":0,"y":0,"w":1,"h":1}]"#, "duplicate id `n1`");
+    }
+
+    #[test]
+    fn add_zone_with_a_style_writes_color_and_without_one_is_unchanged() {
+        let plain = r#"[{"op":"add_zone","id":"z2","label":"Z2","x":5,"y":6,"w":600,"h":400}]"#;
+        let styled = r#"[{"op":"add_zone","id":"z2","label":"Z2","style":"aws-vpc","x":5,"y":6,"w":600,"h":400}]"#;
+        assert_eq!(
+            run("zones_block", styled),
+            expect("zones_block", &[("    h: 300\n\nnodes:", "    h: 300\n  - {id: z2, label: Z2, color: aws-vpc, x: 5, y: 6, w: 600, h: 400}\n\nnodes:")])
+        );
+        assert_eq!(
+            run("zones_flow", r#"[{"op":"add_zone","id":"zc","style":"azure-resource-group","x":1,"y":2,"w":3,"h":4}]"#),
+            expect("zones_flow", &[("h: 200}]", "h: 200}, {id: zc, color: azure-resource-group, x: 1, y: 2, w: 3, h: 4}]")])
+        );
+        // an absent style gives the same bytes as before the field existed
+        assert_eq!(run("zones_block", plain), expect("zones_block", &[("    h: 300\n\nnodes:", "    h: 300\n  - {id: z2, label: Z2, x: 5, y: 6, w: 600, h: 400}\n\nnodes:")]));
+        reject(&read("zones_block"), r#"[{"op":"add_zone","id":"z3","style":" ","x":0,"y":0,"w":1,"h":1}]"#, "a zone style cannot be empty");
+    }
+
+    #[test]
+    fn set_zone_style_adds_changes_and_refuses_with_every_other_byte_kept() {
+        // block zone with no color: the key is appended after the zone's last line
+        assert_eq!(
+            run("zones_block", r#"[{"op":"set_zone_style","id":"empty","style":"gcp-project"}]"#),
+            expect("zones_block", &[("    w: 300\n    h: 300\n\nnodes:", "    w: 300\n    h: 300\n    color: gcp-project\n\nnodes:")])
+        );
+        // flow zone: appended inside the braces
+        assert_eq!(
+            run("zones_flow", r#"[{"op":"set_zone_style","id":"zb","style":"k8s-namespace"}]"#),
+            expect("zones_flow", &[("h: 200}]", "h: 200, color: k8s-namespace}]")])
+        );
+        // a second change replaces the value and leaves everything else as it was
+        let once = run("zones_flow", r#"[{"op":"set_zone_style","id":"zb","style":"k8s-namespace"}]"#);
+        let twice = apply_ops(&once, &ops(r#"[{"op":"set_zone_style","id":"zb","style":"aws-vpc"}]"#)).unwrap();
+        assert_eq!(twice, once.replace("color: k8s-namespace", "color: aws-vpc"));
+        // the comments of the file survive
+        assert!(run("zones_block", r#"[{"op":"set_zone_style","id":"inner","style":"aws-region"}]"#).contains("# a zone with no children yet"));
+        reject(&read("zones_block"), r#"[{"op":"set_zone_style","id":"n1","style":"aws-vpc"}]"#, "`n1` is not a zone");
+        reject(&read("zones_block"), r#"[{"op":"set_zone_style","id":"nope","style":"aws-vpc"}]"#, "unknown id `nope`");
+        reject(&read("zones_block"), r#"[{"op":"set_zone_style","id":"outer","style":""}]"#, "a zone style cannot be empty");
     }
 
     #[test]
