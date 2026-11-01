@@ -434,6 +434,27 @@ fn level(important: bool, inline: bool) -> u8 {
 
 type SortKey = (u8, (u32, u32, u32), i64, usize);
 
+/// `found` in cascade order: stable over `(level, specificity, rule order, declaration index)`, by the verified
+/// `stable_order` permutation.
+fn sorted_by_cascade(found: Vec<(SortKey, Entry)>) -> Vec<(SortKey, Entry)> {
+    let keys: Vec<verified::cascade::Key> = found
+        .iter()
+        .map(|((level, (a, b, c), order, index), _)| verified::cascade::Key {
+            level: u64::from(*level),
+            a: u64::from(*a),
+            b: u64::from(*b),
+            c: u64::from(*c),
+            order: *order,
+            index: u64::try_from(*index).unwrap_or(u64::MAX),
+        })
+        .collect();
+    let mut slots: Vec<Option<(SortKey, Entry)>> = found.into_iter().map(Some).collect();
+    verified::cascade::stable_order(&keys)
+        .into_iter()
+        .map(|p| slots[p].take().expect("a permutation visits each position once"))
+        .collect()
+}
+
 /// For every element (index order) and pseudo-element (`PSEUDOS`): the declarations that apply, in cascade order
 /// (the winner of a property last): by `(important, specificity, rule order, declaration index)`, with inline
 /// declarations at levels 1 (normal) and 3 (important). Custom properties inherit from the parent element; a
@@ -477,7 +498,7 @@ pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
         let mut result: [Vec<Entry>; 4] = Default::default();
         for slot in 0..4 {
             let mut list = std::mem::take(&mut found[slot]);
-            list.sort_by_key(|f| f.0);
+            list = sorted_by_cascade(list);
             let own: Vec<(&str, &str)> = list
                 .iter()
                 .map(|(_, e)| decl_of(e))

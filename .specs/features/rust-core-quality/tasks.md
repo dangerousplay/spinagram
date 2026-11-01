@@ -237,8 +237,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Verus proves comparator properties and sorted-permutation + stability (equal keys keep input order, edge case)
-- [ ] `css_parity.py` 100 %; gates pass
+- [x] Verus proves comparator properties and sorted-permutation + stability (equal keys keep input order, edge case)
+- [x] `css_parity.py` 100 %; gates pass
 
 **Tests**: proof + unit
 **Gate**: verus
