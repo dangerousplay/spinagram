@@ -3,6 +3,7 @@ import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type S
 import { href, typingIn, useKey, usePanZoom } from "./hooks";
 import CodePanel from "./CodePanel";
 import CanvasBar from "./canvas/CanvasBar";
+import { readPaletteOpen, writePaletteOpen } from "./canvas/paletteState";
 import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
 import type { PaletteItem } from "./canvas/palette";
 import { useCanvas } from "./canvas/useCanvas";
@@ -62,6 +63,15 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [selected, setSelected] = useState<string | null>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
   const paletteFocus = useRef<(() => void) | null>(null);
+  const [paletteOpen, setPaletteOpenState] = useState(readPaletteOpen); // starts collapsed, remembered per browser
+  const setPaletteOpen = useCallback((open: boolean) => {
+    setPaletteOpenState(open);
+    writePaletteOpen(open);
+  }, []);
+  const openPalette = useCallback(() => {
+    setPaletteOpen(true);
+    setTimeout(() => paletteFocus.current?.(), 50);
+  }, [setPaletteOpen]);
   const reloadDiagram = useCallback(() => setTick((t) => t + 1), []);
   const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, tick, reload: reloadDiagram });
 
@@ -189,7 +199,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
   }, [canvas.group]);
-  useKey("/", () => canvas.active && paletteFocus.current?.());
+  useKey("/", () => canvas.active && openPalette());
   useEffect(() => {
     // Ctrl/Cmd+Z undoes and Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes a canvas edit; the code editor keeps its own undo
     const on = (e: KeyboardEvent) => {
@@ -212,11 +222,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     const on = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "k" || !canvas.active) return;
       e.preventDefault();
-      paletteFocus.current?.();
+      openPalette();
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [canvas.active]);
+  }, [canvas.active, openPalette]);
   useKey("Escape", () => {
     setSelected(null);
     canvas.clear();
@@ -225,6 +235,18 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const fileError = file?.error && !diagram;
   return (
     <div className="flex h-full">
+    {canvas.active && paletteOpen && (
+      <PalettePanel
+        rev={rev}
+        focusRef={paletteFocus}
+        onClose={() => setPaletteOpen(false)}
+        onAdd={(item) => {
+          const r = ref.current?.getBoundingClientRect();
+          const c = r ? sceneAt({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }) : { x: 400, y: 300 };
+          canvas.add(item, c.x, c.y);
+        }}
+      />
+    )}
     <div className="relative min-w-0 flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900">
       <div
         ref={ref}
@@ -308,16 +330,15 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         )}
       </div>
 
-      {canvas.active && (
-        <PalettePanel
-          rev={rev}
-          focusRef={paletteFocus}
-          onAdd={(item) => {
-            const r = ref.current?.getBoundingClientRect();
-            const c = r ? sceneAt({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }) : { x: 400, y: 300 };
-            canvas.add(item, c.x, c.y);
-          }}
-        />
+      {canvas.active && !paletteOpen && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={openPalette}
+          className="absolute top-3 left-3 z-10 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-lg ring-1 ring-black/10 hover:bg-white dark:bg-slate-800/95 dark:text-slate-200"
+          title="Show the palette ( / or Ctrl/Cmd+K )"
+        >
+          Palette
+        </button>
       )}
       <CanvasBar canvas={canvas} />
 

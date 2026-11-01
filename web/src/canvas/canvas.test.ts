@@ -21,6 +21,7 @@ import {
 } from "./scene";
 import { byteToIndex, entryField, yamlRange } from "./srcmap";
 import { History, LIMIT } from "./history";
+import { PALETTE_OPEN_KEY, readPaletteOpen, writePaletteOpen } from "./paletteState";
 import { buildCorpus, displayName, dropOps, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
@@ -668,5 +669,40 @@ describe("history", () => {
     h.undo();
     h.clear();
     expect(h.canUndo || h.canRedo).toBe(false);
+  });
+});
+
+describe("palette open state (PAL-03)", () => {
+  const mem = (initial?: string) => {
+    const data = new Map<string, string>(initial === undefined ? [] : [[PALETTE_OPEN_KEY, initial]]);
+    return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+  };
+  test("starts collapsed when nothing is stored", () => {
+    expect(readPaletteOpen(mem())).toBe(false);
+  });
+  test("an opened palette is remembered, and so is a collapsed one", () => {
+    const s = mem();
+    writePaletteOpen(true, s);
+    expect(readPaletteOpen(s)).toBe(true);
+    writePaletteOpen(false, s);
+    expect(readPaletteOpen(s)).toBe(false);
+  });
+  test("the stored flag survives what a save does (a fresh read gives the same state)", () => {
+    const s = mem("1");
+    expect(readPaletteOpen(s)).toBe(true);
+    expect(readPaletteOpen(s)).toBe(true);
+  });
+  test("storage that throws falls back to collapsed and never throws", () => {
+    const bad = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+    };
+    expect(readPaletteOpen(bad)).toBe(false);
+    expect(() => writePaletteOpen(true, bad)).not.toThrow();
+    expect(readPaletteOpen(null)).toBe(false);
   });
 });

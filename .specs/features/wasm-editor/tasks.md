@@ -564,13 +564,15 @@ finished. The behaviour reference stays the read-only `.specs/features/canvas-ed
 
 **Done when**:
 
-- [ ] bun tests: the open state persists across a save (state is kept outside the re-rendered subtree, or a test of the stored flag); storage that throws falls back to collapsed
-- [ ] Browser check: collapse, make an edit, and the palette stays collapsed; the "COLUMN" badge fits
-- [ ] Web gate passes
+- [x] bun tests: the open state persists across a save (state is kept outside the re-rendered subtree, or a test of the stored flag); storage that throws falls back to collapsed
+- [x] Browser check: collapse, make an edit, and the palette stays collapsed; the "COLUMN" badge fits
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `fix(web): palette starts collapsed and keeps its state`
+
+**Notes**: Open state lives in `DiagramView` (initialised from `localStorage` through `canvas/paletteState.ts`, try/catch, collapsed on any failure), so a save that re-renders the canvas cannot reset it; `PalettePanel` is rendered only while open, as a flex column beside the diagram (never over it); the collapsed "Palette" tab sits in the corner. Esc in the search box closes it. Kind badges and the icon cell are `w-14` (fits "COLUMN"). bun 109 -> 113. Browser check (port 8796, scratch copy of showcase): palette collapsed on first Canvas-on; `/` opened it beside the diagram with the COLUMN badge intact; Esc closed it; after renaming Monitoring (double-click) the palette stayed collapsed. Observed, not in scope: the rename input does not always receive focus right after a double-click (typed keys then hit canvas shortcuts); T21 pointer polish should look at it.
 
 ---
 

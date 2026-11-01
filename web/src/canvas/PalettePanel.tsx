@@ -8,7 +8,8 @@ export const PALETTE_MIME = "application/x-spinagram-palette";
 
 type Props = {
   rev: number; // bumps when the packs change on disk
-  focusRef: React.MutableRefObject<(() => void) | null>; // `/` and Ctrl/Cmd+K call this
+  focusRef: React.MutableRefObject<(() => void) | null>; // `/` and Ctrl/Cmd+K call this (the panel must be open)
+  onClose: () => void; // the « button and Esc
   onAdd: (item: PaletteItem) => void; // Enter and double-click: add at the centre of the canvas
 };
 
@@ -32,13 +33,13 @@ async function loadIcons(packs: Pack[]): Promise<IconEntry[]> {
   return out;
 }
 
-export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
+// Rendered only while open: DiagramView owns the open state, so a save (which re-renders the canvas) keeps it.
+export default function PalettePanel({ rev, focusRef, onClose, onAdd }: Props) {
   const [packs, setPacks] = useState<{ offline: boolean; packs: Pack[] } | null>(null);
   const [icons, setIcons] = useState<IconEntry[]>([]);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(true);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
 
@@ -63,11 +64,8 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
 
   useEffect(() => {
     focusRef.current = () => {
-      setOpen(true);
-      setTimeout(() => {
-        input.current?.focus();
-        input.current?.select();
-      }, 0);
+      input.current?.focus();
+      input.current?.select();
     };
     return () => {
       focusRef.current = null;
@@ -101,31 +99,19 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
       e.preventDefault();
       onAdd(results[active]);
     } else if (e.key === "Escape") {
-      input.current?.blur();
+      onClose();
     }
   };
 
-  if (!open) {
-    return (
-      <button
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={() => setOpen(true)}
-        className="absolute top-3 left-3 z-10 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-lg ring-1 ring-black/10 hover:bg-white dark:bg-slate-800/95 dark:text-slate-200"
-        title="Show the palette ( / )"
-      >
-        Palette
-      </button>
-    );
-  }
   return (
     <div
-      className="absolute top-3 left-3 bottom-16 z-10 flex w-72 flex-col overflow-hidden rounded-lg bg-white/95 text-slate-700 shadow-lg ring-1 ring-black/10 dark:bg-slate-800/95 dark:text-slate-200"
+      className="relative z-10 flex h-full w-72 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
       <button
-        onClick={() => setOpen(false)}
+        onClick={onClose}
         aria-label="Hide the palette"
         title="Hide the palette"
         className="absolute top-2 right-2 z-10 rounded px-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -156,11 +142,11 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
             onDoubleClick={() => onAdd(it)}
             className={`flex cursor-grab items-center gap-2 rounded px-2 py-1 text-sm ${i === active ? "bg-blue-100 dark:bg-blue-900/50" : "hover:bg-slate-100 dark:hover:bg-slate-700"}`}
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+            <span className="flex h-7 w-14 shrink-0 items-center justify-center">
               {it.type === "icon" ? (
                 <img src={api.icon(it.pack, it.name)} alt="" loading="lazy" className="max-h-full max-w-full" />
               ) : (
-                <span className="rounded border border-slate-400 px-1 text-[10px] uppercase">{it.type === "shape" ? "box" : it.type}</span>
+                <span className="w-14 rounded border border-slate-400 px-1 text-center text-[10px] uppercase">{it.type === "shape" ? "box" : it.type}</span>
               )}
             </span>
             <span className="min-w-0 flex-1 truncate">{it.title}</span>
