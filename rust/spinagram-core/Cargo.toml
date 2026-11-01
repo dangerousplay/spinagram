@@ -10,5 +10,5 @@ repository.workspace = true
 skrifa = "0.49"
 regex = "1.13"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 schemars = "1"

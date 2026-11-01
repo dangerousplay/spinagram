@@ -133,10 +133,10 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: every example scene round-trips equal (count asserted > 40 scenes) (SCN-02)
-- [ ] Test: every example scene validates against `rust/schema/scene.schema.json` (SCN-04)
-- [ ] Test: `version: 2` raises `ValueError` with the Rust message (SCN-05)
-- [ ] Build gate passes (`jsonschema` importable under `uv sync --all-extras`; if not, add it to the `dev` dependency group in this task)
+- [x] Test: every example scene round-trips equal (count asserted > 40 scenes) (SCN-02)
+- [x] Test: every example scene validates against `rust/schema/scene.schema.json` (SCN-04)
+- [x] Test: `version: 2` raises `ValueError` with the Rust message (SCN-05)
+- [x] Build gate passes (`jsonschema` importable under `uv sync --all-extras`; if not, add it to the `dev` dependency group in this task)
 
 **Tests**: integration
 **Gate**: build

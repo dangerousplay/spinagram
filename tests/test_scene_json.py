@@ -117,3 +117,46 @@ def test_scene_item_facts(doc):  # SCN-01
 def test_scene_meta_tooltips(doc):  # SCN-01
     assert doc["meta_tooltips"] == {"f1": "from the wiki"}
 
+
+
+# the Rust core: round trip, schema, version (SCN-02, SCN-04, SCN-05) ---------------------------------------------
+from example_scenes import example_scenes  # noqa: E402
+
+SCHEMA = Path(__file__).resolve().parents[1] / "rust" / "schema" / "scene.schema.json"
+
+
+@pytest.fixture(scope="module")
+def core():
+    return pytest.importorskip("spinagram_core")
+
+
+def test_example_scenes_are_all_covered():
+    assert len(example_scenes()) > 40
+
+
+def test_every_example_scene_round_trips_equal(core):  # SCN-02
+    for sc in example_scenes():
+        text = scene_json.dumps(sc)
+        assert json.loads(core.scene_roundtrip(text)) == json.loads(text), sc.slug
+
+
+def test_every_example_scene_validates_against_the_schema():  # SCN-04
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = json.loads(SCHEMA.read_text())
+    jsonschema.Draft202012Validator.check_schema(schema)
+    validator = jsonschema.Draft202012Validator(schema)
+    for sc in example_scenes():
+        errors = list(validator.iter_errors(scene_json.to_dict(sc)))
+        assert not errors, (sc.slug, errors[0].message)
+
+
+def test_full_scene_validates_against_the_schema():  # SCN-04 (every item type and optional field)
+    jsonschema = pytest.importorskip("jsonschema")
+    jsonschema.validate(scene_json.to_dict(full_scene()), json.loads(SCHEMA.read_text()))
+
+
+def test_wrong_version_raises_valueerror_with_the_rust_message(core):  # SCN-05
+    doc = scene_json.to_dict(full_scene())
+    doc["version"] = 2
+    with pytest.raises(ValueError, match=r"scene version 2 is not supported \(expected 1\)"):
+        core.scene_roundtrip(json.dumps(doc))

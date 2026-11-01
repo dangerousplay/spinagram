@@ -5,6 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use spinagram_core::fit::{self, BlockSpec};
 use spinagram_core::font;
+use spinagram_core::scene;
 use spinagram_core::route::{self as core_route, Crossings, Options, Pt, Rect, Side};
 use spinagram_core::text::{Font, Measurer};
 
@@ -106,6 +107,13 @@ fn route(
     }))
 }
 
+/// Parse scene JSON and write it back (the schema and round-trip check). Raises `ValueError` on a bad scene.
+#[pyfunction]
+fn scene_roundtrip(json: &str) -> PyResult<String> {
+    let parsed = scene::parse(json).map_err(PyValueError::new_err)?;
+    Ok(scene::to_json(&parsed))
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -115,5 +123,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(wrap_fit, m)?)?;
     m.add_function(wrap_pyfunction!(fit_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(route, m)?)?;
+    m.add_function(wrap_pyfunction!(scene_roundtrip, m)?)?;
     Ok(())
 }

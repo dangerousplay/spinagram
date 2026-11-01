@@ -244,7 +244,7 @@ mod tests {
 
     fn block(runs: Value) -> Value {
         json!({"lines": ["one", ""], "paragraphs": ["one"], "font": font(json!("/f/inter.ttf")), "color": "#112233",
-               "leading": 18.0, "runs": runs})
+               "leading": 27.599999999999998, "runs": runs})
     }
 
     fn icon() -> Value {
