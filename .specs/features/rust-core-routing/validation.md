@@ -1,6 +1,27 @@
-**Verdict: FAIL** (iteration 1: 24/24 ACs traced, 1 surviving mutant (YAML-05), 1 spec-precision gap (ROUTE-07); gates green)
+**Verdict: PASS** (iteration 2: 24/24 ACs traced to spec outcomes, 8/8 effective mutants killed by tests in their own layer, gates green; the iteration 1 report is kept below)
 
-# Validation: rust-core-routing - FAIL (iteration 1)
+# Validation: rust-core-routing - PASS (iteration 2)
+
+## Iteration 2 (2026-11-01, HEAD `56ce02f`)
+
+Fixes: F1 `911c149`, F2 `560a569` (+ checkbox follow-up `56ce02f`). Re-verified in a fresh scratch worktree at HEAD.
+
+| Check | Result |
+|---|---|
+| YAML-05 | `tests/test_yamlload.py` `test_mutating_result_does_not_touch_next_load` now mutates the cache-hit (second) result and asserts the third load equals the original. M5 (`return hit[1]`) → **killed** (1 failed). The theme-side test also mutates a hit result but cannot see M5, because `theme._absolutize` builds new dicts; YAML-05 holds at the theme level regardless |
+| ROUTE-07 | `route.rs` tests `detour_costing_under_the_busy_cost_wins` (detour +248 beats busy +400) and `detour_costing_over_the_busy_cost_loses` (detour +418 loses to busy +400). `BUSY = 200` → **killed**, `BUSY = 600` → **killed** (cargo test 10/11 each) |
+| Gates | cargo test 11 passed; clippy `-D warnings` clean; ruff clean; pytest **2666 passed, 3 skipped** pure Python and with `SPINAGRAM_RUST=1`; `route_parity.py` 57/57 + 2500/2500, Rust 45x |
+| Real tree | `git status --porcelain` unchanged (only the user's untracked files). The implementer reports it changed `BUSY` in place in the real tree for its own F2 check and reverted it; `git diff e5e595c..HEAD` shows only added tests, confirmed |
+
+**Sensor (iteration 2)**: M1–M4, M5, M6, M7b, M8 all killed by tests in their own layer; M7 equivalent. **8/8 - PASS.**
+
+| Requirement | Previous | New |
+|---|---|---|
+| YAML-01 … YAML-08, ROUTE-01 … ROUTE-11, PAR-01 … PAR-05 | Implementing | ✅ Verified |
+
+---
+
+# Iteration 1 (kept for the record)
 
 **Date**: 2026-11-01
 **Spec**: `.specs/features/rust-core-routing/spec.md`
@@ -82,7 +103,7 @@ Real tree `git status --porcelain` identical before and after.
 | M8 | `rust/.../route.rs` `round2` | naive `(x*100).round()/100` | ✅ 3 cargo failures + parity 2131/2500 |
 
 **Sensor depth**: expanded (8 effective mutations)
-**Result**: 7/8 killed - FAIL
+**Outcome (iteration 1)**: 7/8 killed, one survivor
 
 ---
 

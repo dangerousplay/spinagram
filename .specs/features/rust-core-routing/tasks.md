@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/rust-core-routing/spec.md`
 **Design**: `.specs/features/rust-core-routing/design.md`
-**Status**: In Progress
+**Status**: Done
 
 ---
 

@@ -1,6 +1,6 @@
 # Rust core: faster spec loading and edge routing in Rust
 
-**Status:** In Tasks · **Size:** Large · **Branch:** `spike/rust-core`
+**Status:** Verified · **Size:** Large · **Branch:** `spike/rust-core`
 **Builds on:** the text-core spike (`5f33d46`), `.specs/research/rust-spike-text-core.md`
 
 ## Problem Statement
@@ -149,30 +149,30 @@ the two implementations cannot drift.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| YAML-01 | P1: fast YAML | In Tasks | Implementing |
-| YAML-02 | P1: fast YAML | In Tasks | Implementing |
-| YAML-03 | P1: fast YAML | In Tasks | Implementing |
-| YAML-04 | P1: fast YAML | In Tasks | Implementing |
-| YAML-05 | P1: fast YAML | In Tasks | Implementing |
-| YAML-06 | P1: fast YAML | In Tasks | Implementing |
-| YAML-07 | P1: fast YAML | In Tasks | Implementing |
-| YAML-08 | P1: fast YAML | In Tasks | Implementing |
-| ROUTE-01 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-02 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-03 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-04 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-05 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-06 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-07 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-08 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-09 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-10 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-11 | P1: Rust routing | In Tasks | Implementing |
-| PAR-01 | P2: parity in CI | In Tasks | Implementing |
-| PAR-02 | P2: parity in CI | In Tasks | Implementing |
-| PAR-03 | P2: parity in CI | In Tasks | Implementing |
-| PAR-04 | P2: parity in CI | In Tasks | Implementing |
-| PAR-05 | P2: parity in CI | In Tasks | Implementing |
+| YAML-01 | P1: fast YAML | Done | Verified |
+| YAML-02 | P1: fast YAML | Done | Verified |
+| YAML-03 | P1: fast YAML | Done | Verified |
+| YAML-04 | P1: fast YAML | Done | Verified |
+| YAML-05 | P1: fast YAML | Done | Verified |
+| YAML-06 | P1: fast YAML | Done | Verified |
+| YAML-07 | P1: fast YAML | Done | Verified |
+| YAML-08 | P1: fast YAML | Done | Verified |
+| ROUTE-01 | P1: Rust routing | Done | Verified |
+| ROUTE-02 | P1: Rust routing | Done | Verified |
+| ROUTE-03 | P1: Rust routing | Done | Verified |
+| ROUTE-04 | P1: Rust routing | Done | Verified |
+| ROUTE-05 | P1: Rust routing | Done | Verified |
+| ROUTE-06 | P1: Rust routing | Done | Verified |
+| ROUTE-07 | P1: Rust routing | Done | Verified |
+| ROUTE-08 | P1: Rust routing | Done | Verified |
+| ROUTE-09 | P1: Rust routing | Done | Verified |
+| ROUTE-10 | P1: Rust routing | Done | Verified |
+| ROUTE-11 | P1: Rust routing | Done | Verified |
+| PAR-01 | P2: parity in CI | Done | Verified |
+| PAR-02 | P2: parity in CI | Done | Verified |
+| PAR-03 | P2: parity in CI | Done | Verified |
+| PAR-04 | P2: parity in CI | Done | Verified |
+| PAR-05 | P2: parity in CI | Done | Verified |
 
 **Coverage:** 24 total, 24 mapped to tasks, 0 unmapped.
 
