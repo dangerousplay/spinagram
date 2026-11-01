@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/wasm-editor/spec.md`
-**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) done; provider zone iteration (T30–T33) done; insert-redraw iteration (T34–T37) ready
+**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) done; provider zone iteration (T30–T33) done; insert-redraw iteration (T34–T37) and inspector iteration (T38–T42) ready
 
 **MVP scope (decided by the orchestrator, 2026-11-01).** The full YAML → scene port is months of work and stays
 out of this MVP. The MVP proves the architecture end to end with the Rust pieces that exist plus one new one:
@@ -113,6 +113,12 @@ T29 → T30 → T31 → T32 → T33
 
 ```
 T33 → T34 → T35 → T36 → T37
+```
+
+### Phase 11: Element tree, properties and edge editing
+
+```
+T37 → T38 → T39 → T40 → T41 → T42
 ```
 
 ---
@@ -1172,3 +1178,152 @@ notes.
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: toolbar dock and rebuilt ui bundle`
+
+---
+
+## Inspector iteration scope (orchestrator, 2026-11-01)
+
+User request: "on click in one element show the element tree and allow edit properties of that element in the ui
+with quick actions. Allow to select the arrows to edit them, add another one or delete."
+
+Edges are addressed as `e<i>` (their index in `edges:`, the same keys as `srcmap`, `rust/spinagram-core/src/edit.rs`
+around line 296). Property keys must be the ones the YAML loader accepts (`src/spinagram/yaml_io.py`
+`_NODE_KEYS`, zone fields, edge forms). Never invent keys.
+
+---
+
+### T38: Property and edge operations in Rust
+
+**What**: New ops, under the same byte-preserving patch rules:
+- `set_props {id, props: {key: value|null}}` for a node, zone or edge (`e<i>`). It sets, replaces or removes
+  (null) keys. Keys are checked against the loader's allow-list for that kind, and an unknown key is rejected with
+  a reason. For a string edge (`"a -> b: label"`) it rewrites the string form when only the label changes, and
+  converts to the mapping form (`{from, to, label, ...}`) when another key is set. Values follow the plain or
+  quoted scalar rules.
+- `duplicate {id, dx, dy}` for a node: a new kebab id, the same props, offset and snapped, added to the same zone
+  and container.
+- `reconnect {id: e<i>, from?, to?}` changes an edge's ends, keeping its side suffix when the end node is
+  unchanged.
+- `reverse {id: e<i>}`.
+
+Document them in `src/spinagram/edit.py` and `rust/README.md`.
+**Where**: `rust/spinagram-core/src/edit.rs`, `rust/spinagram-core/tests/data/edit/`, `src/spinagram/edit.py`, `tests/test_rust_edit.py`, `rust/README.md`
+**Depends on**: T37
+**Reuses**: `set_keys`, `text_scalar`, `edge_ends`, `newId`-style id scheme in Rust
+**Requirement**: OPS-01 (extension); user request
+
+**Done when**:
+
+- [ ] Rust tests per op on block and flow fixtures, with whole-output expectations: set, replace and remove a key; an unknown key rejected; a string edge kept as a string for a label change and converted to a mapping for a `route` change; duplicate keeps zone and container membership; reconnect and reverse
+- [ ] Python test: every patched fixture loads through `yaml_io` with the expected model values
+- [ ] Rust and full gates pass
+
+**Tests**: unit
+**Gate**: full
+**Commit**: `feat(rust): property, duplicate, reconnect and reverse edit operations`
+
+---
+
+### T39: Select and edit edges on the canvas
+
+**What**:
+- Edges are hit-tested by distance to their scene polyline (within 6 screen px, nodes winning ties).
+- A selected edge shows a highlight and handles at both ends.
+- Delete removes it (Disconnect), and double-click edits its label inline.
+- Dragging an end handle onto another node sends `reconnect` (a release elsewhere cancels).
+- Shift+click adds edges to a multi-selection.
+- From a selected node, "Add connection" (quick action, and the `C` tool) starts a connect drag from that node.
+**Where**: `web/src/canvas/scene.ts`, `web/src/canvas/useCanvas.ts`, `web/src/canvas/ops.ts`, `web/src/DiagramView.tsx`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T38
+**Reuses**: connector items in the scene JSON, `InlineEdit`, `connectOps`
+**Requirement**: user request (select arrows, edit, add, delete); canvas-editor EDG-05
+
+**Done when**:
+
+- [ ] bun tests: edge hit-test (on the line, near a corner, a tie with a node goes to the node, far away gives none); the ops for delete, label edit and reconnect from a handle drop; a release on empty space adds nothing
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): select, relabel, reconnect and delete edges on the canvas`
+
+---
+
+### T40: Element tree panel
+
+**What**: A collapsible "Elements" panel on the right side of the canvas:
+- The diagram as a tree: zones nested by children, containers under their zone with their members, free nodes,
+  then an "Edges" group listing `src → dst (label)`.
+- Each row has its icon (`EditorIcon`, the pack image or the zone style icon) and title.
+- Clicking a row selects the element on the canvas and scrolls the code panel to it. Selecting on the canvas
+  highlights and reveals the row.
+- A filter box narrows the tree by text.
+- Opening the panel by clicking an element follows the user's request: selecting an element opens the panel (with
+  a pin toggle so it stays open or closed). Its state is remembered like the palette's.
+**Where**: `web/src/canvas/ElementTree.tsx`, `web/src/canvas/tree.ts`, `web/src/DiagramView.tsx`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T39
+**Reuses**: scene JSON zones, containers and connectors, `srcmap`, `paletteState` pattern
+**Requirement**: user request (element tree); SYN-01/02 (tree ↔ canvas ↔ code)
+
+**Done when**:
+
+- [ ] bun tests: the tree built from the zone, container and connector fixtures (nesting, order, edges group); the filter keeps ancestors of matches; selection sync both ways (pure functions)
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): element tree panel synced with the canvas`
+
+---
+
+### T41: Properties panel with quick actions
+
+**What**: Below the tree in the same panel, a properties form for the selection.
+- **Node:** id (read-only), title, text, icon (with a "Change…" picker reusing the palette search), kind, class,
+  x, y, w, h.
+- **Zone:** label, style (the zone style picker), x, y, w, h.
+- **Edge:** from and to (dropdowns of node ids), label, and the edge style keys the loader accepts (for example
+  `route`, `dashed`, `color`, `class`, arrow ends; read the loader for the real list).
+- Fields commit on Enter or blur through `set_props` (or `move`/`resize` for geometry): one undo step per commit,
+  with the error toast on rejection.
+- **Multi-selection:** shows only the shared fields and applies to all in one batch.
+- **Quick actions row (icons with tooltips):**
+  - Node: duplicate, delete, add connection, group as row or column, ungroup, move to zone…
+  - Zone: duplicate, delete, change style.
+  - Edge: reverse, add a parallel edge (`connect` the same ends), delete.
+**Where**: `web/src/canvas/Properties.tsx`, `web/src/canvas/props.ts`, `web/src/canvas/ElementTree.tsx`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T40
+**Reuses**: T38 ops, `ops.ts`, `History`, palette search, zone style picker
+**Requirement**: user request (edit properties, quick actions)
+
+**Done when**:
+
+- [ ] bun tests: the field set per kind is derived from one table that matches the loader keys; the ops built for each field commit (incl. null to clear); multi-selection shared fields; the ops for each quick action
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): properties panel and quick actions for nodes, zones and edges`
+
+---
+
+### T42: Bundle, docs and browser pass
+
+**What**: Rebuild the bundle with bun 1.4.2, and document the element tree, properties panel and edge editing in
+`live-ui.mdx`. Browser pass on a scratch copy of `examples/showcase/` (port 8799), recording each YAML diff:
+- Selecting a node opens the tree and properties. Edit its title and its class.
+- Select an edge and change its label. Reconnect one end. Reverse it. Add a parallel edge. Delete it.
+- Duplicate a node. Move a node to a zone from the action.
+- Every action must leave the observer showing no icon detach and no toolbar remount.
+**Where**: `src/spinagram/ui/static/`, `docs/content/docs/tools/live-ui.mdx`, this file
+**Depends on**: T41
+**Reuses**: T35 observer
+**Requirement**: HST-01 (partial)
+
+**Done when**:
+
+- [ ] Each step recorded with its diff; full, Rust, WASM and web gates pass
+
+**Tests**: none
+**Gate**: full
+**Commit**: `docs: element tree, properties and edge editing guide`
