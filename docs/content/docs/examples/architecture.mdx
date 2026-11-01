@@ -12,41 +12,29 @@ description: AWS, Google Cloud and Kubernetes diagrams whose zones nest themselv
 
 ## Start small
 
-<include meta='title="examples/quickstart.py"'>../../../../examples/quickstart.py</include>
-
-![Web app on AWS, laid out automatically](/assets/quickstart.svg)
+<Example id="quickstart" />
 
 ## Three tiers across two zones
 
 Subnets per tier in two Availability Zones, built with plain Python loops, with numbered steps and a legend.
-[`aws_three_tier.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/aws_three_tier.py)
-
-![Three-tier web application on AWS](/assets/gallery/aws01.svg)
+<Example id="aws01" />
 
 ## Hub-and-spoke networking
 
 A Transit Gateway hub with centralized inspection and egress, and hybrid connectivity.
-[`aws_network_hub.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/aws_network_hub.py)
-
-![Hub-and-spoke networking on AWS](/assets/gallery/aws02.svg)
+<Example id="aws02" />
 
 ## Google Cloud
 
 Anycast load balancing, GKE in two regions, Spanner and streaming analytics.
-[`gcp_global_app.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/gcp_global_app.py)
-
-![Global web application on Google Cloud](/assets/gallery/gcp01.svg)
+<Example id="gcp01" />
 
 ## Kubernetes
 
-A dark cluster canvas built only with CSS:
-[`k8s_platform.py`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/k8s_platform.py) +
-[`k8s.css`](https://github.com/dangerousplay/spinagram/blob/main/examples/showcase/k8s.css).
+A dark cluster canvas built only with CSS: the anatomy of a workload, and service networking guarded by
+NetworkPolicy. Both slides share `k8s.css`.
 
-<Gallery>
-  <Shot src="/assets/gallery/k8s01.svg" title="Anatomy of a workload">Ingress to pods, autoscaling, config and stateful storage.</Shot>
-  <Shot src="/assets/gallery/k8s02.svg" title="Service networking">Ingress to Service to pods, guarded by NetworkPolicy.</Shot>
-</Gallery>
+<Example id={['k8s01', 'k8s02']} />
 
 More: [Python guide](/docs/write/python) · [Automatic layout](/docs/write/auto-layout) ·
 [Annotations](/docs/customize/annotations)

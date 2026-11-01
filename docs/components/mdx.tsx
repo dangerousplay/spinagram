@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { MDXComponents } from 'mdx/types';
 import { basePath } from '@/lib/shared';
+import { Example } from '@/components/example';
 
 // a grid of rendered diagrams, each card links to the page that explains it
 function Gallery({ children }: { children: ReactNode }) {
@@ -37,6 +38,7 @@ function Shot({ src, title, href, children }: { src: string; title: string; href
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    Example,
     Gallery,
     Shot,
     Step,

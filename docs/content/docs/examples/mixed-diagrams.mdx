@@ -19,20 +19,20 @@ across regions with the usual `a.to(b, "label")`.
 
 The payments API runs a fraud check; an approved check creates a payment, whose lifecycle is a state machine.
 
-<include meta='title="examples/mixed/payments.py"'>../../../../examples/mixed/payments.py</include>
-
-![Architecture on the left, a fraud-check flowchart in the middle and the payment state machine on the right](/assets/examples/m01.svg)
+<Example id="m01" />
 
 ## Architecture and swimlanes
 
 The monitoring stack raises the alert; the activity shows what the on-call engineer and the team do next,
 with mitigation and the status page update in parallel.
 
-<include meta='title="examples/mixed/incident.py"'>../../../../examples/mixed/incident.py</include>
+<Example id="m02" />
 
-![The monitoring stack on top and an incident-response activity with On-call and Team lanes below](/assets/examples/m02.svg)
+## Typed regions inside an architecture
 
-<include meta='title="examples/mixed/mixed.css"'>../../../../examples/mixed/mixed.css</include>
+The smallest version: three boxes and the state machine of the service in the middle.
+
+<Example id="b04" />
 
 ## Tips
 

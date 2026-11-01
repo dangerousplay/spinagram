@@ -1,5 +1,6 @@
 import { llms, loader } from 'fumadocs-core/source';
 import { docsRoute } from './shared';
+import { expandExamples } from './showcase-text';
 import { defineDocs } from 'fumadocs-mdx/macro';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { lucideIconsPlugin } from 'fumadocs-core/source/plugins/lucide-icons';
@@ -27,5 +28,5 @@ export const source = loader({
 export const docsLlms = llms(source, {
   renderPage: async (page) => `# ${page.data.title} (${page.url})
 
-${await page.data.getText('processed')}`,
+${expandExamples(await page.data.getText('processed'))}`,
 });

@@ -9,9 +9,7 @@ description: Procedures, lifecycles and cross-team processes, with builders that
 
 Every verb draws the right symbol, and decisions get `.yes()` and `.no()`:
 
-<include meta='title="examples/behavior/flowchart.py"'>../../../../examples/behavior/flowchart.py</include>
-
-![Checkout flowchart with two decisions and a retry loop](/assets/demo/b01.svg)
+<Example id="b01" />
 
 Keep the happy path on `>>` chains and branch off with `.no()`; the layout keeps the main line straight.
 `spinagram check` warns about a decision with only one branch.
@@ -23,9 +21,7 @@ Keep the happy path on `>>` chains and branch off with `.no()`; the layout keeps
 `state.on(event, target, guard=, action=)` labels transitions the UML way, `event [guard] / action`.
 Composite states and parallel regions nest with `with`.
 
-<include meta='title="examples/behavior/state_machine.py"'>../../../../examples/behavior/state_machine.py</include>
-
-![Order lifecycle with a composite Fulfilment state and two parallel regions](/assets/demo/b02.svg)
+<Example id="b02" />
 
 ## Process with swimlanes
 
@@ -34,9 +30,7 @@ Composite states and parallel regions nest with `with`.
 Put actions inside `with act.lane("Team"):` and let `with act.sequence():` connect them in order. A
 `parallel()` block draws the fork and join bars.
 
-<include meta='title="examples/behavior/activity.py"'>../../../../examples/behavior/activity.py</include>
-
-![Order fulfilment across Customer, Shop and Warehouse lanes](/assets/demo/b03.svg)
+<Example id="b03" />
 
 ## Next to the architecture
 
