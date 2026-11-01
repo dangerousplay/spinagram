@@ -193,7 +193,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::float_cmp, reason = "the estimate is exactly chars * size * factor, as in Python")]
     fn wrap_uses_estimate_without_face() {
         let m = Measurer::default();
         assert_eq!(m.measure("abcd", &est()), 4.0 * 10.0 * 0.53);

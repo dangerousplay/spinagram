@@ -311,7 +311,6 @@ mod tests {
     const SRC: Rect = (0.0, 0.0, 40.0, 40.0);
 
     #[test]
-    #[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
     fn round2_matches_python_round() {
         // values from Python: round(0.125, 2) etc.
         assert_eq!(round2(0.125), 0.12);

@@ -155,7 +155,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
     fn py_sum_is_compensated_like_python_3_12() {
         assert_eq!(py_sum(&[0.1; 10], true), 1.0); // Python 3.13: sum([0.1] * 10) == 1.0
         assert_eq!(py_sum(&[0.1, 0.2, 0.3], true), 0.6);
@@ -164,7 +163,6 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
     fn py_sum_adds_plainly_like_python_3_11() {
         assert_eq!(py_sum(&[0.1; 10], false), 0.999_999_999_999_999_9); // Python 3.11: sum([0.1] * 10)
         assert_eq!(py_sum(&[0.1, 0.2, 0.3], false), 0.600_000_000_000_000_1);

@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn token_without_break_characters_has_no_cuts() {
         let cand = vec![false; 7];
-        assert!(cuts(6, &cand, &[]).is_empty());
+        assert_eq!(cuts(6, &cand, &[]), [] as [usize; 0]);
         assert_eq!(bounds(6, &[]), vec![(0, 6)]);
     }
 

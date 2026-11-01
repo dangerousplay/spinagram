@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn empty_input_gives_an_empty_permutation() {
-        assert!(stable_order(&[]).is_empty());
+        assert_eq!(stable_order(&[]), [] as [usize; 0]);
     }
 
     #[test]
