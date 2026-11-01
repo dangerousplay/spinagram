@@ -46,7 +46,7 @@ def tree_json(els):
 
 @pytest.fixture(scope="module")
 def core():
-    return pytest.importorskip("spinagram_core")
+    return pytest.importorskip("spinagram._core")
 
 
 @pytest.mark.parametrize("text", SELECTORS)

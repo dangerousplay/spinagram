@@ -1,8 +1,8 @@
-"""Check an installed spinagram-core wheel (or source build) on this platform.
+"""Check an installed spinagram wheel (or source build) on this platform.
 
 Imports the core, renders examples to SVG with and without it and requires byte-identical files, then renders a
-PNG through resvg. Exits 1 on any failure. Run from the repository root with spinagram and spinagram-core
-installed in the current interpreter:
+PNG through resvg. Exits 1 on any failure. Run from the repository root with spinagram installed in the current
+interpreter:
 
     python rust/bench/wheel_smoke.py
 """
@@ -25,9 +25,11 @@ def render(out: Path, rust: bool, formats: str) -> None:
 
 
 def main() -> int:
-    import spinagram_core  # an ImportError here is the failure this script exists to catch
+    from importlib.metadata import version
 
-    print(f"spinagram_core {spinagram_core.__version__} on {platform.system()} {platform.machine()}")
+    from spinagram import _core  # noqa: F401  an ImportError here is the failure this script exists to catch
+
+    print(f"spinagram {version('spinagram')} with spinagram._core on {platform.system()} {platform.machine()}")
     os.environ["SPINAGRAM_RUST"] = "1"
     from spinagram import rust
 

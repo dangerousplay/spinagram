@@ -15,7 +15,7 @@ import tempfile
 import time
 from pathlib import Path
 
-import spinagram_core as core
+from spinagram import _core as core
 from PIL import Image, ImageChops, ImageStat
 
 from spinagram import api, cli

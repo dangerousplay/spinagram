@@ -127,7 +127,7 @@ SCHEMA = Path(__file__).resolve().parents[1] / "rust" / "schema" / "scene.schema
 
 @pytest.fixture(scope="module")
 def core():
-    return pytest.importorskip("spinagram_core")
+    return pytest.importorskip("spinagram._core")
 
 
 def test_example_scenes_are_all_covered():

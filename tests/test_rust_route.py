@@ -18,7 +18,7 @@ def python_router(monkeypatch):
 class TestBinding:
     @pytest.fixture(autouse=True)
     def core(self):
-        self.core = pytest.importorskip("spinagram_core")
+        self.core = pytest.importorskip("spinagram._core")
 
     def check(self, python_router, src, dst, obstacles=(), *, margin=14.0, sides=(None, None), busy=None,
               crossing=None, guides=(), fracs=(None, None)):

@@ -16,7 +16,7 @@ import tempfile
 import time
 from pathlib import Path
 
-import spinagram_core as core
+from spinagram import _core as core
 
 from spinagram import api, cli
 from spinagram.engine import route as engine_route

@@ -1355,7 +1355,6 @@ dependencies = [
     { name = "fonttools" },
     { name = "pillow" },
     { name = "pyyaml" },
-    { name = "spinagram-core" },
     { name = "tinycss2" },
 ]
 
@@ -1409,7 +1408,6 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "resvg-py", marker = "extra == 'vector'", specifier = ">=0.5" },
     { name = "spinagram", extras = ["pptx", "png", "vector", "ui", "mcp"], marker = "extra == 'all'" },
-    { name = "spinagram-core", directory = "rust/spinagram-core-py" },
     { name = "starlette", marker = "extra == 'ui'", specifier = ">=0.37" },
     { name = "tinycss2", specifier = ">=1.3" },
     { name = "uvicorn", marker = "extra == 'ui'", specifier = ">=0.29" },
@@ -1424,10 +1422,6 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.17" },
 ]
-
-[[package]]
-name = "spinagram-core"
-source = { directory = "rust/spinagram-core-py" }
 
 [[package]]
 name = "sse-starlette"

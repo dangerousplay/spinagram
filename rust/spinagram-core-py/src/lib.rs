@@ -1,4 +1,4 @@
-//! Python bindings for spinagram-core, imported as `spinagram_core._core`. Fonts cross the boundary as
+//! Python bindings for spinagram-core, compiled into spinagram as `spinagram._core`. Fonts cross the boundary as
 //! `(file or None, size, weight)`; the fallback chain is a list of font file paths.
 
 #![expect(clippy::needless_pass_by_value, reason = "PyO3 extracts owned arguments (Vec, String, tuples) from Python objects")]

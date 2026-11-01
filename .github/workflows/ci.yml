@@ -63,7 +63,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - uses: dtolnay/rust-toolchain@stable # uv builds spinagram-core from rust/ (tool.uv.sources)
+      - uses: dtolnay/rust-toolchain@stable # uv builds the spinagram._core extension from rust/ with maturin
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
@@ -127,10 +127,11 @@ jobs:
         run: cargo verus verify -p spinagram-core
         working-directory: rust
 
-  # One abi3 wheel per target serves CPython 3.11+. Cross-compiled where the runner can: Linux aarch64 and both
-  # musllinux targets in maturin's cross images, macOS x86_64 from the arm64 runner, Windows arm64 from x64.
-  core-wheels:
-    name: spinagram-core wheel (${{ matrix.name }})
+  # spinagram is one package with a compiled Rust extension (spinagram._core). One abi3 wheel per target serves
+  # CPython 3.11+. Cross-compiled where the runner can: Linux aarch64 and both musllinux targets in maturin's
+  # cross images, macOS x86_64 from the arm64 runner, Windows arm64 from x64.
+  wheels:
+    name: Wheel (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -148,37 +149,36 @@ jobs:
       - uses: actions/checkout@v5
       - uses: PyO3/maturin-action@v1
         with:
-          working-directory: rust/spinagram-core-py
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release --out dist
           sccache: true
       - uses: actions/upload-artifact@v4
         with:
-          name: core-wheel-${{ matrix.name }}
-          path: rust/spinagram-core-py/dist/*.whl
+          name: wheel-${{ matrix.name }}
+          path: dist/*.whl
           if-no-files-found: error
 
-  core-sdist:
-    name: spinagram-core sdist
+  sdist:
+    name: sdist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: PyO3/maturin-action@v1
         with:
-          working-directory: rust/spinagram-core-py
           command: sdist
           args: --out dist
       - uses: actions/upload-artifact@v4
         with:
-          name: core-sdist
-          path: rust/spinagram-core-py/dist/*.tar.gz
+          name: sdist
+          path: dist/*.tar.gz
           if-no-files-found: error
 
-  # Install each wheel on a runner of its own platform and render examples with and without the core.
-  core-wheel-smoke:
-    name: spinagram-core wheel smoke (${{ matrix.name }})
-    needs: core-wheels
+  # Install each wheel on a runner of its own platform: the UI bundle and CLI are there, and examples render
+  # byte-identically with and without the Rust core.
+  wheel-smoke:
+    name: Wheel smoke (${{ matrix.name }})
+    needs: wheels
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -199,29 +199,33 @@ jobs:
           python-version: "3.13"
       - uses: actions/download-artifact@v4
         with:
-          name: core-wheel-${{ matrix.name }}
+          name: wheel-${{ matrix.name }}
           path: dist
-      - run: python -m pip install . dist/*.whl
+      - run: python -m pip install "$(ls dist/*.whl)[ui]"
+      - name: Wheel ships the UI bundle and the CLI runs
+        run: |
+          python -c "from importlib.resources import files; assert (files('spinagram') / 'ui/static/index.html').is_file()"
+          spinagram --help > /dev/null
       - run: python rust/bench/wheel_smoke.py
 
-  core-musllinux-smoke:
-    name: spinagram-core wheel smoke (musllinux-x86_64, import)
-    needs: core-wheels
+  musllinux-smoke:
+    name: Wheel smoke (musllinux-x86_64, import)
+    needs: wheels
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: core-wheel-musllinux-x86_64
+          name: wheel-musllinux-x86_64
           path: dist
       - name: Import in Alpine
         run: |
           docker run --rm -v "$PWD/dist:/dist" python:3.13-alpine sh -c \
-            'pip install -q /dist/*.whl && python -c "import spinagram_core as c; print(c.__version__)"'
+            'pip install -q /dist/*.whl && python -c "from spinagram import _core, rust; assert rust.core() is _core"'
 
-  # Where no wheel matches, pip builds spinagram-core from the sdist with the local Rust toolchain.
-  core-source-install:
-    name: spinagram-core from source (${{ matrix.os }})
-    needs: core-sdist
+  # Where no wheel matches, pip builds spinagram from the sdist with the local Rust toolchain.
+  source-install:
+    name: Install from source (${{ matrix.os }})
+    needs: sdist
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -238,36 +242,8 @@ jobs:
           python-version: "3.13"
       - uses: actions/download-artifact@v4
         with:
-          name: core-sdist
+          name: sdist
           path: dist
       - name: Build and install from the sdist
-        run: python -m pip install . --no-binary spinagram-core dist/*.tar.gz
+        run: python -m pip install --no-binary spinagram dist/*.tar.gz
       - run: python rust/bench/wheel_smoke.py
-
-  build:
-    name: Build sdist + wheel (uv)
-    needs: [web, lint, test, core-wheels]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
-        with:
-          version: ${{ env.UV_VERSION }}
-      - run: uv build
-      - name: Wheel ships the UI bundle
-        run: unzip -l dist/*.whl | grep -q 'spinagram/ui/static/index.html'
-      - uses: actions/download-artifact@v4 # spinagram-core is not on PyPI before the first release with it
-        with:
-          name: core-wheel-linux-x86_64
-          path: core
-      - name: Smoke test the built wheel
-        run: |
-          core="$(ls core/*.whl)"
-          uv run --isolated --no-project --with "$(ls dist/*.whl)[ui]" --with "$core" spinagram --help
-          uv run --isolated --no-project --with "$(ls dist/*.whl)" --with "$core" spinagram render examples/decision.yaml -f svg -o /tmp/out
-          test -n "$(ls /tmp/out/*.svg)"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-          if-no-files-found: error

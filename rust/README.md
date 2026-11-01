@@ -1,19 +1,19 @@
 # spinagram Rust core
 
-Rust is spinagram's main engine. `spinagram` depends on the `spinagram-core` wheel (same version, released
-together) and uses it by default; Python stays the API. The ported Python code stays too, as the reference the
+Rust is spinagram's main engine. The `spinagram` package is built with maturin: `rust/` compiles to the
+`spinagram._core` extension inside it, and spinagram uses it by default; Python stays the API. The ported Python code stays too, as the reference the
 parity checks compare against, and runs with `SPINAGRAM_RUST=0`.
 
 | Crate | What it is |
 |---|---|
 | `spinagram-core` | Pure Rust library: font metrics, text measurement, wrapping and fitting (ported from `text.py` and `engine/textfit.py`), orthogonal edge routing (ported from `autolayout/route.py`), the scene model and SVG drawing (ported from `backends/svg.py`) PNG rendering with resvg, and CSS selector matching with the cascade (ported from `css.py`) |
-| `spinagram-core-py` | PyO3 bindings, published as the `spinagram-core` wheel and imported as `spinagram_core` |
+| `spinagram-core-py` | PyO3 bindings, compiled into the `spinagram` wheel as `spinagram._core` (root `pyproject.toml`, `[tool.maturin]`) |
 
 ## Build and try it
 
 ```bash
 cd rust && cargo test -p spinagram-core && cargo clippy --workspace --all-targets -- -D warnings && cd ..
-uv sync --all-extras                                # builds spinagram-core from rust/ (tool.uv.sources)
+uv sync --all-extras                                # builds spinagram._core with maturin (editable install)
 
 uv run --all-extras pytest -q                       # the suite on the Rust core (the default)
 SPINAGRAM_RUST=0 uv run --all-extras pytest -q      # the suite on the pure-Python reference
@@ -32,14 +32,12 @@ and x86_64, Windows x64 and arm64. Linux aarch64, musllinux, macOS x86_64 and Wi
 Each wheel that has a matching runner is installed there and checked with `rust/bench/wheel_smoke.py`, which
 renders examples with and without the core and requires byte-identical SVGs plus a resvg PNG.
 
-Releases publish every wheel and the sdist to PyPI before spinagram itself (`.github/workflows/release.yml`).
-The version in `rust/Cargo.toml` must equal spinagram's and its `spinagram-core==` pin.
+CI also builds the sdist. On a platform without a wheel, `pip install spinagram` builds it from that sdist with
+maturin, which needs a Rust toolchain (`rustup`, stable); the `source-install` job checks this on Linux, macOS and
+Windows. Releases publish every wheel and the sdist under the one `spinagram` name (`.github/workflows/release.yml`).
+The package version comes from `pyproject.toml` only.
 
-CI also builds the sdist. On a platform without a wheel, `pip install spinagram-core` builds it from that sdist
-with maturin, which needs a Rust toolchain (`rustup`, stable); the `core-source-install` job checks this on Linux,
-macOS and Windows. To build from a checkout instead: `pip install ./rust/spinagram-core-py`.
-
-`src/spinagram/rust.py` decides: the core is used unless `SPINAGRAM_RUST=0` (or empty). If `spinagram_core`
+`src/spinagram/rust.py` decides: the core is used unless `SPINAGRAM_RUST=0` (or empty). If `spinagram._core`
 cannot be imported, spinagram warns once and runs the pure-Python engine.
 
 ## Slices
@@ -112,7 +110,7 @@ identical.
 ### Building on macOS 27
 
 The macOS 27 linker writes a misaligned string table when the module has an odd number of indirect symbols, and
-dyld then refuses to import it. If `import spinagram_core` fails with "mis-aligned LINKEDIT string pool", check
+dyld then refuses to import it. If `from spinagram import _core` fails with "mis-aligned LINKEDIT string pool", check
 `otool -l .../_core.abi3.so | grep nindirectsyms` and change the parity (the module init touches two Python data
 symbols for this reason; add or remove one when it breaks again). Linux and CI are not affected.
 
@@ -162,8 +160,8 @@ and a stat-keyed parse cache.
 - **Crates first**: `DEPENDENCIES.md` lists every hand-written component with the crates tried and the evidence (a
   parity number or the first differing case). Replaced so far: HTML escaping (`html-escape`) and the compensated
   `sum()` (`compensated-summation`).
-- **Plain `cargo build --workspace`**: `rust/.cargo/config.toml` adds the `dynamic_lookup` link flags the extension
-  module needs on macOS (maturin passes them itself).
+- **macOS link flags**: `spinagram-core-py/build.rs` calls `pyo3_build_config::add_extension_module_link_args()`,
+  so `cargo build`, `cargo test` and maturin link the extension with `-undefined dynamic_lookup` from any directory.
 
 ### Verus proofs
 

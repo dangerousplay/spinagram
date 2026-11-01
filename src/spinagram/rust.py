@@ -1,11 +1,13 @@
-"""The Rust core (the ``spinagram-core`` wheel built from ``rust/``), spinagram's main implementation.
+"""The Rust core (``spinagram._core``, compiled from ``rust/``), spinagram's main implementation.
 
-``spinagram-core`` is a dependency, so the core is on by default. ``SPINAGRAM_RUST=0`` switches every ported
-function back to the pure-Python implementation, which stays as the reference the parity checks compare against.
+The extension ships in every spinagram wheel, so the core is on by default. ``SPINAGRAM_RUST=0`` switches every
+ported function back to the pure-Python implementation, which stays as the reference the parity checks compare
+against.
 """
 from __future__ import annotations
 
 import functools
+import importlib
 import os
 import warnings
 from types import ModuleType
@@ -14,11 +16,11 @@ from types import ModuleType
 @functools.cache
 def _load() -> ModuleType | None:
     try:
-        import spinagram_core
+        return importlib.import_module("spinagram._core")
     except ImportError as exc:
-        warnings.warn(f"spinagram-core is not importable ({exc}); using the pure-Python engine", stacklevel=3)
+        warnings.warn(f"the Rust core spinagram._core is not importable ({exc}); using the pure-Python engine",
+                      stacklevel=3)
         return None
-    return spinagram_core
 
 
 def core() -> ModuleType | None:

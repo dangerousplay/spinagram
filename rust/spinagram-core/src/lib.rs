@@ -1,5 +1,5 @@
 //! spinagram engine core. The first slice ported from Python: font metrics, text measurement, wrapping
-//! and fitting. The Python package keeps working without it; `spinagram-core-py` exposes it to Python.
+//! and fitting. `spinagram-core-py` compiles it into the spinagram Python package as `spinagram._core`.
 
 pub mod fit;
 pub mod css;

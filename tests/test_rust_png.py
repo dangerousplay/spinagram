@@ -12,7 +12,7 @@ from spinagram.scene import Line, Scene, Shape
 
 @pytest.fixture
 def core():
-    return pytest.importorskip("spinagram_core")
+    return pytest.importorskip("spinagram._core")
 
 
 @pytest.fixture

@@ -14,7 +14,7 @@ import time
 from contextlib import ExitStack
 from pathlib import Path
 
-import spinagram_core as core
+from spinagram import _core as core
 
 from spinagram import Diagram, cli, css
 from spinagram.theme import Theme

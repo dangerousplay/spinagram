@@ -21,7 +21,7 @@ BOLD = MATH.with_size(13.5)
 
 @pytest.fixture
 def core():
-    return pytest.importorskip("spinagram_core")
+    return pytest.importorskip("spinagram._core")
 
 
 @pytest.fixture

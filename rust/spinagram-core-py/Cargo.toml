@@ -14,5 +14,8 @@ crate-type = ["cdylib"]
 spinagram-core = { path = "../spinagram-core" }
 pyo3 = { version = "0.30", features = ["extension-module", "abi3-py311"] }
 
+[build-dependencies]
+pyo3-build-config = "0.30"
+
 [lints]
 workspace = true
