@@ -90,8 +90,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] `cargo deny check` exits 0 for advisories, bans, licenses, sources (DENY-01)
-- [ ] Rust gate passes
+- [x] `cargo deny check` exits 0 for advisories, bans, licenses, sources (DENY-01)
+- [x] Rust gate passes
 
 **Tests**: none
 **Gate**: rust
