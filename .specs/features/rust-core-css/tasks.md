@@ -66,8 +66,8 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Rust tests: structure + specificity equal Python's (expected values taken from Python) for each supported feature incl. nested `:not`, `::label` alone, selector lists (L-020)
-- [ ] Rust gate passes
+- [x] Rust tests: structure + specificity equal Python's (expected values taken from Python) for each supported feature incl. nested `:not`, `::label` alone, selector lists (L-020)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust

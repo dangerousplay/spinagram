@@ -2,6 +2,7 @@
 //! and fitting. The Python package keeps working without it; `spinagram-core-py` exposes it to Python.
 
 pub mod fit;
+pub mod css;
 pub mod font;
 pub mod pyfmt;
 pub mod png;
