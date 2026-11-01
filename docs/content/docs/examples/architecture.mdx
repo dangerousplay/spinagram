@@ -38,9 +38,11 @@ NetworkPolicy. Both slides share `k8s.css`.
 
 ## Editable on the canvas
 
-A hand-placed YAML diagram with three nested zones, a row, a column and ten icon nodes. Open it with
-`spinagram serve examples/showcase/editable_platform.yaml`, press `c`, and drag nodes between zones, drag a zone to
-move its children, group nodes as a row or column, drop icons from the palette, and undo with Ctrl/Cmd+Z.
+A hand-placed YAML diagram in the AWS group conventions: AWS Cloud, AWS account, Region, VPC and public and private
+subnets, each group with its own icon and outline (the `aws-*` zone styles), and Users outside the cloud. Open it with
+`spinagram serve examples/showcase/editable_platform.yaml`, press `c`, and drag nodes between subnets, drag a zone to
+move its children, group nodes as a row or column, drop icons or provider zones from the palette, change a zone's
+style from the bar, and undo with Ctrl/Cmd+Z.
 
 <Example id="edit01" />
 

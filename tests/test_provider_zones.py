@@ -109,3 +109,21 @@ def test_a_zone_of_each_style_renders_its_header_icon(fake_icons):
 def test_provider_styles_pass_spinagram_check(fake_icons):
     sc, _ = _scene()
     assert check(sc) == []
+
+
+@pytest.mark.real_icon_cache
+def test_the_aws_showcase_follows_the_group_conventions_and_checks_clean():
+    """examples/showcase/editable_platform.yaml: Cloud > account > Region > VPC > subnets, each with its icon."""
+    from pathlib import Path
+
+    from spinagram.yaml_io import load
+
+    packs = icons.registry()
+    if icons.index(packs["aws"], auto_fetch=False) is None:
+        pytest.skip("icon pack 'aws' is not cached")
+    root = Path(__file__).resolve().parents[1] / "examples" / "showcase"
+    d = load(root / "editable_platform.yaml")[0]
+    sc = build_scene(d, Theme.load("default"))
+    owners = {i.id: i for i in sc.items if isinstance(i, (Shape, Text)) and i.id.endswith("-icon")}
+    assert len(owners) == 7 and all(o.icon is not None for o in owners.values())  # one header icon per group
+    assert check(sc) == []

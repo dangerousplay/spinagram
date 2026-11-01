@@ -569,10 +569,17 @@ def test_the_editable_showcase_example_is_canvas_editable(tmp_path):
     body = client(ws).get(f"/api/diagrams/{key.replace('#', '%23')}.scene").json()
     assert body["editable"] is True
     scene = body["scene"]
-    assert [z["id"] for z in scene["zones"]] == ["region", "vpc", "app", "data"]
-    assert {c["id"]: c["axis"] for c in scene["containers"]} == {"row0": "row", "column1": "column"}
+    assert [z["id"] for z in scene["zones"]] == ["cloud", "account", "region", "vpc", "public", "app", "data"]
+    assert {c["id"]: c["axis"] for c in scene["containers"]} == {"column0": "column", "column1": "column"}
     nodes = [i for i in scene["items"] if i["type"] == "shape" and i["role"] == "node"]
-    assert len(nodes) == 10 and sum(1 for i in scene["items"] if i["type"] == "connector") == 8  # T22: no two edges share a trunk
+    assert len(nodes) == 9 and sum(1 for i in scene["items"] if i["type"] == "connector") == 7
+    # the AWS group conventions: each group has its aws-* zone style, so each shows its group icon
+    from spinagram.yaml_io import load
+
+    d = load(root / "editable_platform.yaml")[0]
+    assert {z.id: z.color for z in d.zones} == {
+        "cloud": "aws-cloud", "account": "aws-account", "region": "aws-region", "vpc": "aws-vpc",
+        "public": "aws-public-subnet", "app": "aws-private-subnet", "data": "aws-private-subnet"}
 
 
 def test_scene_endpoint_unknown_key_is_404_and_a_broken_spec_is_422(env):

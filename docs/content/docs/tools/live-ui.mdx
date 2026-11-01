@@ -58,6 +58,7 @@ it on `examples/showcase/editable_platform.yaml`.
 | Ctrl/Cmd+G, **Group as row**, **Group as column** | Groups the selected nodes into a row or column (gap 20) |
 | Drop a node on a row or column, drag a member out | Inserts it at the gap its centre falls in, or removes it |
 | Select a row or column | **Ungroup**, and its **Gap** (and **Align**, for containers inside a zone) |
+| Select one zone | The bar gets a **style** picker: every provider zone style with its icon, and **Generic zone** |
 | Double-click | Renames a node or a zone label |
 | `/` or Ctrl/Cmd+K | Opens the palette (it starts collapsed, next to the diagram, and remembers its state) and focuses the search; arrows move, Enter adds at the centre of the canvas; Esc closes it |
 | Drag a palette item onto the canvas | Adds an icon node (`220 × 96`, centred on the drop point), a shape, or a zone |
@@ -70,9 +71,15 @@ it on `examples/showcase/editable_platform.yaml`.
 The palette searches the icons of every pack you have downloaded (names, aliases and pack names, with one typo
 tolerated), plus the node shapes, **Zone**, **Row** and **Column**. With the search box empty it groups them into
 collapsible categories, each with a count and an icon on every item: **Basics** (Box, Text, Zone, Row, Column,
-Note), **Shapes**, and one category per icon pack (packs start collapsed; the state is remembered). A search gives one
+Note), **Zones**, **Shapes**, and one category per icon pack (packs start collapsed; the state is remembered). A search gives one
 ranked list with each row tagged by its category. Packs not downloaded yet are listed under **Not downloaded** with a
-**Fetch** button; nothing is fetched until you press it. A dropped item first shows a dashed placeholder at the drop
+**Fetch** button; nothing is fetched until you press it. **Zones** holds the generic Zone and then the provider groups, each with its real header icon and a swatch of its
+outline: AWS (Cloud, Account, Region, VPC, Availability Zone, public and private subnets, Auto Scaling group,
+corporate data center, Spot Fleet, server and EC2 contents), Azure (management group, subscription, resource group,
+virtual network, subnet), Google Cloud (cloud, project, region, zone, VPC network, subnet) and Kubernetes (cluster,
+namespace). Dropping one adds a zone with that style (`color: aws-vpc` in the YAML), and search finds them by name
+("vpc", "subscription", "project"). The styles come from the active theme, so a theme can add its own; the icons need
+the provider's pack (**Fetch** it from the palette). A dropped item first shows a dashed placeholder at the drop
 point, and each save is patched into the diagram in place, so fonts and images do not reload. A zone cannot be dropped inside itself: the reason appears next to the pointer for three seconds. New titles and labels are written as plain YAML text unless they need quotes (a colon and space, a leading symbol, `yes`/`no`/`null`, a number, or a comma inside a one-line entry).
 If the file changes on disk while you edit, the edit is dropped with "File changed on disk; edit not applied" and
 the undo history is cleared.
