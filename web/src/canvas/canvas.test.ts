@@ -209,6 +209,19 @@ describe("zone geometry", () => {
     expect(hitZone(zscene, 1250, 700)).toBeNull();
   });
 
+  test("where two zones' header bands overlap, the press grabs the smaller (inner) one", () => {
+    const nested: SceneJson = {
+      width: 600,
+      height: 600,
+      items: [shape("z0", "zone", 0, 0, 500, 500), shape("z1", "zone", 10, 10, 200, 200)],
+      zones: [
+        { id: "outer", shape_id: "z0", children: ["inner"] },
+        { id: "inner", shape_id: "z1", children: [] },
+      ],
+    };
+    expect(hitZone(nested, 20, 20)).toBe("inner"); // inside both header bands
+  });
+
   test("the zone move map holds the zone, its child zones and every child node, as scene shape ids", () => {
     expect(zoneMoveShapes(zscene, "outer").sort()).toEqual(["n1", "n2", "z0", "z1"]);
     expect(zoneMoveShapes(zscene, "inner").sort()).toEqual(["n2", "z1"]);
@@ -345,6 +358,7 @@ describe("rubber band", () => {
     expect(rubberBand(gscene, { x: 340, y: 580 }, { x: 90, y: 490 }).sort()).toEqual(["a", "b"]); // reversed
     expect(rubberBand(gscene, { x: 200, y: 560 }, { x: 230, y: 600 }).sort()).toEqual(["a", "b"]); // touching edges count
     expect(rubberBand(gscene, { x: 0, y: 700 }, { x: 50, y: 790 })).toEqual([]);
+    expect(rubberBand(gscene, { x: 950, y: 650 }, { x: 1100, y: 750 })).toEqual([]); // below and right of every node
   });
 });
 
