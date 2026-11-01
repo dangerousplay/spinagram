@@ -277,10 +277,10 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Run reports N/N identical per font mode, per-example PNG similarity within bounds, timing table; exit 0 (PAR-11, PNG-05)
-- [ ] A one-character fault in `pyfmt.rs` makes it exit 1 (scratch, discarded)
-- [ ] SVG identity holds under `PYTHONHASHSEED` 0, 1, 2 (L-001)
-- [ ] Build gate passes
+- [x] Run reports N/N identical per font mode, per-example PNG similarity within bounds, timing table; exit 0 (PAR-11, PNG-05)
+- [x] A one-character fault in `pyfmt.rs` makes it exit 1 (scratch, discarded)
+- [x] SVG identity holds under `PYTHONHASHSEED` 0, 1, 2 (L-001)
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
