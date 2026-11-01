@@ -150,7 +150,7 @@ that Rust reads so that I can draw spinagram diagrams without Python.
 | SVG-04 | P1: SVG | In Tasks | Pending |
 | SVG-05 | P1: SVG | In Tasks | Pending |
 | SVG-06 | P1: SVG | In Tasks | Pending |
-| SVG-07 | P1: SVG | In Tasks | Pending |
+| SVG-07 | P1: SVG | In Tasks | Implementing |
 | SVG-08 | P1: SVG | In Tasks | Pending |
 | PNG-01 | P2: PNG | In Tasks | Pending |
 | PNG-02 | P2: PNG | In Tasks | Pending |

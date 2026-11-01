@@ -235,9 +235,9 @@ class _Svg:
         top = y + (h - b.height) / 2
         self.text_lines(self.front, b, x + cell.pad_left, top + b.baseline_offset(), "start")
 
-    def render(self) -> str:
-        s = self.s
-        for it in s.items:
+    def _draw(self) -> None:
+        """Draw every item: fills ``defs``, ``back``, ``mid``, ``front`` and ``chars``."""
+        for it in self.s.items:
             if isinstance(it, Shape):
                 self.shape(it)
             elif isinstance(it, Connector):
@@ -255,23 +255,32 @@ class _Svg:
                 self.image(self.front, it.path, it.x, it.y, it.w, it.h)
             elif isinstance(it, TableGrid):
                 self.table(it)
-        faces = self.faces()
+
+    def render(self) -> str:
+        self._draw()
+        return self._assemble(self.defs, self.back, self.mid, self.front, self.chars)
+
+    def _assemble(self, defs: Sequence[str], back: Sequence[str], mid: Sequence[str], front: Sequence[str],
+                  chars: dict[tuple, set[str]]) -> str:
+        """The document around the drawn layers: font faces, head, metadata and the content hash."""
+        s = self.s
+        faces = self.faces(chars)
         W, H = s.width, s.height
         meta = ""
         if s.sources:
             import json as _json
             meta = f'<metadata id="spinagram-sources">{_esc(_json.dumps(s.sources, ensure_ascii=False))}</metadata>'
         head = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
-        rest = (f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(self.defs)}'
+        rest = (f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(defs)}'
                 f'</defs><rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'
-                + "".join(self.back) + "".join(self.mid) + "".join(self.front) + "</svg>")
+                + "".join(back) + "".join(mid) + "".join(front) + "</svg>")
         # content hash of the SVG without this element: identical input, identical hash (CI drift checks)
         digest = hashlib.sha256((head + rest).encode("utf-8")).hexdigest()
         return f'{head}<metadata id="spinagram-hash">sha256:{digest}</metadata>{rest}'
 
 
-    def faces(self) -> list[str]:
-        """The style rules for the fonts with files, by ``self.fonts`` (after the items are drawn)."""
+    def faces(self, chars: dict[tuple, set[str]]) -> list[str]:
+        """The style rules for the fonts with files, by ``self.fonts``; ``chars`` are the characters drawn per face."""
         fonts = [f for f in self.s.fonts() if f.file]
         if self.fonts == "link":
             # one CSS2 URL per family; the ital axis only when an italic face is used (0 = upright, 1 = italic)
@@ -288,8 +297,8 @@ class _Svg:
         faces = []
         for f in fonts:
             if self.fonts == "subset":
-                data = base64.b64encode(fontsubset.subset(f.file, self.chars.get((f.family, f.weight, f.italic),
-                                                                                 ()))).decode()
+                data = base64.b64encode(fontsubset.subset(f.file, chars.get((f.family, f.weight, f.italic),
+                                                                          ()))).decode()
             else:
                 data = _b64(f.file)
             faces.append(f"@font-face{{font-family:'{f.family}';src:url(data:{_mime(f.file)};base64,"

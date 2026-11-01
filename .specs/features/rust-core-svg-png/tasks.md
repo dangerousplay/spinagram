@@ -154,9 +154,9 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Existing SVG/font tests pass unchanged (`tests/test_cd_fonts.py`, `tests/test_css*.py`, backend tests)
-- [ ] `render_all.sh` equals the T1 baseline (pure Python) (SVG-07)
-- [ ] Quick gate on the SVG-related test files passes
+- [x] Existing SVG/font tests pass unchanged (`tests/test_cd_fonts.py`, `tests/test_css*.py`, backend tests)
+- [x] `render_all.sh` equals the T1 baseline (pure Python) (SVG-07)
+- [x] Quick gate on the SVG-related test files passes
 
 **Tests**: unit (existing; refactor only)
 **Gate**: quick
