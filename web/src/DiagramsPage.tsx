@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, type DiagramRef, type Workspace } from "./api";
-import { allTags, filterDiagrams, groupByCategory } from "./catalog";
+import { allTags, errorLine, filterDiagrams, groupByCategory } from "./catalog";
 import { CardSection, CatalogShell, cardClass } from "./CatalogShell";
 import { href } from "./hooks";
 
@@ -115,6 +115,19 @@ export default function DiagramsPage({ ws, revs }: Props) {
 
 function Card({ d, rev }: { d: DiagramRef; rev: number }) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [rev]); // a live reload may have fixed it
+  const [why, setWhy] = useState<string | null>(null); // the server's render error, once the preview failed
+  useEffect(() => {
+    if (!failed) return;
+    const ctl = new AbortController();
+    api
+      .diagram(d.key, null, ctl.signal)
+      .then(() => setWhy(null))
+      .catch((e: unknown) => {
+        if (!ctl.signal.aborted) setWhy(e instanceof Error ? e.message : String(e));
+      });
+    return () => ctl.abort();
+  }, [failed, d.key, rev]);
   return (
     <a
       href={href({ kind: "diagram", key: d.key })}
@@ -123,7 +136,12 @@ function Card({ d, rev }: { d: DiagramRef; rev: number }) {
     >
       <div className="aspect-video border-b border-slate-100 bg-white dark:border-slate-800">
         {failed ? (
-          <div className="grid h-full place-items-center text-xs text-slate-400">preview unavailable</div>
+          <div
+            className="grid h-full place-items-center px-3 text-center text-xs text-red-600 dark:text-red-400"
+            title={why ?? undefined}
+          >
+            <span className="line-clamp-2 break-words">{why ? errorLine(why) : "preview unavailable"}</span>
+          </div>
         ) : (
           <img
             src={api.thumbnail(d.key, rev)}

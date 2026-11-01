@@ -1,7 +1,7 @@
 // Theme and pack catalog logic (spec: .specs/features/catalog-previews/spec.md). Run: `bun test`.
 import { describe, expect, test } from "bun:test";
 import type { Pack, ThemeEntry } from "./api";
-import { filterPacks, filterThemes, packSample, packSections, sampleIcons, themeSections } from "./catalog";
+import { errorLine, filterPacks, filterThemes, packSample, packSections, sampleIcons, themeSections } from "./catalog";
 
 const theme = (ref: string, name: string, builtin: boolean, active = false): ThemeEntry => ({
   ref,
@@ -87,5 +87,24 @@ describe("PREV-05, PREV-09 sections", () => {
   test("empty sections are left out", () => {
     expect(themeSections([THEMES[1]]).map((s) => s.label)).toEqual(["Built-in"]);
     expect(packSections([]).length).toBe(0);
+  });
+});
+
+describe("gallery card render error", () => {
+  test("shows the first error line of the server message", () => {
+    expect(errorLine("No such file: showcase.css")).toBe("No such file: showcase.css");
+    expect(errorLine("\n  No such file: showcase.css\n  at line 3\nmore")).toBe("No such file: showcase.css");
+  });
+  test("one line, truncated with an ellipsis", () => {
+    const long = `Error: ${"x".repeat(300)}`;
+    const out = errorLine(long);
+    expect(out.length).toBeLessThanOrEqual(90);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out).not.toContain("\n");
+    expect(errorLine("short", 90)).toBe("short");
+  });
+  test("an empty message gives an empty line", () => {
+    expect(errorLine("")).toBe("");
+    expect(errorLine(" \n \n")).toBe("");
   });
 });

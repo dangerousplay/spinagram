@@ -608,12 +608,14 @@ finished. The behaviour reference stays the read-only `.specs/features/canvas-ed
 
 **Done when**:
 
-- [ ] bun test: a failed preview shows the server's first error line, truncated to one line
-- [ ] Web gate passes
+- [x] bun test: a failed preview shows the server's first error line, truncated to one line
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `fix(web): show the render error on a gallery card`
+
+**Notes**: `errorLine` in `catalog.ts` (first non-empty line, 90 chars, ellipsis); the card fetches the `.svg` URL once its `<img>` failed and shows the `ApiError` message, full text in the `title` tooltip; `failed` resets on a live reload. Checked in Chrome with `showcase.css` removed from the scratch copy: cards show "[Errno 2] No such file or directory: 'showcase.css'" in red. bun 113 -> 116.
 
 ---
 
