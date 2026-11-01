@@ -3,7 +3,7 @@
 // (interaction.ts) are built from these, and icons.tsx maps every id here to an icon.
 import type { Op } from "./ops";
 import { NODE_H, NODE_W, ZONE_H, ZONE_W, centred, newId, takenIds, zoneAtPoint } from "./palette";
-import { boxOf, hitTest, snap, type SceneJson } from "./scene";
+import { boxOf, hitTest, snap, type Box, type SceneJson } from "./scene";
 
 /** A tool is a mode of the pointer. */
 export const TOOLS = [
@@ -40,7 +40,7 @@ export const CLICK_SLOP = 8;
 /** The smallest rectangle a drag can draw (scene px). */
 const MIN_SIZE: Record<PlaceTool, [number, number]> = { box: [40, 30], text: [40, 30], zone: [80, 60] };
 
-export type Placement = { ops: Op[]; id: string; /** the inline editor opens on the new item at once */ edit: boolean };
+export type Placement = { ops: Op[]; id: string; box: Box; /** the inline editor opens on the new item at once */ edit: boolean };
 
 /** What a click or a drag with Box, Text or Zone adds. A click puts the default size centred on the point; a drag
  * draws the rectangle between the two points, snapped to the grid and kept on the canvas. A box or text joins the
@@ -62,13 +62,13 @@ export function placeOps(scene: SceneJson, tool: PlaceTool, a: Point, b: Point):
   }
   if (tool === "zone") {
     const id = newId("Zone", taken);
-    return { ops: [{ op: "add_zone", id, label: "Zone", ...rect }], id, edit: false };
+    return { ops: [{ op: "add_zone", id, label: "Zone", ...rect }], id, box: { id, ...rect }, edit: false };
   }
   const title = tool === "text" ? "New text" : "New box";
   const id = newId(title, taken);
   const add: Op = { op: "add_node", id, title, kind: tool, ...rect };
   const zone = zoneAtPoint(scene, rect.x + rect.w / 2, rect.y + rect.h / 2);
-  return { ops: zone ? [add, { op: "reparent", id, parent: zone }] : [add], id, edit: tool === "text" };
+  return { ops: zone ? [add, { op: "reparent", id, parent: zone }] : [add], id, box: { id, ...rect }, edit: tool === "text" };
 }
 
 /** The edge a Connect drag from node `from` released at (x, y) adds: to the node under the point. A release on empty
@@ -82,3 +82,8 @@ export function connectOps(scene: SceneJson, from: string, x: number, y: number)
 
 /** The tool in use after one use of `tool`: back to Select, unless Shift was held to keep it. */
 export const toolAfterUse = (tool: ToolId, keep: boolean): ToolId => (keep ? tool : "select");
+
+/** Where the inline editor of a just-placed item goes, once the scene holds the item. A text node has no box in the
+ * scene (it renders as plain text), so the box it was placed with is used; null while the scene lacks the item. */
+export const editBoxOf = (scene: SceneJson, pending: { id: string; box: Box }): Box | null =>
+  scene.items.some((i) => i.id === pending.id) ? pending.box : null;

@@ -263,7 +263,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
           else if (step === "selection") {
             setSelected(null);
             k.canvas.clear();
-          } else if (step === "palette") k.setPaletteOpen(false);
+          } else if (step === "tool") k.canvas.setTool("select");
+          else if (step === "palette") k.setPaletteOpen(false);
         }
       }
     };

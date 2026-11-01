@@ -11,7 +11,7 @@ import { History } from "./history";
 import { dropOps, ghostOf, type Ghost, type PaletteItem } from "./palette";
 import { cursorFor, EMPTY_BURST, nudgeMoves, nudgeOps, pressNudge, TOAST_MS, type Burst, type Cursor } from "./interaction";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
-import { connectOps, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
+import { connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
 
 export const CHANGED_ON_DISK = "File changed on disk; edit not applied";
 
@@ -59,7 +59,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   toolRef.current = tool;
   const drawRef = useRef<(Drawing & { keep: boolean }) | null>(null);
   const connRef = useRef<{ from: string; x0: number; y0: number; keep: boolean } | null>(null);
-  const pendingEdit = useRef<{ id: string; title: string } | null>(null); // a placed Text, edited once it is in the scene
+  const pendingEdit = useRef<{ id: string; title: string; box: Box } | null>(null); // a placed Text, edited once it is in the scene
   const [nudging, setNudging] = useState(false);
   const pointer = useRef({ x: 0, y: 0 });
   const burst = useRef<Burst>(EMPTY_BURST);
@@ -91,7 +91,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         setEditable(doc.editable);
         setScene(doc.scene as SceneJson);
         const pe = pendingEdit.current;
-        const pb = pe ? boxOf(doc.scene as SceneJson, pe.id) : null;
+        const pb = pe ? editBoxOf(doc.scene as SceneJson, pe) : null;
         if (pe && pb) {
           pendingEdit.current = null;
           setEditing({ id: pe.id, kind: "node", box: pb, text: pe.title });
@@ -398,7 +398,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       if (dw) {
         const place = placeOps(sc, dw.tool, { x: dw.x0, y: dw.y0 }, { x: dw.x1, y: dw.y1 } as Point);
         setToolState(toolAfterUse(t, keep));
-        if (place.edit) pendingEdit.current = { id: place.id, title: "New text" };
+        if (place.edit) pendingEdit.current = { id: place.id, title: "New text", box: place.box };
         void commit(place.ops);
       } else if (cn) {
         const ops = connectOps(sc, cn.from, pointer.current.x, pointer.current.y);

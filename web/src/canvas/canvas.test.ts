@@ -37,7 +37,7 @@ import {
   type KeyLike,
 } from "./interaction";
 import { CONTAINER_ICON_NAMES, hasIcon, iconNameOf, ICON_NAMES } from "./icons";
-import { ACTIONS, CLICK_SLOP, TOOLS, connectOps, isPlaceTool, placeOps, toolAfterUse } from "./tools";
+import { ACTIONS, CLICK_SLOP, TOOLS, connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse } from "./tools";
 import { BUILTINS, SHAPE_KINDS, buildCorpus, categorize, categoryOf, defaultCollapsed, paletteRows, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
@@ -937,6 +937,16 @@ describe("toolbar tools (T26): canvas-editor EDG-01..03", () => {
     expect(t.edit).toBe(true);
     expect(placeOps(zscene, "box", at(700, 600), at(700, 600)).edit).toBe(false);
     expect(placeOps(zscene, "zone", at(700, 600), at(700, 600)).edit).toBe(false);
+  });
+
+  test("the inline editor of a placed Text uses the placed box once the scene holds the item, even without a node box", () => {
+    const t = placeOps(zscene, "text", at(700, 600), at(700, 600));
+    expect(editBoxOf(zscene, t)).toBeNull(); // not saved and rendered yet
+    // a text node renders as a plain text item: no role, no size
+    const withText: SceneJson = { ...zscene, items: [...zscene.items, { type: "text", id: t.id, x: t.box.x, y: t.box.y }] };
+    expect(boxOf(withText, t.id)).toBeNull();
+    expect(editBoxOf(withText, t)).toEqual(t.box);
+    expect(t.box).toEqual({ id: t.id, x: 590, y: 550, w: 220, h: 96 });
   });
 
   test("Zone adds a zone: default size centred on a click, the drawn rectangle on a drag", () => {

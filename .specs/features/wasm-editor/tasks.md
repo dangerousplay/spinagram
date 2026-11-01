@@ -870,12 +870,26 @@ of the following and record the result and YAML diff in notes:
 
 **Done when**:
 
-- [ ] Every step recorded with its diff; no flash recorded by the observer
-- [ ] Any bug found is fixed in this task with a test
+- [x] Every step recorded with its diff; no flash recorded by the observer
+- [x] Any bug found is fixed in this task with a test
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `test(web): toolbar and palette browser pass fixes`
+
+**Notes**: Chrome, `spinagram serve` on a git-initialised scratch copy of the whole `examples/showcase/` (port 8799, `editable_platform.yaml`), diffs from `git diff`; the observer is a `MutationObserver` on the diagram host plus a per-frame empty-host check, run with dispatched `dragstart`, `dragover` and `drop` events carrying a `DataTransfer`.
+1. Palette drag of Box, 6 dragover events: 0 mutations, 0 replacements, 0 empty frames; after the drop 1 update batch, 0 replacements, 125 of 128 elements kept, the ghost shown. YAML: `+ - {id: new-box, kind: box, title: New box, x: 300, y: 0, w: 220, h: 96}`.
+2. Palette drag of the icon Amazon Athena (aws pack, expanded from its header): same numbers (1 batch, 124 of 133 kept, 0 replacements, 0 empty frames). YAML: `+ - {id: amazon-athena, title: Amazon Athena, icon: aws:amazon-athena, x: 940, y: 800, w: 220, h: 96}` and the VPC zone's `children: [app, data]` became `[app, data, amazon-athena]` (dropped inside it).
+3. Box tool, a click then a drag: `+ - {id: new-box-2, kind: box, title: New box, x: 1620, y: 860, w: 220, h: 96}` and `+ - {id: new-box-3, kind: box, title: New box, x: 1690, y: 480, w: 180, h: 120}`; the tool went back to Select each time.
+4. Text tool (key T, click), type "Hello world", Enter: `+ - {id: new-text, kind: text, title: Hello world, x: 1390, y: 984, w: 220, h: 96}`.
+5. Zone tool (key Z, drag): `+ - {id: zone, label: Zone, x: 1110, y: 30, w: 290, h: 130}`.
+6. Connect tool (key C): a drag Users to Orders API added `+ - users -> api`; a drag from a node to empty canvas added nothing and left Connect active.
+7. Hand tool (key H): a plain drag moved the view by the drag (`translate(24px, 95px)` to `translate(-84px, 42px)`, scale unchanged). Space held in the Select tool: the cursor turned to grab and a drag panned (`23px, 85px` to `130px, 128px`); without Space the same drag on empty canvas draws a selection box. Esc returned Connect to Select.
+8. Categories: Basics 6, Shapes 12 and the packs below (ai 948, aws 807); a pack opens from its header; collapsing Basics was stored (`{"basics":true,"pack:aws":false}`) and kept after a reload; searching "bucket" gives one ranked list with the pack name on each row.
+Bugs found by the pass and fixed here, each with a test or a re-check:
+- A placed Text never opened its editor: the scene gives a `kind: text` node no box (it renders as plain text), so the lookup by node box found nothing, and the typed letters went to the canvas shortcuts. The editor now opens on the box the item was placed with once the scene holds the item (`editBoxOf`, test added).
+- Esc did not leave a tool: the `tool` step was in `escapeStep` (tested) but its handler in `DiagramView` was never wired; wired, and re-checked in the browser (Connect back to Select).
+Known limit, not changed: a text node has no box in the scene, so it cannot be selected, moved or renamed on the canvas afterwards (edit it in the YAML). The first observer run missed this iteration's toolbar icons being `svg` too; the observer now targets the diagram's svg. Gate: bun test 164 pass, build ok.
 
 ---
 
