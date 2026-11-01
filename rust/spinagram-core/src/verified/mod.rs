@@ -4,6 +4,7 @@
 
 use vstd::prelude::*;
 
+pub mod bisect;
 pub mod brackets;
 pub mod segments;
 

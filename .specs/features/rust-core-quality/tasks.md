@@ -218,9 +218,9 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Verus proves VER-04; empty slice → 0 (edge case unit test)
-- [ ] Unit test: the key conversion preserves order for negative, zero, positive and equal values
-- [ ] `route_parity.py` 100 %; gates pass
+- [x] Verus proves VER-04; empty slice → 0 (edge case unit test)
+- [x] Unit test: the key conversion preserves order for negative, zero, positive and equal values
+- [x] `route_parity.py` 100 %; gates pass
 
 **Tests**: proof + unit
 **Gate**: verus

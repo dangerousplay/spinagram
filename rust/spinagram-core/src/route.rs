@@ -7,6 +7,8 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::BinaryHeap;
 
+use crate::verified::bisect::{lower_bound, order_key};
+
 pub type Pt = (f64, f64);
 /// `(x, y, w, h)`
 pub type Rect = (f64, f64, f64, f64);
@@ -124,10 +126,6 @@ fn grid_lines(mut v: Vec<f64>) -> Vec<f64> {
     v
 }
 
-fn lower_bound(v: &[f64], x: f64) -> usize {
-    v.partition_point(|&a| a < x)
-}
-
 type Key = (usize, usize, Dir);
 
 #[derive(PartialEq)]
@@ -187,6 +185,7 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
         ys.push(gy);
     }
     let (xs, ys) = (grid_lines(xs), grid_lines(ys));
+    let (x_keys, y_keys): (Vec<u64>, Vec<u64>) = (xs.iter().map(|&v| order_key(v)).collect(), ys.iter().map(|&v| order_key(v)).collect());
     let (nx, ny) = (xs.len(), ys.len());
     let blocked: Vec<bool> = (0..nx * ny).map(|k| obs.iter().any(|&b| inside(xs[k / ny], ys[k % ny], b))).collect();
 
@@ -200,8 +199,8 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
         grown.iter().any(|&b| inside(mx, my, b))
     };
 
-    let start = (lower_bound(&xs, s_stub.0), lower_bound(&ys, s_stub.1));
-    let goal = (lower_bound(&xs, t_stub.0), lower_bound(&ys, t_stub.1));
+    let start = (lower_bound(&x_keys, s_stub.0), lower_bound(&y_keys, s_stub.1));
+    let goal = (lower_bound(&x_keys, t_stub.0), lower_bound(&y_keys, t_stub.1));
     let h0 = (xs[start.0] - xs[goal.0]).abs() + (ys[start.1] - ys[goal.1]).abs();
     let mut heap = BinaryHeap::new();
     heap.push(Reverse(Node { f: h0, g: 0.0, ij: start, d: (sdx, sdy), prev: None }));
