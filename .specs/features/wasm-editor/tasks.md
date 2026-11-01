@@ -163,14 +163,16 @@ Patches are byte ranges taken from parser spans. Pick a crate per `rust/DEPENDEN
 
 **Done when**:
 
-- [ ] Test: an empty move map returns a scene equal to the input
-- [ ] Test: after moving a node, every touching connector starts or ends on that node's boundary and no other connector changes
-- [ ] Test: for straight two-node cases from `examples/`, the rerouted connector equals the connector from a full Python render of the moved YAML (record any tolerance and why in the test)
-- [ ] Rust gate and full gate pass
+- [x] Test: an empty move map returns a scene equal to the input
+- [x] Test: after moving a node, every touching connector starts or ends on that node's boundary and no other connector changes
+- [x] Test: for straight two-node cases from `examples/`, the rerouted connector equals the connector from a full Python render of the moved YAML (record any tolerance and why in the test)
+- [x] Rust gate and full gate pass
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(rust): reroute edges of moved nodes in a scene`
+
+**Notes**: Scene JSON gained `explicit` on bindings (written only when true; schema regenerated). `_core.reroute` was added to the PyO3 crate so Python can test it end to end. Tolerance in the parity tests: 1e-9 px (same router; only last-bit float order in anchors). Limits, each recorded in the module docs of reroute.rs: zone header rects are not obstacles; connectors with a free end, bundles and bus bars are left alone; every `poly` connector is routed by the ortho router (the scene does not say elbow vs via vs ortho); `straight` connectors re-resolve facing sides but do not re-run `straight_refs`. Reroute only touches connectors whose end is on a moved shape (an obstacle moving does not reroute others). SPEC_DEVIATION: examples/software_architecture.yaml and aws_layout.yaml are engine-laid-out, so the hand-placed fixtures here and the T7 manual check use examples/decision.yaml and rust/spinagram-core/tests/data/reroute/ortho.yaml. Also added a Move-on-aws_layout test to tests/test_rust_edit.py (T3's done-when named that file).
 
 ---
 

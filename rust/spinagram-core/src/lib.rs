@@ -6,6 +6,7 @@ pub mod css;
 pub mod edit;
 pub mod font;
 pub mod pyfmt;
+pub mod reroute;
 #[cfg(feature = "png")]
 pub mod png;
 pub mod route;

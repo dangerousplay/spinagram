@@ -95,6 +95,9 @@ pub struct Binding {
     pub side: String,
     pub frac: f64,
     pub target: String,
+    /// The author fixed the side (`node.side`): routers keep it. Written only when true; absent means false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub explicit: bool,
 }
 
 /// A shape nested in another item carries its own `type` tag, as in the item list.
@@ -285,7 +288,7 @@ mod tests {
                    shape("s1"),
                    {"type": "connector", "id": "c1", "points": [[0.0, 0.0], [5.0, 5.0], [9.0, 0.0]], "route": "curve",
                     "color": "#abcdef", "width": 1.5, "dashed": false, "arrow_start": true, "arrow_end": false,
-                    "src": {"shape_id": "s1", "side": "right", "frac": 0.25, "target": "zone"}, "dst": null,
+                    "src": {"shape_id": "s1", "side": "right", "frac": 0.25, "target": "zone", "explicit": true}, "dst": null,
                     "label": shape("lab"), "dash": [3.0], "marker_start": "open-diamond", "marker_end": "bar",
                     "opacity": 0.5},
                    {"type": "text", "id": "t1", "x": 5.0, "y": 6.0, "block": block(json!(null)), "anchor": "middle",

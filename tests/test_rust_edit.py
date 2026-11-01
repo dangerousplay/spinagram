@@ -10,7 +10,6 @@ from spinagram.edit import EditError
 from spinagram.yaml_io import load_yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-HAND_PLACED = ["software_architecture.yaml"]  # examples with coordinates on every node
 
 
 def _load(tmp_path: Path, text: str):
@@ -38,6 +37,17 @@ def test_move_sets_the_node_position_and_leaves_the_others(tmp_path):
     assert got[target.id][2:] == was[target.id][2:]
     assert {k: v for k, v in got.items() if k != target.id} == {k: v for k, v in was.items() if k != target.id}
     assert len(after.edges) == len(before.edges)
+
+
+def test_move_on_aws_layout_gives_the_node_the_new_coordinates(tmp_path):
+    text = _hand_placed("aws_layout.yaml")
+    before = _load(tmp_path, text)
+    out = edit.apply_ops(text, [{"op": "move", "id": "alb", "x": 120, "y": 340}])
+    after = _load(tmp_path, out)
+    alb = next(n for n in after.nodes if n.id == "alb")
+    assert (alb.x, alb.y) == (120, 340)
+    assert {n.id: (n.x, n.y, n.w, n.h) for n in after.nodes if n.id != "alb"} == \
+        {n.id: (n.x, n.y, n.w, n.h) for n in before.nodes if n.id != "alb"}
 
 
 def test_move_changes_only_that_entry_bytes():

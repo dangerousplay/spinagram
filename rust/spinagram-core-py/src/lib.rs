@@ -11,6 +11,7 @@ use spinagram_core::font;
 use spinagram_core::css;
 use spinagram_core::edit;
 use spinagram_core::png;
+use spinagram_core::reroute as core_reroute;
 use spinagram_core::scene;
 use spinagram_core::svg::{self, DrawError};
 use spinagram_core::route::{self as core_route, Crossings, Options, Pt, Rect, Side};
@@ -173,6 +174,13 @@ fn yaml_srcmap(py: Python<'_>, yaml: &str) -> PyResult<std::collections::BTreeMa
     Ok(map.into_iter().map(|(k, [a, b])| (k, (a, b))).collect())
 }
 
+/// Move shapes in a scene (JSON) and re-route the connectors that touch them. `moves_json` maps a shape id to
+/// `[dx, dy]` or `[x, y, w, h]`. Returns the new scene JSON.
+#[pyfunction]
+fn reroute(py: Python<'_>, scene_json: &str, moves_json: &str) -> PyResult<String> {
+    py.detach(|| core_reroute::reroute(scene_json, moves_json)).map_err(PyValueError::new_err)
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Linker workaround, see rust/README.md: the macOS 27 linker writes a misaligned string table (and dyld
@@ -194,5 +202,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(render_png, m)?)?;
     m.add_function(wrap_pyfunction!(apply_ops, m)?)?;
     m.add_function(wrap_pyfunction!(yaml_srcmap, m)?)?;
+    m.add_function(wrap_pyfunction!(reroute, m)?)?;
     Ok(())
 }

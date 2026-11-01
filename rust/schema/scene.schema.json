@@ -71,6 +71,10 @@
     "Binding": {
       "type": "object",
       "properties": {
+        "explicit": {
+          "description": "The author fixed the side (`node.side`): routers keep it. Written only when true; absent means false.",
+          "type": "boolean"
+        },
         "frac": {
           "type": "number",
           "format": "double"

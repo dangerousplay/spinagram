@@ -49,7 +49,13 @@ def _icon(icon: Icon | None) -> dict[str, Any] | None:
 
 
 def _binding(b: Binding | None) -> dict[str, Any] | None:
-    return None if b is None else {"shape_id": b.shape_id, "side": b.side, "frac": b.frac, "target": b.target}
+    if b is None:
+        return None
+    # ``explicit`` (the author chose the side; set by ``engine.endpoints``, routers keep such a side) is written only when true
+    out = {"shape_id": b.shape_id, "side": b.side, "frac": b.frac, "target": b.target}
+    if b.__dict__.get("explicit", False):
+        out["explicit"] = True
+    return out
 
 
 def _shape(s: Shape) -> dict[str, Any]:
