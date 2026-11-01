@@ -3,8 +3,10 @@
 
 use pyo3::exceptions::{PyFileNotFoundError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 use spinagram_core::fit::{self, BlockSpec};
 use spinagram_core::font;
+use spinagram_core::png;
 use spinagram_core::scene;
 use spinagram_core::svg::{self, DrawError};
 use spinagram_core::route::{self as core_route, Crossings, Options, Pt, Rect, Side};
@@ -131,6 +133,14 @@ fn svg_draw(py: Python<'_>, json: &str) -> PyResult<(String, String, String, Str
     Ok((drawn.defs, drawn.back, drawn.mid, drawn.front, chars))
 }
 
+/// Render an SVG document of `width` x `height` to PNG bytes at `scale` with resvg (no browser). `font_files` are
+/// loaded before the system fonts.
+#[pyfunction]
+fn render_png<'py>(py: Python<'py>, svg: &str, width: f64, height: f64, scale: f64, font_files: Vec<String>) -> PyResult<Bound<'py, PyBytes>> {
+    let bytes = py.detach(|| png::render_png(svg, width, height, scale, &font_files)).map_err(PyValueError::new_err)?;
+    Ok(PyBytes::new(py, &bytes))
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Linker workaround, see rust/README.md: the macOS 27 linker writes a misaligned string table (and dyld
@@ -146,5 +156,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(route, m)?)?;
     m.add_function(wrap_pyfunction!(scene_roundtrip, m)?)?;
     m.add_function(wrap_pyfunction!(svg_draw, m)?)?;
+    m.add_function(wrap_pyfunction!(render_png, m)?)?;
     Ok(())
 }

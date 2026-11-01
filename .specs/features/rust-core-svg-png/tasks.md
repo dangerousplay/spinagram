@@ -256,10 +256,10 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: core active, Playwright import blocked (`sys.modules["playwright"] = None`), PNG written with the right size (PNG-01, PNG-03)
-- [ ] Test: `SPINAGRAM_PNG=chromium` calls the Playwright path (spy) (PNG-02)
-- [ ] Test: core inactive and Playwright missing → the existing RuntimeError text (PNG-06)
-- [ ] Build gate passes
+- [x] Test: core active, Playwright import blocked (`sys.modules["playwright"] = None`), PNG written with the right size (PNG-01, PNG-03)
+- [x] Test: `SPINAGRAM_PNG=chromium` calls the Playwright path (spy) (PNG-02)
+- [x] Test: core inactive and Playwright missing → the existing RuntimeError text (PNG-06)
+- [x] Build gate passes
 
 **Tests**: integration
 **Gate**: build

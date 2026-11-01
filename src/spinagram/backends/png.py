@@ -1,12 +1,20 @@
-"""PNG rendered from the SVG backend with headless Chromium (Playwright)."""
+"""PNG from the SVG backend: resvg in the Rust core (no browser), or headless Chromium (Playwright).
+
+With the Rust core active (``SPINAGRAM_RUST=1``) PNG uses resvg unless ``SPINAGRAM_PNG=chromium``. Without
+the core, or with ``SPINAGRAM_PNG=chromium``, it uses Playwright."""
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Sequence
 
+from ..rust import core
 from ..scene import Scene
+from ..text import BUNDLED
 from .svg import check_fonts, to_svg
+
+_CORE = core()
 
 
 class PngBackend:
@@ -17,6 +25,25 @@ class PngBackend:
         self.fonts = check_fonts(fonts)  # the SVG it renders embeds fonts the same way (FNT-07)
 
     def render(self, scenes: Sequence[Scene], out_dir: Path) -> list[Path]:
+        if _CORE is not None and os.environ.get("SPINAGRAM_PNG", "").lower() != "chromium":
+            return self._render_resvg(scenes, out_dir)
+        return self._render_chromium(scenes, out_dir)
+
+    def _render_resvg(self, scenes: Sequence[Scene], out_dir: Path) -> list[Path]:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        bundled = [str(p) for _, p in BUNDLED if p.exists()]
+        paths = []
+        for sc in scenes:
+            files = list(dict.fromkeys([str(f.file) for f in sc.fonts() if f.file] + bundled))
+            # resvg reads the font files itself and ignores the SVG's @font-face data; the SVG is still the one of
+            # this font mode (FNT-07)
+            png = _CORE.render_png(to_svg(sc, fonts=self.fonts), sc.width, sc.height, self.scale, files)
+            dst = out_dir / f"{sc.slug}.png"
+            dst.write_bytes(png)
+            paths.append(dst)
+        return paths
+
+    def _render_chromium(self, scenes: Sequence[Scene], out_dir: Path) -> list[Path]:
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:  # pragma: no cover
