@@ -417,8 +417,8 @@ Phase 3:  T10 -----→ T11 -----→ T12
 
 **Done when**:
 
-- [ ] With `BUSY` set to 200 (scratch check, discarded), case (a) fails; with `BUSY` set to 600, case (b) fails
-- [ ] Rust gate passes
+- [x] With `BUSY` set to 200 (scratch check, discarded), case (a) fails; with `BUSY` set to 600, case (b) fails
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust
