@@ -7,6 +7,7 @@ parity checks compare against, and runs with `SPINAGRAM_RUST=0`.
 | Crate | What it is |
 |---|---|
 | `spinagram-core` | Pure Rust library: font metrics, text measurement, wrapping and fitting (ported from `text.py` and `engine/textfit.py`), orthogonal edge routing (ported from `autolayout/route.py`), the scene model and SVG drawing (ported from `backends/svg.py`) PNG rendering with resvg, and CSS selector matching with the cascade (ported from `css.py`) |
+| `spinagram-wasm` | `wasm-bindgen` exports of the same core for the browser: `renderSvg`, `reroute`, `applyOps`, `srcmap`, `registerFont`, `registerFile`. The editor canvas runs it in a Web Worker |
 | `spinagram-core-py` | PyO3 bindings, compiled into the `spinagram` wheel as `spinagram._core` (root `pyproject.toml`, `[tool.maturin]`) |
 
 ## Build and try it
@@ -39,6 +40,27 @@ The package version comes from `pyproject.toml` only.
 
 `src/spinagram/rust.py` decides: the core is used unless `SPINAGRAM_RUST=0` (or empty). If `spinagram._core`
 cannot be imported, spinagram warns once and runs the pure-Python engine.
+
+## WebAssembly build
+
+`spinagram-wasm` is the Rust core in the browser (the rich editor: live edges while a node is dragged, edit
+operations on release). One-time setup, then a script builds it:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version "$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/[^0-9.]/,""); print}' rust/Cargo.lock)" --locked
+bash rust/spinagram-wasm/build.sh        # web/src/wasm (browser) and rust/spinagram-wasm/pkg-node (tests); both ignored by git
+cd rust/spinagram-wasm && bun test       # exports against golden files; also prints reroute + renderSvg ms per call
+cd ../../web && bun run build            # bundles the worker and the .wasm into src/spinagram/ui/static
+```
+
+The CLI must match the `wasm-bindgen` crate version in `Cargo.lock`. `spinagram-core` builds for wasm32 without
+the `png` feature (`default-features = false`) and reads no files there: fonts and icons come in as bytes
+(`font::register`, `svg::register_file`). The golden files in `rust/spinagram-wasm/tests/golden/` come from
+`SPINAGRAM_RUST=0 uv run --all-extras python rust/spinagram-wasm/tests/gen_golden.py` (drawn bodies from the
+pure-Python writer, patched YAML and source maps from the PyO3 binding); `rust/bench/reroute_fixtures.py` does the
+same for the reroute tests. The wasm is about 1.9 MB (650 KB gzipped). In the browser `renderSvg` loads fonts by
+URL and leaves out the sources metadata and content hash; the drawn layers are byte-identical to the server's.
 
 ## Slices
 

@@ -23,20 +23,61 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: wasm-bindgen CLI (the version of the wasm-bindgen crate in Cargo.lock)
+        id: wbg
+        run: echo "version=$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/[^0-9.]/,""); print}' rust/Cargo.lock)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@${{ steps.wbg.outputs.version }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
+      - name: Build spinagram-wasm (web/src/wasm, rust/spinagram-wasm/pkg-node)
+        run: bash rust/spinagram-wasm/build.sh
       - run: bun install --frozen-lockfile
         working-directory: web
       - run: bun run build # tsc -b && vite build -> src/spinagram/ui/static
         working-directory: web
-      - name: Committed bundle matches web/
+      - name: Committed bundle matches web/ (the .wasm is built per toolchain and is not compared; its name is fixed)
         run: |
-          if [ -n "$(git status --porcelain -- src/spinagram/ui/static)" ]; then
+          if [ -n "$(git status --porcelain -- src/spinagram/ui/static ':!src/spinagram/ui/static/assets/spinagram_wasm_bg.wasm')" ]; then
             git status --short -- src/spinagram/ui/static
             echo "::error::src/spinagram/ui/static is stale: run 'bun run build' in web/ and commit it"
             exit 1
           fi
+
+  wasm:
+    name: spinagram-wasm (build, bun tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: wasm-bindgen CLI (the version of the wasm-bindgen crate in Cargo.lock)
+        id: wbg
+        run: echo "version=$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/[^0-9.]/,""); print}' rust/Cargo.lock)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@${{ steps.wbg.outputs.version }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Build spinagram-wasm (web/src/wasm, rust/spinagram-wasm/pkg-node)
+        run: bash rust/spinagram-wasm/build.sh
+      - run: bun test
+        working-directory: rust/spinagram-wasm
+      - run: cargo build -p spinagram-wasm --target wasm32-unknown-unknown --release
+        working-directory: rust
 
   lint:
     name: Lint (ruff)

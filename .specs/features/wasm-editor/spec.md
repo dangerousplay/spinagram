@@ -202,8 +202,8 @@ one renderer to trust.
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
 | CTR-01 | P1: Element ids and render contract | - | Pending |
-| CTR-02 | P1: Element ids and render contract | - | Pending |
-| CTR-03 | P1: Element ids and render contract | - | Pending |
+| CTR-02 | P1: Element ids and render contract | MVP | Partial (T6: scene endpoint; render contract pending) |
+| CTR-03 | P1: Element ids and render contract | MVP | Done (T2, T3, T5: srcmap) |
 | CTR-04 | P1: Element ids and render contract | - | Pending |
 | CTR-05 | P1: Element ids and render contract | - | Pending |
 | WSM-01 | P1: Hand-placed pipeline in WASM | - | Pending |
@@ -211,20 +211,20 @@ one renderer to trust.
 | WSM-03 | P1: Hand-placed pipeline in WASM | - | Pending |
 | WSM-04 | P1: Hand-placed pipeline in WASM | - | Pending |
 | WSM-05 | P1: Hand-placed pipeline in WASM | - | Pending |
-| OPS-01 | P1: Edit operations in Rust | - | Pending |
-| OPS-02 | P1: Edit operations in Rust | - | Pending |
-| OPS-03 | P1: Edit operations in Rust | - | Pending |
-| OPS-04 | P1: Edit operations in Rust | - | Pending |
-| OPS-05 | P1: Edit operations in Rust | - | Pending |
+| OPS-01 | P1: Edit operations in Rust | MVP | Partial (T2: move, resize, rename, delete, add node, connect, disconnect; zones/groups pending) |
+| OPS-02 | P1: Edit operations in Rust | MVP | Done (T2) |
+| OPS-03 | P1: Edit operations in Rust | MVP | Done (T2) |
+| OPS-04 | P1: Edit operations in Rust | MVP | Done (T2) |
+| OPS-05 | P1: Edit operations in Rust | MVP | Partial (T3 Python, T5/T7 browser; CLI and MCP pending) |
 | DIF-01 | P1: Scene diffs to the canvas | - | Pending |
 | DIF-02 | P1: Scene diffs to the canvas | - | Pending |
 | DIF-03 | P1: Scene diffs to the canvas | - | Pending |
 | DIF-04 | P1: Scene diffs to the canvas | - | Pending |
-| LRF-01 | P2: Live reflow and smart edges | - | Pending |
+| LRF-01 | P2: Live reflow and smart edges | MVP | Partial (T4, T7: edges re-route live; zone reflow pending) |
 | LRF-02 | P2: Live reflow and smart edges | - | Pending |
 | LRF-03 | P2: Live reflow and smart edges | - | Pending |
 | LRF-04 | P2: Live reflow and smart edges | - | Pending |
-| SYN-01 | P2: Code↔canvas sync | - | Pending |
+| SYN-01 | P2: Code↔canvas sync | MVP | Done (T7: highlights when the code panel is open) |
 | SYN-02 | P2: Code↔canvas sync | - | Pending |
 | SYN-03 | P2: Code↔canvas sync | - | Pending |
 | SYN-04 | P2: Code↔canvas sync | - | Pending |
@@ -234,14 +234,14 @@ one renderer to trust.
 | AIE-01 | P2: AI edits through operations | - | Pending |
 | AIE-02 | P2: AI edits through operations | - | Pending |
 | AIE-03 | P2: AI edits through operations | - | Pending |
-| HST-01 | P1: One bundle, any host | - | Pending |
+| HST-01 | P1: One bundle, any host | MVP | Partial (T8: the wasm ships in the UI bundle) |
 | HST-02 | P1: One bundle, any host | - | Pending |
-| HST-03 | P1: One bundle, any host | - | Pending |
+| HST-03 | P1: One bundle, any host | MVP | Partial (T1, T5: shared draw stage; body byte-identical) |
 | HST-04 | P1: One bundle, any host | - | Pending |
 | HST-05 | P1: One bundle, any host | - | Pending |
 | HST-06 | P1: One bundle, any host | - | Pending |
 
-**Coverage:** 39 total, 0 mapped to tasks.
+**Coverage:** 39 total; the rich editor MVP (`tasks.md` T1-T8) covers CTR-03, OPS-02..04, SYN-01 and parts of CTR-02, OPS-01, OPS-05, LRF-01, HST-01, HST-03.
 
 ## Success Criteria
 

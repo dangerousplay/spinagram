@@ -557,3 +557,21 @@ def _fonts_of(item: dict):
     elif item["type"] == "text":
         blocks = [item["block"]]
     return [b["font"] for b in blocks]
+
+
+def test_static_wasm_is_served_as_application_wasm(env, tmp_path, monkeypatch):
+    from spinagram.ui import server
+
+    static = tmp_path / "static"
+    (static / "assets").mkdir(parents=True)
+    (static / "index.html").write_text("<html></html>")
+    (static / "assets" / "spinagram_wasm_bg.wasm").write_bytes(b"\0asm\1\0\0\0")
+    monkeypatch.setattr(server, "STATIC", static)
+    r = client(Workspace([env / "specs"])).get("/assets/spinagram_wasm_bg.wasm")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/wasm"
+
+
+def test_the_committed_bundle_ships_the_wasm_the_canvas_loads():
+    from spinagram.ui.server import STATIC
+
+    assert (STATIC / "assets" / "spinagram_wasm_bg.wasm").read_bytes()[:4] == b"\0asm"

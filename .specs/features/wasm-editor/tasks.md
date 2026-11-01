@@ -270,10 +270,13 @@ A 409 reloads and shows "File changed on disk; edit not applied". Non-editable d
 
 **Done when**:
 
-- [ ] `python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` passes, and the new job's commands run locally
-- [ ] A wheel built locally contains the `.wasm`, and serve returns it with `content-type: application/wasm`
-- [ ] Full gate, Rust gate and web gate pass
+- [x] `python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` passes, and the new job's commands run locally
+- [x] A wheel built locally contains the `.wasm`, and serve returns it with `content-type: application/wasm`
+- [x] Full gate, Rust gate and web gate pass
 
 **Tests**: none
 **Gate**: full
 **Commit**: `ci: build and test spinagram-wasm and ship it in the ui bundle`
+
+**Notes**: Wheel built with uv build contains spinagram/ui/static/assets/spinagram_wasm_bg.wasm; the sdist's workspace manifest is rewritten by maturin to drop spinagram-wasm and `cargo metadata` passes on it. serve returns application/wasm (explicit mimetypes.add_type, tested). CI: new `wasm` job; the `web` job builds the wasm first and does not compare the .wasm in the stale check (it is built per toolchain; its file name is fixed so the JS does not change). The workflow YAML parses and its commands ran locally; the taiki-e/install-action step for wasm-bindgen is not exercised until CI runs. Also restored web/.gitignore lines (node_modules/, *.tsbuildinfo) that the T5 commit had overwritten, adding src/wasm/.
+

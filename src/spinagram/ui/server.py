@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import mimetypes
 import socket
 import sys
 import threading
@@ -26,6 +27,7 @@ from .catalog import FetchConflict, Offline, PackService
 from .events import EventBus
 from .workspace import RenderError, VersionConflict, Workspace
 
+mimetypes.add_type("application/wasm", ".wasm")  # the canvas loads spinagram-wasm; browsers refuse other types
 STATIC = Path(__file__).parent / "static"
 HOSTS = ["127.0.0.1", "localhost"]
 NO_STORE = {"Cache-Control": "no-store"}
