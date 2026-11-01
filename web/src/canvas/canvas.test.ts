@@ -763,6 +763,13 @@ describe("keyboard nudge (SEL-02 polish)", () => {
     expect(plan).toEqual({ ops: [{ op: "move_zone", id: "empty", x: zb.x, y: zb.y + 10 }] });
     expect(nudgeMoves(zscene, [{ id: "outer", kind: "zone" }], pressNudge(EMPTY_BURST, 1, 0))).toEqual({ z0: [1, 0], z1: [1, 0], n1: [1, 0], n2: [1, 0] });
   });
+
+  test("row and column members are placed by their container, so a nudge leaves them alone", () => {
+    const burst = pressNudge(EMPTY_BURST, 10, 0);
+    expect(nudgeOps(gscene, [{ id: "a", kind: "node" }], burst)).toBeNull();
+    const plan = nudgeOps(gscene, [{ id: "a", kind: "node" }, { id: "f1", kind: "node" }], burst);
+    expect(plan?.ops.map((o) => ("id" in o ? o.id : null))).toEqual(["f1"]);
+  });
 });
 
 describe("escape", () => {
