@@ -3,13 +3,14 @@
 //! Every field the SVG writer reads is carried. `version` is checked on parse. Optional values are written
 //! as `null`, so a scene round-trips to an equal JSON value.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use std::collections::BTreeMap;
 
 pub const VERSION: u32 = 1;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Font {
     pub family: String,
     pub weight: u32,
@@ -21,14 +22,14 @@ pub struct Font {
 }
 
 /// A piece of a line drawn with one font. `base`: it uses the block's own font (no fallback span).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Run {
     pub text: String,
     pub font: Font,
     pub base: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TextBlock {
     pub lines: Vec<String>,
     pub paragraphs: Vec<String>,
@@ -38,7 +39,7 @@ pub struct TextBlock {
     pub runs: Option<Vec<Vec<Run>>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Label {
     pub blocks: Vec<TextBlock>,
     #[serde(rename = "box")]
@@ -48,7 +49,7 @@ pub struct Label {
     pub valign: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Icon {
     pub path: String,
     pub x: f64,
@@ -57,13 +58,13 @@ pub struct Icon {
     pub w: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Part {
     pub d: String,
     pub paint: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Shape {
     pub id: String,
     pub kind: String,
@@ -88,7 +89,7 @@ pub struct Shape {
     pub cap: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Binding {
     pub shape_id: String,
     pub side: String,
@@ -97,14 +98,14 @@ pub struct Binding {
 }
 
 /// A shape nested in another item carries its own `type` tag, as in the item list.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]
 pub enum TaggedShape {
     #[serde(rename = "shape")]
     Shape(Shape),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Connector {
     pub id: String,
     pub points: Vec<[f64; 2]>,
@@ -123,7 +124,7 @@ pub struct Connector {
     pub opacity: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Text {
     pub id: String,
     pub x: f64,
@@ -135,7 +136,7 @@ pub struct Text {
     pub width: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Line {
     pub id: String,
     pub x1: f64,
@@ -146,7 +147,7 @@ pub struct Line {
     pub width: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Image {
     pub id: String,
     pub path: String,
@@ -156,7 +157,7 @@ pub struct Image {
     pub h: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Cell {
     pub block: TextBlock,
     pub fill: Option<String>,
@@ -165,7 +166,7 @@ pub struct Cell {
     pub bold: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Table {
     pub id: String,
     pub x: f64,
@@ -177,7 +178,7 @@ pub struct Table {
     pub header_radius: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
 #[allow(clippy::large_enum_variant)] // items live in a Vec and are matched by reference
 pub enum Item {
@@ -189,7 +190,7 @@ pub enum Item {
     Table(Table),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Scene {
     pub version: u32,
     pub id: String,
@@ -218,6 +219,13 @@ pub fn parse(json: &str) -> Result<Scene, String> {
         None => return Err(format!("scene version {} is not supported (expected {VERSION})", header.version.map_or("missing".into(), |v| v.to_string()))),
     }
     serde_json::from_str(json).map_err(|e| format!("invalid scene JSON: {e}"))
+}
+
+/// The JSON Schema of the scene format, as committed in `rust/schema/scene.schema.json`.
+pub fn schema_json() -> String {
+    let mut out = serde_json::to_string_pretty(&schemars::schema_for!(Scene)).expect("a schema serializes");
+    out.push('\n');
+    out
 }
 
 pub fn to_json(scene: &Scene) -> String {
@@ -274,6 +282,20 @@ mod tests {
                     "border": "#ccc", "header_radius": 4.0}],
                "item_facts": {"s1": ["f1"]}, "sources": [{"id": "f1", "display": "é"}],
                "meta_tooltips": {"f1": "from the wiki"}})
+    }
+
+    const SCHEMA_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../schema/scene.schema.json");
+
+    /// `UPDATE_SCHEMA=1 cargo test -p spinagram-core schema` rewrites the committed file.
+    #[test]
+    fn committed_schema_is_fresh() {
+        let fresh = schema_json();
+        if std::env::var("UPDATE_SCHEMA").is_ok_and(|v| v == "1") {
+            std::fs::create_dir_all(std::path::Path::new(SCHEMA_FILE).parent().unwrap()).unwrap();
+            std::fs::write(SCHEMA_FILE, &fresh).unwrap();
+        }
+        let committed = std::fs::read_to_string(SCHEMA_FILE).expect("rust/schema/scene.schema.json is missing");
+        assert!(committed == fresh, "rust/schema/scene.schema.json is stale: run UPDATE_SCHEMA=1 cargo test -p spinagram-core schema");
     }
 
     #[test]

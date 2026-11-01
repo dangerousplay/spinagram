@@ -114,8 +114,8 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Committed schema exists; the freshness test fails when a field is added without regenerating (checked in scratch) (SCN-03)
-- [ ] Rust gate passes
+- [x] Committed schema exists; the freshness test fails when a field is added without regenerating (checked in scratch) (SCN-03)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust
