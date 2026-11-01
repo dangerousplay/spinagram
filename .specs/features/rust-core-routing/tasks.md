@@ -95,13 +95,13 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: with libyaml present, the loader class used is `yaml.CSafeLoader` (YAML-01)
-- [ ] Test: with `yaml.__with_libyaml__` patched False, `SafeLoader` is used and data equals `yaml.safe_load` on a sample with booleans (`yes`/`on`), nulls, nested maps (YAML-02)
-- [ ] Test: two `load_file` calls on an unchanged file parse once (parser spied) (YAML-03)
-- [ ] Test: changing the file's content and size, and separately only its mtime, re-parses (YAML-04, both clauses)
-- [ ] Test: mutating the returned dict does not affect the next result (YAML-05)
-- [ ] Test: empty file returns None; missing file raises `FileNotFoundError` (edge cases)
-- [ ] Quick gate passes
+- [x] Test: with libyaml present, the loader class used is `yaml.CSafeLoader` (YAML-01)
+- [x] Test: with `yaml.__with_libyaml__` patched False, `SafeLoader` is used and data equals `yaml.safe_load` on a sample with booleans (`yes`/`on`), nulls, nested maps (YAML-02)
+- [x] Test: two `load_file` calls on an unchanged file parse once (parser spied) (YAML-03)
+- [x] Test: changing the file's content and size, and separately only its mtime, re-parses (YAML-04, both clauses)
+- [x] Test: mutating the returned dict does not affect the next result (YAML-05)
+- [x] Test: empty file returns None; missing file raises `FileNotFoundError` (edge cases)
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick

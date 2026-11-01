@@ -147,11 +147,11 @@ the two implementations cannot drift.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| YAML-01 | P1: fast YAML | In Tasks | Pending |
-| YAML-02 | P1: fast YAML | In Tasks | Pending |
-| YAML-03 | P1: fast YAML | In Tasks | Pending |
-| YAML-04 | P1: fast YAML | In Tasks | Pending |
-| YAML-05 | P1: fast YAML | In Tasks | Pending |
+| YAML-01 | P1: fast YAML | In Tasks | Implementing |
+| YAML-02 | P1: fast YAML | In Tasks | Implementing |
+| YAML-03 | P1: fast YAML | In Tasks | Implementing |
+| YAML-04 | P1: fast YAML | In Tasks | Implementing |
+| YAML-05 | P1: fast YAML | In Tasks | Implementing |
 | YAML-06 | P1: fast YAML | In Tasks | Pending |
 | YAML-07 | P1: fast YAML | In Tasks | Pending |
 | YAML-08 | P1: fast YAML | In Tasks | Implementing |
