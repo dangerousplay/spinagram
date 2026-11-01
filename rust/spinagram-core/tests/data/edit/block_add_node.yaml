@@ -25,7 +25,7 @@ nodes:
     h: 60
   - id: c
     title: Gamma
-  - {id: d, title: "Delta", x: 10, y: 20, w: 100, h: 50}
+  - {id: d, title: Delta, x: 10, y: 20, w: 100, h: 50}
 
 groups:
   - id: g1

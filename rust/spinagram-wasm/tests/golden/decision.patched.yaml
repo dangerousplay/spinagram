@@ -9,7 +9,7 @@ nodes:
   - {id: known, kind: diamond, at: [520, 260, 300, 220], title: "Seen before?"}
   - {id: std, at: [1000, 260, 360, 130], title: Standard path, text: No manual step}
   - {id: tg, at: [900, 400, 360, 130], style: warning, title: Technical review, text: "Asks rollback, window, owner"}
-  - {id: extra, title: "Extra", x: 100, y: 600, w: 200, h: 100}
+  - {id: extra, title: Extra, x: 100, y: 600, w: 200, h: 100}
 edges:
   - start -> known
   - "known.right -> std.left: yes"

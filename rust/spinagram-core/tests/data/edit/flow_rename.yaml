@@ -4,7 +4,7 @@ title: Flow fixture
 nodes:
   - {id: a, title: Alpha, at: [40, 60, 120, 60]}   # first
   # between
-  - {id: b, title: "Beta 2", x: 240, y: 60}
+  - {id: b, title: Beta 2, x: 240, y: 60}
   - {id: c, title: "Gamma", at: [400, 60]}
   - {id: d, title: Delta}
 edges:

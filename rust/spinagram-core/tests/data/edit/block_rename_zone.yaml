@@ -5,7 +5,7 @@ title: Block fixture   # trailing comment
 zones:
   # the zone
   - id: zone-a
-    label: "Zone B"
+    label: Zone B
     x: 20
     y: 20
     w: 400

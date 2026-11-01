@@ -7,7 +7,7 @@ nodes:
   - {id: b, title: Beta, x: 240, y: 60}
   - {id: c, title: "Gamma", at: [400, 60]}
   - {id: d, title: Delta}
-  - {id: e, kind: note, title: "E", x: 1, y: 2}
+  - {id: e, kind: note, title: E, x: 1, y: 2}
 edges:
   - "a -> b"
   - "b -> c: next"

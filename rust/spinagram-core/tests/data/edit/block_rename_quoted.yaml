@@ -14,7 +14,7 @@ zones:
 nodes:
   # first node
   - id: a
-    title: "Alpha Prime"   # keep me
+    title: Alpha Prime   # keep me
     at: [40, 60, 120, 60]
 
   - id: b

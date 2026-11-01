@@ -586,13 +586,15 @@ finished. The behaviour reference stays the read-only `.specs/features/canvas-ed
 
 **Done when**:
 
-- [ ] Test: "Report store" is written plain; each quoting trigger above is written quoted, and every output re-parses to the exact input string (round-trip table)
-- [ ] Existing fixtures updated only where the new rule changes output
-- [ ] Rust gate and full gate pass
+- [x] Test: "Report store" is written plain; each quoting trigger above is written quoted, and every output re-parses to the exact input string (round-trip table)
+- [x] Existing fixtures updated only where the new rule changes output
+- [x] Rust gate and full gate pass
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `fix(rust): write plain yaml scalars when quoting is not needed`
+
+**Notes**: New `text_scalar(s, flow)` / `plain_safe` in edit.rs for titles, labels, icon refs and edge strings (ids keep the stricter `scalar`). Rename of a plain entry stays plain when safe; flow-ness comes from the entry. Quoting triggers: leading/trailing space, `: `, ` #`, leading indicator, trailing `:`, control characters, YAML 1.1 bool/null words, numbers (decimal, `.inf`/`.nan`, 0x, 0o, `1_000`, `1e5`, `1:30`), and `,[]{}` in flow entries. A labelled edge always contains `: ` so it stays quoted; an unlabelled edge is plain. The round-trip table test found one bug in the first draft (`.inf` written plain). Fixtures changed only where the rule changes output (6 expected files + 5 inline strings). Outside `Where`: `rust/spinagram-wasm/tests/golden/decision.patched.yaml` regenerated (`SPINAGRAM_RUST=0 ... gen_golden.py`; the scene goldens it also rewrites were left alone, they are unrelated drift). cargo 206 -> 209; pytest 2847 passed, 3 skipped per mode; bun wasm 21.
 
 ---
 

@@ -355,11 +355,40 @@ fn scalar(s: &str) -> String {
     if plain { s.to_owned() } else { quoted(s) }
 }
 
+/// Free text (a title, label or edge) as a YAML scalar: plain whenever YAML reads it back as the same string, and
+/// double-quoted otherwise. `flow` is true inside `{}` or `[]`, where `,[]{}` also end a plain scalar.
+fn text_scalar(s: &str, flow: bool) -> String {
+    if plain_safe(s, flow) { s.to_owned() } else { quoted(s) }
+}
+
+fn plain_safe(s: &str, flow: bool) -> bool {
+    const RESERVED: [&str; 11] = ["true", "false", "yes", "no", "on", "off", "y", "n", "null", "~", "="];
+    const INDICATORS: &str = "-?:,[]{}#&*!|>'\"%@`";
+    let (Some(first), Some(last)) = (s.chars().next(), s.chars().last()) else { return false };
+    if first.is_whitespace() || last.is_whitespace() || INDICATORS.contains(first) || last == ':' {
+        return false;
+    }
+    if s.chars().any(char::is_control) || s.contains(": ") || s.contains(" #") {
+        return false;
+    }
+    if flow && s.contains([',', '[', ']', '{', '}']) {
+        return false;
+    }
+    // YAML 1.1 booleans and nulls (any case), and anything that could read as a number (including 0x, 0o, 1_000,
+    // 1e5 and sexagesimal 1:30)
+    let lower = s.to_ascii_lowercase();
+    if RESERVED.contains(&lower.as_str()) || matches!(lower.trim_start_matches(['+', '-', '.']), "nan" | "inf" | "infinity") || s.parse::<f64>().is_ok() {
+        return false;
+    }
+    let numeric = |c: char| c.is_ascii_hexdigit() || matches!(c, 'x' | 'X' | 'o' | 'O' | '_' | '.' | ':' | '+' | '-');
+    !(s.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '+' | '-' | '.')) && s.chars().all(numeric))
+}
+
 /// The text that replaces the scalar `old` with the string `new`: plain stays plain when it can.
-fn replacement(old: &Node, new: &str) -> Result<String, String> {
+fn replacement(old: &Node, new: &str, flow: bool) -> Result<String, String> {
     match &old.val {
         Val::Scalar { style: ScalarStyle::Literal | ScalarStyle::Folded, .. } => fail("block scalars (| and >) are not supported"),
-        Val::Scalar { style: ScalarStyle::Plain, .. } => Ok(scalar(new)),
+        Val::Scalar { style: ScalarStyle::Plain, .. } => Ok(text_scalar(new, flow)),
         _ => Ok(quoted(new)),
     }
 }
@@ -542,9 +571,10 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
         Op::Rename { id, title } => {
             let e = find(root, id)?;
             let key = if e.zone { "label" } else { "title" };
+            let flow = matches!(e.node.val, Val::Map { flow: true, .. });
             let text = match e.node.get(key) {
-                Some(old) => replacement(old, title)?,
-                None => quoted(title),
+                Some(old) => replacement(old, title, flow)?,
+                None => text_scalar(title, flow),
             };
             set_keys(src, e.node, &[(key, text)])
         }
@@ -558,10 +588,10 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                 fields.push(format!("kind: {}", scalar(k)));
             }
             if let Some(t) = title {
-                fields.push(format!("title: {}", quoted(t)));
+                fields.push(format!("title: {}", text_scalar(t, true)));
             }
             if let Some(i) = icon {
-                fields.push(format!("icon: {}", quoted(i)));
+                fields.push(format!("icon: {}", text_scalar(i, true)));
             }
             for (k, v) in [("x", x), ("y", y), ("w", w), ("h", h)] {
                 if let Some(v) = v {
@@ -580,7 +610,7 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                 Some(l) => format!("{from} -> {to}: {l}"),
                 None => format!("{from} -> {to}"),
             };
-            append_item(src, root, "edges", &quoted(&text))
+            append_item(src, root, "edges", &text_scalar(&text, true))
         }
         Op::Disconnect { from, to } => {
             let edges = root.get("edges").ok_or_else(|| format!("no edge from `{from}` to `{to}`"))?;
@@ -745,7 +775,7 @@ fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             }
             let mut fields = vec![format!("id: {}", scalar(id))];
             if let Some(l) = label {
-                fields.push(format!("label: {}", quoted(l)));
+                fields.push(format!("label: {}", text_scalar(l, true)));
             }
             for (k, v) in [("x", x), ("y", y), ("w", w), ("h", h)] {
                 fields.push(format!("{k}: {}", num(*v)?));
@@ -1229,19 +1259,19 @@ mod tests {
     fn missing_or_empty_lists_are_created_and_flow_lists_are_edited_in_place() {
         // no edges key at all: the key is added at the end of the root
         let out = apply_ops("id: t\nnodes:\n  - {id: a}\n  - {id: b}\n", &ops(r#"[{"op":"connect","from":"a","to":"b"}]"#)).unwrap();
-        assert_eq!(out, "id: t\nnodes:\n  - {id: a}\n  - {id: b}\nedges:\n  - \"a -> b\"\n");
+        assert_eq!(out, "id: t\nnodes:\n  - {id: a}\n  - {id: b}\nedges:\n  - a -> b\n");
         // an empty value
         let out = apply_ops("id: t\nnodes:\n  - {id: a}\nedges:   # none yet\n", &ops(r#"[{"op":"connect","from":"a","to":"a"}]"#)).unwrap();
-        assert_eq!(out, "id: t\nnodes:\n  - {id: a}\nedges:   # none yet\n  - \"a -> a\"\n");
+        assert_eq!(out, "id: t\nnodes:\n  - {id: a}\nedges:   # none yet\n  - a -> a\n");
         // no nodes key: added, with the new node
         let out = apply_ops("id: t\ntitle: T", &ops(r#"[{"op":"add_node","id":"new","title":"N"}]"#)).unwrap();
         assert_eq!(out, "id: t\ntitle: T\nnodes:\n  - {id: new, title: \"N\"}");
         // flow lists
         let flow = "id: t\nnodes: [{id: a}, {id: b}]\nedges: []\n";
         let out = apply_ops(flow, &ops(r#"[{"op":"add_node","id":"c"},{"op":"connect","from":"a","to":"c"}]"#)).unwrap();
-        assert_eq!(out, "id: t\nnodes: [{id: a}, {id: b}, {id: c}]\nedges: [\"a -> c\"]\n");
+        assert_eq!(out, "id: t\nnodes: [{id: a}, {id: b}, {id: c}]\nedges: [a -> c]\n");
         let out = apply_ops(&out, &ops(r#"[{"op":"connect","from":"b","to":"c"},{"op":"delete","id":"a"}]"#)).unwrap();
-        assert_eq!(out, "id: t\nnodes: [{id: b}, {id: c}]\nedges: [\"b -> c\"]\n");
+        assert_eq!(out, "id: t\nnodes: [{id: b}, {id: c}]\nedges: [b -> c]\n");
     }
 
     #[test]
@@ -1343,7 +1373,7 @@ mod tests {
         let json = r#"[{"op":"add_node","id":"postgres","title":"Postgres","icon":"aws:rds-postgresql","x":10,"y":20,"w":220,"h":96}]"#;
         assert_eq!(
             run("flow", json),
-            expect("flow", &[("  - {id: d, title: Delta}\n", "  - {id: d, title: Delta}\n  - {id: postgres, title: \"Postgres\", icon: \"aws:rds-postgresql\", x: 10, y: 20, w: 220, h: 96}\n")])
+            expect("flow", &[("  - {id: d, title: Delta}\n", "  - {id: d, title: Delta}\n  - {id: postgres, title: Postgres, icon: aws:rds-postgresql, x: 10, y: 20, w: 220, h: 96}\n")])
         );
     }
 
@@ -1352,11 +1382,11 @@ mod tests {
         let json = r#"[{"op":"add_zone","id":"z2","label":"Z2","x":5,"y":6,"w":600,"h":400}]"#;
         assert_eq!(
             run("zones_block", json),
-            expect("zones_block", &[("    h: 300\n\nnodes:", "    h: 300\n  - {id: z2, label: \"Z2\", x: 5, y: 6, w: 600, h: 400}\n\nnodes:")])
+            expect("zones_block", &[("    h: 300\n\nnodes:", "    h: 300\n  - {id: z2, label: Z2, x: 5, y: 6, w: 600, h: 400}\n\nnodes:")])
         );
         assert_eq!(
             run("zones_flow", r#"[{"op":"add_zone","id":"zc","label":"C","x":1,"y":2,"w":3,"h":4}]"#),
-            expect("zones_flow", &[("h: 200}]", "h: 200}, {id: zc, label: \"C\", x: 1, y: 2, w: 3, h: 4}]")])
+            expect("zones_flow", &[("h: 200}]", "h: 200}, {id: zc, label: C, x: 1, y: 2, w: 3, h: 4}]")])
         );
         reject(&read("zones_block"), r#"[{"op":"add_zone","id":"inner","x":0,"y":0,"w":1,"h":1}]"#, "duplicate id `inner`");
         reject(&read("zones_block"), r#"[{"op":"add_zone","id":"n1","x":0,"y":0,"w":1,"h":1}]"#, "duplicate id `n1`");
@@ -1626,5 +1656,80 @@ mod tests {
         let map = srcmap(&y).unwrap();
         assert_eq!(&y[map["row0"][0]..map["row0"][1]], "x: 40\n    y: 500\n    gap: 30\n    nodes:\n      - e\n      - f\n      - g");
         assert_eq!(&y[map["column1"][0]..map["column1"][1]], "x: 800\n    y: 100\n    nodes: [h, i]");
+    }
+
+    /// What a YAML 1.1 reader makes of a plain scalar: `None` when it is not a plain string (bool, null, number).
+    fn plain_reads_as_string(t: &str) -> bool {
+        let l = t.to_ascii_lowercase();
+        if ["yes", "no", "on", "off", "y", "n", "true", "false", "null", "~", ""].contains(&l.as_str()) {
+            return false;
+        }
+        let digits = l.trim_start_matches(['+', '-']).replace('_', "");
+        let num = digits.parse::<f64>().is_ok()
+            || digits.starts_with("0x") && digits.len() > 2 && digits[2..].chars().all(|c| c.is_ascii_hexdigit())
+            || digits.starts_with("0o")
+            || digits.split(':').count() > 1 && digits.split(':').all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit() || c == '.'))
+            || matches!(digits.as_str(), ".inf" | ".nan" | "inf" | "nan");
+        !num
+    }
+
+    /// A one-key flow mapping and a block-list item holding `s`, read back through the parser.
+    fn round_trip(s: &str) -> (String, bool) {
+        let written = text_scalar(s, true);
+        let flow = parse_diagram(&format!("id: t\nk: {{v: {written}}}\n")).unwrap_or_else(|e| panic!("{s:?}: {e}"));
+        let back = flow.get("k").and_then(|k| k.get("v")).expect("the value");
+        let Val::Scalar { text, style } = &back.val else { panic!("{s:?} did not read back as a scalar") };
+        assert_eq!(text, s, "flow {written}");
+        let plain = *style == ScalarStyle::Plain;
+        assert!(!plain || plain_reads_as_string(text), "{s:?} written plain would not read back as a string: {written}");
+        let block = text_scalar(s, false);
+        let doc = parse_diagram(&format!("id: t\nlist:\n  - {block}\n")).unwrap_or_else(|e| panic!("{s:?}: {e}"));
+        assert_eq!(doc.get("list").unwrap().items()[0].text(), Some(s), "block {block}");
+        (written, plain)
+    }
+
+    #[test]
+    fn free_text_is_plain_when_safe_and_quoted_when_not() {
+        // plain: reads back as the same string
+        for s in ["Report store", "Alpha", "Orders DB", "3-tier web app", "Düsseldorf node", "a-b_c.d", "v1.2.3", "a:b", "50%", "it's"] {
+            let (written, plain) = round_trip(s);
+            assert!(plain, "{s:?} should be plain, got {written}");
+            assert_eq!(written, s);
+        }
+        // quoted: each trigger
+        for s in [
+            " lead", "trail ", "a: b", "a #b", "x #y", "a#b ", "- dash", "? q", ": c", "[x", "]x", "{x", "}x", ",x", "#x", "&a", "*a", "!t", "|b", ">f", "'s", "\"d", "%p", "@a", "`b",
+            "yes", "No", "ON", "off", "Y", "n", "true", "False", "null", "NULL", "~", "12", "-3", "+4", "1.5", "1e5", "0x1f", "0o17", "1_000", "1:30", ".5", ".inf", "NaN", "tab\there", "line\nbreak", "a:", "",
+        ] {
+            let (written, plain) = round_trip(s);
+            assert!(!plain, "{s:?} must be quoted, got {written}");
+            assert!(written.starts_with('"'), "{written}");
+        }
+    }
+
+    #[test]
+    fn flow_context_characters_force_quotes_only_inside_flow_entries() {
+        for s in ["a, b", "a[1]", "{x}", "p,q"] {
+            assert!(text_scalar(s, true).starts_with('"'), "{s}");
+            round_trip(s);
+        }
+        assert_eq!(text_scalar("a, b", false), "a, b");
+        assert_eq!(text_scalar("a[1]", false), "a[1]");
+    }
+
+    #[test]
+    fn ops_write_plain_scalars_for_safe_text() {
+        let y = "id: t\nnodes:\n  - {id: a, title: A}\nzones:\n  - {id: z, label: Z, x: 0, y: 0, w: 9, h: 9}\nedges: []\n";
+        let out = apply_ops(
+            y,
+            &ops(r#"[{"op":"rename","id":"a","title":"Report store"},{"op":"rename","id":"z","title":"Data tier"},{"op":"add_node","id":"n2","title":"Order events","icon":"aws:sqs"},{"op":"add_zone","id":"z2","label":"App tier","x":1,"y":2,"w":3,"h":4},{"op":"rename","id":"n2","title":"yes"}]"#),
+        )
+        .unwrap();
+        assert!(out.contains("{id: a, title: Report store}"), "{out}");
+        assert!(out.contains("label: Data tier,"), "{out}");
+        assert!(out.contains("icon: aws:sqs"), "{out}");
+        assert!(out.contains("label: App tier,"), "{out}");
+        assert!(out.contains("title: \"yes\""), "{out}");
+        parse_diagram(&out).unwrap();
     }
 }
