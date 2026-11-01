@@ -4,6 +4,8 @@
 
 use vstd::prelude::*;
 
+pub mod segments;
+
 verus! {
 
 /// The setup lemma: integer arithmetic is available to the solver.

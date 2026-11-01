@@ -6,6 +6,7 @@ use std::sync::{Arc, OnceLock};
 use regex::Regex;
 
 use crate::font::Face;
+use crate::verified;
 
 pub const BREAK_ON: &str = "-./:·";
 
@@ -161,22 +162,20 @@ impl Measurer {
     }
 }
 
-/// `token` cut after each break character that is not inside an IPv4/CIDR run.
+/// `token` cut after each break character that is not inside an IPv4/CIDR run. The cut points and the piece
+/// bounds come from the verified kernel in `verified::segments`.
 fn segments<'a>(token: &'a str, break_on: &str) -> Vec<&'a str> {
     static ATOMIC: OnceLock<Regex> = OnceLock::new();
     let atomic = ATOMIC.get_or_init(|| Regex::new(r"\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?").unwrap());
     let protected: Vec<(usize, usize)> = atomic.find_iter(token).map(|m| (m.start(), m.end())).collect();
-    let (mut out, mut start) = (Vec::new(), 0);
+    let mut can_cut = vec![false; token.len() + 1];
     for (i, ch) in token.char_indices() {
-        let cut = i + ch.len_utf8();
-        if break_on.contains(ch) && cut < token.len() && !protected.iter().any(|&(a, b)| a < cut && cut < b) {
-            out.push(&token[start..cut]);
-            start = cut;
+        if break_on.contains(ch) {
+            can_cut[i + ch.len_utf8()] = true;
         }
     }
-    out.push(&token[start..]);
-    out.retain(|s| !s.is_empty());
-    out
+    let cuts = verified::segments::cuts(token.len(), &can_cut, &protected);
+    verified::segments::bounds(token.len(), &cuts).into_iter().map(|(a, b)| &token[a..b]).filter(|s| !s.is_empty()).collect()
 }
 
 #[cfg(test)]

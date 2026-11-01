@@ -181,9 +181,9 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Verus proves VER-02's postconditions; no `assume`/`admit`/`external_body` (VER-11)
-- [ ] Rust unit test: token without break chars → no cuts (edge case)
-- [ ] `parity.py` 40512/40512; Verus + Rust gates pass
+- [x] Verus proves VER-02's postconditions; no `assume`/`admit`/`external_body` (VER-11)
+- [x] Rust unit test: token without break chars → no cuts (edge case)
+- [x] `parity.py` 40512/40512; Verus + Rust gates pass
 
 **Tests**: proof + unit
 **Gate**: verus
