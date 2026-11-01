@@ -314,8 +314,8 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] README covers what is ported, how to run both harnesses, and the measured speed-ups from T5 and T10
-- [ ] Build gate passes
+- [x] README covers what is ported, how to run both harnesses, and the measured speed-ups from T5 and T10
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
