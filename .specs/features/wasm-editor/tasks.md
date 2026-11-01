@@ -785,12 +785,14 @@ installed bun; do not hand-edit it.
 
 **Done when**:
 
-- [ ] bun test: every palette item kind and every toolbar tool has an icon (derived from the same tables the palette and toolbar use)
-- [ ] Web gate passes
+- [x] bun test: every palette item kind and every toolbar tool has an icon (derived from the same tables the palette and toolbar use)
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): icon set for canvas tools and palette items`
+
+**Notes**: `lucide-react` 1.66.0 (ISC), each icon imported by name, added with `bunx bun@1.4.2 add`. `tools.ts` was created here (the tool and action tables: ids, labels, keys) so the icon test can derive from the table T26's toolbar uses; T26 builds on it. `icons.tsx` maps tools, actions, containers and every `SHAPE_KINDS` entry; `iconNameOf(item)` gives a palette item's icon name (null for an icon-pack item, which shows its pack image). Heads-up for T26: the Connect key `c` is today the global Canvas on/off key in `DiagramView`. Gate: bun test 143 pass (+4), build ok.
 
 ---
 

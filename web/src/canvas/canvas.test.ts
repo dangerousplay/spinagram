@@ -36,7 +36,9 @@ import {
   type KeyAction,
   type KeyLike,
 } from "./interaction";
-import { buildCorpus, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
+import { CONTAINER_ICON_NAMES, hasIcon, iconNameOf, ICON_NAMES } from "./icons";
+import { ACTIONS, TOOLS } from "./tools";
+import { SHAPE_KINDS, buildCorpus, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
   width: 1000,
@@ -860,5 +862,26 @@ describe("drop ghost (T24)", () => {
   });
   test("operations that add nothing give no ghost", () => {
     expect(ghostOf([{ op: "delete", id: "a" } as never])).toBeNull();
+  });
+});
+
+describe("editor icons (T25)", () => {
+  test("every shape kind, container, tool and toolbar action has an icon", () => {
+    for (const name of [...SHAPE_KINDS, ...CONTAINER_ICON_NAMES, ...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id)]) expect(hasIcon(name)).toBe(true);
+  });
+  test("ICON_NAMES lists exactly those names", () => {
+    expect(new Set(ICON_NAMES)).toEqual(new Set([...SHAPE_KINDS, ...CONTAINER_ICON_NAMES, ...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id)]));
+  });
+  test("a palette item maps to an icon name; an icon-pack item to none", () => {
+    expect(iconNameOf({ type: "zone", title: "Zone" })).toBe("zone");
+    expect(iconNameOf({ type: "row", title: "Row" })).toBe("row");
+    expect(iconNameOf({ type: "shape", kind: "diamond", title: "Diamond" })).toBe("diamond");
+    expect(iconNameOf({ type: "icon", pack: "aws", name: "s3", ref: "aws:s3", title: "S3", aliases: [] })).toBeNull();
+    for (const kind of SHAPE_KINDS) expect(hasIcon(iconNameOf({ type: "shape", kind, title: kind })!)).toBe(true);
+  });
+  test("tool keys are single lowercase letters and unique", () => {
+    const keys = TOOLS.map((t) => t.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const k of keys) expect(k).toMatch(/^[a-z]$/);
   });
 });
