@@ -1,0 +1,7 @@
+# Two boxes with an obstacle between them and one orthogonally routed edge.
+id: RR1
+title: Reroute fixture
+nodes:
+  - {id: a, at: [100, 300, 120, 60], title: A}
+  - {id: o, at: [300, 80, 140, 90], title: Obstacle}
+edges:

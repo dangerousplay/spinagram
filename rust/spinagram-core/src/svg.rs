@@ -8,6 +8,7 @@ use crate::scene::{Cell, Connector, Font, Icon, Item, Label, Scene, Shape, Table
 use base64::Engine;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
+use std::sync::{Arc, Mutex, OnceLock};
 
 const DASH: &str = " stroke-dasharray=\"10 7\"";
 
@@ -58,6 +59,42 @@ fn marker_body(kind: &str, c: &str) -> Option<String> {
         "bar" => format!("<path d=\"M8,0 L8,10\" stroke=\"{c}\" stroke-width=\"2\"/>"),
         _ => return None,
     })
+}
+
+fn files() -> &'static Mutex<HashMap<String, Arc<Vec<u8>>>> {
+    static FILES: OnceLock<Mutex<HashMap<String, Arc<Vec<u8>>>>> = OnceLock::new();
+    FILES.get_or_init(Mutex::default)
+}
+
+/// Make the bytes of an image or icon available under `path`, so a scene that names that path draws without a
+/// file system. This is how the browser supplies icons; registered files win over files on disk.
+///
+/// # Panics
+///
+/// Only when another thread panicked while holding the registry lock.
+pub fn register_file(path: &str, bytes: &[u8]) {
+    files().lock().unwrap().insert(path.to_owned(), Arc::new(bytes.to_vec()));
+}
+
+fn read_file(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
+    if let Some(b) = files().lock().unwrap().get(path) {
+        return Ok(b.clone());
+    }
+    read_disk(path)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_disk(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
+    std::fs::read(path).map(Arc::new).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => DrawError::NotFound(path.to_string()),
+        _ => DrawError::Io(format!("{path}: {e}")),
+    })
+}
+
+/// There is no file system on wasm32: only registered files exist.
+#[cfg(target_arch = "wasm32")]
+fn read_disk(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
+    Err(DrawError::NotFound(path.to_string()))
 }
 
 fn mime(path: &str) -> &'static str {
@@ -203,11 +240,8 @@ impl<'a> Writer<'a> {
         if let Some(s) = self.images.get(path) {
             return Ok(s.clone());
         }
-        let bytes = std::fs::read(path).map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => DrawError::NotFound(path.to_string()),
-            _ => DrawError::Io(format!("{path}: {e}")),
-        })?;
-        let s = base64::engine::general_purpose::STANDARD.encode(bytes);
+        let bytes = read_file(path)?;
+        let s = base64::engine::general_purpose::STANDARD.encode(&*bytes);
         self.images.insert(path.to_string(), s.clone());
         Ok(s)
     }
@@ -440,6 +474,56 @@ impl<'a> Writer<'a> {
 /// When an image or icon file is missing or unreadable, or a curve does not have three points.
 pub fn draw(scene: &Scene, compensated_sum: bool) -> Result<Drawn, DrawError> {
     Writer::new(scene, compensated_sum).draw()
+}
+
+fn collect_block<'a>(b: &'a TextBlock, seen: &mut Vec<&'a Font>) {
+    let runs = b.runs.iter().flatten().flatten().map(|r| &r.font);
+    for f in std::iter::once(&b.font).chain(runs) {
+        if !seen.iter().any(|o| (&o.family, o.weight, o.italic) == (&f.family, f.weight, f.italic)) {
+            seen.push(f);
+        }
+    }
+}
+
+/// Distinct fonts of a scene, in the order `Scene.fonts()` finds them (labels, texts, connector labels, tables).
+#[must_use]
+pub fn scene_fonts(scene: &Scene) -> Vec<&Font> {
+    let mut seen: Vec<&Font> = Vec::new();
+    for it in &scene.items {
+        match it {
+            Item::Shape(s) => s.label.iter().flat_map(|l| &l.blocks).for_each(|b| collect_block(b, &mut seen)),
+            Item::Text(t) => collect_block(&t.block, &mut seen),
+            Item::Connector(c) => {
+                if let Some(crate::scene::TaggedShape::Shape(s)) = &c.label {
+                    s.label.iter().flat_map(|l| &l.blocks).for_each(|b| collect_block(b, &mut seen));
+                }
+            }
+            Item::Table(t) => t.cells.iter().flatten().for_each(|c| collect_block(&c.block, &mut seen)),
+            _ => {}
+        }
+    }
+    seen
+}
+
+/// A standalone SVG document around the drawn layers, for the browser: faces are `@font-face` rules that
+/// load `{font_base}{file name}` (no embedded subsets), and the sources metadata and content hash are left
+/// out. The layers (`back`, `mid`, `front`) are byte-identical to the server's.
+#[must_use]
+pub fn document(scene: &Scene, drawn: &Drawn, font_base: &str) -> String {
+    let faces: String = scene_fonts(scene)
+        .iter()
+        .filter_map(|f| {
+            let file = f.file.as_deref()?;
+            let name = std::path::Path::new(file).file_name()?.to_str()?;
+            Some(format!(
+                "@font-face{{font-family:'{}';src:url({font_base}{name});font-weight:{};font-style:{}}}",
+                f.family, f.weight, if f.italic { "italic" } else { "normal" }))
+        })
+        .collect();
+    let (w, h) = (g(scene.width), g(scene.height));
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {w} {h}\" width=\"{w}\" height=\"{h}\"><title>{}</title><defs><style>{}</style>{}</defs><rect width=\"{w}\" height=\"{h}\" fill=\"{}\"/>{}{}{}</svg>",
+        esc(&scene.title), esc(&faces), drawn.defs, scene.background, drawn.back, drawn.mid, drawn.front)
 }
 
 #[cfg(test)]

@@ -1,0 +1,1 @@
+[{"op": "move", "id": "std", "x": 1000, "y": 260}, {"op": "rename", "id": "known", "title": "Seen before?"}, {"op": "add_node", "id": "extra", "title": "Extra", "x": 100, "y": 600, "w": 200, "h": 100}, {"op": "connect", "from": "start", "to": "extra", "label": "new"}, {"op": "disconnect", "from": "tg", "to": "cab"}, {"op": "delete", "id": "cab"}]

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["spinagram-core", "spinagram-core-py"]
+members = ["spinagram-core", "spinagram-core-py", "spinagram-wasm"]
 
 [workspace.package]
 version = "0.1.0"
