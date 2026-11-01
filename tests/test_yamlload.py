@@ -92,3 +92,15 @@ def test_theme_data_mutation_does_not_leak_to_next_load():  # YAML-05 (theme sid
     first.data["_css"].append("/nope.css")
     first.data["added"] = 1
     assert yaml.safe_dump(Theme.load("default").data) == before
+
+
+def test_spec_files_stay_on_the_strict_loader(tmp_path):  # YAML-01 clause 2 (spec files)
+    from spinagram.yaml_io import load
+
+    spec = tmp_path / "s.yaml"
+    spec.write_text("id: X\ntitle: t\nnodes:\n  - {id: a, text: hi, x: 0, y: 0, w: 10, h: 10}\n")
+    with mock.patch.object(yaml, "load", wraps=yaml.load) as spy:
+        load(spec)
+    loaders = [c.kwargs.get("Loader") or c.args[1] for c in spy.call_args_list]
+    assert loaders and all(ldr is yaml.SafeLoader for ldr in loaders)
+    assert yaml.CSafeLoader not in loaders

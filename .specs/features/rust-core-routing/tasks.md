@@ -164,11 +164,11 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: loading a spec file through `yaml_io` uses `yaml.SafeLoader`, not `CSafeLoader` (spy), even with libyaml available (YAML-01 clause 2)
-- [ ] `src/spinagram/yaml_io.py` unchanged; `test_yaml_pitfalls_are_reported` passes
-- [ ] `bash rust/bench/render_all.sh` output equals the T1 baseline (`diff -r` empty) (YAML-08)
-- [ ] Speed measured and recorded in the commit body: 1545 ms at `5f33d46` → after T4 (best of 3, warm)
-- [ ] Build gate passes (full pytest, pure Python)
+- [x] Test: loading a spec file through `yaml_io` uses `yaml.SafeLoader`, not `CSafeLoader` (spy), even with libyaml available (YAML-01 clause 2)
+- [x] `src/spinagram/yaml_io.py` unchanged; `test_yaml_pitfalls_are_reported` passes
+- [x] `bash rust/bench/render_all.sh` output equals the T1 baseline (`diff -r` empty) (YAML-08)
+- [x] Speed measured and recorded in the commit body: 1545 ms at `5f33d46` → after T4 (best of 3, warm)
+- [x] Build gate passes (full pytest, pure Python)
 
 **Tests**: unit
 **Gate**: build
