@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/wasm-editor/spec.md`
-**Status**: Ready
+**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) ready
 
 **MVP scope (decided by the orchestrator, 2026-11-01).** The full YAML → scene port is months of work and stays
 out of this MVP. The MVP proves the architecture end to end with the Rust pieces that exist plus one new one:
@@ -71,6 +71,24 @@ T3 → T4 → T5 → T6
 
 ```
 T6 → T7 → T8
+```
+
+### Phase 4: Editing model (Rust)
+
+```
+T8 → T9 → T10 → T11
+```
+
+### Phase 5: Canvas interactions
+
+```
+T11 → T12 → T13 → T14 → T15
+```
+
+### Phase 6: Showcase and delivery
+
+```
+T15 → T16 → T17
 ```
 
 ---
@@ -280,3 +298,223 @@ A 409 reloads and shows "File changed on disk; edit not applied". Non-editable d
 
 **Notes**: Wheel built with uv build contains spinagram/ui/static/assets/spinagram_wasm_bg.wasm; the sdist's workspace manifest is rewritten by maturin to drop spinagram-wasm and `cargo metadata` passes on it. serve returns application/wasm (explicit mimetypes.add_type, tested). CI: new `wasm` job; the `web` job builds the wasm first and does not compare the .wasm in the stale check (it is built per toolchain; its file name is fixed so the JS does not change). The workflow YAML parses and its commands ran locally; the taiki-e/install-action step for wasm-bindgen is not exercised until CI runs. Also restored web/.gitignore lines (node_modules/, *.tsbuildinfo) that the T5 commit had overwritten, adding src/wasm/.
 
+
+---
+
+## Second iteration scope (orchestrator, 2026-11-01)
+
+The user asked for the next features: an editable showcase, dragging (zones, palette drop) and grouping. Behaviour
+follows the untracked `.specs/features/canvas-editor/spec.md` (ZON-*, GRP-*, PAL-*, SEL-01/09). **That file belongs
+to the user and is read-only: cite its IDs, never edit it.** Layout stays in Python. Live previews in the browser
+use `reroute` (moves of several shapes); container reflow shows after release.
+
+---
+
+### T9: Reach the re-parse guard through apply_ops
+
+**What**: Close the surviving mutant M3 (validation.md). Add a test that drives `apply_ops` into a patch that fails to re-parse, through a test-only seam if no real input can. If none exists and the guard is provably unreachable, document why in a comment and keep a seam test that asserts `apply_ops` calls the guard.
+**Where**: `rust/spinagram-core/src/edit.rs`
+**Depends on**: T8
+**Reuses**: `checked`, the existing test helpers
+**Requirement**: OPS-02, OPS-03
+
+**Done when**:
+
+- [ ] Test: removing the `checked(...)` call in `apply_ops` makes a test fail (re-run mutant M3 in a scratch worktree, never `git stash`)
+- [ ] Rust gate passes
+
+**Tests**: unit
+**Gate**: rust
+**Commit**: `test(rust): reach the yaml re-parse guard through apply_ops`
+
+---
+
+### T10: Zone and container operations in Rust
+
+**What**: New operations in `edit.rs`, with the same byte-preserving patch rules:
+- AddZone (`label`, `x`, `y`, `w`, `h`; unique id).
+- Reparent (node or zone into a zone, or out to top level). It updates the zone `children` list or the node's `in:` key, whichever form the file uses; a zone cannot become its own ancestor (ZON-05).
+- MoveZone, which moves the zone and every child node and child zone by the same offset in one patch set (ZON-04).
+- Group (`axis` row or column, member ids ordered by x or y, `gap` 20, at the selection's top-left; appends to `rows:` or `columns:`) (GRP-01).
+- Ungroup (removes the container; each member gets its rendered `x`/`y`/`w`/`h` passed in the op) (GRP-04).
+- AddToContainer (at an index) and RemoveFromContainer. A container left with fewer than 2 members dissolves as in Ungroup (GRP-02, GRP-03, GRP-05).
+- SetContainer (`gap`, `align`) (GRP-06).
+
+Ops JSON shapes are documented in `src/spinagram/edit.py`.
+**Where**: `rust/spinagram-core/src/edit.rs`, `rust/spinagram-core/tests/data/edit/`, `src/spinagram/edit.py`, `tests/test_rust_edit.py`
+**Depends on**: T9
+**Reuses**: `set_keys`, `remove_items`, `append_item`, fixtures
+**Requirement**: OPS-01 (zone and group ops), canvas-editor ZON-04, ZON-05, GRP-01..06
+
+**Done when**:
+
+- [ ] Test per operation on commented block and flow fixtures: the output equals a hand-written expected file
+- [ ] Test: Reparent into a descendant zone is rejected with "A zone cannot contain itself"
+- [ ] Test: removing the second-to-last member dissolves the container and writes the members' boxes
+- [ ] Python test: every patched fixture loads through `yaml_io` and the diagram has the expected zone children and containers
+- [ ] Rust gate and full gate pass
+
+**Tests**: unit
+**Gate**: full
+**Commit**: `feat(rust): zone and row/column edit operations`
+
+---
+
+### T11: Make container diagrams canvas-editable
+
+**What**: `canvas_editable` accepts diagrams with row/column containers. The scene JSON carries what the canvas needs: each container's id, axis, member ids and box, and each zone's id and child ids (extend `scene_json.py`, the schema and `scene.rs` together). Container members cannot be free-moved: dragging one inside its container reorders it, dragging it out removes it.
+**Where**: `src/spinagram/ui/workspace.py`, `src/spinagram/scene_json.py`, `rust/schema/scene.schema.json`, `rust/spinagram-core/src/scene.rs`, `tests/test_ui.py`, `tests/test_scene_json.py`
+**Depends on**: T10
+**Reuses**: `scene.rows`, `scene.zone_children` (already on `Scene`)
+**Requirement**: CTR-02 (partial), canvas-editor GRP-02/03
+
+**Done when**:
+
+- [ ] Test: a hand-placed YAML with a row is editable; Python and engine layouts still are not
+- [ ] Test: scene JSON lists containers (id, axis, members, box) and zone children, and validates against the schema
+- [ ] Rust `scene_roundtrip` still round-trips every example scene byte-for-byte
+- [ ] Full gate passes
+
+**Tests**: integration
+**Gate**: full
+**Commit**: `feat: canvas editing for diagrams with rows and columns`
+
+---
+
+### T12: Zone dragging on the canvas
+
+**What**:
+- Dragging a zone moves its children live (one `reroute` move map holding the zone, its child shapes and their text and icon items), and release sends MoveZone.
+- While a node or zone is dragged, the innermost zone under its centre is highlighted as the drop target (ZON-06). On release a change of zone sends Reparent together with the Move in one batch (ZON-02, ZON-03, ZON-05 message).
+- Double-clicking a zone header edits its label inline (ZON-07); double-clicking a node edits its title (SEL-05).
+**Where**: `web/src/canvas/*.ts(x)`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T11
+**Reuses**: `useCanvas`, `drag.ts`, `ops.ts`, `reroute`
+**Requirement**: canvas-editor ZON-02..07, SEL-05; LRF-02 (zone part)
+
+**Done when**:
+
+- [ ] bun tests: drop-target selection (innermost zone, none outside); the batch for a reparenting move; the zone move map includes child items; refusal when dropping a zone into its own descendant
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): drag zones and drop nodes into zones`
+
+---
+
+### T13: Multi-select and grouping on the canvas
+
+**What**:
+- Shift+click toggles a node in the selection, and dragging on empty canvas rubber-band selects (SEL-01).
+- A selection moves together (one batch) and deletes together.
+- With ≥ 2 nodes selected, "Group as row" (Ctrl/Cmd+G) and "Group as column" send Group.
+- With a container selected, "Ungroup" and a small property bar for `gap` and `align` (GRP-06).
+- Dragging a node onto a container inserts it at the gap its centre falls in, and dragging a member out removes it (GRP-02, GRP-03).
+**Where**: `web/src/canvas/*.ts(x)`, `web/src/DiagramView.tsx`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T12
+**Reuses**: T12 drag code, the T10 ops
+**Requirement**: canvas-editor SEL-01, SEL-02 (move part), SEL-06, GRP-01..06
+
+**Done when**:
+
+- [ ] bun tests: rubber-band hit set; members ordered by x (row) or y (column); insertion index from the drop point; a multi-move batch; Ungroup op carries the rendered boxes
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): multi-select and row/column grouping on the canvas`
+
+---
+
+### T14: Icon palette with search and drop
+
+**What**: A palette panel on the canvas.
+- Fuzzy search over the icons of every cached pack (names, aliases, pack name), the built-in shapes and the items Zone, Row and Column. Pick a small fuzzy library (uFuzzy or Fuse.js) for the web app.
+- `/` or Ctrl/Cmd+K focuses it, ↑/↓ move, and Enter adds at the canvas centre (PAL-03).
+- Dropping an icon adds a node with `icon: <pack>:<name>`, the title as the display name, `w: 220, h: 96`, centred on the drop point and snapped (PAL-04). Dropping a shape adds a node of that kind (PAL-05), and Zone adds a zone (ZON-01).
+- Uncached packs are listed under "Not downloaded" with a Fetch action, never fetched automatically (PAL-06). No match shows "No icons match '<query>'" (PAL-07).
+- New ids are kebab-case titles with `-2`, `-3` … suffixes.
+**Where**: `web/src/canvas/palette*.ts(x)`, `web/src/canvas/canvas.test.ts`, `web/package.json`
+**Depends on**: T13
+**Reuses**: `/api/packs`, `/api/packs/{name}/icons`, `PackView` icon rendering
+**Requirement**: canvas-editor PAL-01..07, ZON-01
+
+**Done when**:
+
+- [ ] bun tests: "postgress" ranks `postgres` first; one typo tolerated for queries of ≥ 4 characters; the id scheme; AddNode op from a drop; the no-match message
+- [ ] bun benchmark test: search over a 10,000-icon synthetic corpus, p95 ≤ 100 ms (PAL-01)
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): icon palette with fuzzy search and drop`
+
+---
+
+### T15: Undo and redo
+
+**What**: Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z undo and redo canvas edits of this page session, 50 steps, each as a new save through the version-checked save path. A 409 clears the stack and reloads (SEL-09).
+**Where**: `web/src/canvas/history.ts`, `web/src/canvas/useCanvas.ts`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T14
+**Reuses**: the save path in `useCanvas`
+**Requirement**: canvas-editor SEL-09
+
+**Done when**:
+
+- [ ] bun tests: the 50-step cap; redo cleared after a new edit; undo restores the exact prior text
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): undo and redo for canvas edits`
+
+---
+
+### T16: Editable showcase example
+
+**What**: A hand-placed, canvas-editable showcase in YAML that looks like the other showcase diagrams:
+- 2–3 nested zones;
+- at least one row and one column;
+- about 10 icon nodes from cached-by-default packs;
+- labelled edges and a stylesheet.
+
+Add it to the examples index and docs gallery the way other showcase files are, and make sure it renders in every backend test that renders examples.
+**Where**: `examples/showcase/editable_platform.yaml` (+ `.css` if needed), docs gallery entry, `tests/test_ui.py`
+**Depends on**: T15
+**Reuses**: `examples/showcase/*.css` styles, `rust/bench/render_all.sh`
+**Requirement**: canvas-editor goal (10-node, 2-zone, 6-edge build)
+
+**Done when**:
+
+- [ ] Test: the scene endpoint reports it editable
+- [ ] `spinagram check` reports no errors on it
+- [ ] Manual check in Chrome with `spinagram serve` on a scratch copy covers: drag a node between zones; drag a zone (children follow); group two nodes as a row and ungroup; drop a palette icon; undo; delete. Each step's YAML diff touches only the expected lines. Record the result in notes
+- [ ] Full gate and web gate pass
+
+**Tests**: integration
+**Gate**: full
+**Commit**: `feat(examples): editable platform showcase for the canvas`
+
+---
+
+### T17: Bundle, docs and traceability
+
+**What**:
+- Rebuild the committed UI bundle.
+- Document canvas editing (what is editable, shortcuts, palette, grouping, undo) in the docs live-editor page.
+- Update `rust/README.md` for the new ops.
+- Update `spec.md` traceability for the wasm-editor IDs covered.
+**Where**: `src/spinagram/ui/static/`, `docs/content/docs/` (live editor page), `rust/README.md`, `.specs/features/wasm-editor/spec.md`
+**Depends on**: T16
+**Reuses**: the T8 bundle steps
+**Requirement**: HST-01 (partial)
+
+**Done when**:
+
+- [ ] The rebuilt bundle is committed and CI's stale-bundle check passes locally
+- [ ] Full gate, Rust gate, WASM gate and web gate pass
+
+**Tests**: none
+**Gate**: full
+**Commit**: `docs: canvas editing guide and rebuilt ui bundle`
