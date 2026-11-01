@@ -38,6 +38,7 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(true);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
 
@@ -62,8 +63,11 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
 
   useEffect(() => {
     focusRef.current = () => {
-      input.current?.focus();
-      input.current?.select();
+      setOpen(true);
+      setTimeout(() => {
+        input.current?.focus();
+        input.current?.select();
+      }, 0);
     };
     return () => {
       focusRef.current = null;
@@ -101,6 +105,18 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
     }
   };
 
+  if (!open) {
+    return (
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => setOpen(true)}
+        className="absolute top-3 left-3 z-10 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-lg ring-1 ring-black/10 hover:bg-white dark:bg-slate-800/95 dark:text-slate-200"
+        title="Show the palette ( / )"
+      >
+        Palette
+      </button>
+    );
+  }
   return (
     <div
       className="absolute top-3 left-3 bottom-16 z-10 flex w-72 flex-col overflow-hidden rounded-lg bg-white/95 text-slate-700 shadow-lg ring-1 ring-black/10 dark:bg-slate-800/95 dark:text-slate-200"
@@ -108,6 +124,14 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
       onDoubleClick={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
+      <button
+        onClick={() => setOpen(false)}
+        aria-label="Hide the palette"
+        title="Hide the palette"
+        className="absolute top-2 right-2 z-10 rounded px-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+      >
+        «
+      </button>
       <input
         ref={input}
         value={query}
@@ -115,7 +139,7 @@ export default function PalettePanel({ rev, focusRef, onAdd }: Props) {
         onKeyDown={onKey}
         placeholder="Search icons and shapes ( / )"
         aria-label="Search the palette"
-        className="m-2 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+        className="m-2 mr-8 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
       />
       <ul ref={list} className="min-h-0 flex-1 overflow-y-auto px-1 pb-1" role="listbox" aria-label="Palette results">
         {results.map((it, i) => (

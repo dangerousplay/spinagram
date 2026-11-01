@@ -501,14 +501,18 @@ Add it to the examples index and docs gallery the way other showcase files are, 
 
 **Done when**:
 
-- [ ] Test: the scene endpoint reports it editable
-- [ ] `spinagram check` reports no errors on it
-- [ ] Manual check in Chrome with `spinagram serve` on a scratch copy covers: drag a node between zones; drag a zone (children follow); group two nodes as a row and ungroup; drop a palette icon; undo; delete. Each step's YAML diff touches only the expected lines. Record the result in notes
-- [ ] Full gate and web gate pass
+- [x] Test: the scene endpoint reports it editable
+- [x] `spinagram check` reports no errors on it
+- [x] Manual check in Chrome with `spinagram serve` on a scratch copy covers: drag a node between zones; drag a zone (children follow); group two nodes as a row and ungroup; drop a palette icon; undo; delete. Each step's YAML diff touches only the expected lines. Record the result in notes
+- [x] Full gate and web gate pass
 
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat(examples): editable platform showcase for the canvas`
+
+**Notes**: `examples/showcase/editable_platform.yaml` (+ `.css`; id EDIT01): zones region > vpc > app/data (3 levels), a row (users, cdn), a column (alb, api, worker), 10 icon nodes from aws/network packs, 9 labelled `route: ortho` edges; `spinagram check` reports 0 issues (a `layout:` key would make it an engine layout, so edges are routed per edge instead). The edges still share trunks in places (ortho routing of hand-placed boxes). Docs: gallery view `edit01` in `docs/lib/showcase.ts`, a section in `examples/architecture.mdx`, asset `docs/public/assets/gallery/edit01.svg`. Outside `Where`: the tests that enumerate the showcase folder were updated for the new file (tests/test_metadata.py: EDIT01 is category AWS, 3 diagrams in `--category aws`), the css skill's bundled examples mirror it (`agent_skills/spinagram-css/examples/`, required by `test_css_examples_match_the_repository_showcase`), and the source-map example tests skip container keys (`row0`, `column1` have no id). The palette gained a hide/show button (`PalettePanel.tsx`) after the manual check showed it covers a small viewport. 2847 passed, 3 skipped per mode.
+
+Manual check (Chrome via claude-in-chrome, `spinagram serve` on a git-tracked scratch copy, port 8794, diffs read with `git diff` after each step): (1) dragging Orders DB onto the column container made it join the column (`nodes: [alb, api, db, worker]`, only that line changed), and Ctrl/Cmd+Z restored the file exactly; (2) dragging Session cache from the data tier into the region left the data tier: `children: [db, cache]` -> `[db]`, region `children` gained `cache`, and `cache`'s `at` changed, nothing else; (3) dragging the Data tier header moved the zone x 500 -> 610 and Orders DB x 540 -> 650 (children follow), nothing else; (4) shift-click Order events and Reports then Ctrl/Cmd+G added `- {x: 960, y: 570, gap: 20, nodes: [queue, bucket]}` to `rows`; (5) selecting that row (click in the gap) showed the Ungroup / Gap bar and Ungroup removed it, writing `bucket`'s box (`at: [1200, 570, 220, 96]`); (6) the palette (search "termin", Enter) appended `{id: terminal, title: "Terminal", icon: "selfhosted:terminal", x: 850, y: 490, w: 220, h: 96}` and added `terminal` to region `children`; (7) Ctrl/Cmd+Z removed both; (8) Delete on Monitoring removed the node, its edge and its id in region `children`. Not exercised by hand: inline rename (double-click), the rubber band, the zone-into-descendant refusal (bun-tested), the container property bar's gap field, and palette drag and drop (synthetic drags do not drive HTML5 drag events; Enter is covered).
 
 ---
 

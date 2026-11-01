@@ -1,0 +1,10 @@
+/* Zone tints for editable_platform.yaml, layered on showcase.css and aws.css. */
+zone.region        { fill: #F8FAFC; stroke: #94A3B8; stroke-dasharray: 8 5; border-radius: 22px; }
+zone.region::label { color: #475569; }
+zone.vpc           { fill: #EFF6FF; stroke: #147EBA; border-radius: 18px; }
+zone.vpc::label    { color: #1E40AF; }
+zone.app           { fill: #F0FDF4; stroke: var(--storage); border-radius: 16px; }
+zone.app::label    { color: #3F6212; }
+zone.data          { fill: #FAF5FF; stroke: var(--database); border-radius: 16px; }
+zone.data::label   { color: #86198F; }
+edge.metrics       { stroke-dasharray: 6 4; }

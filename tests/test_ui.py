@@ -545,6 +545,21 @@ def test_scene_endpoint_lists_containers_and_zone_children(env):
     assert row["box"] == [x0, y0, x1 - x0, y1 - y0] and row["box"][0] == 100 and row["box"][1] == 600
 
 
+def test_the_editable_showcase_example_is_canvas_editable(tmp_path):
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "examples" / "showcase"
+    ws = Workspace([root])
+    key = next(k for k in ws.all_keys() if k.startswith("editable_platform.yaml"))
+    body = client(ws).get(f"/api/diagrams/{key.replace('#', '%23')}.scene").json()
+    assert body["editable"] is True
+    scene = body["scene"]
+    assert [z["id"] for z in scene["zones"]] == ["region", "vpc", "app", "data"]
+    assert {c["id"]: c["axis"] for c in scene["containers"]} == {"row0": "row", "column1": "column"}
+    nodes = [i for i in scene["items"] if i["type"] == "shape" and i["role"] == "node"]
+    assert len(nodes) == 10 and sum(1 for i in scene["items"] if i["type"] == "connector") == 9
+
+
 def test_scene_endpoint_unknown_key_is_404_and_a_broken_spec_is_422(env):
     (env / "specs" / "bad.yaml").write_text("id: BD\ntitle: bad\nnodes:\n  - {id: a, x: 1, y: 1, w: 10, h: 10, bogus: 1}\n")
     c = client(Workspace([env / "specs"]))

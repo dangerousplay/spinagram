@@ -1,0 +1,41 @@
+# A hand-placed diagram made to be edited on the canvas (`spinagram serve`, Canvas): three nested zones, a row, a
+# column, ten icon nodes and labelled edges. Drag nodes between zones, drag a zone to move its children, group
+# nodes as a row or a column, drop icons from the palette. Render: spinagram render examples/showcase/editable_platform.yaml
+id: EDIT01
+title: Editable platform
+subtitle: Hand-placed on a grid, so every node, zone and group can be moved on the canvas
+stylesheets: [showcase.css, aws.css, editable_platform.css]
+
+zones:
+  - {id: region, label: "AWS · eu-west-1", class: region, x: 56, y: 190, w: 1300, h: 870, children: [vpc, users, cdn, queue, bucket, monitor]}
+  - {id: vpc, label: "VPC 10.0.0.0/16", class: vpc, x: 96, y: 420, w: 770, h: 620, children: [app, data]}
+  - {id: app, label: "App tier", class: app, x: 136, y: 500, w: 330, h: 500, children: [alb, api, worker]}
+  - {id: data, label: "Data tier", class: data, x: 500, y: 500, w: 330, h: 340, children: [db, cache]}
+
+nodes:
+  - {id: users, title: Users, text: Browsers and apps, icon: "network:internet", class: external}
+  - {id: cdn, title: CloudFront, text: Edge cache and TLS, icon: "aws:cloudfront", class: edge-service}
+  - {id: alb, title: Load balancer, text: Application LB, icon: "aws:elastic-load-balancing", class: load-balancer}
+  - {id: api, title: Orders API, text: ECS service, icon: "aws:amazon-elastic-container-service", class: app-tier}
+  - {id: worker, title: Billing worker, text: Lambda, icon: "aws:aws-lambda", class: app-tier}
+  - {id: db, title: Orders DB, text: Aurora PostgreSQL, at: [540, 570, 220, 96], icon: "aws:amazon-aurora", class: database}
+  - {id: cache, title: Session cache, text: ElastiCache, at: [540, 700, 220, 96], icon: "aws:elasti-cache", class: database}
+  - {id: queue, title: Order events, text: SQS, at: [960, 570, 220, 96], icon: "aws:amazon-simple-queue-service", class: app-tier}
+  - {id: bucket, title: Reports, text: S3, at: [960, 760, 220, 96], icon: "aws:amazon-simple-storage-service", class: storage}
+  - {id: monitor, title: Monitoring, text: CloudWatch, at: [960, 900, 220, 96], icon: "aws:cloud-watch", class: edge-service}
+
+rows:
+  - {x: 96, y: 270, gap: 120, nodes: [users, cdn]}
+columns:
+  - {x: 176, y: 560, gap: 70, nodes: [alb, api, worker]}
+
+edges:
+  - {from: users, to: cdn, label: HTTPS, route: ortho}
+  - {from: cdn, to: alb, label: origin, route: ortho}
+  - {from: alb, to: api, label: forward, route: ortho}
+  - {from: api, to: queue, label: publish, route: ortho}
+  - {from: queue, to: worker, label: consume, route: ortho}
+  - {from: api, to: cache, label: sessions, route: ortho}
+  - {from: api, to: db, label: SQL, route: ortho}
+  - {from: worker, to: bucket, label: reports, route: ortho}
+  - {from: api, to: monitor, label: metrics, route: ortho}

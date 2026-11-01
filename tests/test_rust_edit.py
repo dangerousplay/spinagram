@@ -128,6 +128,12 @@ def test_invalid_op_raises_edit_error_with_the_rust_reason():
         edit.srcmap("a: [1")
 
 
+def _is_container(key: str) -> bool:
+    import re
+
+    return re.fullmatch(r"(row|column)\d+", key) is not None
+
+
 @pytest.mark.parametrize("name", sorted(str(p.relative_to(ROOT / "examples")) for p in (ROOT / "examples").rglob("*.yaml")))
 def test_srcmap_slices_parse_back_for_every_example(name):
     import yaml
@@ -142,7 +148,9 @@ def test_srcmap_slices_parse_back_for_every_example(name):
         piece = raw[a:b].decode()
         value = yaml.safe_load(piece)
         assert value is not None, (key, piece)
-        if not key.startswith("e"):
+        if _is_container(key):  # row0, column1: the entry of a `rows`/`columns` list, no id of its own
+            assert isinstance(value, dict) and "nodes" in value
+        elif not key.startswith("e"):
             assert isinstance(value, dict) and str(value["id"]) == key
 
 
@@ -151,7 +159,7 @@ def test_every_element_of_every_example_survives_edits(name, tmp_path):
     """Move, resize and rename each node and zone of each example: the result still loads in ``yaml_io``."""
     text = _hand_placed(name)
     try:
-        ids = [i for i in edit.srcmap(text) if not (i[0] == "e" and i[1:].isdigit())]
+        ids = [i for i in edit.srcmap(text) if not (i[0] == "e" and i[1:].isdigit()) and not _is_container(i)]
     except EditError:
         pytest.skip("not a single-document mapping")
     for i in ids:
