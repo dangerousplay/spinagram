@@ -635,12 +635,14 @@ finished. The behaviour reference stays the read-only `.specs/features/canvas-ed
 
 **Done when**:
 
-- [ ] bun tests: nudge op batching (a burst of 5 presses → one Move per node with the summed offset); Esc restores the pre-drag scene; the shortcuts list includes every bound key (derived from one keymap table that the handlers also use)
-- [ ] Web gate passes
+- [x] bun tests: nudge op batching (a burst of 5 presses → one Move per node with the summed offset); Esc restores the pre-drag scene; the shortcuts list includes every bound key (derived from one keymap table that the handlers also use)
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): keyboard nudge, escape, cursors and shortcut sheet`
+
+**Notes**: New `canvas/interaction.ts` holds the keymap table (`KEYMAP`; `matchKey` and the `?` sheet rows both read it, and `DiagramView` has one canvas keydown handler that switches on `matchKey`, replacing the separate Delete, Backspace, Ctrl+G, undo/redo, `/`, Ctrl+K and Esc handlers), `escapeStep` (sheet, drag, nudge, selection, palette), burst nudging (`nudgeOps` reuses `planMultiDrop` with a 1 px grid, so a burst is one Move per node and still reparents/reorders like a drop), `cursorFor`, `selectionFrame` (bounding box and count). Taps of an arrow key within 350 ms after a key-up join one burst (a held key is one burst); keys pressed while the scene reloads are ignored. Selection: 2 px outline with 8 visual handles (resizing stays in the YAML), several nodes get thin outlines plus one dashed bounding box with a count badge. Op errors (Rust refusals and the zone-cycle message) show as a red toast at the pointer for 3 s (`TOAST_MS`); 409 and network errors keep the old bottom-left notice. New `InlineEdit.tsx` takes focus on mount and re-takes it once (fixes the T18 observation that typing right after a double-click hit the shortcuts) and `ShortcutSheet.tsx`. bun 116 -> 126. Browser check (port 8796): click Monitoring then ArrowRight x3, ArrowDown, Shift+ArrowDown gave one save, `at: [960, 900, ...]` -> `[963, 911, ...]`; selection outline with handles shown; `?` opened the sheet and Esc closed it; dragging the region header onto the VPC showed "A zone cannot contain itself" at the pointer and left the file untouched. Not exercised by hand: Esc in the middle of a pointer drag (the browser tool drags atomically; covered by the `escapeStep` test and the cancel path is the same code as a refused drop), grab/crosshair/copy cursors (unit-tested mapping only).
 
 ---
 

@@ -9,6 +9,7 @@ import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, se
 import { boxOf, containerAt, containerBox, hitTest, hitZone, rubberBand, zoneBox, zoneMoveShapes, type Box, type Kind, type SceneJson, type Sel } from "./scene";
 import { History } from "./history";
 import { dropOps, type PaletteItem } from "./palette";
+import { cursorFor, EMPTY_BURST, nudgeMoves, nudgeOps, pressNudge, TOAST_MS, type Burst, type Cursor } from "./interaction";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
 
 export const CHANGED_ON_DISK = "File changed on disk; edit not applied";
@@ -28,6 +29,8 @@ export type Selection = { id: string; kind: Kind; nonce: number };
 export type ContainerProps = { id: string; gap: string; align: string | null };
 export type Band = { x0: number; y0: number; x1: number; y1: number };
 /** The inline editor of a node's title or a zone's label. */
+/** An error from an edit operation, shown for a moment at the place the pointer was. */
+export type Toast = { message: string; x: number; y: number; nonce: number };
 export type Editing = { id: string; kind: "node" | "zone"; box: Box; text: string };
 
 export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Options) {
@@ -42,6 +45,12 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const [preview, setPreview] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [hovering, setHovering] = useState(false);
+  const [nudging, setNudging] = useState(false);
+  const pointer = useRef({ x: 0, y: 0 });
+  const burst = useRef<Burst>(EMPTY_BURST);
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const client = useRef<CanvasClient | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const history = useRef(new History());
@@ -97,6 +106,11 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     history.current.clear();
   }, [diagramKey]);
   useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [toast]);
+  useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 6000);
     return () => clearTimeout(t);
@@ -109,7 +123,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     busy.current = true;
     client.current
       .call({ t: "drag", moves })
-      .then((svg) => dragRef.current && setPreview(svg))
+      .then((svg) => (dragRef.current || burst.current.presses > 0) && setPreview(svg))
       .catch(() => undefined)
       .finally(() => {
         busy.current = false;
@@ -125,13 +139,26 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     });
   }, [pump]);
 
+  const showToast = useCallback((message: string) => {
+    setToast({ message: message.replace(/^Error:\s*/, ""), x: pointer.current.x, y: pointer.current.y, nonce: Date.now() });
+  }, []);
+
   const commit = useCallback(
     async (ops: Op[]) => {
       if (committing.current) return;
       committing.current = true;
       try {
         const src = (await api.source(diagramKey)).files[0];
-        const patched = await client.current!.call({ t: "ops", yaml: src.text, ops: JSON.stringify(ops) });
+        let patched: string;
+        try {
+          patched = await client.current!.call({ t: "ops", yaml: src.text, ops: JSON.stringify(ops) });
+        } catch (e) {
+          // the Rust core refused the batch: its reason shows next to the pointer, and nothing is saved
+          setPreview(null);
+          showToast(e instanceof Error ? e.message : String(e));
+          reload();
+          return;
+        }
         await api.save(src.path, patched, src.version);
         history.current.record({ path: src.path, before: src.text, after: patched });
         reload();
@@ -146,7 +173,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         committing.current = false;
       }
     },
-    [diagramKey, reload],
+    [diagramKey, reload, showToast],
   );
 
   /** Undo or redo the last canvas edit of this session as a new save through the version-checked path. The file
@@ -214,6 +241,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
    * selection it already belongs to is kept) and dragged. Returns whether a drag started. */
   const begin = useCallback(
     (x: number, y: number, shift = false): boolean => {
+      pointer.current = { x, y };
       const t = targetAt(x, y);
       if (!t) {
         if (!shift) pick([]);
@@ -250,6 +278,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
 
   const move = useCallback(
     (x: number, y: number) => {
+      pointer.current = { x, y };
       const b = bandRef.current;
       if (b && sceneRef.current) {
         setBand({ x0: b.x0, y0: b.y0, x1: x, y1: y });
@@ -295,7 +324,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     }
     if ("error" in plan) {
       setPreview(null);
-      setNotice(plan.error);
+      showToast(plan.error);
       return;
     }
     const m = plan.ops.find((o) => (o.op === "move" || o.op === "move_zone") && o.id === d.box.id) as Extract<Op, { op: "move" | "move_zone" }> | undefined;
@@ -305,7 +334,92 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       void client.current!.call({ t: "drag", moves }).then(setPreview).catch(() => undefined);
     } else setPreview(null);
     void commit(plan.ops);
-  }, [commit]);
+  }, [commit, showToast]);
+
+  /** Esc during a drag: drop it without any operation; the server render (the pre-drag scene) shows again. */
+  const cancelDrag = useCallback(() => {
+    dragRef.current = null;
+    bandRef.current = null;
+    setDrag(null);
+    setBand(null);
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+    latest.current = null;
+    setPreview(null);
+  }, []);
+
+  /** Whether the pointer is over something the canvas grabs; sets the `grab` cursor. */
+  const hover = useCallback(
+    (x: number, y: number) => {
+      pointer.current = { x, y };
+      const over = targetAt(x, y) !== null;
+      setHovering((h) => (h === over ? h : over));
+    },
+    [targetAt],
+  );
+
+  /** An arrow key press: the selection moves by the offset in the preview; the burst commits on key-up. */
+  const nudge = useCallback((dx: number, dy: number) => {
+    const sc = sceneRef.current;
+    if (!active || !sc || !selectedRef.current.length || !client.current) return;
+    if (settle.current !== null) {
+      clearTimeout(settle.current);
+      settle.current = null;
+    }
+    burst.current = pressNudge(burst.current, dx, dy);
+    setNudging(true);
+    const moves = nudgeMoves(sc, selectedRef.current, burst.current);
+    if (moves) {
+      latest.current = moves;
+      schedule();
+    }
+  }, [active, schedule]);
+
+  const commitBurst = useCallback(() => {
+    settle.current = null;
+    if (committing.current) {
+      settle.current = setTimeout(commitBurst, 150); // a save is still running: wait for it
+      return;
+    }
+    const b = burst.current;
+    burst.current = EMPTY_BURST;
+    setNudging(false);
+    if (b.presses === 0) return;
+    const sc = sceneRef.current;
+    const plan = sc ? nudgeOps(sc, selectedRef.current, b) : null;
+    latest.current = null;
+    if (!plan) {
+      setPreview(null);
+      return;
+    }
+    if ("error" in plan) {
+      setPreview(null);
+      showToast(plan.error);
+      return;
+    }
+    void commit(plan.ops);
+  }, [commit, showToast]);
+
+  /** Arrow key released: taps within a short moment join the same burst (holding a key never releases until the
+   * end), then the burst is one batch: one save and one undo step. */
+  const flushNudge = useCallback(() => {
+    if (burst.current.presses === 0) return;
+    if (settle.current !== null) clearTimeout(settle.current);
+    settle.current = setTimeout(commitBurst, 350);
+  }, [commitBurst]);
+
+  const cancelNudge = useCallback(() => {
+    if (settle.current !== null) {
+      clearTimeout(settle.current);
+      settle.current = null;
+    }
+    burst.current = EMPTY_BURST;
+    setNudging(false);
+    latest.current = null;
+    setPreview(null);
+  }, []);
 
   const remove = useCallback(() => {
     if (!active) return;
@@ -433,6 +547,8 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     dropBox = target ? zoneBox(scene, target) : null;
   }
 
+  const cursor: Cursor = cursorFor({ dragging: drag !== null && drag.moved, overDropTarget: dropBox !== null, overElement: hovering });
+
   const last = selected[selected.length - 1];
   const selection: Selection | null = last ? { ...last, nonce } : null;
 
@@ -450,6 +566,14 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     preview,
     clearPreview: useCallback(() => setPreview(null), []),
     notice,
+    toast,
+    cursor,
+    nudging,
+    hover,
+    cancelDrag,
+    nudge,
+    flushNudge,
+    cancelNudge,
     hits,
     begin,
     beginBand,

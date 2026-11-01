@@ -22,6 +22,20 @@ import {
 import { byteToIndex, entryField, yamlRange } from "./srcmap";
 import { History, LIMIT } from "./history";
 import { PALETTE_OPEN_KEY, readPaletteOpen, writePaletteOpen } from "./paletteState";
+import {
+  EMPTY_BURST,
+  KEYMAP,
+  cursorFor,
+  escapeStep,
+  matchKey,
+  nudgeMoves,
+  nudgeOps,
+  pressNudge,
+  selectionFrame,
+  shortcutRows,
+  type KeyAction,
+  type KeyLike,
+} from "./interaction";
 import { buildCorpus, displayName, dropOps, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
@@ -704,5 +718,120 @@ describe("palette open state (PAL-03)", () => {
     expect(readPaletteOpen(bad)).toBe(false);
     expect(() => writePaletteOpen(true, bad)).not.toThrow();
     expect(readPaletteOpen(null)).toBe(false);
+  });
+});
+
+describe("keyboard nudge (SEL-02 polish)", () => {
+  const press = (key: string, shiftKey = false) => {
+    const a = matchKey({ key, shiftKey, metaKey: false, ctrlKey: false, altKey: false });
+    if (!a || a.action !== "nudge") throw new Error(`${key} is not a nudge`);
+    return a;
+  };
+  const sel = [{ id: "n1", kind: "node" as const }];
+
+  test("arrows nudge 1 px and Shift+arrow 10 px", () => {
+    expect(press("ArrowRight")).toEqual({ action: "nudge", dx: 1, dy: 0 });
+    expect(press("ArrowUp")).toEqual({ action: "nudge", dx: 0, dy: -1 });
+    expect(press("ArrowLeft", true)).toEqual({ action: "nudge", dx: -10, dy: 0 });
+    expect(press("ArrowDown", true)).toEqual({ action: "nudge", dx: 0, dy: 10 });
+  });
+
+  test("a burst of 5 presses is one Move per node with the summed offset", () => {
+    let burst = EMPTY_BURST;
+    for (const k of ["ArrowRight", "ArrowRight", "ArrowRight", "ArrowDown", "ArrowDown"]) {
+      const a = press(k);
+      burst = pressNudge(burst, a.dx, a.dy);
+    }
+    expect(burst).toEqual({ dx: 3, dy: 2, presses: 5 });
+    const b = n("n1");
+    const two = [...sel, { id: "n3", kind: "node" as const }];
+    const plan = nudgeOps(zscene, two, burst);
+    expect(plan).toEqual({
+      ops: [
+        { op: "move", id: "n1", x: b.x + 3, y: b.y + 2 },
+        { op: "move", id: "n3", x: n("n3").x + 3, y: n("n3").y + 2 },
+      ],
+    });
+  });
+
+  test("a burst that returns to the start changes nothing; a zone nudges as MoveZone with its children", () => {
+    let burst = pressNudge(EMPTY_BURST, 1, 0);
+    burst = pressNudge(burst, -1, 0);
+    expect(nudgeOps(zscene, sel, burst)).toBeNull();
+    const zb = z("empty");
+    const plan = nudgeOps(zscene, [{ id: "empty", kind: "zone" }], pressNudge(EMPTY_BURST, 0, 10));
+    expect(plan).toEqual({ ops: [{ op: "move_zone", id: "empty", x: zb.x, y: zb.y + 10 }] });
+    expect(nudgeMoves(zscene, [{ id: "outer", kind: "zone" }], pressNudge(EMPTY_BURST, 1, 0))).toEqual({ z0: [1, 0], z1: [1, 0], n1: [1, 0], n2: [1, 0] });
+  });
+});
+
+describe("escape", () => {
+  const base = { sheet: false, dragging: false, nudging: false, selected: 0, palette: false };
+  test("each press undoes the innermost thing: sheet, drag, nudge, selection, palette", () => {
+    expect(escapeStep({ ...base, sheet: true, dragging: true, selected: 2, palette: true })).toBe("sheet");
+    expect(escapeStep({ ...base, dragging: true, selected: 2, palette: true })).toBe("drag");
+    expect(escapeStep({ ...base, nudging: true, selected: 2 })).toBe("nudge");
+    expect(escapeStep({ ...base, selected: 2, palette: true })).toBe("selection");
+    expect(escapeStep({ ...base, palette: true })).toBe("palette");
+    expect(escapeStep(base)).toBeNull();
+  });
+
+  test("a cancelled drag sends no operation: the move map of the drag is dropped and the pre-drag scene stays", () => {
+    // the drag in progress holds a move map; the cancel step is "drag", never a commit
+    const d = dragTo(startDrag(n("n1"), 100, 100), 160, 130);
+    expect(dragMoves(d)).not.toBeNull();
+    expect(escapeStep({ ...base, dragging: d.moved, selected: 1 })).toBe("drag");
+    // a press that has not travelled past the click threshold is no drag: Esc then clears the selection
+    const click = dragTo(startDrag(n("n1"), 100, 100), 101, 100);
+    expect(dragMoves(click)).toBeNull();
+    expect(escapeStep({ ...base, dragging: click.moved, selected: 1 })).toBe("selection");
+  });
+});
+
+describe("cursors and selection frame", () => {
+  test("grab over an element, crosshair on empty canvas, grabbing while dragging, copy over a drop target", () => {
+    expect(cursorFor({ dragging: false, overDropTarget: false, overElement: true })).toBe("grab");
+    expect(cursorFor({ dragging: false, overDropTarget: false, overElement: false })).toBe("crosshair");
+    expect(cursorFor({ dragging: true, overDropTarget: false, overElement: true })).toBe("grabbing");
+    expect(cursorFor({ dragging: true, overDropTarget: true, overElement: true })).toBe("copy");
+  });
+
+  test("a multi-selection is one bounding box with the count", () => {
+    const f = selectionFrame([
+      { id: "a", x: 10, y: 20, w: 100, h: 50 },
+      { id: "b", x: 200, y: 5, w: 40, h: 40 },
+    ]);
+    expect(f).toEqual({ box: { id: "selection", x: 10, y: 5, w: 230, h: 65 }, count: 2 });
+    expect(selectionFrame([])).toBeNull();
+    expect(selectionFrame([{ id: "a", x: 1, y: 2, w: 3, h: 4 }])?.count).toBe(1);
+  });
+});
+
+describe("keymap table and the shortcut sheet", () => {
+  const ALL: KeyAction["action"][] = ["delete", "nudge", "group-row", "undo", "redo", "palette", "escape", "help"];
+
+  test("every key binding fires its own action for each of its sample events", () => {
+    for (const b of KEYMAP.filter((x) => x.match)) {
+      expect(b.sample?.length).toBeGreaterThan(0);
+      for (const e of b.sample as KeyLike[]) expect(matchKey(e)?.action, `${b.keys}: ${e.key}`).toBe(b.action);
+    }
+  });
+
+  test("every action the handlers switch on has a row in the table, and the sheet lists every row", () => {
+    for (const a of ALL) expect(KEYMAP.some((b) => b.action === a && b.match), a).toBe(true);
+    const rows = shortcutRows();
+    expect(rows.length).toBe(KEYMAP.length);
+    for (const b of KEYMAP) expect(rows.some((r) => r.keys === b.keys && r.label === b.label)).toBe(true);
+    for (const needle of ["Delete", "Arrow keys", "Ctrl/Cmd+G", "Ctrl/Cmd+Z", "Esc", "?", "Shift+click", "Alt+drag", "Double-click"]) {
+      expect(rows.some((r) => r.keys.includes(needle)), needle).toBe(true);
+    }
+  });
+
+  test("keys not in the table, and modified arrows, trigger nothing", () => {
+    const mk = (key: string, m: Partial<KeyLike> = {}): KeyLike => ({ key, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...m });
+    expect(matchKey(mk("a"))).toBeNull();
+    expect(matchKey(mk("ArrowLeft", { ctrlKey: true }))).toBeNull();
+    expect(matchKey(mk("Delete", { metaKey: true }))).toBeNull();
+    expect(matchKey(mk("z", { ctrlKey: true, altKey: true }))).toBeNull();
   });
 });

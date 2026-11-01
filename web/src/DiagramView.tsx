@@ -3,6 +3,9 @@ import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type S
 import { href, typingIn, useKey, usePanZoom } from "./hooks";
 import CodePanel from "./CodePanel";
 import CanvasBar from "./canvas/CanvasBar";
+import InlineEdit from "./canvas/InlineEdit";
+import ShortcutSheet from "./canvas/ShortcutSheet";
+import { escapeStep, matchKey, selectionFrame } from "./canvas/interaction";
 import { readPaletteOpen, writePaletteOpen } from "./canvas/paletteState";
 import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
 import type { PaletteItem } from "./canvas/palette";
@@ -10,6 +13,8 @@ import { useCanvas } from "./canvas/useCanvas";
 import { hitTest, InspectorPanel, Overlay } from "./Inspector";
 
 const INSPECT_KEY = "spinagram.inspect";
+
+const CURSORS = { grab: "cursor-grab", grabbing: "cursor-grabbing", crosshair: "cursor-crosshair", copy: "cursor-copy" } as const;
 
 function stored(key: string): boolean {
   try {
@@ -39,6 +44,18 @@ type Props = {
 function svgSize(svg: string): { w: number; h: number } | null {
   const m = svg.match(/<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/);
   return m ? { w: parseFloat(m[1]), h: parseFloat(m[2]) } : null;
+}
+
+/** The eight handles of a selection outline (they show what is selected; resizing is done in the YAML). */
+function Handles() {
+  const at = ["-top-1 -left-1", "-top-1 left-1/2 -ml-1", "-top-1 -right-1", "top-1/2 -mt-1 -left-1", "top-1/2 -mt-1 -right-1", "-bottom-1 -left-1", "-bottom-1 left-1/2 -ml-1", "-bottom-1 -right-1"];
+  return (
+    <>
+      {at.map((c) => (
+        <span key={c} className={`absolute h-2 w-2 rounded-[1px] border border-blue-600 bg-white ${c}`} />
+      ))}
+    </>
+  );
 }
 
 export default function DiagramView({ diagramKey, diagram, file, themeError, layout, rev }: Props) {
@@ -119,6 +136,10 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       canvas.move(p.x, p.y);
       return;
     }
+    if (canvas.active && !e.buttons) {
+      const p = sceneAt(e);
+      canvas.hover(p.x, p.y);
+    }
     if (!inspect || !report || e.buttons) return;
     const p = sceneAt(e);
     setHover(hitTest(report, p.x, p.y, 6 / view.scale));
@@ -187,51 +208,70 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   useKey("i", toggleInspect);
   useKey("e", toggleCode);
   useKey("c", () => setCanvasOn((on) => !on));
-  useKey("Delete", canvas.remove);
-  useKey("Backspace", canvas.remove);
+  // every canvas key goes through the keymap table (canvas/interaction.ts), which also feeds the `?` sheet
+  const [sheet, setSheet] = useState(false);
+  const keys = useRef({ canvas, paletteOpen, sheet, openPalette, setPaletteOpen });
+  keys.current = { canvas, paletteOpen, sheet, openPalette, setPaletteOpen };
   useEffect(() => {
-    // Ctrl/Cmd+G groups the selection as a row (useKey ignores modified keys)
     const on = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "g" || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
+      const k = keys.current;
+      if (!k.canvas.active || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
+      const hit = matchKey(e);
+      if (!hit) return;
       e.preventDefault();
-      canvas.group("row");
-    };
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [canvas.group]);
-  useKey("/", () => canvas.active && openPalette());
-  useEffect(() => {
-    // Ctrl/Cmd+Z undoes and Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes a canvas edit; the code editor keeps its own undo
-    const on = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || !canvas.active || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
-      const k = e.key.toLowerCase();
-      if (k === "z") {
-        e.preventDefault();
-        if (e.shiftKey) canvas.redo();
-        else canvas.undo();
-      } else if (k === "y" && !e.shiftKey) {
-        e.preventDefault();
-        canvas.redo();
+      switch (hit.action) {
+        case "delete":
+          return k.canvas.remove();
+        case "group-row":
+          return k.canvas.group("row");
+        case "undo":
+          return k.canvas.undo();
+        case "redo":
+          return k.canvas.redo();
+        case "palette":
+          return k.openPalette();
+        case "help":
+          return setSheet((v) => !v);
+        case "nudge":
+          return k.canvas.nudge(hit.dx, hit.dy);
+        case "escape": {
+          const step = escapeStep({
+            sheet: k.sheet,
+            dragging: k.canvas.dragging,
+            nudging: k.canvas.nudging,
+            selected: k.canvas.selected.length,
+            palette: k.paletteOpen,
+          });
+          if (step === "sheet") setSheet(false);
+          else if (step === "drag") k.canvas.cancelDrag();
+          else if (step === "nudge") k.canvas.cancelNudge();
+          else if (step === "selection") {
+            setSelected(null);
+            k.canvas.clear();
+          } else if (step === "palette") k.setPaletteOpen(false);
+        }
       }
     };
+    const up = (e: KeyboardEvent) => {
+      if (e.key.startsWith("Arrow")) keys.current.canvas.flushNudge();
+    };
     window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [canvas.active, canvas.undo, canvas.redo]);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", on);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
   useEffect(() => {
-    // Ctrl/Cmd+K focuses the palette search
+    // outside the canvas Esc still clears the inspector selection
     const on = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "k" || !canvas.active) return;
-      e.preventDefault();
-      openPalette();
+      if (e.key === "Escape" && !keys.current.canvas.active && !typingIn(e.target instanceof HTMLElement ? e.target : null)) setSelected(null);
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [canvas.active, openPalette]);
-  useKey("Escape", () => {
-    setSelected(null);
-    canvas.clear();
-  });
+  }, []);
 
+  const frame = selectionFrame(canvas.selectedBoxes);
   const fileError = file?.error && !diagram;
   return (
     <div className="flex h-full">
@@ -250,7 +290,9 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     <div className="relative min-w-0 flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900">
       <div
         ref={ref}
-        className={`absolute inset-0 touch-none select-none ${inspect && hover ? "cursor-pointer" : "cursor-grab"}`}
+        className={`absolute inset-0 touch-none select-none ${
+          canvas.active ? CURSORS[canvas.cursor] : inspect && hover ? "cursor-pointer" : "cursor-grab"
+        }`}
         onPointerMove={onMove}
         onPointerDown={onDown}
         onPointerUp={onUp}
@@ -282,10 +324,23 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             {canvas.selectedBoxes.map((b, i) => (
               <div
                 key={`${b.id}-${i}`}
-                className="pointer-events-none absolute rounded-sm border-2 border-blue-500 bg-blue-500/10"
+                className={`pointer-events-none absolute rounded-sm border-blue-500 bg-blue-500/10 ${canvas.selectedBoxes.length > 1 ? "border" : "border-2"}`}
                 style={{ left: b.x, top: b.y, width: b.w, height: b.h }}
-              />
+              >
+                {canvas.selectedBoxes.length === 1 && <Handles />}
+              </div>
             ))}
+            {frame && frame.count > 1 && (
+              <div
+                className="pointer-events-none absolute border-2 border-dashed border-blue-600"
+                style={{ left: frame.box.x - 4, top: frame.box.y - 4, width: frame.box.w + 8, height: frame.box.h + 8 }}
+              >
+                <Handles />
+                <span className="absolute -top-3 -right-3 grid h-6 min-w-6 place-items-center rounded-full bg-blue-600 px-1 text-xs font-semibold text-white shadow">
+                  {frame.count}
+                </span>
+              </div>
+            )}
             {canvas.band && (
               <div
                 className="pointer-events-none absolute border border-dashed border-blue-600 bg-blue-500/10"
@@ -303,28 +358,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
                 style={{ left: canvas.dropBox.x, top: canvas.dropBox.y, width: canvas.dropBox.w, height: canvas.dropBox.h }}
               />
             )}
-            {canvas.editing && (
-              <input
-                autoFocus
-                aria-label={canvas.editing.kind === "zone" ? "Zone label" : "Node title"}
-                defaultValue={canvas.editing.text}
-                className="absolute z-10 rounded border-2 border-blue-500 bg-white px-2 text-sm text-slate-900 shadow-lg outline-none"
-                style={{
-                  left: canvas.editing.box.x,
-                  top: canvas.editing.box.y + (canvas.editing.kind === "zone" ? 0 : canvas.editing.box.h / 2 - 16),
-                  width: Math.max(160, Math.min(canvas.editing.box.w, 420)),
-                  height: 32,
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === "Enter") canvas.commitEdit(e.currentTarget.value);
-                  else if (e.key === "Escape") canvas.cancelEdit();
-                }}
-                onBlur={canvas.cancelEdit}
-              />
-            )}
+            {canvas.editing && <InlineEdit key={canvas.editing.id} editing={canvas.editing} onCommit={canvas.commitEdit} onCancel={canvas.cancelEdit} />}
             {inspect && report && <Overlay report={report} hover={hover} selected={selected} scale={view.scale} />}
           </div>
         )}
@@ -341,6 +375,17 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         </button>
       )}
       <CanvasBar canvas={canvas} />
+      {canvas.active && sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
+      {canvas.toast && (
+        <div
+          key={canvas.toast.nonce}
+          role="alert"
+          className="pointer-events-none absolute z-30 max-w-xs rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
+          style={{ left: view.x + canvas.toast.x * view.scale + 12, top: view.y + canvas.toast.y * view.scale + 16 }}
+        >
+          {canvas.toast.message}
+        </div>
+      )}
 
       {(error || fileError || themeError) && (
         <div className="absolute inset-x-6 top-6 rounded-lg border border-red-300 bg-red-50 p-4 shadow-lg dark:border-red-800 dark:bg-red-950/90">
