@@ -179,6 +179,7 @@ pub struct Table {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
+#[allow(clippy::large_enum_variant)] // items live in a Vec and are matched by reference
 pub enum Item {
     Shape(Shape),
     Connector(Connector),
