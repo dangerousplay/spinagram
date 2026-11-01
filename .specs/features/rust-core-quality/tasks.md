@@ -108,8 +108,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Workflow parses; both steps present; other jobs unchanged (DENY-02)
-- [ ] Build gate passes
+- [x] Workflow parses; both steps present; other jobs unchanged (DENY-02)
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

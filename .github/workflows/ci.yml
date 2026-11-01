@@ -84,8 +84,14 @@ jobs:
           enable-cache: true
       - run: cargo test
         working-directory: rust
-      - run: cargo clippy --all-targets -- -D warnings
+      - name: Clippy (all deny, pedantic warn, warnings are errors)
+        run: cargo clippy --workspace --all-targets -- -D warnings
         working-directory: rust
+      - name: cargo-deny (advisories, bans, licenses, sources)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: rust/Cargo.toml
+          command: check
       - name: Build the spinagram-core wheel
         run: uvx maturin build --release -o ../target/wheels
         working-directory: rust/spinagram-core-py
