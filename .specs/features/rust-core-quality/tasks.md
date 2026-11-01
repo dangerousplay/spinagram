@@ -200,8 +200,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Verus proves VER-03; unclosed `var(` returns the length (edge case unit test)
-- [ ] `css_parity.py` 100 %; gates pass
+- [x] Verus proves VER-03; unclosed `var(` returns the length (edge case unit test)
+- [x] `css_parity.py` 100 %; gates pass
 
 **Tests**: proof + unit
 **Gate**: verus

@@ -23,6 +23,8 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt;
 
+use crate::verified;
+
 /// The string type of every selector part (identifiers, type names, attribute values).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Str(String);
@@ -396,16 +398,9 @@ pub fn substitute<S: std::hash::BuildHasher>(value: &str, custom: &std::collecti
     let mut chars: Vec<char> = value.chars().collect();
     for _ in 0..8 {
         let Some(start) = find_var(&chars) else { break };
-        let (mut depth, mut end) = (1i32, start + 4);
-        while end < chars.len() && depth != 0 {
-            match chars[end] {
-                '(' => depth += 1,
-                ')' => depth -= 1,
-                _ => {}
-            }
-            end += 1;
-        }
-        let inner: String = chars[start + 4..end - 1].iter().collect();
+        let end = verified::brackets::scan_close(&chars, start + 4);
+        // Python slices `value[i + 4:j - 1]`, which is empty when nothing follows `var(`
+        let inner: String = chars[start + 4..end.saturating_sub(1).max(start + 4)].iter().collect();
         let (name, fallback) = match inner.split_once(',') {
             Some((n, f)) => (n, f),
             None => (inner.as_str(), ""),
@@ -1590,5 +1585,20 @@ mod tests {
         assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
         assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
         assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    // Expected strings come from Python's _substitute(value, {"--a": "Z"}).
+    #[test]
+    fn substitute_edge_cases_match_python() {
+        let custom: HashMap<String, String> = HashMap::from([("--a".to_string(), "Z".to_string())]);
+        for (value, want) in [
+            ("a var(", "a "),
+            ("var(", ""),
+            ("x var(--a", "x "),
+            ("var(--a) var(", "Z "),
+            ("var(--a, (b)) c", "Z c"),
+        ] {
+            assert_eq!(substitute(value, &custom), want, "_substitute({value:?})");
+        }
     }
 }
