@@ -9,6 +9,7 @@ use pyo3::types::PyBytes;
 use spinagram_core::fit::{self, BlockSpec};
 use spinagram_core::font;
 use spinagram_core::css;
+use spinagram_core::edit;
 use spinagram_core::png;
 use spinagram_core::scene;
 use spinagram_core::svg::{self, DrawError};
@@ -158,6 +159,20 @@ fn css_select(py: Python<'_>, tree: &str, selectors: Vec<String>) -> PyResult<St
     py.detach(|| css::select_json(tree, &selectors)).map_err(PyValueError::new_err)
 }
 
+/// Apply a JSON list of edit operations to YAML text as one batch; returns the patched text. `ValueError` with the
+/// reason (the operation that failed and why) when the batch is rejected.
+#[pyfunction]
+fn apply_ops(py: Python<'_>, yaml: &str, ops_json: &str) -> PyResult<String> {
+    py.detach(|| edit::apply_ops_json(yaml, ops_json)).map_err(PyValueError::new_err)
+}
+
+/// `{id: (start, end)}`: the UTF-8 byte range of the YAML entry of every node, zone and edge (`e0`, `e1`, ...).
+#[pyfunction]
+fn yaml_srcmap(py: Python<'_>, yaml: &str) -> PyResult<std::collections::BTreeMap<String, (usize, usize)>> {
+    let map = py.detach(|| edit::srcmap(yaml)).map_err(PyValueError::new_err)?;
+    Ok(map.into_iter().map(|(k, [a, b])| (k, (a, b))).collect())
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Linker workaround, see rust/README.md: the macOS 27 linker writes a misaligned string table (and dyld
@@ -177,5 +192,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(css_cascade, m)?)?;
     m.add_function(wrap_pyfunction!(css_select, m)?)?;
     m.add_function(wrap_pyfunction!(render_png, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_ops, m)?)?;
+    m.add_function(wrap_pyfunction!(yaml_srcmap, m)?)?;
     Ok(())
 }

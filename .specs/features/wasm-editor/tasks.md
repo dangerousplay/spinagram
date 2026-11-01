@@ -140,14 +140,16 @@ Patches are byte ranges taken from parser spans. Pick a crate per `rust/DEPENDEN
 
 **Done when**:
 
-- [ ] Test: Move on `examples/aws_layout.yaml` text, loaded with `yaml_io`, gives the node the new coordinates and leaves every other node equal
-- [ ] Test: Delete of a node removes it and its edges in the loaded diagram, and the diagram renders without error
-- [ ] Test: an invalid op raises `EditError` with the Rust reason
-- [ ] Full gate passes
+- [x] Test: Move on `examples/aws_layout.yaml` text, loaded with `yaml_io`, gives the node the new coordinates and leaves every other node equal
+- [x] Test: Delete of a node removes it and its edges in the loaded diagram, and the diagram renders without error
+- [x] Test: an invalid op raises `EditError` with the Rust reason
+- [x] Full gate passes
 
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat: expose yaml edit operations to python`
+
+**Notes**: `spinagram.edit` loads the core with `rust._load()` (not `rust.core()`) because edit ops have no pure-Python twin, so `SPINAGRAM_RUST=0` does not switch them off. `srcmap` ranges are UTF-8 byte offsets. Baseline was 2799 passed, 3 skipped per mode; now 2815 (16 new).
 
 ---
 
