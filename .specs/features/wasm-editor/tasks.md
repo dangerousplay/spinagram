@@ -904,8 +904,10 @@ tools and their keys, and the palette categories.
 
 **Done when**:
 
-- [ ] The rebuilt bundle is committed; full, Rust, WASM and web gates pass
+- [x] The rebuilt bundle is committed; full, Rust, WASM and web gates pass
 
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: canvas toolbar guide and rebuilt ui bundle`
+
+**Notes**: Rebuilt with bun 1.4.2 (`bash rust/spinagram-wasm/build.sh`, then `bunx bun@1.4.2 run build`; a second build gives the same file names). `live-ui.mdx` gained the toolbar, the tools and keys, Space-pan, Shift-keeps-the-tool, the category palette and the in-place update. Gates: cargo 209, clippy and deny clean; wasm bun 21; web bun 164 and build; pytest 2847 passed, 3 skipped per mode (`test_web_unit` passes separately); ruff clean.

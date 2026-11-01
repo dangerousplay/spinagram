@@ -46,6 +46,10 @@ it on `examples/showcase/editable_platform.yaml`.
 
 | Do this | Result |
 |---|---|
+| Toolbar on the left edge of the canvas | Icon buttons for the tools and actions below; hover one for its name and key |
+| `V` Select, `H` Pan | Select is the default. Pan drags the view; holding Space pans in any tool |
+| `B` Box, `T` Text, `Z` Zone | A click places the default size centred on the point; a drag draws the rectangle (snapped to the grid). Text opens the title editor at once. The tool returns to Select after one use; hold Shift to keep it |
+| `C` Connect | Drag from one node to another to add an edge (`from -> to`; parallel edges are fine). Releasing on empty canvas, the same node or a zone adds nothing. With the canvas off, `c` still turns it on |
 | Click a node, zone header or row/column | Selects it; with the code panel open, its YAML entry is highlighted |
 | Shift+click, or drag on empty canvas | Adds to the selection, or draws a selection box (Alt+drag pans) |
 | Drag | Moves the selection, snapped to a 10 px grid; edges follow while you drag |
@@ -60,12 +64,16 @@ it on `examples/showcase/editable_platform.yaml`.
 | Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z | Undoes and redoes the last 50 canvas edits of this page |
 | Delete / Backspace | Removes the selection with the edges that touch it |
 | Arrow keys, Shift+arrow | Nudges the selection 1 px, or 10 px; keys pressed in one burst are one save and one undo step |
-| Esc | Cancels a drag in progress, then clears the selection, then closes the palette |
+| Esc | Cancels a drag in progress, then clears the selection, then returns to Select, then closes the palette |
 | `?` | Opens the list of every canvas shortcut |
 
 The palette searches the icons of every pack you have downloaded (names, aliases and pack names, with one typo
-tolerated), plus the node shapes, **Zone**, **Row** and **Column**. Packs not downloaded yet are listed under **Not
-downloaded** with a **Fetch** button; nothing is fetched until you press it. A zone cannot be dropped inside itself: the reason appears next to the pointer for three seconds. New titles and labels are written as plain YAML text unless they need quotes (a colon and space, a leading symbol, `yes`/`no`/`null`, a number, or a comma inside a one-line entry).
+tolerated), plus the node shapes, **Zone**, **Row** and **Column**. With the search box empty it groups them into
+collapsible categories, each with a count and an icon on every item: **Basics** (Box, Text, Zone, Row, Column,
+Note), **Shapes**, and one category per icon pack (packs start collapsed; the state is remembered). A search gives one
+ranked list with each row tagged by its category. Packs not downloaded yet are listed under **Not downloaded** with a
+**Fetch** button; nothing is fetched until you press it. A dropped item first shows a dashed placeholder at the drop
+point, and each save is patched into the diagram in place, so fonts and images do not reload. A zone cannot be dropped inside itself: the reason appears next to the pointer for three seconds. New titles and labels are written as plain YAML text unless they need quotes (a colon and space, a leading symbol, `yes`/`no`/`null`, a number, or a comma inside a one-line entry).
 If the file changes on disk while you edit, the edit is dropped with "File changed on disk; edit not applied" and
 the undo history is cleared.
 
