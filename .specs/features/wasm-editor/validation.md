@@ -201,3 +201,53 @@ Not exercised by hand: Esc during a pointer drag, and the cursor shapes. Both ar
 
 `web/bun.lock` was hand-edited in T14. It can't be verified with local bun 1.3.14, which fails on `main` too. CI is
 the first check.
+
+---
+
+# Validation, toolbar and provider zones iteration (CI fix, T24–T33)
+
+**Result**: PASS. All 8 independent mutants were killed.
+**Verifier:** orchestrator session. The author was a separate Sonnet sub-agent.
+**Diff range:** `c3e1f46..4fc14c5`, 12 commits.
+
+## Gates (re-run independently)
+
+| Gate | Result |
+|---|---|
+| cargo | 211 passed; clippy `-D warnings` and `cargo deny` clean |
+| ruff | clean |
+| pytest, Rust default / `SPINAGRAM_RUST=0` | 2858 passed, 3 skipped / 2858 passed, 3 skipped |
+| wasm `bun test` | 23 pass |
+| `bunx bun@1.4.2 install --frozen-lockfile` | no changes (the lockfile matches CI's pinned bun) |
+| web `bun test` + build (bun 1.4.2) | 175 pass; the rebuilt bundle equals the committed one |
+
+## Discrimination sensor (independent of the author's)
+
+| Mutant | Result |
+|---|---|
+| Q1 `set_zone_style` accepts a node | killed |
+| Q2 SVG host replaces everything (no keys, always update) | killed |
+| Q3 `<image>` has no stable key | killed |
+| Q4 Connect allows a self-edge | killed |
+| Q5 the tool stays active without Shift | killed |
+| Q6 Text placement does not open the editor | killed |
+| Q7 a placed item is not reparented into the zone under it | killed |
+| Q8 a click placement is not centred on the point | killed |
+
+## Browser view (independent; scratch copy, own server and tab)
+
+- **Showcase zones:** AWS Cloud, AWS account, Region (dashed teal), VPC, a public subnet (green) and private
+  subnets (teal), each with its AWS group icon and colour.
+- **Toolbar:** select, hand, box, text, zone, connect, group and ungroup, delete, undo and redo, palette and `?`.
+- **Palette:** opens beside the diagram with Basics (each item has an icon) and Zones (a generic zone, then the
+  AWS, Azure, Google Cloud and Kubernetes groups, each item with its real header icon and a colour swatch).
+
+## Known limits and polish notes
+
+- **Text nodes:** they have no box in the scene, so after placement they cannot be selected, moved or renamed on the
+  canvas (author's note). The fix belongs in the scene contract (give text nodes a box).
+- **Toolbar overlap:** the toolbar floats over the diagram's left edge at fit zoom.
+- **Showcase edges:** the "HTTPS" label sits on the Region outline, and the `origin` edge crosses the Region header
+  band.
+- **Two update batches:** a node drag makes 2 update batches after release (author's SPEC_DEVIATION). The second
+  only reorders siblings, with no visible change.
