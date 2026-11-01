@@ -602,11 +602,19 @@ fn collect_lists<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
 ///
 /// An [`EditError`] naming the failing operation and why; the input is untouched.
 pub fn apply_ops(yaml: &str, ops: &[Op]) -> Result<String, EditError> {
+    apply_with(yaml, ops, op_patches)
+}
+
+/// The batch loop of [`apply_ops`], with the patch computation as a parameter. Production passes `op_patches`; a
+/// test passes a function whose patches break the YAML, because no real operation does (every inserted scalar is
+/// quoted and every removal takes whole entries), so the re-parse guard below is defence in depth that only a seam
+/// can reach.
+fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Node, &Op) -> Result<Vec<Patch>, String>) -> Result<String, EditError> {
     let mut text = yaml.to_owned();
     for (i, op) in ops.iter().enumerate() {
         let wrap = |reason: String| EditError { index: Some(i), reason: format!("{}: {reason}", op.name()) };
         let root = parse_diagram(&text).map_err(wrap)?;
-        let patches = op_patches(&text, &root, op).map_err(wrap)?;
+        let patches = make(&text, &root, op).map_err(wrap)?;
         let next = apply_patches(&text, patches).map_err(wrap)?;
         text = checked(next).map_err(wrap)?;
     }
@@ -754,6 +762,20 @@ mod tests {
         assert!(checked("id: x\nnodes: [unclosed\n".to_owned()).is_err());
         assert!(checked("- a\n- b\n".to_owned()).is_err());
         assert_eq!(checked("id: x\n".to_owned()).unwrap(), "id: x\n");
+    }
+
+    #[test]
+    fn apply_ops_rejects_a_patch_whose_result_does_not_reparse() {
+        // a patcher that opens a flow list and never closes it: the batch must fail, naming the operation
+        let broken = |_: &str, root: &Node, _: &Op| Ok(vec![Patch { start: root.start, end: root.start, text: "x: [unclosed\n".to_owned() }]);
+        let y = read("block");
+        let err = apply_with(&y, &ops(r#"[{"op":"move","id":"a","x":1,"y":2}]"#), broken).unwrap_err();
+        assert_eq!(err.index, Some(0));
+        assert!(err.reason.contains("would produce invalid YAML"), "{}", err.reason);
+        // a patch that turns the mapping into a list is rejected too
+        let to_list = |src: &str, _: &Node, _: &Op| Ok(vec![Patch { start: 0, end: src.len(), text: "- a\n- b\n".to_owned() }]);
+        let err = apply_with(&y, &ops(r#"[{"op":"delete","id":"a"}]"#), to_list).unwrap_err();
+        assert!(err.reason.contains("would produce invalid YAML"), "{}", err.reason);
     }
 
     #[test]

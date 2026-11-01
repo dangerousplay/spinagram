@@ -320,12 +320,14 @@ use `reroute` (moves of several shapes); container reflow shows after release.
 
 **Done when**:
 
-- [ ] Test: removing the `checked(...)` call in `apply_ops` makes a test fail (re-run mutant M3 in a scratch worktree, never `git stash`)
-- [ ] Rust gate passes
+- [x] Test: removing the `checked(...)` call in `apply_ops` makes a test fail (re-run mutant M3 in a scratch worktree, never `git stash`)
+- [x] Rust gate passes
 
 **Tests**: unit
 **Gate**: rust
 **Commit**: `test(rust): reach the yaml re-parse guard through apply_ops`
+
+**Notes**: No real operation produces a non-re-parsing patch (scalars are quoted, removals take whole entries), so the guard is reached through a test seam: `apply_with(yaml, ops, patcher)`, which `apply_ops` calls with `op_patches`. Mutant M3 (checked call removed) re-run in a scratch worktree: killed. Rust tests 186 -> 187.
 
 ---
 
