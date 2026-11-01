@@ -62,8 +62,8 @@ With `SPINAGRAM_RUST=1` `to_svg` hands the scene to Rust as JSON; `svg.rs` draws
 layers plus the characters drawn per font face. Python still builds the font faces (fontTools subsetting),
 the `<svg>` head, the metadata and the content hash, in both modes, so the bytes are identical in `subset`,
 `embed` and `link`. `pyfmt.rs` reproduces `format(x, ".1f")`, `format(x, "g")`, `repr(float)`,
-`html.escape` and Python 3.12+'s compensated `sum()` (on Python 3.11, whose `sum()` is plain, block and table totals can differ
-in the last bit; the CI job runs 3.13).
+`html.escape` and Python's `sum()`: 3.12+ sums floats with compensation and 3.11 adds plainly, so `svg_draw` takes
+the interpreter's behaviour (`sys.version_info >= (3, 12)`) as an argument.
 
 ### PNG slice
 

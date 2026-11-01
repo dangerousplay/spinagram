@@ -383,10 +383,10 @@ Phase 3:  T9 ------→ T10 -----→ T11 -----→ T12
 
 **Done when**:
 
-- [ ] Rust tests: compensated mode `[0.1]*10` → `1.0`; plain mode → `0.9999999999999999` (values from Python 3.11 / 3.13)
-- [ ] Python test: the flag the writer sends equals `sys.version_info >= (3, 12)`
-- [ ] `tests/test_rust_svg.py` run under Python 3.11 if an interpreter is available (`uv run --python 3.11 ...` in a scratch venv), else noted
-- [ ] Build gate passes
+- [x] Rust tests: compensated mode `[0.1]*10` → `1.0`; plain mode → `0.9999999999999999` (values from Python 3.11 / 3.13)
+- [x] Python test: the flag the writer sends equals `sys.version_info >= (3, 12)`
+- [x] `tests/test_rust_svg.py` run under Python 3.11 if an interpreter is available (`uv run --python 3.11 ...` in a scratch venv), else noted
+- [x] Build gate passes
 
 **Tests**: unit (Rust) + unit (Python)
 **Gate**: build

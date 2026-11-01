@@ -120,11 +120,12 @@ fn scene_roundtrip(json: &str) -> PyResult<String> {
 type Chars = Vec<(String, u32, bool, String)>;
 
 /// Draw the items of a scene JSON as SVG fragments: `(defs, back, mid, front, chars)` where `chars` lists
-/// `(family, weight, italic, characters)` for each face drawn. A missing image raises `FileNotFoundError`.
+/// `(family, weight, italic, characters)` for each face drawn. `compensated_sum` is `sys.version_info >= (3, 12)`:
+/// whether Python's `sum()` is compensated. A missing image raises `FileNotFoundError`.
 #[pyfunction]
-fn svg_draw(py: Python<'_>, json: &str) -> PyResult<(String, String, String, String, Chars)> {
+fn svg_draw(py: Python<'_>, json: &str, compensated_sum: bool) -> PyResult<(String, String, String, String, Chars)> {
     let drawn = py
-        .detach(|| scene::parse(json).map_err(DrawError::Scene).and_then(|s| svg::draw(&s)))
+        .detach(|| scene::parse(json).map_err(DrawError::Scene).and_then(|s| svg::draw(&s, compensated_sum)))
         .map_err(|e| match e {
             DrawError::NotFound(p) => PyFileNotFoundError::new_err(format!("[Errno 2] No such file or directory: '{p}'")),
             other => PyValueError::new_err(other.to_string()),
@@ -144,9 +145,10 @@ fn render_png<'py>(py: Python<'py>, svg: &str, width: f64, height: f64, scale: f
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Linker workaround, see rust/README.md: the macOS 27 linker writes a misaligned string table (and dyld
-    // refuses the module) when the number of indirect symbols is odd. Touching one more Python data symbol
-    // adds one GOT entry and changes the parity.
+    // refuses the module) when the number of indirect symbols is odd. Touching Python data symbols adds GOT
+    // entries; add or remove one here when the module stops importing.
     std::hint::black_box(unsafe { pyo3::ffi::PyExc_KeyError });
+    std::hint::black_box(unsafe { pyo3::ffi::PyExc_IndexError });
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(covers, m)?)?;
     m.add_function(wrap_pyfunction!(measure, m)?)?;

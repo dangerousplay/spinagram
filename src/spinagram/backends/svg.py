@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import html
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Sequence
@@ -17,6 +18,8 @@ from ..rust import core
 from ..scene import Cell, Connector, Icon, Image, Label, Line, Run, Scene, Shape, TableGrid, Text, TextBlock
 from . import fontsubset
 
+# Python 3.12+ sums floats with compensation; the Rust writer must add the same way for block and table totals
+COMPENSATED_SUM = sys.version_info >= (3, 12)
 _CORE = core()  # the Rust drawing step when SPINAGRAM_RUST=1 and the wheel is installed
 
 DASH = ' stroke-dasharray="10 7"'
@@ -262,7 +265,7 @@ class _Svg:
 
     def _draw_rust(self) -> tuple[str, str, str, str, dict[tuple, set[str]]]:
         """The same layers from the Rust core (the scene crosses as JSON)."""
-        defs, back, mid, front, chars = _CORE.svg_draw(scene_json.dumps(self.s))
+        defs, back, mid, front, chars = _CORE.svg_draw(scene_json.dumps(self.s), COMPENSATED_SUM)
         return defs, back, mid, front, {(fam, weight, italic): set(cs) for fam, weight, italic, cs in chars}
 
     def render(self) -> str:

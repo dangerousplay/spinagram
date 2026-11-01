@@ -114,12 +114,14 @@ struct Writer<'a> {
     markers: HashSet<String>,
     filters: Vec<(Shadow, String)>,
     images: HashMap<String, String>,
+    /// Python's `sum()` is compensated (3.12+) on the interpreter that sent the scene.
+    compensated_sum: bool,
 }
 
 impl<'a> Writer<'a> {
-    fn new(scene: &'a Scene) -> Self {
+    fn new(scene: &'a Scene, compensated_sum: bool) -> Self {
         Writer { scene, chars: Chars::new(), defs: vec![], back: vec![], mid: vec![], front: vec![], markers: HashSet::new(),
-                 filters: vec![], images: HashMap::new() }
+                 filters: vec![], images: HashMap::new(), compensated_sum }
     }
 
     fn layer(&mut self, l: Layer) -> &mut Vec<String> {
@@ -185,7 +187,7 @@ impl<'a> Writer<'a> {
         let anchor = if label.align == "center" { "middle" } else { "start" };
         let [x, y, w, h] = label.bbox;
         let heights: Vec<f64> = label.blocks.iter().map(block_height).collect();
-        let total = py_sum(&heights) + label.gap * label.blocks.len().saturating_sub(1) as f64;
+        let total = py_sum(&heights, self.compensated_sum) + label.gap * label.blocks.len().saturating_sub(1) as f64;
         let mut top = if label.valign == "middle" { y + (h - total) / 2.0 } else { y };
         for (b, height) in label.blocks.iter().zip(heights) {
             let bx = if label.align == "center" { x + w / 2.0 } else { x };
@@ -355,7 +357,7 @@ impl<'a> Writer<'a> {
 
     fn table(&mut self, t: &Table) -> Result<(), DrawError> {
         let x0 = t.x;
-        let total = py_sum(&t.col_widths);
+        let total = py_sum(&t.col_widths, self.compensated_sum);
         let mut y = t.y;
         for (r, (rh, row)) in t.row_heights.iter().zip(&t.cells).enumerate() {
             let fill = row.first().map_or("none", |c| opt(&c.fill));
@@ -378,7 +380,7 @@ impl<'a> Writer<'a> {
         let tip = self.tip(&t.id);
         if !tip.is_empty() {
             self.front.push(format!("<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"none\" pointer-events=\"all\">{tip}</rect>",
-                                    f1(t.x), f1(t.y), f1(total), f1(py_sum(&t.row_heights))));
+                                    f1(t.x), f1(t.y), f1(total), f1(py_sum(&t.row_heights, self.compensated_sum))));
         }
         Ok(())
     }
@@ -430,9 +432,10 @@ impl<'a> Writer<'a> {
     }
 }
 
-/// Draw every item of the scene.
-pub fn draw(scene: &Scene) -> Result<Drawn, DrawError> {
-    Writer::new(scene).draw()
+/// Draw every item of the scene. `compensated_sum`: whether the Python that sends the scene has the compensated
+/// `sum()` of 3.12+ (block and table totals are `sum()` calls there).
+pub fn draw(scene: &Scene, compensated_sum: bool) -> Result<Drawn, DrawError> {
+    Writer::new(scene, compensated_sum).draw()
 }
 
 #[cfg(test)]
@@ -443,7 +446,7 @@ mod tests {
     const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
     fn drawn(json: &str) -> Drawn {
-        draw(&scene::parse(&json.replace("@ROOT@", ROOT)).unwrap()).unwrap()
+        draw(&scene::parse(&json.replace("@ROOT@", ROOT)).unwrap(), true).unwrap()
     }
 
     fn chars(d: &Drawn) -> String {
@@ -601,7 +604,7 @@ second</title></polygon>"####);
     #[test]
     fn missing_image_names_the_path() {
         let json = r####"{"version":1,"id":"S","title":"T","slug":"s","width":10,"height":10,"background":"#fff","items":[{"type":"image","id":"i","path":"/no/such/file.png","x":0,"y":0,"w":1,"h":1}],"item_facts":{},"sources":[],"meta_tooltips":{}}"####;
-        match draw(&scene::parse(json).unwrap()) {
+        match draw(&scene::parse(json).unwrap(), true) {
             Err(DrawError::NotFound(p)) => assert_eq!(p, "/no/such/file.png"),
             other => panic!("expected NotFound, got {other:?}"),
         }

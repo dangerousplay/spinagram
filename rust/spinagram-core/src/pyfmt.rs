@@ -75,8 +75,12 @@ pub fn repr_f64(x: f64) -> String {
     format!("{sign}{body}")
 }
 
-/// Python's `sum()` of floats (3.12+): Neumaier compensated summation.
-pub fn py_sum(xs: &[f64]) -> f64 {
+/// Python's `sum()` of floats. `compensated`: Python 3.12+ uses Neumaier compensated summation; older
+/// versions add left to right. The caller passes what the running interpreter does.
+pub fn py_sum(xs: &[f64], compensated: bool) -> f64 {
+    if !compensated {
+        return xs.iter().fold(0.0, |acc, x| acc + x);
+    }
     let (mut sum, mut c) = (0.0_f64, 0.0_f64);
     for &x in xs {
         let t = sum + x;
@@ -168,9 +172,17 @@ mod tests {
 
     #[test]
     fn py_sum_is_compensated_like_python_3_12() {
-        assert_eq!(py_sum(&[0.1; 10]), 1.0); // Python 3.13: sum([0.1] * 10) == 1.0
-        assert_eq!(py_sum(&[27.6, 27.6, 27.6]), 82.80000000000001);
-        assert_eq!(py_sum(&[]), 0.0);
+        assert_eq!(py_sum(&[0.1; 10], true), 1.0); // Python 3.13: sum([0.1] * 10) == 1.0
+        assert_eq!(py_sum(&[0.1, 0.2, 0.3], true), 0.6);
+        assert_eq!(py_sum(&[27.6, 27.6, 27.6], true), 82.80000000000001);
+        assert_eq!(py_sum(&[], true), 0.0);
+    }
+
+    #[test]
+    fn py_sum_adds_plainly_like_python_3_11() {
+        assert_eq!(py_sum(&[0.1; 10], false), 0.9999999999999999); // Python 3.11: sum([0.1] * 10)
+        assert_eq!(py_sum(&[0.1, 0.2, 0.3], false), 0.6000000000000001);
+        assert_eq!(py_sum(&[], false), 0.0);
     }
 
     const TEXT: &str = "a & b < c > d \" e ' f é ✓ 日本";

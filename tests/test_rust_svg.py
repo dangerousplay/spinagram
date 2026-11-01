@@ -110,3 +110,16 @@ def test_missing_image_raises_filenotfound_naming_the_path(rust_writer):  # edge
     sc = Scene("S", "T", "s", 10, 10, "#fff", [Image("i", Path("/no/such/file.png"), 0, 0, 1, 1)])
     with pytest.raises(FileNotFoundError, match="/no/such/file.png"):
         svg.to_svg(sc)
+
+
+def test_compensated_sum_flag_matches_the_interpreter():  # SVG-01 (sum() differs between 3.11 and 3.12+)
+    import sys
+    assert svg.COMPENSATED_SUM == (sys.version_info >= (3, 12))
+    assert (sum([0.1] * 10) == 1.0) == svg.COMPENSATED_SUM  # the behaviour the flag stands for
+
+
+def test_writer_sends_the_flag_to_the_core(core, monkeypatch):  # SVG-01
+    spy = mock.Mock(wraps=core)
+    monkeypatch.setattr(svg, "_CORE", spy)
+    svg.to_svg(font_scene())
+    assert spy.svg_draw.call_args.args[1] is svg.COMPENSATED_SUM
