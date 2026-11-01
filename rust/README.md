@@ -5,7 +5,7 @@ without these crates.
 
 | Crate | What it is |
 |---|---|
-| `spinagram-core` | Pure Rust library: font metrics, text measurement, wrapping and fitting (ported from `text.py` and `engine/textfit.py`), orthogonal edge routing (ported from `autolayout/route.py`), the scene model and SVG drawing (ported from `backends/svg.py`) and PNG rendering with resvg |
+| `spinagram-core` | Pure Rust library: font metrics, text measurement, wrapping and fitting (ported from `text.py` and `engine/textfit.py`), orthogonal edge routing (ported from `autolayout/route.py`), the scene model and SVG drawing (ported from `backends/svg.py`) PNG rendering with resvg, and CSS selector matching with the cascade (ported from `css.py`) |
 | `spinagram-core-py` | PyO3 bindings, published as the `spinagram-core` wheel and imported as `spinagram_core` |
 
 ## Build and try it
@@ -19,6 +19,7 @@ SPINAGRAM_RUST=1 uv run --all-extras --no-sync pytest -q   # the Python suite ag
 uv run --all-extras --no-sync python rust/bench/parity.py  # widths, fits and speed vs Pillow (a few minutes)
 uv run --all-extras --no-sync python rust/bench/route_parity.py  # edge routes and speed vs the Python router
 uv run --all-extras --no-sync python rust/bench/svg_png_parity.py  # SVG bytes per font mode, PNG vs Chromium
+uv run --all-extras --no-sync python rust/bench/css_parity.py      # CSS inspect() across modes, cascade speed
 bash rust/bench/render_all.sh OUT                          # every example to SVG, for byte-identity checks
 ```
 
@@ -34,6 +35,7 @@ so `uv run` does not remove the locally installed wheel.
 | Edge routing | `route(src, dst, obstacles, margin, sides, busy_src, busy_dst, crossing, guides, fracs)` | `spinagram.autolayout.route.route` |
 | Scene and SVG | `scene_roundtrip(json)`, `svg_draw(json)` | `spinagram.backends.svg.to_svg` |
 | PNG | `render_png(svg, width, height, scale, font_files)` | `spinagram.backends.png.PngBackend` |
+| CSS | `css_cascade(tree_json, rules_json)`, `css_select(tree_json, selectors)` | `spinagram.css.compute`, `select`, `inspect` |
 
 ### Routing slice
 
@@ -73,12 +75,31 @@ forces the Playwright path; without the core Playwright is used as before. resvg
 Chromium: the contract is a similarity bound per example at scale 1 (mean absolute channel difference <= 8 and
 at most 2 % of pixels with a channel difference > 64).
 
+### CSS slice
+
+Python keeps stylesheet tokenizing (tinycss2), `parse_selectors` validation, value typing (`PROPS`), warnings, the
+trace and inheritance of typed values. With the core active, `compute()` sends the element tree and the rules as
+JSON; Rust parses the accepted selector texts, matches them, orders the cascade by `(important, specificity, rule
+order, declaration index)` (inline declarations at levels 1 and 3) and substitutes `var()` with the same custom
+property scope as `resolve()`. It returns, per element and pseudo-element (`""`, `title`, `body`, `label`), the
+matched declarations in cascade order as `(rule or inline, selector, declaration, resolved value)`, and Python
+runs its typing loop over them. `select()` and the unused-selector scan of `inspect()` ask the core which
+elements each selector matches.
+
+Selector tokenizing, parsing, specificity and matching use the `cssparser` and Servo `selectors` crates (both
+MPL-2.0); the glue is the element tree, the `::title`/`::body`/`::label` pseudo-elements and node kinds as type
+names. The cascade sort and `var()` substitution are handwritten because no crate reproduces spinagram's rules.
+`selectors` follows the CSS grammar, which is stricter than spinagram's regex parser for a leading or trailing
+combinator (`> a`, `a >`) and an unquoted attribute value that is not an identifier (`[w=100px]`); the core
+returns an error for those and `compute()`, `select()` and `inspect()` run the Python path instead, so results are
+identical.
+
 ### Building on macOS 27
 
 The macOS 27 linker writes a misaligned string table when the module has an odd number of indirect symbols, and
 dyld then refuses to import it. If `import spinagram_core` fails with "mis-aligned LINKEDIT string pool", check
-`otool -l .../_core.abi3.so | grep nindirectsyms` and change the parity (the module init touches one Python data
-symbol for this reason). Linux and CI are not affected.
+`otool -l .../_core.abi3.so | grep nindirectsyms` and change the parity (the module init touches two Python data
+symbols for this reason; add or remove one when it breaks again). Linux and CI are not affected.
 
 ### Harnesses
 
@@ -86,6 +107,7 @@ symbol for this reason). Linux and CI are not affected.
 |---|---|
 | `bench/route_parity.py` | Records every `route()` call made while building the examples (57 calls) plus 2,500 seeded random scenarios, requires identical point lists, prints `N of N identical` and a timing table. Exits 1 on any difference. |
 | `bench/svg_png_parity.py` | SVG byte identity per font mode over every example scene (48), PNG similarity against Chromium per example (skipped without Chromium or with `--svg-only`), and timings. Exits 1 on any SVG difference or similarity breach. |
+| `bench/css_parity.py` | `inspect()` and `styles()` across modes for every example (48) and 1,200 seeded random (diagram, stylesheet) pairs using every selector feature and `var()` form (errors must match too), then timings on a 561-element, 200-rule diagram. Exits 1 on any difference. |
 | `bench/parity.py` | Text widths, fits and speed against Pillow (the text slice). |
 | `bench/render_all.sh` | Renders every example to SVG; two runs, or Python versus `SPINAGRAM_RUST=1`, must give `diff -r` with no output. |
 
@@ -100,6 +122,10 @@ Developer machine, warm in-process, best of 3.
 | `route()` over the 57 recorded calls | 878 ms (Python) | 18.8 ms (Rust) | 46.6x |
 | SVG writer, 48 scenes (subset) | 9 ms (Python) | 38 ms (Rust, includes building the scene JSON) | 0.2x |
 | PNG at scale 1, 48 scenes | 4671 ms (Chromium, one browser start) | 4051 ms (resvg) | 1.2x |
+| CSS matching + cascade, 561 elements, 200 rules | 97 ms (Python) | 14.2 ms (Rust, includes the JSON) | 6.8x |
+| `compute()` end to end, same diagram | 190 ms (Python) | 82.8 ms (Rust) | 2.3x |
+
+`compute()` gains less end to end because value typing, warnings and the trace stay in Python.
 
 PNG similarity against Chromium over the 48 scenes: worst mean channel difference 1.00 (limit 8), worst share of
 pixels differing by more than 64 is 0.39 % (limit 2 %). The Rust SVG writer is slower end to end than the Python

@@ -204,8 +204,8 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Workflow parses; step present; other jobs unchanged (PAR-22)
-- [ ] Build gate passes
+- [x] Workflow parses; step present; other jobs unchanged (PAR-22)
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

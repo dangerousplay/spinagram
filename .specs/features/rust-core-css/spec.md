@@ -114,7 +114,7 @@ diagrams stay fast, with exactly the same look.
 | CSS-08 | P1 | In Tasks | Implementing |
 | CSS-09 | P1 | In Tasks | Implementing |
 | PAR-21 | P2 | In Tasks | Implementing |
-| PAR-22 | P2 | In Tasks | Pending |
+| PAR-22 | P2 | In Tasks | Implementing |
 
 **Coverage:** 11 total, 11 mapped to tasks, 0 unmapped.
 
