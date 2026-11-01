@@ -186,13 +186,13 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Rust unit tests: `round2` of 0.125 → 0.12, 0.375 → 0.38, 2.675 → 2.67, 1.005 → 1.0, -0.125 → -0.12 (values from Python `round`) (ROUTE-10)
-- [ ] Rust unit test: boxed-in endpoints return the 4-point elbow from `src` bottom-middle to `dst` top-middle (ROUTE-05)
-- [ ] Rust unit test: a stub inside an obstacle rejects that side pair (ROUTE-06)
-- [ ] Rust unit test: busy side of `src` makes the route pick another side when one is free (ROUTE-07)
-- [ ] Rust unit test: a drawn segment across the straight path with a crossing cost makes the route go around (ROUTE-08)
-- [ ] Rust unit test: `fracs=(0.2, None)` starts the route at 20 % of the chosen side (ROUTE-09)
-- [ ] Rust gate passes (test + clippy `-D warnings`)
+- [x] Rust unit tests: `round2` of 0.125 → 0.12, 0.375 → 0.38, 2.675 → 2.67, 1.005 → 1.0, -0.125 → -0.12 (values from Python `round`) (ROUTE-10)
+- [x] Rust unit test: boxed-in endpoints return the 4-point elbow from `src` bottom-middle to `dst` top-middle (ROUTE-05)
+- [x] Rust unit test: a stub inside an obstacle rejects that side pair (ROUTE-06)
+- [x] Rust unit test: busy side of `src` makes the route pick another side when one is free (ROUTE-07)
+- [x] Rust unit test: a drawn segment across the straight path with a crossing cost makes the route go around (ROUTE-08)
+- [x] Rust unit test: `fracs=(0.2, None)` starts the route at 20 % of the chosen side (ROUTE-09)
+- [x] Rust gate passes (test + clippy `-D warnings`)
 
 **Tests**: unit (Rust)
 **Gate**: rust

@@ -160,13 +160,13 @@ the two implementations cannot drift.
 | ROUTE-01 | P1: Rust routing | In Tasks | Pending |
 | ROUTE-02 | P1: Rust routing | In Tasks | Pending |
 | ROUTE-03 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-04 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-05 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-06 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-07 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-08 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-09 | P1: Rust routing | In Tasks | Pending |
-| ROUTE-10 | P1: Rust routing | In Tasks | Pending |
+| ROUTE-04 | P1: Rust routing | In Tasks | Implementing |
+| ROUTE-05 | P1: Rust routing | In Tasks | Implementing |
+| ROUTE-06 | P1: Rust routing | In Tasks | Implementing |
+| ROUTE-07 | P1: Rust routing | In Tasks | Implementing |
+| ROUTE-08 | P1: Rust routing | In Tasks | Implementing |
+| ROUTE-09 | P1: Rust routing | In Tasks | Implementing |
+| ROUTE-10 | P1: Rust routing | In Tasks | Implementing |
 | ROUTE-11 | P1: Rust routing | In Tasks | Pending |
 | PAR-01 | P2: parity in CI | In Tasks | Pending |
 | PAR-02 | P2: parity in CI | In Tasks | Pending |
