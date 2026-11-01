@@ -22,11 +22,12 @@ pub enum Op {
     Rename { id: String, title: String },
     /// Remove a node (or zone), the edges touching it, and its id from `children` and `nodes` lists.
     Delete { id: String },
-    /// Append a node to `nodes`.
+    /// Append a node to `nodes` (`icon` is a ref like `aws:s3`).
     AddNode {
         id: String,
         title: Option<String>,
         kind: Option<String>,
+        icon: Option<String>,
         x: Option<f64>,
         y: Option<f64>,
         w: Option<f64>,
@@ -548,7 +549,7 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             set_keys(src, e.node, &[(key, text)])
         }
         Op::Delete { id } => delete(src, root, id),
-        Op::AddNode { id, title, kind, x, y, w, h } => {
+        Op::AddNode { id, title, kind, icon, x, y, w, h } => {
             if exists(root, id) {
                 return fail(format!("duplicate id `{id}`"));
             }
@@ -558,6 +559,9 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             }
             if let Some(t) = title {
                 fields.push(format!("title: {}", quoted(t)));
+            }
+            if let Some(i) = icon {
+                fields.push(format!("icon: {}", quoted(i)));
             }
             for (k, v) in [("x", x), ("y", y), ("w", w), ("h", h)] {
                 if let Some(v) = v {
@@ -1332,6 +1336,15 @@ mod tests {
         let out = apply_ops(&read(fixture), &ops(json)).unwrap_or_else(|e| panic!("{json}: {e}"));
         parse_diagram(&out).expect("the output re-parses");
         out
+    }
+
+    #[test]
+    fn add_node_writes_an_icon_ref_and_geometry() {
+        let json = r#"[{"op":"add_node","id":"postgres","title":"Postgres","icon":"aws:rds-postgresql","x":10,"y":20,"w":220,"h":96}]"#;
+        assert_eq!(
+            run("flow", json),
+            expect("flow", &[("  - {id: d, title: Delta}\n", "  - {id: d, title: Delta}\n  - {id: postgres, title: \"Postgres\", icon: \"aws:rds-postgresql\", x: 10, y: 20, w: 220, h: 96}\n")])
+        );
     }
 
     #[test]

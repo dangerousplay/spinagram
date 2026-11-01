@@ -3,6 +3,8 @@ import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type S
 import { href, typingIn, useKey, usePanZoom } from "./hooks";
 import CodePanel from "./CodePanel";
 import CanvasBar from "./canvas/CanvasBar";
+import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
+import type { PaletteItem } from "./canvas/palette";
 import { useCanvas } from "./canvas/useCanvas";
 import { hitTest, InspectorPanel, Overlay } from "./Inspector";
 
@@ -59,6 +61,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
+  const paletteFocus = useRef<(() => void) | null>(null);
   const reloadDiagram = useCallback(() => setTick((t) => t + 1), []);
   const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, tick, reload: reloadDiagram });
 
@@ -186,6 +189,17 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
   }, [canvas.group]);
+  useKey("/", () => canvas.active && paletteFocus.current?.());
+  useEffect(() => {
+    // Ctrl/Cmd+K focuses the palette search
+    const on = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "k" || !canvas.active) return;
+      e.preventDefault();
+      paletteFocus.current?.();
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [canvas.active]);
   useKey("Escape", () => {
     setSelected(null);
     canvas.clear();
@@ -201,6 +215,16 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         onPointerMove={onMove}
         onPointerDown={onDown}
         onPointerUp={onUp}
+        onDragOver={(e) => {
+          if (canvas.active && e.dataTransfer.types.includes(PALETTE_MIME)) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          const raw = e.dataTransfer.getData(PALETTE_MIME);
+          if (!canvas.active || !raw) return;
+          e.preventDefault();
+          const p = sceneAt(e);
+          canvas.add(JSON.parse(raw) as PaletteItem, p.x, p.y);
+        }}
         onDoubleClick={(e) => {
           if (!canvas.active) return;
           const p = sceneAt(e);
@@ -267,6 +291,17 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         )}
       </div>
 
+      {canvas.active && (
+        <PalettePanel
+          rev={rev}
+          focusRef={paletteFocus}
+          onAdd={(item) => {
+            const r = ref.current?.getBoundingClientRect();
+            const c = r ? sceneAt({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }) : { x: 400, y: 300 };
+            canvas.add(item, c.x, c.y);
+          }}
+        />
+      )}
       <CanvasBar canvas={canvas} />
 
       {(error || fileError || themeError) && (

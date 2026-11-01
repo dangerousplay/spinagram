@@ -7,6 +7,7 @@ import { CanvasClient } from "./client";
 import { dragMoves, dragTo, startDrag, type Drag } from "./drag";
 import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps, type Item, type Op } from "./ops";
 import { boxOf, containerAt, containerBox, hitTest, hitZone, rubberBand, zoneBox, zoneMoveShapes, type Box, type Kind, type SceneJson, type Sel } from "./scene";
+import { dropOps, type PaletteItem } from "./palette";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
 
 export const CHANGED_ON_DISK = "File changed on disk; edit not applied";
@@ -306,6 +307,15 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     [active, commit],
   );
 
+  /** Add a palette item with its centre at a scene point (PAL-03, PAL-04, PAL-05, ZON-01). */
+  const add = useCallback(
+    (item: PaletteItem, x: number, y: number) => {
+      if (!active || !sceneRef.current) return;
+      void commit(dropOps(sceneRef.current, item, x, y));
+    },
+    [active, commit],
+  );
+
   const clear = useCallback(() => {
     pick([]);
     setEditing(null);
@@ -411,6 +421,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     move,
     end,
     remove,
+    add,
     group,
     ungroup,
     setContainer,

@@ -452,13 +452,15 @@ Ops JSON shapes are documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] bun tests: "postgress" ranks `postgres` first; one typo tolerated for queries of ≥ 4 characters; the id scheme; AddNode op from a drop; the no-match message
-- [ ] bun benchmark test: search over a 10,000-icon synthetic corpus, p95 ≤ 100 ms (PAL-01)
-- [ ] Web gate passes
+- [x] bun tests: "postgress" ranks `postgres` first; one typo tolerated for queries of ≥ 4 characters; the id scheme; AddNode op from a drop; the no-match message
+- [x] bun benchmark test: search over a 10,000-icon synthetic corpus, p95 ≤ 100 ms (PAL-01)
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): icon palette with fuzzy search and drop`
+
+**Notes**: Search library: uFuzzy (`@leeoniya/ufuzzy` 1.0.19, `intraMode: 1`, no dependencies, 7 KB). Pure logic in `canvas/palette.ts` (corpus, `search`, `newId`, `dropOps`), panel in `canvas/PalettePanel.tsx` (drag to the canvas, `/` or Ctrl/Cmd+K to focus, arrows and Enter add at the canvas centre, "Not downloaded" with Fetch that polls while a pack downloads). Benchmark over a 10,018-item synthetic corpus (16 queries x 8 rounds): p50 2.0 ms, p95 10.8 ms, max 11.8 ms (limit 100). Row and Column items add two boxes and group them (a container cannot be empty); a node dropped with its centre in a zone also gets a Reparent. Outside `Where`: Rust `AddNode` gained an optional `icon` (edit.rs test, tests/test_rust_edit.py, edit.py docs). `web/bun.lock` was edited by hand (3 lines: the local bun 1.3.14 rewrites the whole lockfile and cannot verify `--frozen-lockfile` even on the committed lock, so CI's bun 1.4.2 is the check). bun 89 -> 104; cargo 206.
 
 ---
 

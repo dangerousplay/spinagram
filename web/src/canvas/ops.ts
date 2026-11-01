@@ -19,11 +19,13 @@ export type Op =
   | { op: "move_zone"; id: string; x: number; y: number }
   | { op: "reparent"; id: string; parent: string | null }
   | { op: "rename"; id: string; title: string }
-  | { op: "group"; axis: "row" | "column"; ids: string[]; gap?: number }
+  | { op: "group"; axis: "row" | "column"; ids: string[]; gap?: number; x?: number; y?: number }
   | { op: "ungroup"; id: string; boxes: Record<string, Rect> }
   | { op: "add_to_container"; id: string; node: string; index?: number }
   | { op: "remove_from_container"; id: string; node: string; boxes: Record<string, Rect> }
-  | { op: "set_container"; id: string; gap?: number; align?: string };
+  | { op: "set_container"; id: string; gap?: number; align?: string }
+  | { op: "add_node"; id: string; title?: string; kind?: string; icon?: string; x?: number; y?: number; w?: number; h?: number }
+  | { op: "add_zone"; id: string; label?: string; x: number; y: number; w: number; h: number };
 
 export type Rect = [number, number, number, number];
 
@@ -40,8 +42,6 @@ export const deleteOps = (id: string): Op[] => [{ op: "delete", id }];
 export const renameOps = (id: string, title: string): Op[] => [{ op: "rename", id, title }];
 
 export const CYCLE_MESSAGE = "A zone cannot contain itself";
-
-export type Dropped = { x: number; y: number };
 
 /** The zone a dragged node or zone would be dropped into: the innermost zone holding the centre of the moved
  * box (ZON-02, ZON-06). Zones that travel with a dragged zone are tested where they are dropped. */

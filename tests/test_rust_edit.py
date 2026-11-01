@@ -261,3 +261,10 @@ def test_add_to_the_same_container_reorders_its_members(tmp_path):
     assert _containers(_load(tmp_path, out))[0][1] == ["f", "e", "g"]
     out = edit.apply_ops(text, [{"op": "add_to_container", "id": "column1", "node": "i", "index": 0}])
     assert _containers(_load(tmp_path, out))[1][1] == ["i", "h"]
+
+
+def test_add_node_with_an_icon_ref_loads_with_that_icon(tmp_path):
+    out = edit.apply_ops(_fixture("zones_flow"), [{"op": "add_node", "id": "pg", "title": "Postgres", "icon": "aws:rds-postgresql",
+                                                    "x": 10, "y": 20, "w": 220, "h": 96}])
+    node = next(n for n in _load(tmp_path, out).nodes if n.id == "pg")
+    assert (node.icon, node.title, node.w, node.h) == ("aws:rds-postgresql", "Postgres", 220, 96)

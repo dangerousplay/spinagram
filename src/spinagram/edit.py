@@ -8,7 +8,8 @@ Operations are dicts (``"op"`` names the kind)::
 
     {"op": "move", "id": "a", "x": 100, "y": 40}          {"op": "resize", "id": "a", "w": 160, "h": 80}
     {"op": "rename", "id": "a", "title": "New title"}      {"op": "delete", "id": "a"}
-    {"op": "add_node", "id": "n", "title": "T", "x": 0, "y": 0, "w": 120, "h": 60}   (kind, title, geometry optional)
+    {"op": "add_node", "id": "n", "title": "T", "x": 0, "y": 0, "w": 120, "h": 60}   (kind, icon "pack:name", title,
+                                                                                geometry optional)
     {"op": "connect", "from": "a", "to": "b", "label": "calls"}   {"op": "disconnect", "from": "a", "to": "b"}
 
 Zones and containers (a container's id is ``row0``, ``column1``, ... counting every ``rows`` entry, then every

@@ -20,6 +20,7 @@ import {
   type SceneJson,
 } from "./scene";
 import { byteToIndex, entryField, yamlRange } from "./srcmap";
+import { buildCorpus, displayName, dropOps, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
   width: 1000,
@@ -449,5 +450,157 @@ describe("moving a selection", () => {
       ],
     };
     expect(planMultiDrop(cyc, [{ box: zoneBox(cyc, "a")!, kind: "zone" }], 10, 10)).toEqual({ error: CYCLE_MESSAGE });
+  });
+});
+
+// --- icon palette (T14): canvas-editor PAL-01..07, ZON-01 -------------------------------------------------------
+const icon = (pack: string, name: string, aliases: string[] = []): IconEntry => ({ pack, name, aliases });
+const small = buildCorpus([
+  icon("aws", "postgresql", ["rds-postgres"]),
+  icon("aws", "postgres", ["pg"]),
+  icon("gcp", "postgis"),
+  icon("gcp", "progress-bar"),
+  icon("k8s", "post-office"),
+  icon("aws", "redis", ["cache"]),
+  icon("aws", "s3", ["bucket", "object-storage"]),
+  icon("gcp", "kubernetes-engine", ["gke"]),
+  icon("k8s", "pod"),
+  icon("aws", "dynamodb", ["database", "nosql"]),
+]);
+const names = (q: string) => search(small, q).map((i) => (i.type === "icon" ? i.name : i.type));
+
+describe("palette search", () => {
+  test('"postgress" ranks postgres first', () => {
+    expect(names("postgress")[0]).toBe("postgres");
+  });
+
+  test("one typo is tolerated in a query of 4 or more characters: substitution, deletion, insertion, transposition", () => {
+    for (const q of ["postgras", "postgrs", "postgress", "psotgres", "pstgres"]) expect(names(q)).toContain("postgres");
+    expect(names("rdis")).toContain("redis"); // 4 characters, transposed
+    expect(names("redus")).toContain("redis");
+    expect(names("kuberntes")).toContain("kubernetes-engine");
+  });
+
+  test("names, aliases and the pack name match, in any case", () => {
+    expect(names("POSTGRES")).toContain("postgres");
+    expect(names("bucket")).toEqual(["s3"]); // an alias
+    expect(names("nosql")).toEqual(["dynamodb"]);
+    expect(names("k8s")).toEqual(expect.arrayContaining(["pod", "post-office"])); // the pack name
+    expect(names("gke")).toEqual(["kubernetes-engine"]);
+  });
+
+  test("an empty query lists the built-ins first: Zone, Row, Column, then the shapes", () => {
+    const first = search(small, "", 5).map((i) => i.type);
+    expect(first).toEqual(["zone", "row", "column", "shape", "shape"]);
+    expect(names("zone")[0]).toBe("zone");
+    expect(names("diamond")[0]).toBe("shape");
+  });
+
+  test("a query that matches nothing is empty and has the spec message", () => {
+    expect(search(small, "qzxwv")).toEqual([]);
+    expect(noMatch("qzxwv")).toBe("No icons match 'qzxwv'");
+    expect(noMatch("  qzxwv ")).toBe("No icons match 'qzxwv'");
+  });
+
+  test("display names are the kebab name in title case", () => {
+    expect(displayName("amazon-s3")).toBe("Amazon S3");
+    expect(displayName("postgres")).toBe("Postgres");
+  });
+});
+
+describe("new ids", () => {
+  test("the kebab-case title, suffixed -2, -3 until unique among node and zone ids", () => {
+    expect(newId("Postgres", [])).toBe("postgres");
+    expect(newId("Postgres", ["postgres"])).toBe("postgres-2");
+    expect(newId("Postgres", ["postgres", "postgres-2"])).toBe("postgres-3");
+    expect(newId("Amazon S3 (EU)!", [])).toBe("amazon-s3-eu");
+    expect(newId("???", [])).toBe("node");
+    expect(newId("Zone", ["zone"])).toBe("zone-2"); // a zone id counts
+  });
+});
+
+describe("dropping palette items", () => {
+  const pg = small.items.find((i) => i.type === "icon" && i.name === "postgres")!;
+  const empty: SceneJson = { width: 1600, height: 900, items: [] };
+
+  test("an icon becomes a 220 x 96 node centred on the snapped drop point, with icon ref and display title", () => {
+    expect(dropOps(empty, pg, 500, 300)).toEqual([{ op: "add_node", id: "postgres", title: "Postgres", icon: "aws:postgres", x: 390, y: 250, w: 220, h: 96 }]);
+  });
+
+  test("the id is made unique against the nodes and zones already there", () => {
+    const sc: SceneJson = { ...zscene, width: 1600, height: 900, items: [...zscene.items, shape("postgres", "node", 0, 0, 10, 10)] };
+    const op = dropOps(sc, pg, 1000, 700)[0];
+    expect(op).toMatchObject({ op: "add_node", id: "postgres-2" });
+  });
+
+  test("a shape item adds a node of that kind titled New <kind>", () => {
+    const box = small.items.find((i) => i.type === "shape" && i.kind === "box")!;
+    const diamond = small.items.find((i) => i.type === "shape" && i.kind === "diamond")!;
+    expect(dropOps(empty, box, 500, 300)).toEqual([{ op: "add_node", id: "new-box", title: "New box", kind: "box", x: 390, y: 250, w: 220, h: 96 }]);
+    expect(dropOps(empty, diamond, 500, 300)[0]).toMatchObject({ kind: "diamond", title: "New diamond" });
+  });
+
+  test("the Zone item adds a 600 x 400 zone labelled Zone with a unique id (ZON-01)", () => {
+    const zone = small.items.find((i) => i.type === "zone")!;
+    expect(dropOps(empty, zone, 100, 100)).toEqual([{ op: "add_zone", id: "zone", label: "Zone", x: 100, y: 100, w: 600, h: 400 }]);
+    expect(dropOps({ ...zscene, width: 1600, height: 900 }, zone, 100, 100)[0]).toMatchObject({ op: "add_zone", id: "zone" });
+    const taken: SceneJson = { ...empty, zones: [{ id: "zone", shape_id: "z0", children: [] }] };
+    expect(dropOps(taken, zone, 100, 100)[0]).toMatchObject({ id: "zone-2" });
+  });
+
+  test("a node dropped with its centre in a zone also becomes its child (ZON-02)", () => {
+    const sc: SceneJson = { ...zscene, width: 1600, height: 900 };
+    const ops = dropOps(sc, pg, 200, 300); // inside `inner`
+    expect(ops).toEqual([
+      { op: "add_node", id: "postgres", title: "Postgres", icon: "aws:postgres", x: 90, y: 250, w: 220, h: 96 },
+      { op: "reparent", id: "postgres", parent: "inner" },
+    ]);
+  });
+
+  test("the node is kept inside the canvas", () => {
+    expect(dropOps(empty, pg, 0, 0)[0]).toMatchObject({ x: 0, y: 0 });
+    expect(dropOps(empty, pg, 5000, 5000)[0]).toMatchObject({ x: 1380, y: 804 });
+  });
+
+  test("Row and Column add two boxes and group them on that axis", () => {
+    const row = small.items.find((i) => i.type === "row")!;
+    const ops = dropOps(empty, row, 500, 300);
+    expect(ops.map((o) => o.op)).toEqual(["add_node", "add_node", "group"]);
+    expect(ops[2]).toMatchObject({ op: "group", axis: "row", ids: ["new-box", "new-box-2"] });
+    expect(dropOps(empty, small.items.find((i) => i.type === "column")!, 500, 300)[2]).toMatchObject({ axis: "column" });
+  });
+});
+
+describe("palette search speed (PAL-01)", () => {
+  // 10,000 icons across 12 packs: names built from word lists, some with aliases
+  const stems = ["data", "base", "server", "queue", "cache", "storage", "network", "load", "balancer", "function", "stream", "cluster", "gateway", "monitor", "secret", "key", "vault", "index", "search", "event", "bus", "mesh", "proxy", "topic", "worker", "batch", "notebook", "registry", "pipeline", "firewall"];
+  const prefixes = ["amazon", "azure", "google", "cloud", "elastic", "managed", "private", "global", "edge", "secure"];
+  let seed = 7;
+  const rnd = (n: number) => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed % n;
+  };
+  const corpus: IconEntry[] = [];
+  for (let i = 0; i < 10_000; i++) {
+    const name = `${prefixes[rnd(prefixes.length)]}-${stems[rnd(stems.length)]}-${stems[rnd(stems.length)]}-${i}`;
+    corpus.push(icon(`pack${i % 12}`, name, i % 3 === 0 ? [stems[rnd(stems.length)], `alias${i}`] : []));
+  }
+  const big = buildCorpus(corpus);
+
+  test("p95 of searches over 10,000 icons is at most 100 ms", () => {
+    const queries = ["postgres", "data", "dta bse", "amazon server", "azure-queue", "balncer", "gateway 42", "elastic cluster", "vault", "secure-key-9", "pack3 stream", "notebok", "a", "ser", "cloud", "managd proxy"];
+    const times: number[] = [];
+    for (let round = 0; round < 8; round++) {
+      for (const q of queries) {
+        const t0 = performance.now();
+        search(big, q);
+        times.push(performance.now() - t0);
+      }
+    }
+    times.sort((a, b) => a - b);
+    const p95 = times[Math.floor(times.length * 0.95)];
+    console.log(`palette search over ${big.items.length} items: p50 ${times[times.length >> 1].toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${times[times.length - 1].toFixed(1)} ms`);
+    expect(big.items.length).toBeGreaterThanOrEqual(10_000);
+    expect(p95).toBeLessThanOrEqual(100);
   });
 });
