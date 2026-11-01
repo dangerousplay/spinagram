@@ -10,7 +10,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Spec**: `.specs/features/rust-core-svg-png/spec.md`
 **Design**: inline (Assumptions table of the spec + notes per task); the routing slice's patterns apply (`src/spinagram/rust.py`, import-time switch, data across the boundary, `py.detach`).
-**Status**: In Progress
+**Status**: Done
 
 ---
 

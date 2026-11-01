@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 75,
+  "next_id": 76,
   "lessons": [
     {
       "id": "L-001",
@@ -1346,6 +1346,24 @@
       ],
       "created": "2026-11-01T02:48:45Z",
       "last_seen": "2026-11-01T02:48:45Z"
+    },
+    {
+      "id": "L-075",
+      "key": "ac_gap::when porting code that must match the interpreter byte for byte check every supported python version since builtins like sum change between versions",
+      "text": "When porting code that must match the interpreter byte for byte, check every supported Python version, since builtins like sum() change between versions",
+      "signal": "ac_gap",
+      "scope": "rust",
+      "status": "candidate",
+      "features": [
+        "rust-core-svg-png"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SVG-01; validation.md Fix 1 (rust)"
+      ],
+      "created": "2026-11-01T03:48:19Z",
+      "last_seen": "2026-11-01T03:48:19Z"
     }
   ]
 }

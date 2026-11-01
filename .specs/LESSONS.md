@@ -456,6 +456,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: T5; spec.md Assumptions spec files row (yaml)
 - last seen: 2026-11-01T02:48:45Z
 
+### L-075 - When porting code that must match the interpreter byte for byte, check every supported Python version, since builtins like sum() change between versions
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `rust` · harmful: 0
+- features: rust-core-svg-png
+- evidence: SVG-01; validation.md Fix 1 (rust)
+- last seen: 2026-11-01T03:48:19Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

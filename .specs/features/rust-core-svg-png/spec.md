@@ -1,6 +1,6 @@
 # Rust core: scene model, SVG drawing and PNG without a browser
 
-**Status:** In Tasks · **Size:** Large · **Branch:** `spike/rust-core`
+**Status:** Verified · **Size:** Large · **Branch:** `spike/rust-core`
 **Builds on:** `rust-core-routing` (verified), STATE.md 2026-11-01 (Rust core port pattern)
 
 ## Problem Statement
@@ -139,27 +139,27 @@ that Rust reads so that I can draw spinagram diagrams without Python.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| SCN-01 | P1: scene | In Tasks | Implementing |
-| SCN-02 | P1: scene | In Tasks | Implementing |
-| SCN-03 | P1: scene | In Tasks | Implementing |
-| SCN-04 | P1: scene | In Tasks | Implementing |
-| SCN-05 | P1: scene | In Tasks | Implementing |
-| SVG-01 | P1: SVG | In Tasks | Implementing |
-| SVG-02 | P1: SVG | In Tasks | Implementing |
-| SVG-03 | P1: SVG | In Tasks | Implementing |
-| SVG-04 | P1: SVG | In Tasks | Implementing |
-| SVG-05 | P1: SVG | In Tasks | Implementing |
-| SVG-06 | P1: SVG | In Tasks | Implementing |
-| SVG-07 | P1: SVG | In Tasks | Implementing |
-| SVG-08 | P1: SVG | In Tasks | Implementing |
-| PNG-01 | P2: PNG | In Tasks | Implementing |
-| PNG-02 | P2: PNG | In Tasks | Implementing |
-| PNG-03 | P2: PNG | In Tasks | Implementing |
-| PNG-04 | P2: PNG | In Tasks | Implementing |
-| PNG-05 | P2: PNG | In Tasks | Implementing |
-| PNG-06 | P2: PNG | In Tasks | Implementing |
-| PAR-11 | P2: parity | In Tasks | Implementing |
-| PAR-12 | P2: parity | In Tasks | Implementing |
+| SCN-01 | P1: scene | Done | Verified |
+| SCN-02 | P1: scene | Done | Verified |
+| SCN-03 | P1: scene | Done | Verified |
+| SCN-04 | P1: scene | Done | Verified |
+| SCN-05 | P1: scene | Done | Verified |
+| SVG-01 | P1: SVG | Done | Verified |
+| SVG-02 | P1: SVG | Done | Verified |
+| SVG-03 | P1: SVG | Done | Verified |
+| SVG-04 | P1: SVG | Done | Verified |
+| SVG-05 | P1: SVG | Done | Verified |
+| SVG-06 | P1: SVG | Done | Verified |
+| SVG-07 | P1: SVG | Done | Verified |
+| SVG-08 | P1: SVG | Done | Verified |
+| PNG-01 | P2: PNG | Done | Verified |
+| PNG-02 | P2: PNG | Done | Verified |
+| PNG-03 | P2: PNG | Done | Verified |
+| PNG-04 | P2: PNG | Done | Verified |
+| PNG-05 | P2: PNG | Done | Verified |
+| PNG-06 | P2: PNG | Done | Verified |
+| PAR-11 | P2: parity | Done | Verified |
+| PAR-12 | P2: parity | Done | Verified |
 
 **Coverage:** 21 total, 21 mapped to tasks, 0 unmapped.
 

@@ -1,6 +1,26 @@
-**Verdict: FAIL** (iteration 1: 21/21 ACs traced and gates green on Python 3.13; one defect: Rust always uses Python 3.12+ compensated `sum()`, so SVG-01 byte identity is not guaranteed on Python 3.11, which the project supports)
+**Verdict: PASS** (iteration 2: 21/21 ACs traced to spec outcomes on Python 3.13 and 3.11, 10/10 mutants killed, gates green; the iteration 1 report is kept below)
 
-# Validation: rust-core-svg-png (iteration 1)
+# Validation: rust-core-svg-png - PASS (iteration 2)
+
+## Iteration 2 (2026-11-01, HEAD `33feb84`)
+
+| Check | Result |
+|---|---|
+| Fix 1 | `33feb84`: `svg_draw(json, compensated_sum)`; `backends/svg.py:22` `COMPENSATED_SUM = sys.version_info >= (3, 12)`; `pyfmt::py_sum(xs, compensated)` plain when false. Rust tests for both modes (values from Python 3.11.15 and 3.13); Python tests for the flag and the call argument |
+| Python 3.11 | Implementer ran `tests/test_rust_svg.py` + `tests/test_scene_json.py` in a scratch 3.11.15 venv with the wheel: 35 passed, core active, `COMPENSATED_SUM` False, 48 scenes × 3 font modes byte-identical |
+| Mutants (Verifier, scratch worktree) | M9 flag threshold `(3, 12)` → `(3, 14)`: killed (`tests/test_rust_svg.py`). M10 `py_sum` branch inverted: killed (2 cargo failures) |
+| Gates (Verifier) | cargo test 42 passed; clippy clean; ruff clean; pytest **2709 passed, 3 skipped** in both modes; `svg_png_parity.py --svg-only` 48/48 identical per font mode; `import spinagram_core` OK with the core active |
+| Real tree | porcelain unchanged after the sensor |
+
+**Residual risks (not blocking, surfaced to the user):** the macOS 27 linker workaround needed a second symbol touch after F1 and will flip again with symbol-set changes (Linux/CI unaffected); when the module fails to import, `rust.core()` returns None and `importorskip` skips binding tests, so a broken local build degrades silently to the Python path.
+
+| Requirement | Previous | New |
+|---|---|---|
+| SCN-01 … SCN-05, SVG-01 … SVG-08, PNG-01 … PNG-06, PAR-11, PAR-12 | Implementing | ✅ Verified |
+
+---
+
+# Iteration 1 (kept for the record)
 
 **Date**: 2026-11-01
 **Spec**: `.specs/features/rust-core-svg-png/spec.md`
@@ -52,7 +72,7 @@ Scratch worktree at `50168d5`, separate `CARGO_TARGET_DIR`; real tree porcelain 
 | R4 | `png.rs`: `round_ties_even` → `round` | ✅ |
 | R5 | `svg.rs`: never reuse a shadow filter | ✅ |
 
-**Result**: 8/8 killed.
+**Outcome (iteration 1)**: 8/8 killed.
 
 ## Gate Check
 
