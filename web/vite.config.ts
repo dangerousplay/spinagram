@@ -8,6 +8,13 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "./",
   // the code editor (CodeMirror) is a lazy ~500 kB chunk loaded only when the code panel opens
+  // the wasm keeps a fixed file name, so the JS that loads it does not change when the wasm bytes do
   build: { outDir: "../src/spinagram/ui/static", emptyOutDir: true, chunkSizeWarningLimit: 600 },
+  worker: {
+    format: "es",
+    rollupOptions: {
+      output: { assetFileNames: (a) => (a.names.some((n) => n.endsWith(".wasm")) ? "assets/[name][extname]" : "assets/[name]-[hash][extname]") },
+    },
+  },
   server: { proxy: { "/api": { target: "http://127.0.0.1:8765", changeOrigin: false } } },
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type StyleReport } from "./api";
 import { href, useKey, usePanZoom } from "./hooks";
 import CodePanel from "./CodePanel";
+import { useCanvas } from "./canvas/useCanvas";
 import { hitTest, InspectorPanel, Overlay } from "./Inspector";
 
 const INSPECT_KEY = "spinagram.inspect";
@@ -42,7 +43,10 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [info, setInfo] = useState<DiagramInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const size = useMemo(() => (svg ? svgSize(svg) : null), [svg]);
-  const { ref, view, fit, actual, zoomBy } = usePanZoom(size);
+  const [canvasOn, setCanvasOn] = useState(false);
+  const [tick, setTick] = useState(0); // bumped after a canvas edit: render and scene are read again
+  const panGate = useRef<(e: PointerEvent) => boolean>(() => true);
+  const { ref, view, fit, actual, zoomBy } = usePanZoom(size, (e) => panGate.current(e));
   const fitted = useRef(false);
   const [inspect, setInspect] = useState(() => stored(INSPECT_KEY));
   const [code, setCode] = useState(false); // the code panel starts collapsed: the diagram gets the room
@@ -54,6 +58,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
+  const reloadDiagram = useCallback(() => setTick((t) => t + 1), []);
+  const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, tick, reload: reloadDiagram });
 
   const toggleInspect = useCallback(() => {
     setInspect((on) => {
@@ -87,19 +93,39 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     return () => ctl.abort();
   }, [inspect, code, diagramKey, layout, rev]);
 
-  const sceneAt = (e: React.PointerEvent) => {
+  const sceneAt = (e: { clientX: number; clientY: number }) => {
     const r = ref.current!.getBoundingClientRect();
     return { x: (e.clientX - r.left - view.x) / view.scale, y: (e.clientY - r.top - view.y) / view.scale };
   };
+  // a press on a node belongs to the canvas (drag it), anywhere else it pans
+  panGate.current = (e) => {
+    if (!canvas.active) return true;
+    const p = sceneAt(e);
+    return !canvas.hits(p.x, p.y);
+  };
   const onMove = (e: React.PointerEvent) => {
+    if (canvas.dragging) {
+      const p = sceneAt(e);
+      canvas.move(p.x, p.y);
+      return;
+    }
     if (!inspect || !report || e.buttons) return;
     const p = sceneAt(e);
     setHover(hitTest(report, p.x, p.y, 6 / view.scale));
   };
   const onDown = (e: React.PointerEvent) => {
     press.current = { x: e.clientX, y: e.clientY };
+    if (canvas.active && e.button === 0) {
+      const p = sceneAt(e);
+      if (canvas.begin(p.x, p.y)) ref.current?.setPointerCapture(e.pointerId);
+    }
   };
   const onUp = (e: React.PointerEvent) => {
+    if (canvas.dragging) {
+      press.current = null;
+      canvas.end();
+      return;
+    }
     const p0 = press.current;
     press.current = null;
     if (!report || !p0 || Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 4) return; // a drag pans
@@ -119,6 +145,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       .diagram(diagramKey, layout, ctl.signal)
       .then((r) => {
         setSvg(r.svg); // keep zoom/pan: only the first render of this view fits
+        canvas.clearPreview(); // the server render is the authority again
         setInfo(r.info);
         setError(null);
       })
@@ -129,7 +156,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
       })
       .finally(() => !ctl.signal.aborted && setLoading(false));
     return () => ctl.abort();
-  }, [diagramKey, layout, rev]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagramKey, layout, rev, tick]);
 
   useEffect(() => {
     if (size && !fitted.current) {
@@ -144,7 +172,13 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   useKey("-", () => zoomBy(0.8));
   useKey("i", toggleInspect);
   useKey("e", toggleCode);
-  useKey("Escape", () => setSelected(null));
+  useKey("c", () => setCanvasOn((on) => !on));
+  useKey("Delete", canvas.remove);
+  useKey("Backspace", canvas.remove);
+  useKey("Escape", () => {
+    setSelected(null);
+    canvas.clear();
+  });
 
   const fileError = file?.error && !diagram;
   return (
@@ -165,7 +199,13 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             }`}
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, width: size?.w, height: size?.h }}
           >
-            <div dangerouslySetInnerHTML={{ __html: svg }} />
+            <div dangerouslySetInnerHTML={{ __html: canvas.preview ?? svg }} />
+            {canvas.selectedBox && (
+              <div
+                className="pointer-events-none absolute rounded-sm border-2 border-blue-500 bg-blue-500/10"
+                style={{ left: canvas.selectedBox.x, top: canvas.selectedBox.y, width: canvas.selectedBox.w, height: canvas.selectedBox.h }}
+              />
+            )}
             {inspect && report && <Overlay report={report} hover={hover} selected={selected} scale={view.scale} />}
           </div>
         )}
@@ -213,6 +253,16 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             {info.warnings.length} warning{info.warnings.length > 1 ? "s" : ""}
           </span>
         )}
+        {canvasOn && canvas.editable === false && (
+          <span className="rounded-md bg-amber-100 px-2 py-1 text-amber-900 shadow dark:bg-amber-950 dark:text-amber-200">
+            Canvas editing needs a hand-placed YAML spec
+          </span>
+        )}
+        {canvas.notice && (
+          <span className="rounded-md bg-red-100 px-2 py-1 text-red-900 shadow dark:bg-red-950 dark:text-red-200" role="alert">
+            {canvas.notice}
+          </span>
+        )}
         {loading && <span className="animate-pulse text-slate-500">rendering…</span>}
       </div>
 
@@ -224,6 +274,16 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         <ToolButton onClick={() => zoomBy(1.25)} title="Zoom in (+)">+</ToolButton>
         <button className="border-l border-slate-200 px-3 py-1 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700" onClick={fit} title="Fit (f)">
           Fit
+        </button>
+        <button
+          className={`border-l border-slate-200 px-3 py-1 dark:border-slate-700 ${
+            canvasOn ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-slate-100 dark:hover:bg-slate-700"
+          }`}
+          onClick={() => setCanvasOn((on) => !on)}
+          title="Canvas (c): click a node to select it, drag to move it, Delete removes it (hand-placed YAML specs)"
+          aria-pressed={canvasOn}
+        >
+          Canvas
         </button>
         <button
           className={`border-l border-slate-200 px-3 py-1 dark:border-slate-700 ${
@@ -249,7 +309,15 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     </div>
     {codeMounted && (
       <div className={code ? "flex w-[44%] min-w-[420px] shrink-0" : "hidden"}>
-        <CodePanel diagramKey={diagramKey} rev={rev} jump={jump} onCollapse={toggleCode} onDirty={setCodeDirty} />
+        <CodePanel
+          diagramKey={diagramKey}
+          rev={rev}
+          jump={jump}
+          onCollapse={toggleCode}
+          onDirty={setCodeDirty}
+          select={canvas.active ? canvas.selection : null}
+          srcmapOf={canvas.srcmap}
+        />
       </div>
     )}
     {!code && (

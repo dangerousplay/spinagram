@@ -21,6 +21,8 @@ export type EditorHandle = {
   setText: (text: string) => void;
   /** Select a 1-based line and scroll it into view. */
   jumpTo: (line: number) => void;
+  /** Select a UTF-16 range and scroll its start into view, without taking focus from the canvas. */
+  selectRange: (from: number, to: number) => void;
   focus: () => void;
   destroy: () => void;
 };
@@ -65,6 +67,11 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorHa
       // scroll to the line start: scrolling the selection's end into view hides the start of long lines
       view.dispatch({ selection: EditorSelection.range(l.to, l.from), effects: EditorView.scrollIntoView(l.from, { y: "center", x: "start" }) });
       view.focus();
+    },
+    selectRange(from, to) {
+      const n = view.state.doc.length;
+      const [a, b] = [Math.min(from, n), Math.min(to, n)];
+      view.dispatch({ selection: EditorSelection.range(b, a), effects: EditorView.scrollIntoView(a, { y: "center", x: "start" }) });
     },
     focus: () => view.focus(),
     destroy: () => view.destroy(),

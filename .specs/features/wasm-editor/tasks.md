@@ -243,13 +243,15 @@ A 409 reloads and shows "File changed on disk; edit not applied". Non-editable d
 
 **Done when**:
 
-- [ ] bun tests for pure logic: hit-test picks the topmost node, snapping, the ops built for move and delete, srcmap → editor range
-- [ ] Manual check in `spinagram serve examples/aws_layout.yaml` (Chrome): drag a node, see the edges follow during the drag, release, then the YAML diff shows only that node's coordinates; Delete removes the node and its edges. Record the result in notes
-- [ ] Web gate and full gate pass
+- [x] bun tests for pure logic: hit-test picks the topmost node, snapping, the ops built for move and delete, srcmap → editor range
+- [x] Manual check in `spinagram serve examples/aws_layout.yaml` (Chrome): drag a node, see the edges follow during the drag, release, then the YAML diff shows only that node's coordinates; Delete removes the node and its edges. Record the result in notes
+- [x] Web gate and full gate pass
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): canvas mode with live edges and rust edit operations`
+
+**Notes**: Manual Chrome check done (claude-in-chrome) on a copy of examples/decision.yaml served by `spinagram serve` (examples/aws_layout.yaml is engine-laid-out, so not canvas-editable: SPEC_DEVIATION, decision.yaml is the hand-placed example): Canvas on, dragged the Standard path node; edges followed during the drag; on release the YAML diff was only that node's `at` (900,220 -> 1050,320, snapped to 10); Delete removed the node entry and the `known.right -> std.left` edge, nothing else. Notes: the Canvas toggle (key c) is a new toolbar button; the code panel highlights the selected node's range when it is open (a collapsed panel highlights when opened); edits read the spec fresh from the server (api.source) and save with its version, so unsaved code-panel edits turn into the usual conflict prompt. The wasm keeps a fixed file name in the bundle (assets/spinagram_wasm_bg.wasm) so the JS does not change with the wasm bytes. The committed static bundle was rebuilt and now includes the wasm (1.96 MB, 653 KB gzip).
 
 ---
 

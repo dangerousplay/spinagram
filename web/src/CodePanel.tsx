@@ -3,6 +3,7 @@ import { api, ApiError } from "./api";
 import type { EditorHandle } from "./codemirror";
 import { anyDirty, edit, fromSource, keepMine, merge, reload, saved, type Tab } from "./editor";
 import { setLeaveGuard } from "./hooks";
+import { yamlRange, type SrcMap } from "./canvas/srcmap";
 
 type Props = {
   diagramKey: string;
@@ -10,12 +11,14 @@ type Props = {
   jump: { line: number; nonce: number } | null; // select this line of the spec (an element's declaration)
   onCollapse: () => void;
   onDirty: (dirty: boolean) => void; // the rail shows unsaved edits while the panel is collapsed
+  select?: { id: string; nonce: number } | null; // canvas selection: highlight this element's YAML entry
+  srcmapOf?: ((yaml: string) => Promise<SrcMap>) | null; // the Rust source map of the spec text (canvas worker)
 };
 
 const base = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
 /** The diagram's spec and stylesheet files, editable; Save (or Cmd/Ctrl+S) writes the active tab. */
-export default function CodePanel({ diagramKey, rev, jump, onCollapse, onDirty }: Props) {
+export default function CodePanel({ diagramKey, rev, jump, onCollapse, onDirty, select, srcmapOf }: Props) {
   const [tabs, setTabs] = useState<Tab[] | null>(null);
   const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +144,24 @@ export default function CodePanel({ diagramKey, rev, jump, onCollapse, onDirty }
     handled.current = jump.nonce;
     editor.current.jumpTo(jump.line);
   }, [jump, active, tabs]);
+
+  // a canvas selection highlights the element's YAML entry in the spec tab (SYN-01)
+  const highlighted = useRef(0);
+  useEffect(() => {
+    if (!select || !srcmapOf || highlighted.current === select.nonce || !editor.current || !tabs?.length) return;
+    if (active !== 0) {
+      setActive(0);
+      return; // the tab switch re-runs this effect with the spec loaded
+    }
+    highlighted.current = select.nonce;
+    const text = tabs[0].text;
+    srcmapOf(text)
+      .then((map) => {
+        const r = yamlRange(text, map, select.id);
+        if (r) editor.current?.selectRange(r.from, r.to);
+      })
+      .catch(() => undefined); // text that does not parse has no map: nothing to highlight
+  }, [select, srcmapOf, active, tabs]);
 
   const current = tabs?.[active];
   return (

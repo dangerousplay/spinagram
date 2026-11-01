@@ -108,8 +108,10 @@ const MAX = 8;
 const clamp = (v: number) => Math.min(MAX, Math.max(MIN, v));
 
 /** Wheel zoom around the pointer, drag to pan, `fit` and `actual` (100 %). */
-export function usePanZoom(size: { w: number; h: number } | null) {
+export function usePanZoom(size: { w: number; h: number } | null, shouldPan?: (e: PointerEvent) => boolean) {
   const ref = useRef<HTMLDivElement>(null);
+  const gate = useRef(shouldPan);
+  gate.current = shouldPan; // a press the gate refuses is left to the caller (a node drag) instead of panning
   const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 });
 
   const fit = useCallback(() => {
@@ -148,7 +150,7 @@ export function usePanZoom(size: { w: number; h: number } | null) {
     };
     let drag: { x: number; y: number } | null = null;
     const down = (e: PointerEvent) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || gate.current?.(e) === false) return;
       drag = { x: e.clientX, y: e.clientY };
       el.setPointerCapture(e.pointerId);
       el.style.cursor = "grabbing";
