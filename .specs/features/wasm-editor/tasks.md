@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/wasm-editor/spec.md`
-**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) done; provider zone iteration (T30–T33) done
+**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) done; toolbar iteration (T24–T29) done; provider zone iteration (T30–T33) done; insert-redraw iteration (T34–T37) ready
 
 **MVP scope (decided by the orchestrator, 2026-11-01).** The full YAML → scene port is months of work and stays
 out of this MVP. The MVP proves the architecture end to end with the Rust pieces that exist plus one new one:
@@ -107,6 +107,12 @@ T23 → T24 → T25 → T26 → T27 → T28 → T29
 
 ```
 T29 → T30 → T31 → T32 → T33
+```
+
+### Phase 10: Stable element ids and toolbar dock
+
+```
+T33 → T34 → T35 → T36 → T37
 ```
 
 ---
@@ -1050,3 +1056,119 @@ documented in `src/spinagram/edit.py`.
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: aws group showcase, provider zones guide and rebuilt ui bundle`
+
+---
+
+## Insert-redraw iteration scope (orchestrator, 2026-11-01)
+
+User feedback: "Fix that redraw that happens on inserting an item on the diagram. Allow to put the toolbar at the
+bottom." Root causes, measured by the orchestrator with MutationObservers in Chrome (Box tool click on the AWS
+showcase):
+
+1. **The toolbar remounts twice per insert** (its whole 82-element subtree is removed and re-added).
+   `web/src/canvas/Toolbar.tsx:17` returns null while `canvas.active` is false, and `useCanvas.ts:84`
+   (`active = enabled && editable === true && ready`) goes false while the scene is re-fetched after a save.
+2. **All 16 icon `<image>` elements are detached and re-inserted** when the server render arrives. Their href and
+   x/y are identical, so this is a move, not a change. `svgHost.tsx` keys elements without an `id` by signature
+   plus their position among same-signature siblings (`n#sig`). Rendered `<g>` groups carry no id, so inserting
+   one node shifts the positional keys of every later group. morphdom then re-creates those groups and moves the
+   images into them, and a detached image re-decodes and blinks.
+
+The durable fix for 2 is spec CTR-01: each node, zone, container, edge and label group carries its diagram id as
+`data-id`, in both SVG writers, and the updater keys by it.
+
+---
+
+### T34: data-id on every element group in both SVG writers
+
+**What**: The Python SVG backend and the Rust `svg.rs` writer wrap each scene item's drawing in a group carrying
+`data-id="<scene item id>"`, or add the attribute to the item's existing outer element. This covers nodes (with
+their title, text and icon children), zones (with header and icon), containers, edges (with their labels),
+legend items and chrome. Output stays byte-identical between Python and Rust (the existing parity scripts and
+tests), and only the attribute is added; nothing else in the drawing changes. Update the goldens and snapshot
+tests that pin SVG bytes. Exports to PPTX, Figma and Excalidraw are unaffected; check their tests still pass. Use
+`data-id`, not `id`, so nothing collides with `<defs>` ids.
+**Where**: `src/spinagram/backends/svg.py`, `rust/spinagram-core/src/svg.rs`, `rust/spinagram-wasm/tests/golden/*.body.svg`, affected tests
+**Depends on**: T33
+**Reuses**: scene item ids
+**Requirement**: CTR-01
+
+**Done when**:
+
+- [ ] Test, Python and Rust: every node, zone, edge and label of `examples/decision.yaml` is inside an element whose `data-id` equals its scene id, and no two elements share a `data-id`
+- [ ] Every parity harness passes, and SVG parity is 48/48 in all three font modes
+- [ ] Full, Rust and WASM gates pass
+
+**Tests**: unit
+**Gate**: full
+**Commit**: `feat(svg): tag every drawn element group with its diagram id`
+
+---
+
+### T35: Key the in-place updater by data-id, and keep the toolbar mounted
+
+**What**:
+- `svgHost.tsx` keys by `data-id`. Descendants are keyed by signature, with the position counted within their
+  `data-id` group rather than across the whole document, so adding one item never re-keys another item's elements.
+- `Toolbar` (and `CanvasBar` and the palette, if gated the same way) stays mounted while a save or refetch is in
+  flight. Distinguish "canvas mode on" from "scene ready", and disable buttons instead of unmounting while not
+  ready.
+**Where**: `web/src/canvas/svgHost.tsx`, `web/src/canvas/svgHost.test.ts`, `web/src/canvas/Toolbar.tsx`, `web/src/canvas/useCanvas.ts`, `web/src/DiagramView.tsx`
+**Depends on**: T34
+**Reuses**: morphdom setup
+**Requirement**: DIF-02; user feedback (insert redraw)
+
+**Done when**:
+
+- [ ] svgHost test (happy-dom): inserting a new `data-id` group before others keeps every existing `<image>` as the same object, never detached (a MutationObserver in the test sees no removal of an `<image>` that is in both versions)
+- [ ] Test: the toolbar root stays mounted across a save cycle (`ready` false then true)
+- [ ] Browser check on the AWS showcase, reproducing the orchestrator's measurement: a Box tool insert and a palette insert each give 0 toolbar remounts and 0 `<image>` removals or additions, apart from images of the inserted item
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `fix(web): keep icons and toolbar in place when an item is inserted`
+
+---
+
+### T36: Toolbar dock: left or bottom
+
+**What**: The toolbar can dock on the left (vertical, the default) or at the bottom (horizontal, centred above the
+status bar, never covering the zoom controls). A dock toggle button sits in the toolbar, and the choice is
+remembered in `localStorage` (try/catch, falling back to left). Tooltips open toward the canvas in both docks.
+Group separators keep their meaning in both orientations. The `?` sheet mentions the toggle.
+**Where**: `web/src/canvas/Toolbar.tsx`, `web/src/canvas/paletteState.ts` (or a new small prefs module), `web/src/canvas/tools.ts`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T35
+**Reuses**: the palette state storage pattern
+**Requirement**: user feedback (toolbar at the bottom)
+
+**Done when**:
+
+- [ ] bun tests: the dock pref round-trips through storage and falls back to left when storage throws; the toggle switches orientation; the dock action is in the action table, so it gets an icon and a sheet entry
+- [ ] Browser check: switch to bottom, reload, and it is still at the bottom with no overlap with the zoom controls
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): dock the canvas toolbar on the left or at the bottom`
+
+---
+
+### T37: Bundle, docs and verification pass
+
+**What**: Rebuild the bundle with bun 1.4.2, and document the toolbar dock in `live-ui.mdx`. Do a final browser
+pass on a scratch copy of the whole `examples/showcase/` (port 8799): palette insert, Box tool insert, Text insert,
+a move and a delete, each with the observer showing no image detach and no toolbar remount. Record the numbers in
+notes.
+**Where**: `src/spinagram/ui/static/`, `docs/content/docs/tools/live-ui.mdx`, this file
+**Depends on**: T36
+**Reuses**: T35 observer script
+**Requirement**: HST-01 (partial)
+
+**Done when**:
+
+- [ ] Browser numbers recorded; full, Rust, WASM and web gates pass
+
+**Tests**: none
+**Gate**: full
+**Commit**: `docs: toolbar dock and rebuilt ui bundle`
