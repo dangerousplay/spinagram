@@ -272,10 +272,10 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Run prints `N of N identical` for recorded calls and for random scenarios, and a timing table; exit code 0 (PAR-01, PAR-02)
-- [ ] A deliberate one-character fault in `route.rs` (e.g. `BEND` 60 → 61) makes it exit 1 (checked in a scratch copy, then discarded)
-- [ ] Byte identity holds under `PYTHONHASHSEED` 0, 1 and 2 with `SPINAGRAM_RUST=1` (L-001)
-- [ ] Rust is ≥ 10x faster than Python on the recorded corpus (number recorded in the commit body)
+- [x] Run prints `N of N identical` for recorded calls and for random scenarios, and a timing table; exit code 0 (PAR-01, PAR-02)
+- [x] A deliberate one-character fault in `route.rs` (e.g. `BEND` 60 → 61) makes it exit 1 (checked in a scratch copy, then discarded)
+- [x] Byte identity holds under `PYTHONHASHSEED` 0, 1 and 2 with `SPINAGRAM_RUST=1` (L-001)
+- [x] Rust is ≥ 10x faster than Python on the recorded corpus (number recorded in the commit body)
 
 **Tests**: none (the script is the parity check)
 **Gate**: build
