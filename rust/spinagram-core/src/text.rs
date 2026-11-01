@@ -18,6 +18,7 @@ pub struct Font {
 }
 
 impl Font {
+    #[must_use]
     pub fn with_size(&self, size: f64) -> Font {
         Font { size, ..self.clone() }
     }
@@ -26,6 +27,7 @@ impl Font {
         self.face.as_ref().is_none_or(|f| f.covers(ch))
     }
 
+    #[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     fn plain(&self, text: &str) -> f64 {
         match &self.face {
             Some(face) => face.length(text, self.size),
@@ -36,6 +38,7 @@ impl Font {
 }
 
 /// Python's `str.isspace`, which also counts the ASCII separators U+001C..U+001F.
+#[must_use]
 pub fn is_space(ch: char) -> bool {
     ch.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&ch)
 }
@@ -56,6 +59,7 @@ pub struct Measurer {
 
 impl Measurer {
     /// Width of `text`; characters the font lacks are measured with the first fallback that has them.
+    #[must_use]
     pub fn measure(&self, text: &str, font: &Font) -> f64 {
         let (mut width, mut run) = (0.0, String::new());
         for ch in text.chars() {
@@ -74,6 +78,7 @@ impl Measurer {
     }
 
     /// Greedy word wrap to `width` pixels. Words longer than a line stay whole.
+    #[must_use]
     pub fn wrap(&self, text: &str, font: &Font, width: f64) -> Vec<String> {
         let mut lines = Vec::new();
         let mut cur = String::new();
@@ -92,6 +97,7 @@ impl Measurer {
     }
 
     /// Wrap each paragraph; an empty paragraph keeps an empty line.
+    #[must_use]
     pub fn wrap_paragraphs(&self, paragraphs: &[String], font: &Font, width: f64) -> Vec<String> {
         paragraphs
             .iter()
@@ -100,6 +106,7 @@ impl Measurer {
     }
 
     /// Lines of `token` no wider than `width`, cut only after `break_on` characters (no hyphen added).
+    #[must_use]
     pub fn break_token(&self, token: &str, font: &Font, width: f64, break_on: &str) -> Vec<String> {
         let mut lines = Vec::new();
         let mut cur = String::new();
@@ -118,6 +125,7 @@ impl Measurer {
 
     /// Greedy wrap at spaces; a word wider than `width` is broken at safe points and its pieces join the
     /// flow like words with no space between them. An empty paragraph keeps a line.
+    #[must_use]
     pub fn wrap_fit(&self, paragraphs: &[String], font: &Font, width: f64, break_on: &str) -> Vec<String> {
         let mut out = Vec::new();
         for p in paragraphs {
@@ -186,12 +194,13 @@ mod tests {
     }
 
     #[test]
+    #[expect(clippy::float_cmp, reason = "the estimate is exactly chars * size * factor, as in Python")]
     fn wrap_uses_estimate_without_face() {
         let m = Measurer::default();
         assert_eq!(m.measure("abcd", &est()), 4.0 * 10.0 * 0.53);
         assert_eq!(m.wrap("aa bb cc", &est(), 60.0), ["aa bb cc"]);
         assert_eq!(m.wrap("aa bb cc", &est(), 30.0), ["aa bb", "cc"]);
-        assert_eq!(m.wrap_paragraphs(&["".into(), "x".into()], &est(), 60.0), ["", "x"]);
+        assert_eq!(m.wrap_paragraphs(&[String::new(), "x".into()], &est(), 60.0), ["", "x"]);
     }
 
     #[test]

@@ -11,3 +11,7 @@ repository = "https://github.com/dangerousplay/spinagram"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

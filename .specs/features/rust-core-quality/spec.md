@@ -107,8 +107,8 @@ any crate swap must keep every parity harness at 100 %.
 | DEP-01 | P1: crates | In Tasks | Pending |
 | DEP-02 | P1: crates | In Tasks | Pending |
 | DEP-03 | P1: crates | In Tasks | Pending |
-| LINT-01 | P1: policy | In Tasks | Pending |
-| LINT-02 | P1: policy | In Tasks | Pending |
+| LINT-01 | P1: policy | In Tasks | Implementing |
+| LINT-02 | P1: policy | In Tasks | Implementing |
 | DENY-01 | P1: policy | In Tasks | Pending |
 | DENY-02 | P1: policy | In Tasks | Pending |
 | VER-01 | P1: Verus | In Tasks | Pending |

@@ -14,13 +14,19 @@ fn system_fonts() -> &'static usvg::fontdb::Database {
     })
 }
 
+#[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 /// Pixels for `size * scale`, rounded like Python's `round` (halves to even).
 fn pixels(size: f64, scale: f64) -> u32 {
     (size * scale).round_ties_even().max(1.0) as u32
 }
 
+#[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 /// Render `svg` (a `width` x `height` document) at `scale` to PNG bytes of `round(width*scale)` x `round(height*scale)`.
 /// `font_files` are loaded before the system fonts, so a theme's own font wins over a system font of the same name.
+///
+/// # Errors
+///
+/// When a font file cannot be loaded, the SVG is invalid, or the image cannot be allocated or encoded.
 pub fn render_png(svg: &str, width: f64, height: f64, scale: f64, font_files: &[String]) -> Result<Vec<u8>, String> {
     let mut db = system_fonts().clone();
     for file in font_files {

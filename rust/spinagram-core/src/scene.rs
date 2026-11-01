@@ -180,7 +180,7 @@ pub struct Table {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
-#[allow(clippy::large_enum_variant)] // items live in a Vec and are matched by reference
+#[expect(clippy::large_enum_variant, reason = "items live in a Vec and are matched by reference")]
 pub enum Item {
     Shape(Shape),
     Connector(Connector),
@@ -211,10 +211,14 @@ struct Header {
 }
 
 /// Parse scene JSON. A `version` other than 1 is an error naming the found and the supported version.
+///
+/// # Errors
+///
+/// When the JSON is invalid, or its `version` is not 1.
 pub fn parse(json: &str) -> Result<Scene, String> {
     let header: Header = serde_json::from_str(json).map_err(|e| format!("invalid scene JSON: {e}"))?;
     match header.version.as_ref().and_then(Value::as_u64) {
-        Some(v) if v == VERSION as u64 => {}
+        Some(v) if v == u64::from(VERSION) => {}
         Some(v) => return Err(format!("scene version {v} is not supported (expected {VERSION})")),
         None => return Err(format!("scene version {} is not supported (expected {VERSION})", header.version.map_or("missing".into(), |v| v.to_string()))),
     }
@@ -222,12 +226,21 @@ pub fn parse(json: &str) -> Result<Scene, String> {
 }
 
 /// The JSON Schema of the scene format, as committed in `rust/schema/scene.schema.json`.
+///
+/// # Panics
+///
+/// Never: a derived schema always serializes.
+#[must_use]
 pub fn schema_json() -> String {
     let mut out = serde_json::to_string_pretty(&schemars::schema_for!(Scene)).expect("a schema serializes");
     out.push('\n');
     out
 }
 
+/// # Panics
+///
+/// Never: a scene always serializes.
+#[must_use]
 pub fn to_json(scene: &Scene) -> String {
     serde_json::to_string(scene).expect("a scene always serializes")
 }
@@ -237,14 +250,16 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[expect(clippy::needless_pass_by_value, reason = "test fixture builders take JSON literals by value")]
     fn font(file: Value) -> Value {
         json!({"family": "Inter", "weight": 700, "italic": true, "size": 14.0, "file": file,
                "fallback": "sans-serif", "figma_style": "Bold Italic"})
     }
 
+    #[expect(clippy::needless_pass_by_value, reason = "test fixture builders take JSON literals by value")]
     fn block(runs: Value) -> Value {
         json!({"lines": ["one", ""], "paragraphs": ["one"], "font": font(json!("/f/inter.ttf")), "color": "#112233",
-               "leading": 27.599999999999998, "runs": runs})
+               "leading": 27.599_999_999_999_998, "runs": runs})
     }
 
     fn icon() -> Value {

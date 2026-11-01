@@ -71,9 +71,9 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] `cargo clippy --workspace --all-targets -- -D warnings` exits 0 (LINT-01)
-- [ ] `grep -rn "allow(clippy" rust/*/src` is empty (LINT-02)
-- [ ] Parity harnesses 100 %; Rust gate passes
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` exits 0 (LINT-01)
+- [x] `grep -rn "allow(clippy" rust/*/src` is empty (LINT-02)
+- [x] Parity harnesses 100 %; Rust gate passes
 
 **Tests**: none (config + mechanical fixes; parity is the net)
 **Gate**: build

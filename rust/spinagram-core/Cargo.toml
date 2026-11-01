@@ -17,3 +17,6 @@ resvg = "0.49"
 selectors = "0.41"
 cssparser = "0.38"
 precomputed-hash = "0.1"
+
+[lints]
+workspace = true

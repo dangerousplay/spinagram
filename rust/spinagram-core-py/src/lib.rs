@@ -1,6 +1,8 @@
 //! Python bindings for spinagram-core, imported as `spinagram_core._core`. Fonts cross the boundary as
 //! `(file or None, size, weight)`; the fallback chain is a list of font file paths.
 
+#![expect(clippy::needless_pass_by_value, reason = "PyO3 extracts owned arguments (Vec, String, tuples) from Python objects")]
+
 use pyo3::exceptions::{PyFileNotFoundError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -50,7 +52,7 @@ fn wrap_fit(paragraphs: Vec<String>, font: FontArgs, width: f64, break_on: &str,
 /// `([(lines, size, leading_px), ...], height, strategy, ok, size)`.
 #[pyfunction]
 #[pyo3(signature = (specs, width, height, mode, min_scale, break_on, gap, fallbacks))]
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[expect(clippy::too_many_arguments, clippy::type_complexity, reason = "mirrors the Python call: one argument per input, a nested result tuple")]
 fn fit_blocks(
     py: Python<'_>,
     specs: Vec<(Vec<String>, FontArgs, f64)>,
@@ -88,7 +90,7 @@ fn sides(names: Vec<String>) -> PyResult<Vec<Side>> {
 /// Returns the polyline as a list of `(x, y)`.
 #[pyfunction]
 #[pyo3(signature = (src, dst, obstacles, margin, sides_, busy_src, busy_dst, crossing, guides, fracs))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "mirrors the Python call: one argument per input")]
 fn route(
     py: Python<'_>,
     src: Rect,

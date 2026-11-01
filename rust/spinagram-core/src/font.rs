@@ -20,6 +20,10 @@ pub struct Face {
 }
 
 impl Face {
+    /// # Errors
+    ///
+    /// When the bytes are not a font the metrics reader accepts.
+    #[expect(clippy::cast_possible_truncation, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     pub fn from_bytes(data: &[u8], index: u32) -> Result<Face, String> {
         let font = FontRef::from_index(data, index).map_err(|e| format!("not a font: {e}"))?;
         let upem = f64::from(font.head().map_err(|e| e.to_string())?.units_per_em());
@@ -29,11 +33,14 @@ impl Face {
         Ok(Face { upem, glyphs, notdef: advance(skrifa::GlyphId::NOTDEF), kern: kern_pairs(&font) })
     }
 
+    #[must_use]
     pub fn covers(&self, ch: char) -> bool {
         self.glyphs.contains_key(&(ch as u32))
     }
 
+    #[expect(clippy::cast_possible_truncation, clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     /// Width of `text` at `size` px, measured the way Pillow does at 10x (see the module docs).
+    #[must_use]
     pub fn length(&self, text: &str, size: f64) -> f64 {
         let ppem = (size * 10.0).round().max(1.0) as i64;
         // FreeType's 16.16 fixed-point scale and 26.6 pixel rounding, so advances match Pillow to the unit
@@ -58,7 +65,7 @@ fn pix_round(x: i64) -> i64 {
     (x + 32) & !63
 }
 
-/// Pairs of the horizontal format 0 subtables of the legacy `kern` table, summed like FreeType does.
+/// Pairs of the horizontal format 0 subtables of the legacy `kern` table, summed like `FreeType` does.
 fn kern_pairs(font: &FontRef) -> HashMap<(u32, u32), i64> {
     use skrifa::raw::tables::kern::SubtableKind;
     let mut pairs = HashMap::new();
@@ -93,6 +100,14 @@ fn cache() -> &'static Mutex<HashMap<String, Arc<Face>>> {
 }
 
 /// The first face of the file at `path`, parsed once per process.
+///
+/// # Errors
+///
+/// When the file cannot be read or parsed.
+///
+/// # Panics
+///
+/// Only when another thread panicked while holding the face cache lock.
 pub fn load(path: &str) -> Result<Arc<Face>, String> {
     if let Some(face) = cache().lock().unwrap().get(path) {
         return Ok(face.clone());

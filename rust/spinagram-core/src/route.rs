@@ -28,6 +28,7 @@ impl Side {
     /// Python's dict order: top, bottom, left, right.
     pub const ALL: [Side; 4] = [Side::Top, Side::Bottom, Side::Left, Side::Right];
 
+    #[must_use]
     pub fn from_name(s: &str) -> Option<Side> {
         match s {
             "top" => Some(Side::Top),
@@ -49,6 +50,7 @@ pub struct Crossings {
 type Dir = (i32, i32);
 
 /// Strict crossing of segment p-q with a-b, as `engine.route.crosses`.
+#[must_use]
 pub fn crosses(p: Pt, q: Pt, a: Pt, b: Pt) -> bool {
     let orient = |u: Pt, v: Pt, w: Pt| (v.0 - u.0) * (w.1 - u.1) - (v.1 - u.1) * (w.0 - u.0);
     let (d1, d2, d3, d4) = (orient(a, b, p), orient(a, b, q), orient(p, q, a), orient(p, q, b));
@@ -56,12 +58,14 @@ pub fn crosses(p: Pt, q: Pt, a: Pt, b: Pt) -> bool {
 }
 
 impl Crossings {
+    #[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     fn at(&self, p: Pt, q: Pt) -> f64 {
         let n = self.drawn.iter().filter(|s| crosses(p, q, s.0, s.1)).count();
         self.cost * n as f64
     }
 }
 
+#[expect(clippy::many_single_char_names, reason = "geometry names (x, y, w, h, a, b) mirror the Python port")]
 fn ports(b: Rect, f: Option<f64>) -> [(Pt, Dir); 4] {
     let (x, y, w, h) = b;
     let f = f.unwrap_or(0.5);
@@ -77,6 +81,7 @@ fn port(p: &[(Pt, Dir); 4], s: Side) -> (Pt, Dir) {
     p[s as usize]
 }
 
+#[expect(clippy::many_single_char_names, reason = "geometry names (x, y, w, h, a, b) mirror the Python port")]
 fn inside(px: f64, py: f64, b: Rect) -> bool {
     let (x, y, w, h) = b;
     let pad = 0.5;
@@ -84,6 +89,7 @@ fn inside(px: f64, py: f64, b: Rect) -> bool {
 }
 
 /// Python `round(x, 2)`: the exact binary value rounded to two decimals, ties to even.
+#[must_use]
 pub fn round2(x: f64) -> f64 {
     if !x.is_finite() {
         return x;
@@ -91,6 +97,7 @@ pub fn round2(x: f64) -> f64 {
     format!("{x:.2}").parse().unwrap_or(x)
 }
 
+#[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
 fn simplify(pts: &[Pt]) -> Vec<Pt> {
     let mut out: Vec<Pt> = Vec::new();
     for &(px, py) in pts {
@@ -160,11 +167,12 @@ fn dir_index(d: Dir) -> usize {
     }
 }
 
+#[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty: Option<&Crossings>, guides: &[Pt]) -> Option<(f64, Vec<Pt>)> {
     let ((sx, sy), (sdx, sdy)) = sport;
     let ((tx, ty), (tdx, tdy)) = dport;
-    let s_stub = (sx + sdx as f64 * margin, sy + sdy as f64 * margin);
-    let t_stub = (tx + tdx as f64 * margin, ty + tdy as f64 * margin);
+    let s_stub = (sx + f64::from(sdx) * margin, sy + f64::from(sdy) * margin);
+    let t_stub = (tx + f64::from(tdx) * margin, ty + f64::from(tdy) * margin);
     if obs.iter().any(|&b| inside(s_stub.0, s_stub.1, b)) || obs.iter().any(|&b| inside(t_stub.0, t_stub.1, b)) {
         return None;
     }
@@ -183,12 +191,12 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
     let blocked: Vec<bool> = (0..nx * ny).map(|k| obs.iter().any(|&b| inside(xs[k / ny], ys[k % ny], b))).collect();
 
     let seg_ok = |i1: usize, j1: usize, i2: usize, j2: usize| {
-        let (mx, my) = ((xs[i1] + xs[i2]) / 2.0, (ys[j1] + ys[j2]) / 2.0);
+        let (mx, my) = (f64::midpoint(xs[i1], xs[i2]), f64::midpoint(ys[j1], ys[j2]));
         !obs.iter().any(|&b| inside(mx, my, b))
     };
     let grown: Vec<Rect> = obs[..obs.len() - 2].iter().map(|&(x, y, w, h)| (x - margin, y - margin, w + 2.0 * margin, h + 2.0 * margin)).collect();
     let seg_close = |i1: usize, j1: usize, i2: usize, j2: usize| {
-        let (mx, my) = ((xs[i1] + xs[i2]) / 2.0, (ys[j1] + ys[j2]) / 2.0);
+        let (mx, my) = (f64::midpoint(xs[i1], xs[i2]), f64::midpoint(ys[j1], ys[j2]));
         grown.iter().any(|&b| inside(mx, my, b))
     };
 
@@ -217,7 +225,7 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
             break;
         }
         for (di, dj) in [(1i32, 0i32), (-1, 0), (0, 1), (0, -1)] {
-            let (ni, nj) = (i as i64 + di as i64, j as i64 + dj as i64);
+            let (ni, nj) = (i as i64 + i64::from(di), j as i64 + i64::from(dj));
             if ni < 0 || nj < 0 || ni >= nx as i64 || nj >= ny as i64 {
                 continue;
             }
@@ -229,7 +237,7 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
                 continue;
             }
             let step = (xs[ni] - xs[i]).abs() + (ys[nj] - ys[j]).abs();
-            let mut ng = g + step + if (di, dj) != d { BEND } else { 0.0 } + if seg_close(i, j, ni, nj) { CLOSE * step } else { 0.0 };
+            let mut ng = g + step + if (di, dj) == d { 0.0 } else { BEND } + if seg_close(i, j, ni, nj) { CLOSE * step } else { 0.0 };
             if let Some(p) = penalty {
                 ng += p.at((xs[i], ys[j]), (xs[ni], ys[nj]));
             }
@@ -274,6 +282,7 @@ impl Default for Options<'_> {
 }
 
 /// Orthogonal polyline from a side of `src` to a side of `dst` that enters no obstacle.
+#[must_use]
 pub fn route(src: Rect, dst: Rect, obstacles: &[Rect], o: &Options) -> Vec<Pt> {
     let mut obs: Vec<Rect> = obstacles.iter().copied().filter(|&b| b != src && b != dst).collect();
     obs.extend([src, dst]);
@@ -286,20 +295,17 @@ pub fn route(src: Rect, dst: Rect, obstacles: &[Rect], o: &Options) -> Vec<Pt> {
             let Some((cost, pts)) = search(port(&sp, ss), port(&dp, ds), &obs, o.margin, o.crossing, o.guides) else {
                 continue;
             };
-            let extra = BUSY * (o.busy_src.contains(&ss) as u8 + o.busy_dst.contains(&ds) as u8) as f64;
+            let extra = BUSY * f64::from(u8::from(o.busy_src.contains(&ss)) + u8::from(o.busy_dst.contains(&ds)));
             let cost = cost + extra;
             if best.as_ref().is_none_or(|b| cost < b.0 - 1e-9) {
                 best = Some((cost, pts));
             }
         }
     }
-    match best {
-        Some((_, pts)) => pts,
-        None => {
-            let ((ax, ay), _) = port(&sp, Side::Bottom);
-            let ((bx, by), _) = port(&dp, Side::Top);
-            vec![(ax, ay), (ax, (ay + by) / 2.0), (bx, (ay + by) / 2.0), (bx, by)]
-        }
+    if let Some((_, pts)) = best { pts } else {
+        let ((ax, ay), _) = port(&sp, Side::Bottom);
+        let ((bx, by), _) = port(&dp, Side::Top);
+        vec![(ax, ay), (ax, f64::midpoint(ay, by)), (bx, f64::midpoint(ay, by)), (bx, by)]
     }
 }
 
@@ -310,6 +316,7 @@ mod tests {
     const SRC: Rect = (0.0, 0.0, 40.0, 40.0);
 
     #[test]
+    #[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
     fn round2_matches_python_round() {
         // values from Python: round(0.125, 2) etc.
         assert_eq!(round2(0.125), 0.12);

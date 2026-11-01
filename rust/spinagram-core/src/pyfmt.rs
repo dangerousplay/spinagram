@@ -1,6 +1,7 @@
 //! Python's number formatting and HTML escaping, so the SVG bytes match the Python writer.
 
 /// `format(x, ".1f")`
+#[must_use]
 pub fn f1(x: f64) -> String {
     if !x.is_finite() {
         return special(x);
@@ -38,22 +39,24 @@ fn strip_zeros(s: &str) -> &str {
 }
 
 /// `format(x, "g")`: six significant digits, trailing zeros removed, exponent form below 1e-4 and from 1e6.
+#[must_use]
 pub fn g(x: f64) -> String {
     if !x.is_finite() {
         return special(x);
     }
     let sign = if x.is_sign_negative() { "-" } else { "" };
     let (digits, exp) = split_e(&format!("{:.5e}", x.abs()));
-    let body = if !(-4..6).contains(&exp) {
+    let body = if (-4..6).contains(&exp) {
+        strip_zeros(&format!("{:.*}", usize::try_from(5 - exp).unwrap_or(0), x.abs())).to_string()
+    } else {
         let d = digits.trim_end_matches('0');
         sci(if d.is_empty() { "0" } else { d }, exp)
-    } else {
-        strip_zeros(&format!("{:.*}", (5 - exp) as usize, x.abs())).to_string()
     };
     format!("{sign}{body}")
 }
 
 /// Python `repr(float)`: shortest round-trip digits, exponent form below 1e-4 and from 1e16.
+#[must_use]
 pub fn repr_f64(x: f64) -> String {
     if !x.is_finite() {
         return special(x);
@@ -63,9 +66,9 @@ pub fn repr_f64(x: f64) -> String {
     let body = if !(-4..16).contains(&exp) {
         sci(&digits, exp)
     } else if exp < 0 {
-        format!("0.{}{digits}", "0".repeat((-exp - 1) as usize))
+        format!("0.{}{digits}", "0".repeat(usize::try_from(-exp - 1).unwrap_or(0)))
     } else {
-        let int_len = exp as usize + 1;
+        let int_len = usize::try_from(exp).unwrap_or(0) + 1;
         if digits.len() <= int_len {
             format!("{digits}{}.0", "0".repeat(int_len - digits.len()))
         } else {
@@ -77,6 +80,7 @@ pub fn repr_f64(x: f64) -> String {
 
 /// Python's `sum()` of floats. `compensated`: Python 3.12+ uses Neumaier compensated summation; older
 /// versions add left to right. The caller passes what the running interpreter does.
+#[must_use]
 pub fn py_sum(xs: &[f64], compensated: bool) -> f64 {
     if !compensated {
         return xs.iter().fold(0.0, |acc, x| acc + x);
@@ -109,11 +113,13 @@ fn escape(s: &str, quote: bool) -> String {
 }
 
 /// `html.escape(s, quote=False)`
+#[must_use]
 pub fn esc(s: &str) -> String {
     escape(s, false)
 }
 
 /// `html.escape(s, quote=True)`
+#[must_use]
 pub fn attr(s: &str) -> String {
     escape(s, true)
 }
@@ -131,8 +137,8 @@ mod tests {
         (0.25, "0.2", "0.25"),
         (2.5, "2.5", "2.5"),
         (1e-5, "0.0", "1e-05"),
-        (123456.0, "123456.0", "123456"),
-        (1234567.0, "1234567.0", "1.23457e+06"),
+        (123_456.0, "123456.0", "123456"),
+        (1_234_567.0, "1234567.0", "1.23457e+06"),
         (0.1 + 0.2, "0.3", "0.3"),
         (1e16, "10000000000000000.0", "1e+16"),
         (-3.75, "-3.8", "-3.75"),
@@ -154,8 +160,8 @@ mod tests {
 
     #[test]
     fn g_more_python_values() {
-        for (x, want) in [(100.0, "100"), (123456789.0, "1.23457e+08"), (1.5e-7, "1.5e-07"), (1e22, "1e+22"),
-                          (0.0001, "0.0001"), (999999.5, "1e+06"), (5e-324, "4.94066e-324")] {
+        for (x, want) in [(100.0, "100"), (123_456_789.0, "1.23457e+08"), (1.5e-7, "1.5e-07"), (1e22, "1e+22"),
+                          (0.0001, "0.0001"), (999_999.5, "1e+06"), (5e-324, "4.94066e-324")] {
             assert_eq!(g(x), want, "format({x:?}, 'g')");
         }
     }
@@ -163,25 +169,27 @@ mod tests {
     #[test]
     fn repr_matches_python() {
         for (x, want) in [(0.5, "0.5"), (1.0, "1.0"), (1e-5, "1e-05"), (1e16, "1e+16"),
-                          (123456789012345680.0, "1.2345678901234568e+17"), (0.0001, "0.0001"), (1e22, "1e+22"),
-                          (-0.0, "-0.0"), (123456789.0, "123456789.0"), (0.02, "0.02"), (-1.5e-7, "-1.5e-07"),
+                          (123_456_789_012_345_680.0, "1.2345678901234568e+17"), (0.0001, "0.0001"), (1e22, "1e+22"),
+                          (-0.0, "-0.0"), (123_456_789.0, "123456789.0"), (0.02, "0.02"), (-1.5e-7, "-1.5e-07"),
                           (100.0, "100.0"), (0.1 + 0.2, "0.30000000000000004")] {
             assert_eq!(repr_f64(x), want, "repr({x:?})");
         }
     }
 
     #[test]
+    #[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
     fn py_sum_is_compensated_like_python_3_12() {
         assert_eq!(py_sum(&[0.1; 10], true), 1.0); // Python 3.13: sum([0.1] * 10) == 1.0
         assert_eq!(py_sum(&[0.1, 0.2, 0.3], true), 0.6);
-        assert_eq!(py_sum(&[27.6, 27.6, 27.6], true), 82.80000000000001);
+        assert_eq!(py_sum(&[27.6, 27.6, 27.6], true), 82.800_000_000_000_01);
         assert_eq!(py_sum(&[], true), 0.0);
     }
 
     #[test]
+    #[expect(clippy::float_cmp, reason = "exact equality with the Python results is the contract")]
     fn py_sum_adds_plainly_like_python_3_11() {
-        assert_eq!(py_sum(&[0.1; 10], false), 0.9999999999999999); // Python 3.11: sum([0.1] * 10)
-        assert_eq!(py_sum(&[0.1, 0.2, 0.3], false), 0.6000000000000001);
+        assert_eq!(py_sum(&[0.1; 10], false), 0.999_999_999_999_999_9); // Python 3.11: sum([0.1] * 10)
+        assert_eq!(py_sum(&[0.1, 0.2, 0.3], false), 0.600_000_000_000_000_1);
         assert_eq!(py_sum(&[], false), 0.0);
     }
 

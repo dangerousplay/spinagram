@@ -31,10 +31,12 @@ pub struct FitResult {
     pub size: f64,
 }
 
+#[expect(clippy::cast_possible_truncation, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 fn floor_step(sp: &BlockSpec, min_scale: f64) -> i64 {
     (sp.font.size - sp.font.size * min_scale + 1e-9).floor() as i64
 }
 
+#[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 fn height(blocks: &[Block], gap: f64) -> f64 {
     blocks.iter().map(|b| b.lines.len() as f64 * b.leading).sum::<f64>() + gap * blocks.len().saturating_sub(1) as f64
 }
@@ -49,6 +51,7 @@ struct Fitter<'a> {
 }
 
 impl Fitter<'_> {
+    #[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     fn lay(&self, step: i64) -> Vec<Block> {
         self.specs
             .iter()
@@ -72,7 +75,11 @@ impl Fitter<'_> {
 
 /// Fit `specs` into `width` x `max_height`: wrap at spaces, break tokens at safe points, then (by `mode`)
 /// shrink every block in 1 px steps down to `min_scale` of its size, then grow the height.
-#[allow(clippy::too_many_arguments)]
+///
+/// # Errors
+///
+/// When `mode` is not one of `MODES`.
+#[expect(clippy::too_many_arguments, reason = "mirrors the Python function: one argument per input")]
 pub fn fit_blocks(
     m: &Measurer,
     specs: &[BlockSpec],
