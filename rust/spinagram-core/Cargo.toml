@@ -17,6 +17,8 @@ resvg = "0.49"
 selectors = "0.41"
 cssparser = "0.38"
 precomputed-hash = "0.1"
+html-escape = "0.2"
+compensated-summation = "0.3"
 
 [lints]
 workspace = true

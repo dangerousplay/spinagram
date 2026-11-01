@@ -1,5 +1,7 @@
 //! Python's number formatting and HTML escaping, so the SVG bytes match the Python writer.
 
+use compensated_summation::KahanBabuskaNeumaier;
+
 /// `format(x, ".1f")`
 #[must_use]
 pub fn f1(x: f64) -> String {
@@ -78,50 +80,26 @@ pub fn repr_f64(x: f64) -> String {
     format!("{sign}{body}")
 }
 
-/// Python's `sum()` of floats. `compensated`: Python 3.12+ uses Neumaier compensated summation; older
-/// versions add left to right. The caller passes what the running interpreter does.
+/// Python's `sum()` of floats. `compensated`: Python 3.12+ uses Neumaier compensated summation (the
+/// `compensated-summation` crate gives bit-identical totals); older versions add left to right. The caller passes what the running interpreter does.
 #[must_use]
 pub fn py_sum(xs: &[f64], compensated: bool) -> f64 {
     if !compensated {
         return xs.iter().fold(0.0, |acc, x| acc + x);
     }
-    let (mut sum, mut c) = (0.0_f64, 0.0_f64);
-    for &x in xs {
-        let t = sum + x;
-        c += if sum.abs() >= x.abs() { (sum - t) + x } else { (x - t) + sum };
-        sum = t;
-    }
-    if c != 0.0 && c.is_finite() {
-        sum += c;
-    }
-    sum
-}
-
-fn escape(s: &str, quote: bool) -> String {
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' if quote => out.push_str("&quot;"),
-            '\'' if quote => out.push_str("&#x27;"),
-            _ => out.push(c),
-        }
-    }
-    out
+    xs.iter().copied().sum::<KahanBabuskaNeumaier<f64>>().total()
 }
 
 /// `html.escape(s, quote=False)`
 #[must_use]
 pub fn esc(s: &str) -> String {
-    escape(s, false)
+    html_escape::encode_text(s).into_owned()
 }
 
 /// `html.escape(s, quote=True)`
 #[must_use]
 pub fn attr(s: &str) -> String {
-    escape(s, true)
+    html_escape::encode_quoted_attribute(s).into_owned()
 }
 
 #[cfg(test)]

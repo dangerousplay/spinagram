@@ -27,7 +27,7 @@ documented algorithm cannot give the required result; the case shows why).
 
 ## Notes
 
-- The two **replace** decisions are applied in the next commit, and the harnesses stay at 100 %.
+- The two **replace** decisions (`html-escape`, `compensated-summation`) are applied in `pyfmt.rs`; all harnesses stay at 100 %.
 - Specificity: the `selectors` crate computes it (`selectors::parser::Selector::specificity`, packed as ten bits per
   component, `:not()` adds its most specific argument). `spinagram-core` only unpacks the three components, so the
   `:not` specificity proof of VER-06 does not apply to our code.

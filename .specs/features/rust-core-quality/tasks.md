@@ -144,8 +144,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Each replaced component uses the crate; hand-written code removed (DEP-02)
-- [ ] All parity harnesses 100 %; Build gate passes
+- [x] Each replaced component uses the crate; hand-written code removed (DEP-02)
+- [x] All parity harnesses 100 %; Build gate passes
 
 **Tests**: integration (parity)
 **Gate**: build

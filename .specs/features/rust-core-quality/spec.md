@@ -105,7 +105,7 @@ any crate swap must keep every parity harness at 100 %.
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
 | DEP-01 | P1: crates | In Tasks | Implementing |
-| DEP-02 | P1: crates | In Tasks | Pending |
+| DEP-02 | P1: crates | In Tasks | Implementing |
 | DEP-03 | P1: crates | In Tasks | Implementing |
 | LINT-01 | P1: policy | In Tasks | Implementing |
 | LINT-02 | P1: policy | In Tasks | Implementing |
