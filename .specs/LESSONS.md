@@ -438,6 +438,24 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: N11 src/spinagram/engine/version.py:43 (OUT-03) (tests)
 - last seen: 2026-10-21T03:22:25Z
 
+### L-072 - Test cache immutability by mutating a result returned on a cache hit, not only the first miss
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: rust-core-routing
+- evidence: validation.md M5; tests/test_yamlload.py:56 (tests)
+- last seen: 2026-11-01T02:48:45Z
+
+### L-073 - When a spec fixes a cost constant, add a test where only that exact value decides the outcome, with cases just below and above it
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `tests` · harmful: 0
+- features: rust-core-routing
+- evidence: ROUTE-07; validation.md M6 (tests)
+- last seen: 2026-11-01T02:48:45Z
+
+### L-074 - Before swapping a parser for a faster one, run the existing error-path tests against it: faster parsers can accept input the old one rejects
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `yaml` · harmful: 0
+- features: rust-core-routing
+- evidence: T5; spec.md Assumptions spec files row (yaml)
+- last seen: 2026-11-01T02:48:45Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
