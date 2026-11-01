@@ -184,9 +184,9 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Run: N/N identical, timing table, exit 0; ≥ 5x on the benchmark (recorded)
-- [ ] A one-token fault in `css.rs` (scratch) makes it exit 1
-- [ ] Build gate passes
+- [x] Run: N/N identical, timing table, exit 0; ≥ 5x on the benchmark (recorded)
+- [x] A one-token fault in `css.rs` (scratch) makes it exit 1
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build
