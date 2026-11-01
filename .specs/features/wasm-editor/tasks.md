@@ -426,12 +426,14 @@ Ops JSON shapes are documented in `src/spinagram/edit.py`.
 
 **Done when**:
 
-- [ ] bun tests: rubber-band hit set; members ordered by x (row) or y (column); insertion index from the drop point; a multi-move batch; Ungroup op carries the rendered boxes
-- [ ] Web gate passes
+- [x] bun tests: rubber-band hit set; members ordered by x (row) or y (column); insertion index from the drop point; a multi-move batch; Ungroup op carries the rendered boxes
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): multi-select and row/column grouping on the canvas`
+
+**Notes**: Logic in `scene.ts` (`rubberBand`, container lookup, `insertionIndex`) and `ops.ts` (`groupOps`, `ungroupOps`, `setContainerOps`, `planMultiDrop`, container-aware `planDrop`); UI in `useCanvas.ts`, the new `CanvasBar.tsx` (Group as row/column, Ungroup, gap, and align for containers placed in a zone) and `DiagramView.tsx`. With the canvas on, a press on empty canvas draws the selection box, so panning moves to Alt+drag (wheel still zooms). A free node dropped on a container's box joins it without a Reparent; a member dropped inside its container is reordered. Outside `Where`: Rust `add_to_container` on a node that already belongs to that same container now reorders it (`index` counts the other members; no other op can reorder), with tests in edit.rs and tests/test_rust_edit.py; `src/spinagram/edit.py` docs. Dragging a container itself only selects it (no container-move op). bun 74 -> 89; cargo 205.
 
 ---
 

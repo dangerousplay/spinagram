@@ -859,8 +859,11 @@ fn add_to_container(src: &str, root: &Node, id: &str, node: &str, index: Option<
     if e.zone {
         return fail(format!("`{node}` is a zone; only nodes can join a container"));
     }
-    if containers(root).iter().any(|o| member_ids(o).iter().any(|m| m == node)) {
+    if containers(root).iter().any(|o| o.id != id && member_ids(o).iter().any(|m| m == node)) {
         return fail(format!("`{node}` is already in a container"));
+    }
+    if member_ids(&c).iter().any(|m| m == node) {
+        return reorder(src, &c, node, index);
     }
     let item = scalar(node);
     let Val::Map { pairs, .. } = &c.node.val else { return fail("container is not a mapping") };
@@ -878,6 +881,41 @@ fn add_to_container(src: &str, root: &Node, id: &str, node: &str, index: Option<
         }
         _ => append_to_seq(src, k, list, "nodes", &item),
     }
+}
+
+/// Move member `node` of container `c` so that it sits at `index` among the other members (the end when absent).
+fn reorder(src: &str, c: &Container, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
+    let list = c.node.get("nodes").ok_or("container has no members")?;
+    let Val::Seq { items, flow } = &list.val else { return fail("`nodes` is not a list") };
+    let from = items.iter().position(|m| m.text() == Some(node)).ok_or_else(|| format!("`{node}` is written inline; reorder it in the code"))?;
+    let at = index.map_or(items.len() - 1, |i| i.min(items.len() - 1));
+    let before = if at < from { at } else { at + 1 }; // the member it goes in front of, in the list as written
+    if before == from || before == from + 1 {
+        return Ok(Vec::new());
+    }
+    let item = scalar(node);
+    let mut patches = remove_items(src, list, &[from]);
+    if before < items.len() {
+        let t = &items[before];
+        if *flow {
+            patches.push(Patch { start: t.start, end: t.start, text: format!("{item}, ") });
+        } else {
+            let line = line_start(src, t.start);
+            let lead = &src[line..line + leading_ws(&src[line..])];
+            patches.push(Patch { start: line, end: line, text: format!("{lead}- {item}\n") });
+        }
+    } else {
+        let tail = &items[items.len() - 1];
+        if *flow {
+            patches.push(Patch { start: tail.end, end: tail.end, text: format!(", {item}") });
+        } else {
+            let line = line_start(src, tail.start);
+            let lead = &src[line..line + leading_ws(&src[line..])];
+            let end = line_end(src, tail.end);
+            patches.push(Patch { start: end, end, text: format!("\n{lead}- {item}") });
+        }
+    }
+    Ok(patches)
 }
 
 /// A flow-style copy of an inline container member (a mapping under the container's `nodes`) with its box set,
@@ -1440,9 +1478,35 @@ mod tests {
         assert_eq!(run("groups_block", r#"[{"op":"add_to_container","id":"column1","node":"a","index":0}]"#), expect("groups_block", &[("nodes: [h, i]", "nodes: [a, h, i]")]));
         assert_eq!(run("groups_flow", r#"[{"op":"add_to_container","id":"row0","node":"a","index":2}]"#), expect("groups_flow", &[("nodes: [d, e, f]", "nodes: [d, e, a, f]")]));
         let y = read("groups_block");
-        reject(&y, r#"[{"op":"add_to_container","id":"row0","node":"e"}]"#, "already in a container");
+        reject(&y, r#"[{"op":"add_to_container","id":"row0","node":"h"}]"#, "already in a container");
         reject(&y, r#"[{"op":"add_to_container","id":"row7","node":"a"}]"#, "unknown container `row7`");
         reject(&y, r#"[{"op":"add_to_container","id":"row0","node":"ghost"}]"#, "unknown id `ghost`");
+    }
+
+    #[test]
+    fn add_to_the_same_container_reorders_the_member() {
+        // `index` counts the other members: e, f, g with `e` moved to index 1 is f, e, g
+        let cases = [
+            (r#"{"id":"row0","node":"e","index":1}"#, "      - f\n      - e\n      - g\n"),
+            (r#"{"id":"row0","node":"e","index":2}"#, "      - f\n      - g\n      - e\n"),
+            (r#"{"id":"row0","node":"e"}"#, "      - f\n      - g\n      - e\n"),
+            (r#"{"id":"row0","node":"g","index":0}"#, "      - g\n      - e\n      - f\n"),
+            (r#"{"id":"row0","node":"g","index":1}"#, "      - e\n      - g\n      - f\n"),
+            (r#"{"id":"row0","node":"f","index":0}"#, "      - f\n      - e\n      - g\n"),
+        ];
+        for (op, list) in cases {
+            let json = format!(r#"[{{"op":"add_to_container",{}}}]"#, &op[1..op.len() - 1]);
+            assert_eq!(run("groups_block", &json), expect("groups_block", &[("      - e\n      - f\n      - g\n", list)]), "{op}");
+        }
+        // dropping a member where it already is changes nothing
+        for op in [r#"{"id":"row0","node":"f","index":1}"#, r#"{"id":"row0","node":"e","index":0}"#, r#"{"id":"row0","node":"g"}"#] {
+            let json = format!(r#"[{{"op":"add_to_container",{}}}]"#, &op[1..op.len() - 1]);
+            assert_eq!(run("groups_block", &json), read("groups_block"), "{op}");
+        }
+        // flow lists, including a two-member container
+        assert_eq!(run("groups_flow", r#"[{"op":"add_to_container","id":"row0","node":"d","index":2}]"#), expect("groups_flow", &[("nodes: [d, e, f]", "nodes: [e, f, d]")]));
+        assert_eq!(run("groups_flow", r#"[{"op":"add_to_container","id":"row0","node":"f","index":0}]"#), expect("groups_flow", &[("nodes: [d, e, f]", "nodes: [f, d, e]")]));
+        assert_eq!(run("groups_block", r#"[{"op":"add_to_container","id":"column1","node":"h","index":1}]"#), expect("groups_block", &[("nodes: [h, i]", "nodes: [i, h]")]));
     }
 
     #[test]

@@ -2,8 +2,23 @@
 import { describe, expect, test } from "bun:test";
 import { CanvasClient, type Port, type Response } from "./client";
 import { dragMoves, dragTo, startDrag } from "./drag";
-import { CYCLE_MESSAGE, deleteOps, dropTarget, moveOps, planDrop, renameOps } from "./ops";
-import { boxOf, descendants, hitTest, hitZone, nodeBoxes, snap, zoneBox, zoneMoveShapes, zoneParent, type SceneJson } from "./scene";
+import { CYCLE_MESSAGE, deleteOps, dropTarget, groupOps, moveOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps } from "./ops";
+import {
+  boxOf,
+  containerAt,
+  containerOf,
+  descendants,
+  hitTest,
+  hitZone,
+  insertionIndex,
+  nodeBoxes,
+  rubberBand,
+  snap,
+  zoneBox,
+  zoneMoveShapes,
+  zoneParent,
+  type SceneJson,
+} from "./scene";
 import { byteToIndex, entryField, yamlRange } from "./srcmap";
 
 const scene: SceneJson = {
@@ -298,5 +313,141 @@ describe("inline edit", () => {
     expect(entryField("{id: a, title: 'it''s', at: [1]}", "title")).toBe("it's");
     expect(entryField("{id: a, subtitle: nope}", "title")).toBeNull();
     expect(entryField("{id: a, title: Plain, x: 1}", "title")).toBe("Plain");
+  });
+});
+
+// --- multi-select and containers (T13): SEL-01, SEL-02, GRP-01..06 ---------------------------------------------
+const gscene: SceneJson = {
+  width: 1200,
+  height: 800,
+  items: [
+    shape("f1", "node", 700, 100, 100, 60),
+    shape("f2", "node", 400, 160, 100, 60),
+    shape("f3", "node", 550, 40, 100, 60),
+    shape("a", "node", 100, 500, 100, 60),
+    shape("b", "node", 230, 500, 100, 60),
+    shape("c", "node", 360, 500, 100, 60),
+    shape("h", "node", 800, 100, 80, 60),
+    shape("i", "node", 800, 200, 80, 60),
+  ],
+  containers: [
+    { id: "row0", axis: "row", members: ["a", "b", "c"], box: [100, 500, 360, 60] },
+    { id: "column1", axis: "column", members: ["h", "i"], box: [800, 100, 80, 160] },
+  ],
+};
+const g = (id: string) => boxOf(gscene, id)!;
+
+describe("rubber band", () => {
+  test("selects the nodes whose boxes meet the rectangle, from any corner, and nothing in empty space", () => {
+    expect(rubberBand(gscene, { x: 90, y: 490 }, { x: 340, y: 580 }).sort()).toEqual(["a", "b"]);
+    expect(rubberBand(gscene, { x: 340, y: 580 }, { x: 90, y: 490 }).sort()).toEqual(["a", "b"]); // reversed
+    expect(rubberBand(gscene, { x: 200, y: 560 }, { x: 230, y: 600 }).sort()).toEqual(["a", "b"]); // touching edges count
+    expect(rubberBand(gscene, { x: 0, y: 700 }, { x: 50, y: 790 })).toEqual([]);
+  });
+});
+
+describe("grouping", () => {
+  test("members are ordered by x for a row and by y for a column, gap 20", () => {
+    expect(groupOps(gscene, ["f1", "f2", "f3"], "row")).toEqual([{ op: "group", axis: "row", ids: ["f2", "f3", "f1"], gap: 20 }]);
+    expect(groupOps(gscene, ["f1", "f2", "f3"], "column")).toEqual([{ op: "group", axis: "column", ids: ["f3", "f1", "f2"], gap: 20 }]);
+  });
+
+  test("nodes already in a container are left out, and fewer than two nodes make no group", () => {
+    expect(groupOps(gscene, ["f1", "a", "f2"], "row")).toEqual([{ op: "group", axis: "row", ids: ["f2", "f1"], gap: 20 }]);
+    expect(groupOps(gscene, ["f1", "a"], "row")).toBeNull();
+    expect(groupOps(gscene, ["f1"], "column")).toBeNull();
+  });
+
+  test("Ungroup carries the rendered box of every member", () => {
+    expect(ungroupOps(gscene, "row0")).toEqual([
+      { op: "ungroup", id: "row0", boxes: { a: [100, 500, 100, 60], b: [230, 500, 100, 60], c: [360, 500, 100, 60] } },
+    ]);
+    expect(ungroupOps(gscene, "nope")).toBeNull();
+  });
+
+  test("the property bar sends gap and align", () => {
+    expect(setContainerOps("row0", { gap: 40 })).toEqual([{ op: "set_container", id: "row0", gap: 40 }]);
+    expect(setContainerOps("row0", { gap: 8, align: "start" })).toEqual([{ op: "set_container", id: "row0", gap: 8, align: "start" }]);
+  });
+
+  test("containers and members are found from the scene", () => {
+    expect(containerOf(gscene, "b")?.id).toBe("row0");
+    expect(containerOf(gscene, "f1")).toBeNull();
+    expect(containerAt(gscene, 300, 520)?.id).toBe("row0");
+    expect(containerAt(gscene, 300, 300)).toBeNull();
+  });
+});
+
+describe("dropping on and out of containers", () => {
+  test("the insertion index counts the other members whose centre lies before the drop point", () => {
+    const row = gscene.containers![0];
+    expect(insertionIndex(gscene, row, "f1", 100, 530)).toBe(0); // centres are 150, 280, 410
+    expect(insertionIndex(gscene, row, "f1", 300, 530)).toBe(2);
+    expect(insertionIndex(gscene, row, "f1", 500, 530)).toBe(3);
+    expect(insertionIndex(gscene, row, "a", 300, 530)).toBe(1); // `a` itself does not count: b is before, c after
+    const col = gscene.containers![1];
+    expect(insertionIndex(gscene, col, "f1", 840, 120)).toBe(0); // centres 130, 230
+    expect(insertionIndex(gscene, col, "f1", 840, 180)).toBe(1);
+  });
+
+  test("a free node dropped on a container joins it at the gap its centre falls in", () => {
+    // f1 (700,100) dragged so its centre lands at x 300 inside row0's box
+    expect(planDrop(gscene, g("f1"), "node", -400, 420)).toEqual({ ops: [{ op: "add_to_container", id: "row0", node: "f1", index: 2 }] });
+  });
+
+  test("a member dropped inside its container is reordered; dropped where it was it is not", () => {
+    expect(planDrop(gscene, g("a"), "node", 250, 0)).toEqual({ ops: [{ op: "add_to_container", id: "row0", node: "a", index: 1 }] });
+    expect(planDrop(gscene, g("a"), "node", 10, 0)).toBeNull();
+  });
+
+  test("a member dragged out is removed from its container and placed at the drop point", () => {
+    expect(planDrop(gscene, g("b"), "node", 0, -300)).toEqual({
+      ops: [{ op: "remove_from_container", id: "row0", node: "b", boxes: { b: [230, 200, 100, 60] } }],
+    });
+  });
+
+  test("taking a member out of a two-member container sends every member's box, for the dissolve", () => {
+    expect(planDrop(gscene, g("h"), "node", -300, 0)).toEqual({
+      ops: [{ op: "remove_from_container", id: "column1", node: "h", boxes: { h: [500, 100, 80, 60], i: [800, 200, 80, 60] } }],
+    });
+  });
+});
+
+describe("moving a selection", () => {
+  const items = (ids: string[]) => ids.map((id) => ({ box: g(id), kind: "node" as const }));
+
+  test("every selected node moves in one batch by the same drag", () => {
+    expect(planMultiDrop(gscene, items(["f1", "f2", "f3"]), 40, 20)).toEqual({
+      ops: [
+        { op: "move", id: "f1", x: 740, y: 120 },
+        { op: "move", id: "f2", x: 440, y: 180 },
+        { op: "move", id: "f3", x: 590, y: 60 },
+      ],
+    });
+  });
+
+  test("container members do not move freely with a selection", () => {
+    expect(planMultiDrop(gscene, items(["f1", "a"]), 40, 20)).toEqual({ ops: [{ op: "move", id: "f1", x: 740, y: 120 }] });
+  });
+
+  test("a node inside a selected zone moves with the zone only", () => {
+    const sel = [
+      { box: z("inner"), kind: "zone" as const },
+      { box: n("n2"), kind: "node" as const },
+    ];
+    expect(planMultiDrop(zscene, sel, 30, 0)).toEqual({ ops: [{ op: "move_zone", id: "inner", x: 90, y: 80 }] });
+  });
+
+  test("a refused item refuses the batch", () => {
+    const cyc: SceneJson = {
+      width: 400,
+      height: 400,
+      items: [shape("z0", "zone", 0, 0, 200, 200), shape("z1", "zone", 50, 50, 100, 100)],
+      zones: [
+        { id: "a", shape_id: "z0", children: ["b"] },
+        { id: "b", shape_id: "z1", children: [] },
+      ],
+    };
+    expect(planMultiDrop(cyc, [{ box: zoneBox(cyc, "a")!, kind: "zone" }], 10, 10)).toEqual({ error: CYCLE_MESSAGE });
   });
 });

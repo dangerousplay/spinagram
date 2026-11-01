@@ -253,3 +253,11 @@ def test_inline_container_members_become_nodes_on_ungroup(tmp_path):
     out = edit.apply_ops(text, [{"op": "ungroup", "id": "row0", "boxes": {"p": [10, 20, 100, 50], "q": [150, 20, 100, 50]}}])
     d = _load(tmp_path, out)
     assert d.containers == [] and _boxes(d) == {"p": (10, 20, 100, 50), "q": (150, 20, 100, 50)}
+
+
+def test_add_to_the_same_container_reorders_its_members(tmp_path):
+    text = _fixture("groups_block")
+    out = edit.apply_ops(text, [{"op": "add_to_container", "id": "row0", "node": "e", "index": 1}])
+    assert _containers(_load(tmp_path, out))[0][1] == ["f", "e", "g"]
+    out = edit.apply_ops(text, [{"op": "add_to_container", "id": "column1", "node": "i", "index": 0}])
+    assert _containers(_load(tmp_path, out))[1][1] == ["i", "h"]

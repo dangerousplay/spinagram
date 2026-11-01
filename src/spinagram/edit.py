@@ -19,7 +19,8 @@ Zones and containers (a container's id is ``row0``, ``column1``, ... counting ev
     {"op": "move_zone", "id": "z", "x": 40, "y": 40}          (children move by the same offset)
     {"op": "group", "axis": "row", "ids": ["a", "b"], "gap": 20, "x": 0, "y": 0}   (gap, x, y optional)
     {"op": "ungroup", "id": "row0", "boxes": {"a": [0, 0, 100, 60], "b": [120, 0, 100, 60]}}
-    {"op": "add_to_container", "id": "row0", "node": "c", "index": 1}   (index optional: append)
+    {"op": "add_to_container", "id": "row0", "node": "c", "index": 1}   (index among the other members; optional:
+                                                                       append; a member of that container is moved)
     {"op": "remove_from_container", "id": "row0", "node": "c", "boxes": {"c": [0, 0, 100, 60]}}
     {"op": "set_container", "id": "row0", "gap": 30, "align": "start"}
 

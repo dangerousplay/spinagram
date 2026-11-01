@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type DiagramInfo, type DiagramRef, type SpecFile, type StyleReport } from "./api";
-import { href, useKey, usePanZoom } from "./hooks";
+import { href, typingIn, useKey, usePanZoom } from "./hooks";
 import CodePanel from "./CodePanel";
+import CanvasBar from "./canvas/CanvasBar";
 import { useCanvas } from "./canvas/useCanvas";
 import { hitTest, InspectorPanel, Overlay } from "./Inspector";
 
@@ -97,12 +98,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     const r = ref.current!.getBoundingClientRect();
     return { x: (e.clientX - r.left - view.x) / view.scale, y: (e.clientY - r.top - view.y) / view.scale };
   };
-  // a press on a node belongs to the canvas (drag it), anywhere else it pans
-  panGate.current = (e) => {
-    if (!canvas.active) return true;
-    const p = sceneAt(e);
-    return !canvas.hits(p.x, p.y);
-  };
+  // with the canvas on, a press on an element drags it and a press on empty canvas rubber-bands; Alt+drag pans
+  panGate.current = (e) => !canvas.active || e.altKey;
   const onMove = (e: React.PointerEvent) => {
     if (canvas.dragging) {
       const p = sceneAt(e);
@@ -115,9 +112,13 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   };
   const onDown = (e: React.PointerEvent) => {
     press.current = { x: e.clientX, y: e.clientY };
-    if (canvas.active && e.button === 0) {
+    if (canvas.active && e.button === 0 && !e.altKey) {
       const p = sceneAt(e);
-      if (canvas.begin(p.x, p.y)) ref.current?.setPointerCapture(e.pointerId);
+      if (canvas.begin(p.x, p.y, e.shiftKey)) ref.current?.setPointerCapture(e.pointerId);
+      else if (!canvas.hits(p.x, p.y)) {
+        canvas.beginBand(p.x, p.y, e.shiftKey);
+        ref.current?.setPointerCapture(e.pointerId);
+      }
     }
   };
   const onUp = (e: React.PointerEvent) => {
@@ -175,6 +176,16 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   useKey("c", () => setCanvasOn((on) => !on));
   useKey("Delete", canvas.remove);
   useKey("Backspace", canvas.remove);
+  useEffect(() => {
+    // Ctrl/Cmd+G groups the selection as a row (useKey ignores modified keys)
+    const on = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "g" || typingIn(e.target instanceof HTMLElement ? e.target : null)) return;
+      e.preventDefault();
+      canvas.group("row");
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [canvas.group]);
   useKey("Escape", () => {
     setSelected(null);
     canvas.clear();
@@ -205,10 +216,22 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, width: size?.w, height: size?.h }}
           >
             <div dangerouslySetInnerHTML={{ __html: canvas.preview ?? svg }} />
-            {canvas.selectedBox && (
+            {canvas.selectedBoxes.map((b, i) => (
               <div
+                key={`${b.id}-${i}`}
                 className="pointer-events-none absolute rounded-sm border-2 border-blue-500 bg-blue-500/10"
-                style={{ left: canvas.selectedBox.x, top: canvas.selectedBox.y, width: canvas.selectedBox.w, height: canvas.selectedBox.h }}
+                style={{ left: b.x, top: b.y, width: b.w, height: b.h }}
+              />
+            ))}
+            {canvas.band && (
+              <div
+                className="pointer-events-none absolute border border-dashed border-blue-600 bg-blue-500/10"
+                style={{
+                  left: Math.min(canvas.band.x0, canvas.band.x1),
+                  top: Math.min(canvas.band.y0, canvas.band.y1),
+                  width: Math.abs(canvas.band.x1 - canvas.band.x0),
+                  height: Math.abs(canvas.band.y1 - canvas.band.y0),
+                }}
               />
             )}
             {canvas.dropBox && (
@@ -243,6 +266,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
           </div>
         )}
       </div>
+
+      <CanvasBar canvas={canvas} />
 
       {(error || fileError || themeError) && (
         <div className="absolute inset-x-6 top-6 rounded-lg border border-red-300 bg-red-50 p-4 shadow-lg dark:border-red-800 dark:bg-red-950/90">
@@ -313,7 +338,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             canvasOn ? "bg-blue-600 text-white hover:bg-blue-700" : "hover:bg-slate-100 dark:hover:bg-slate-700"
           }`}
           onClick={() => setCanvasOn((on) => !on)}
-          title="Canvas (c): click a node or zone header to select it, drag to move it (drop into a zone to move it there), double-click to rename, Delete removes it (hand-placed YAML specs)"
+          title="Canvas (c): click to select (Shift adds, drag on empty canvas draws a selection box, Alt+drag pans), drag to move (drop into a zone or row to put it there), Ctrl/Cmd+G groups as a row, double-click renames, Delete removes (hand-placed YAML specs)"
           aria-pressed={canvasOn}
         >
           Canvas

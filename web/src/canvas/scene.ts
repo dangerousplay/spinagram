@@ -96,3 +96,45 @@ export function zoneMoveShapes(scene: SceneJson, id: string): string[] {
   const shapeOf = new Map((scene.zones ?? []).map((z) => [z.id, z.shape_id]));
   return [id, ...descendants(scene, id)].map((i) => shapeOf.get(i) ?? i);
 }
+
+// --- selection, containers ----------------------------------------------------------------------------------
+
+export type Kind = "node" | "zone" | "container";
+export type Sel = { id: string; kind: Kind };
+
+/** Ids of the nodes whose box meets the rectangle spanned by two scene points (the rubber band, SEL-01). */
+export function rubberBand(scene: SceneJson, a: { x: number; y: number }, b: { x: number; y: number }): string[] {
+  const [x0, x1] = [Math.min(a.x, b.x), Math.max(a.x, b.x)];
+  const [y0, y1] = [Math.min(a.y, b.y), Math.max(a.y, b.y)];
+  return nodeBoxes(scene)
+    .filter((n) => n.x <= x1 && n.x + n.w >= x0 && n.y <= y1 && n.y + n.h >= y0)
+    .map((n) => n.id);
+}
+
+export const containerBoxes = (scene: SceneJson): Box[] => (scene.containers ?? []).map((c) => ({ id: c.id, x: c.box[0], y: c.box[1], w: c.box[2], h: c.box[3] }));
+
+export const containerBox = (scene: SceneJson, id: string): Box | null => containerBoxes(scene).find((b) => b.id === id) ?? null;
+
+/** The container that holds a node, or null. */
+export const containerOf = (scene: SceneJson, nodeId: string): SceneContainer | null => (scene.containers ?? []).find((c) => c.members.includes(nodeId)) ?? null;
+
+/** The smallest container whose box holds the point, or null. */
+export function containerAt(scene: SceneJson, x: number, y: number): SceneContainer | null {
+  let best: Box | null = null;
+  for (const b of containerBoxes(scene)) {
+    if (x < b.x || x > b.x + b.w || y < b.y || y > b.y + b.h) continue;
+    if (!best || b.w * b.h < best.w * best.h) best = b;
+  }
+  return best ? ((scene.containers ?? []).find((c) => c.id === best!.id) ?? null) : null;
+}
+
+/** Where a node dropped with its centre at (cx, cy) goes among the other members of a container: the number of
+ * them whose centre lies before the point along the container's axis (GRP-02). */
+export function insertionIndex(scene: SceneJson, c: SceneContainer, nodeId: string, cx: number, cy: number): number {
+  const along = c.axis === "column" ? cy : cx;
+  return c.members
+    .filter((m) => m !== nodeId)
+    .map((m) => boxOf(scene, m))
+    .filter((b): b is Box => b !== null)
+    .filter((b) => (c.axis === "column" ? b.y + b.h / 2 : b.x + b.w / 2) < along).length;
+}
