@@ -369,4 +369,24 @@ mod tests {
         let pts = route(src, dst, &[], &o);
         assert_eq!(pts[0], (20.0, 40.0));
     }
+
+    // Busy cost is 400 (ROUTE-07). With the right side of SRC busy, the straight route costs 232 + 400 = 632.
+    // Free detours: no walls: the top route costs 480 (248 more than straight, between 200 and 400);
+    // walls above and below SRC's next to its right stub: the cheapest detour costs 650 (418 more, over 400).
+    fn busy_right(obstacles: &[Rect]) -> Vec<Pt> {
+        let dst = (300.0, 0.0, 40.0, 40.0);
+        let o = Options { sides: (None, Some(Side::Left)), busy_src: &[Side::Right], ..Options::default() };
+        route(SRC, dst, obstacles, &o)
+    }
+
+    #[test]
+    fn detour_costing_under_the_busy_cost_wins() {
+        assert_eq!(busy_right(&[])[0], (20.0, 0.0)); // leaves by the top, not the busy right side
+    }
+
+    #[test]
+    fn detour_costing_over_the_busy_cost_loses() {
+        let walls = [(50.0, -85.0, 20.0, 80.0), (50.0, 45.0, 20.0, 80.0)];
+        assert_eq!(busy_right(&walls)[0], (40.0, 20.0)); // keeps the busy right side
+    }
 }
