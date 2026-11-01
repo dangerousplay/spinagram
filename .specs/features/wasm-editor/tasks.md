@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Spec**: `.specs/features/wasm-editor/spec.md`
-**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) ready
+**Status**: MVP done (T1–T8, validation PASS); second iteration (T9–T17) done; polish iteration (T18–T23) ready
 
 **MVP scope (decided by the orchestrator, 2026-11-01).** The full YAML → scene port is months of work and stays
 out of this MVP. The MVP proves the architecture end to end with the Rust pieces that exist plus one new one:
@@ -89,6 +89,12 @@ T11 → T12 → T13 → T14 → T15
 
 ```
 T15 → T16 → T17
+```
+
+### Phase 7: Polish
+
+```
+T17 → T18 → T19 → T20 → T21 → T22 → T23
 ```
 
 ---
@@ -538,3 +544,143 @@ Manual check (Chrome via claude-in-chrome, `spinagram serve` on a git-tracked sc
 **Commit**: `docs: canvas editing guide and rebuilt ui bundle`
 
 **Notes**: Bundle rebuilt with `bash rust/spinagram-wasm/build.sh` then `bun run build` in web/ (a second build gives the same file names, so CI's stale check holds; the .wasm is 663 KB gzipped). Docs: new "Edit on the canvas" section in `docs/content/docs/tools/live-ui.mdx` (the live editor page: what is editable, shortcuts, palette, grouping, undo); `rust/README.md` has an "Edit operations" section; `spec.md` traceability updated (CTR-02, CTR-03, OPS-01, LRF-01, LRF-02, HST-01, coverage line). Gates: Rust 206 tests, clippy and deny clean; WASM build and bun 21; web bun 108 and build; pytest 2847 passed, 3 skipped per mode, ruff clean. The `taiki-e/install-action` wasm-bindgen step and `bun install --frozen-lockfile` with the hand-edited `web/bun.lock` run only in CI.
+
+---
+
+## Polish iteration scope (orchestrator, 2026-11-01)
+
+Fixes the UX findings of the second validation (`validation.md`, "UX findings") and polishes the editor so it feels
+finished. The behaviour reference stays the read-only `.specs/features/canvas-editor/spec.md`.
+
+---
+
+### T18: Palette visibility and layout
+
+**What**: The palette starts collapsed, as a "Palette" tab. It opens with the tab, `/` or Ctrl/Cmd+K, and Esc closes it. Its open/closed state survives re-renders and saves (finding 2) and is remembered per browser in `localStorage`, wrapped in try/catch. When open it sits beside the diagram rather than over it, or at least never covers the selection (finding 1). Kind badges get a fixed width that fits "COLUMN" without overflow (finding 3).
+**Where**: `web/src/canvas/PalettePanel.tsx`, `web/src/DiagramView.tsx`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T17
+**Reuses**: the existing palette, the `useCanvas` state
+**Requirement**: canvas-editor PAL-03; validation UX findings 1–3
+
+**Done when**:
+
+- [ ] bun tests: the open state persists across a save (state is kept outside the re-rendered subtree, or a test of the stored flag); storage that throws falls back to collapsed
+- [ ] Browser check: collapse, make an edit, and the palette stays collapsed; the "COLUMN" badge fits
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `fix(web): palette starts collapsed and keeps its state`
+
+---
+
+### T19: Plain YAML scalars where safe
+
+**What**: Rename, AddNode, Connect labels and AddZone write a plain scalar when YAML would read it back as the same string. They quote only when needed: leading or trailing spaces, `: `, ` #`, a leading indicator character, YAML 1.1 booleans and nulls (`yes`, `no`, `on`, `off`, `null`, `~`), anything that would read as a number, or flow-context characters `,[]{}` inside flow entries (finding 4).
+**Where**: `rust/spinagram-core/src/edit.rs`, `rust/spinagram-core/tests/data/edit/`
+**Depends on**: T18
+**Reuses**: `scalar`, `quoted`
+**Requirement**: OPS-02; validation UX finding 4
+
+**Done when**:
+
+- [ ] Test: "Report store" is written plain; each quoting trigger above is written quoted, and every output re-parses to the exact input string (round-trip table)
+- [ ] Existing fixtures updated only where the new rule changes output
+- [ ] Rust gate and full gate pass
+
+**Tests**: unit
+**Gate**: full
+**Commit**: `fix(rust): write plain yaml scalars when quoting is not needed`
+
+---
+
+### T20: Clear render errors on gallery cards
+
+**What**: When a diagram cannot render, the gallery card shows the short error (e.g. "No such file: showcase.css") instead of "preview unavailable". The full message is in a tooltip (finding 5).
+**Where**: `web/src/DiagramsPage.tsx` (or the card component), `web/src/previews.test.ts`
+**Depends on**: T19
+**Reuses**: the error body the `.svg` endpoint already returns
+**Requirement**: validation UX finding 5
+
+**Done when**:
+
+- [ ] bun test: a failed preview shows the server's first error line, truncated to one line
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `fix(web): show the render error on a gallery card`
+
+---
+
+### T21: Keyboard and pointer polish
+
+**What**:
+- Esc clears the selection, and cancels a drag in progress, restoring the preview.
+- Arrow keys nudge the selection 1 px, and Shift+arrow 10 px. One batch per key-up burst, so holding a key makes one save and one undo step.
+- Pointer cursors: `grab`/`grabbing` on nodes and zone headers, `crosshair` on empty canvas, `copy` over a valid drop target.
+- Selection gets a clear outline with handles. Multi-selection shows one bounding box with a count badge.
+- `?` opens a small shortcuts sheet listing every canvas shortcut.
+- Errors from the Rust ops (e.g. "A zone cannot contain itself") show as a toast near the pointer for 3 s.
+**Where**: `web/src/canvas/*.ts(x)`, `web/src/canvas/canvas.test.ts`
+**Depends on**: T20
+**Reuses**: `useCanvas`, `ops.ts`, `History`
+**Requirement**: canvas-editor SEL-01..03 (polish), ZON-05 message
+
+**Done when**:
+
+- [ ] bun tests: nudge op batching (a burst of 5 presses → one Move per node with the summed offset); Esc restores the pre-drag scene; the shortcuts list includes every bound key (derived from one keymap table that the handlers also use)
+- [ ] Web gate passes
+
+**Tests**: unit
+**Gate**: web
+**Commit**: `feat(web): keyboard nudge, escape, cursors and shortcut sheet`
+
+---
+
+### T22: Showcase layout polish
+
+**What**: Rework `examples/showcase/editable_platform.yaml` coordinates and edge sides so that:
+- no two edges share a trunk segment;
+- labels don't overlap edges or nodes;
+- zones have even padding.
+
+Keep it canvas-editable with the same features (nested zones, a row, a column, icons). Regenerate the docs gallery SVG.
+**Where**: `examples/showcase/editable_platform.yaml`, `examples/showcase/editable_platform.css`, `docs/public/assets/gallery/edit01.svg`
+**Depends on**: T21
+**Reuses**: `spinagram check` (label collisions, overlaps)
+**Requirement**: showcase quality
+
+**Done when**:
+
+- [ ] `spinagram check` reports 0 issues and 0 label collisions
+- [ ] Visual review of the rendered PNG: no shared trunks, even spacing (record a short note)
+- [ ] Full gate passes (example tests, css-skill mirror test)
+
+**Tests**: integration
+**Gate**: full
+**Commit**: `style(examples): tidy the editable showcase layout`
+
+---
+
+### T23: Bundle, docs and browser pass
+
+**What**:
+- Rebuild and commit the UI bundle.
+- Update the live-ui docs with the new shortcuts.
+- Do a final browser pass on a scratch copy of the whole `examples/showcase/` folder: palette collapse persists; rename writes plain; arrow nudge and undo; Esc; the `?` sheet; a refused zone drop shows the toast; the gallery card error with a missing CSS.
+
+Record the results in notes.
+**Where**: `src/spinagram/ui/static/`, `docs/content/docs/tools/live-ui.mdx`, this file
+**Depends on**: T22
+**Reuses**: T17 steps
+**Requirement**: HST-01 (partial)
+
+**Done when**:
+
+- [ ] The browser pass is recorded, with each step's YAML diff where it applies
+- [ ] Full, Rust, WASM and web gates pass
+
+**Tests**: none
+**Gate**: full
+**Commit**: `docs: canvas polish shortcuts and rebuilt ui bundle`
