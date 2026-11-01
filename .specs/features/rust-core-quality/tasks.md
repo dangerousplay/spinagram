@@ -255,8 +255,8 @@ T6 → T7 → T8 → T9 → T10 → T11 → T12 → T13
 
 **Done when**:
 
-- [ ] Proof of VER-06 with the overflow bound, wired, `css_parity.py` 100 %; or the N/A row with the crate's code location (VER-06)
-- [ ] Gates pass
+- [x] Proof of VER-06 with the overflow bound, wired, `css_parity.py` 100 %; or the N/A row with the crate's code location (VER-06)
+- [x] Gates pass
 
 **Tests**: proof + unit (or none for N/A)
 **Gate**: verus

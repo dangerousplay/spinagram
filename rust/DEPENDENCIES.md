@@ -21,13 +21,17 @@ documented algorithm cannot give the required result; the case shows why).
 | Cascade sort | `css.rs` (`cascade`) | std `slice::sort_by_key` (stable), `itertools` | **std**, no crate needed | Stable sort over the key `(level, specificity, rule order, declaration index)`; `css_parity.py` 100 % |
 | SVG writer | `svg.rs` | `quick-xml` 0.40 writer and escaping, `svg`, `xmlwriter` | **keep** | By construction the bytes are Python's: attribute order, `&#160;`, hand-built `&apos;` in `font-family`. Measured: `quick-xml` escapes `'` as `&apos;`, Python `html.escape` as `&#x27;` |
 | Scene model and JSON schema | `scene.rs` | `serde`, `serde_json`, `schemars` | **crates** (already) | The structs derive both; `float_roundtrip` is required for exact floats |
-| Selector parsing, matching, specificity (including `:not()`) | `css.rs` | `cssparser`, `selectors` | **crates** (already) | Glue only: element tree, three pseudo-elements, node kinds as type names. `selectors` computes specificity (see the T11 note below) |
+| Selector parsing, matching, specificity (including `:not()`) | `css.rs` | `cssparser`, `selectors` | **crates** (already) | Glue only: element tree, three pseudo-elements, node kinds as type names. `selectors` computes specificity (see the specificity note below) |
 | PNG rendering | `png.rs` | `resvg`, `usvg`, `tiny-skia` | **crates** (already) | |
 | Element tree for `selectors` | `css.rs` (`Tree`, `Node`, `El`) | none: the trait impl is the glue | **keep** | The crate defines `Element`; any user supplies the tree |
 
 ## Notes
 
 - The two **replace** decisions (`html-escape`, `compensated-summation`) are applied in `pyfmt.rs`; all harnesses stay at 100 %.
-- Specificity: the `selectors` crate computes it (`selectors::parser::Selector::specificity`, packed as ten bits per
-  component, `:not()` adds its most specific argument). `spinagram-core` only unpacks the three components, so the
-  `:not` specificity proof of VER-06 does not apply to our code.
+- **Specificity (VER-06): N/A, the `selectors` crate computes it.** `selectors-0.41.0/builder.rs`: the `Negation` arm
+  of the specificity walk (line 380) feeds `selector_list_specificity_and_flags` (lines 428-448), which takes
+  `std::cmp::max` over the arguments of `:not()` (line 444); `parser.rs:882` exposes the packed value
+  (`Selector::specificity`, ten bits per component, ids at bit 20). `spinagram-core` (`css.rs`,
+  `Selector::specificity`) only unpacks the three components, so there is no hand-written `:not` specificity to prove
+  and `verified/` has no specificity module. `css_parity.py` compares the unpacked tuples with Python's
+  (`:not(.a, #b.c)`, nested `:not`, pseudo-element selectors) at 100 %.
