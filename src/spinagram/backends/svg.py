@@ -20,7 +20,7 @@ from . import fontsubset
 
 # Python 3.12+ sums floats with compensation; the Rust writer must add the same way for block and table totals
 COMPENSATED_SUM = sys.version_info >= (3, 12)
-_CORE = core()  # the Rust drawing step when SPINAGRAM_RUST=1 and the wheel is installed
+_CORE = core()  # the Rust drawing step unless SPINAGRAM_RUST=0
 
 DASH = ' stroke-dasharray="10 7"'
 FONT_MODES = ("subset", "embed", "link")

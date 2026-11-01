@@ -13,3 +13,16 @@ dynamic = ["version"]
 python-source = "python"
 module-name = "spinagram_core._core"
 features = ["pyo3/extension-module"]
+
+[tool.uv]
+# `uv sync` in the repository rebuilds the core when any Rust source changes, not only this file
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "python/**/*.py" },
+    { file = "../Cargo.toml" },
+    { file = "../Cargo.lock" },
+    { file = "../spinagram-core/Cargo.toml" },
+    { file = "../spinagram-core/src/**/*.rs" },
+]

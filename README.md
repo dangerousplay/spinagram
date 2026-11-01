@@ -169,7 +169,8 @@ uv sync --all-extras && uv run pytest
 cd docs && bun install && bun run dev  # docs at http://localhost:3000
 ```
 
-See [Development](https://dangerousplay.github.io/spinagram/docs/reference/development/) for the UI frontend, docs and releases.
+`uv sync` builds the Rust engine in `rust/`, so it needs a [Rust toolchain](https://rustup.rs). See
+[Development](https://dangerousplay.github.io/spinagram/docs/reference/development/) for the UI frontend, docs and releases.
 
 ## Changelog and license
 

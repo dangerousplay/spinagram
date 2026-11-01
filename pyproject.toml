@@ -24,6 +24,7 @@ dependencies = [
     "pillow>=10.0",
     "fonttools>=4.40",
     "tinycss2>=1.3",
+    "spinagram-core==0.5.1",  # the Rust core, released in lockstep with spinagram (rust/Cargo.toml)
 ]
 
 [project.optional-dependencies]
@@ -62,10 +63,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 # hatch reads only the root .gitignore: keep the JS apps' installs and builds out of the sdist
-exclude = ["**/node_modules", "docs/.next", "docs/.source", "docs/out", "web/dist"]
+exclude = ["**/node_modules", "docs/.next", "docs/.source", "docs/out", "web/dist", "/rust"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/spinagram"]
+
+[tool.uv.sources]
+# Development builds the core from this checkout (needs a Rust toolchain); releases depend on the PyPI wheels
+spinagram-core = { path = "rust/spinagram-core-py" }
 
 [dependency-groups]
 dev = [

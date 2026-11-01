@@ -1,7 +1,8 @@
 # spinagram Rust core
 
-The engine is being ported to Rust one slice at a time. Python stays the main API and keeps working
-without these crates.
+Rust is spinagram's main engine. `spinagram` depends on the `spinagram-core` wheel (same version, released
+together) and uses it by default; Python stays the API. The ported Python code stays too, as the reference the
+parity checks compare against, and runs with `SPINAGRAM_RUST=0`.
 
 | Crate | What it is |
 |---|---|
@@ -11,16 +12,17 @@ without these crates.
 ## Build and try it
 
 ```bash
-cd rust && cargo test -p spinagram-core && cargo clippy --all-targets
-cd spinagram-core-py && uvx maturin build --release -o ../target/wheels
-cd ../.. && uv pip install --reinstall rust/target/wheels/spinagram_core-*.whl
+cd rust && cargo test -p spinagram-core && cargo clippy --workspace --all-targets -- -D warnings && cd ..
+uv sync --all-extras                                # builds spinagram-core from rust/ (tool.uv.sources)
 
-SPINAGRAM_RUST=1 uv run --all-extras --no-sync pytest -q   # the Python suite against the Rust core
-uv run --all-extras --no-sync python rust/bench/parity.py  # widths, fits and speed vs Pillow (a few minutes)
-uv run --all-extras --no-sync python rust/bench/route_parity.py  # edge routes and speed vs the Python router
-uv run --all-extras --no-sync python rust/bench/svg_png_parity.py  # SVG bytes per font mode, PNG vs Chromium
-uv run --all-extras --no-sync python rust/bench/css_parity.py      # CSS inspect() across modes, cascade speed
-bash rust/bench/render_all.sh OUT                          # every example to SVG, for byte-identity checks
+uv run --all-extras pytest -q                       # the suite on the Rust core (the default)
+SPINAGRAM_RUST=0 uv run --all-extras pytest -q      # the suite on the pure-Python reference
+uv run --all-extras python rust/bench/parity.py     # widths, fits and speed vs Pillow (a few minutes)
+uv run --all-extras python rust/bench/route_parity.py  # edge routes and speed vs the Python router
+uv run --all-extras python rust/bench/svg_png_parity.py  # SVG bytes per font mode, PNG vs Chromium
+uv run --all-extras python rust/bench/css_parity.py    # CSS inspect() across modes, cascade speed
+uv run --all-extras python rust/bench/wheel_smoke.py   # examples with and without the core, plus a PNG
+bash rust/bench/render_all.sh OUT                   # every example to SVG, for byte-identity checks
 ```
 
 ## Wheels and source builds
@@ -30,13 +32,15 @@ and x86_64, Windows x64 and arm64. Linux aarch64, musllinux, macOS x86_64 and Wi
 Each wheel that has a matching runner is installed there and checked with `rust/bench/wheel_smoke.py`, which
 renders examples with and without the core and requires byte-identical SVGs plus a resvg PNG.
 
+Releases publish every wheel and the sdist to PyPI before spinagram itself (`.github/workflows/release.yml`).
+The version in `rust/Cargo.toml` must equal spinagram's and its `spinagram-core==` pin.
+
 CI also builds the sdist. On a platform without a wheel, `pip install spinagram-core` builds it from that sdist
 with maturin, which needs a Rust toolchain (`rustup`, stable); the `core-source-install` job checks this on Linux,
 macOS and Windows. To build from a checkout instead: `pip install ./rust/spinagram-core-py`.
 
-`SPINAGRAM_RUST=1` switches `spinagram.text.measure` and `spinagram.engine.textfit.fit_blocks` to the core
-(see `src/spinagram/rust.py`). Without the flag or the wheel, everything is pure Python. Use `--no-sync`
-so `uv run` does not remove the locally installed wheel.
+`src/spinagram/rust.py` decides: the core is used unless `SPINAGRAM_RUST=0` (or empty). If `spinagram_core`
+cannot be imported, spinagram warns once and runs the pure-Python engine.
 
 ## Slices
 
@@ -71,7 +75,7 @@ round-trips through Rust unchanged and validates against the schema.
 
 ### SVG slice
 
-With `SPINAGRAM_RUST=1` `to_svg` hands the scene to Rust as JSON; `svg.rs` draws the items and returns the
+With the core active, `to_svg` hands the scene to Rust as JSON; `svg.rs` draws the items and returns the
 layers plus the characters drawn per font face. Python still builds the font faces (fontTools subsetting),
 the `<svg>` head, the metadata and the content hash, in both modes, so the bytes are identical in `subset`,
 `embed` and `link`. `pyfmt.rs` reproduces `format(x, ".1f")`, `format(x, "g")`, `repr(float)`,
@@ -120,7 +124,7 @@ symbols for this reason; add or remove one when it breaks again). Linux and CI a
 | `bench/svg_png_parity.py` | SVG byte identity per font mode over every example scene (48), PNG similarity against Chromium per example (skipped without Chromium or with `--svg-only`), and timings. Exits 1 on any SVG difference or similarity breach. |
 | `bench/css_parity.py` | `inspect()` and `styles()` across modes for every example (48) and 1,200 seeded random (diagram, stylesheet) pairs using every selector feature and `var()` form (errors must match too), then timings on a 561-element, 200-rule diagram. Exits 1 on any difference. |
 | `bench/parity.py` | Text widths, fits and speed against Pillow (the text slice). |
-| `bench/render_all.sh` | Renders every example to SVG; two runs, or Python versus `SPINAGRAM_RUST=1`, must give `diff -r` with no output. |
+| `bench/render_all.sh` | Renders every example to SVG; two runs, or `SPINAGRAM_RUST=0` versus the default, must give `diff -r` with no output. |
 
 ### Measured numbers
 
@@ -129,7 +133,7 @@ Developer machine, warm in-process, best of 3.
 | Work | Before | After | Change |
 |---|---|---|---|
 | Build all examples, YAML cache (pure Python) | 1545 ms | 1273 ms | 18% faster |
-| Build all examples with `SPINAGRAM_RUST=1` | 1262 ms | 394 ms | 3.2x |
+| Build all examples with the core | 1262 ms | 394 ms | 3.2x |
 | `route()` over the 57 recorded calls | 878 ms (Python) | 18.8 ms (Rust) | 46.6x |
 | SVG writer, 48 scenes (subset) | 9 ms (Python) | 38 ms (Rust, includes building the scene JSON) | 0.2x |
 | PNG at scale 1, 48 scenes | 4671 ms (Chromium, one browser start) | 4051 ms (resvg) | 1.2x |

@@ -10,6 +10,10 @@ uv run ruff check src tests examples
 node tests/js/figma_mock.mjs out/figma/<slug>-01.js     # dry-run a Figma script on a mock Plugin API
 ```
 
+`uv sync` builds the Rust engine (`rust/`, the `spinagram-core` package) from the checkout, so it needs a
+[Rust toolchain](https://rustup.rs); it rebuilds whenever a Rust source changes. `SPINAGRAM_RUST=0` runs the
+pure-Python reference engine instead. `rust/README.md` covers the Rust tests, lints, Verus proofs and parity checks.
+
 Feature specs live in `.specs/` (spec-driven: project, then spec, design and tasks per feature).
 
 ## Live UI frontend
@@ -55,6 +59,9 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org): `fea
 `refactor`, `perf`, `build`, `ci`, `chore`. [git-cliff](https://git-cliff.org) turns them into
 `CHANGELOG.md` (configuration in `cliff.toml`).
 
+`spinagram-core` is released with spinagram at the same version: after `uv version --bump`, set the same version in
+`rust/Cargo.toml` and in the `spinagram-core==` pin in `pyproject.toml` (a test fails when they differ).
+
 ```bash
 uv version --bump minor
 uvx git-cliff --tag "v$(uv version --short)" -o CHANGELOG.md
@@ -62,5 +69,5 @@ git commit -am "chore(release): v$(uv version --short)"
 git tag "v$(uv version --short)" && git push --follow-tags
 ```
 
-The tag triggers CI, publishes to PyPI with trusted publishing and creates a GitHub release whose notes
+The tag triggers CI, publishes the `spinagram-core` wheels and sdist and then spinagram to PyPI with trusted publishing and creates a GitHub release whose notes
 come from git-cliff (`uvx git-cliff --latest --strip header`).

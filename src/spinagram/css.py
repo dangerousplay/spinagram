@@ -427,7 +427,7 @@ def _substitute(value: str, custom: dict[str, str]) -> str:
     return value
 
 
-_CORE = core()  # the Rust matcher and cascade when SPINAGRAM_RUST=1 and the wheel is installed
+_CORE = core()  # the Rust matcher and cascade unless SPINAGRAM_RUST=0
 
 
 def _tree_json(els: list[El], inline: dict[El, list[Decl]]) -> str:

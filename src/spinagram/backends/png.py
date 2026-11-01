@@ -1,6 +1,6 @@
 """PNG from the SVG backend: resvg in the Rust core (no browser), or headless Chromium (Playwright).
 
-With the Rust core active (``SPINAGRAM_RUST=1``) PNG uses resvg unless ``SPINAGRAM_PNG=chromium``. Without
+With the Rust core active (the default; ``SPINAGRAM_RUST=0`` turns it off) PNG uses resvg unless ``SPINAGRAM_PNG=chromium``. Without
 the core, or with ``SPINAGRAM_PNG=chromium``, it uses Playwright."""
 from __future__ import annotations
 
