@@ -119,13 +119,13 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: second `registry()` with nothing changed reads no file (spy on `yamlload.load_file` / `_load_file`) and returns packs equal to the first (YAML-06)
-- [ ] Test: changing `$SPINAGRAM_ICON_PACKS` rebuilds (YAML-07 clause 1)
-- [ ] Test: changing cwd rebuilds (YAML-07 clause 2)
-- [ ] Test: editing a project registry file rebuilds and includes the new pack (YAML-07 clause 3)
-- [ ] `register()`/`unregister()` writes are seen by the next `registry()` (stat key changes)
-- [ ] Existing icon tests pass (`tests/test_icons*.py`)
-- [ ] Quick gate passes
+- [x] Test: second `registry()` with nothing changed reads no file (spy on `yamlload.load_file` / `_load_file`) and returns packs equal to the first (YAML-06)
+- [x] Test: changing `$SPINAGRAM_ICON_PACKS` rebuilds (YAML-07 clause 1)
+- [x] Test: changing cwd rebuilds (YAML-07 clause 2)
+- [x] Test: editing a project registry file rebuilds and includes the new pack (YAML-07 clause 3)
+- [x] `register()`/`unregister()` writes are seen by the next `registry()` (stat key changes)
+- [x] Existing icon tests pass (`tests/test_icons*.py`)
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick
