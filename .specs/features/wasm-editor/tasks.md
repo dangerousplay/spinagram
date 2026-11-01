@@ -87,13 +87,15 @@ T6 → T7 → T8
 
 **Done when**:
 
-- [ ] `cargo build -p spinagram-core --target wasm32-unknown-unknown --release` succeeds
-- [ ] Test: measuring with a font registered from bytes equals measuring with the same font loaded from its path
-- [ ] Native `cargo test`, clippy and the existing parity scripts are unchanged
+- [x] `cargo build -p spinagram-core --target wasm32-unknown-unknown --release` succeeds
+- [x] Test: measuring with a font registered from bytes equals measuring with the same font loaded from its path
+- [x] Native `cargo test`, clippy and the existing parity scripts are unchanged
 
 **Tests**: unit
 **Gate**: rust
 **Commit**: `build(rust): let spinagram-core compile for wasm32`
+
+**Notes**: wasm32 already compiled before the change (vstd and the verified kernel are fine on wasm); the real work was `font::register` (fonts from bytes), a cfg for fs reads on wasm32, and a default `png` feature so the wasm build can drop resvg. Parity scripts run in the T3 full gate.
 
 ---
 

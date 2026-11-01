@@ -112,8 +112,64 @@ pub fn load(path: &str) -> Result<Arc<Face>, String> {
     if let Some(face) = cache().lock().unwrap().get(path) {
         return Ok(face.clone());
     }
+    read_file(path)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_file(path: &str) -> Result<Arc<Face>, String> {
     let data = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
-    let face = Arc::new(Face::from_bytes(&data, 0).map_err(|e| format!("{path}: {e}"))?);
-    cache().lock().unwrap().insert(path.to_owned(), face.clone());
+    register(path, &data)
+}
+
+/// There is no file system on wasm32: fonts arrive through [`register`] only.
+#[cfg(target_arch = "wasm32")]
+fn read_file(path: &str) -> Result<Arc<Face>, String> {
+    Err(format!("{path}: font not registered (no file system on wasm32)"))
+}
+
+/// Parse the first face of `data` and store it under `name`, so [`load`] finds it without touching the file
+/// system. This is how the browser supplies fonts.
+///
+/// # Errors
+///
+/// When the bytes are not a font the metrics reader accepts.
+///
+/// # Panics
+///
+/// Only when another thread panicked while holding the face cache lock.
+pub fn register(name: &str, data: &[u8]) -> Result<Arc<Face>, String> {
+    let face = Arc::new(Face::from_bytes(data, 0).map_err(|e| format!("{name}: {e}"))?);
+    cache().lock().unwrap().insert(name.to_owned(), face.clone());
     Ok(face)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text::{Font, Measurer};
+
+    const NOTO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../src/spinagram/fonts/NotoSansMath-Regular.ttf");
+
+    #[test]
+    fn measuring_with_a_font_registered_from_bytes_equals_loading_the_path() {
+        let by_path = load(NOTO).unwrap();
+        let bytes = std::fs::read(NOTO).unwrap();
+        let by_bytes = register("from-bytes", &bytes).unwrap();
+        let m = Measurer::default();
+        for text in ["", "Hello, world", "\u{2211} \u{222b}x dx", "AV To 10.0.0.0/16"] {
+            for size in [10.0, 13.0, 18.5] {
+                let (a, b) = (Font { face: Some(by_path.clone()), size, weight: 400 }, Font { face: Some(by_bytes.clone()), size, weight: 400 });
+                assert_eq!(m.measure(text, &a).to_bits(), m.measure(text, &b).to_bits(), "{text:?} at {size}");
+            }
+        }
+        assert!(by_bytes.covers('\u{2211}'));
+    }
+
+    #[test]
+    fn registered_name_is_found_by_load_and_garbage_is_rejected() {
+        let bytes = std::fs::read(NOTO).unwrap();
+        register("registered-name.ttf", &bytes).unwrap();
+        assert!(load("registered-name.ttf").unwrap().covers('\u{2211}'));
+        assert!(register("bad", b"not a font").is_err());
+    }
 }

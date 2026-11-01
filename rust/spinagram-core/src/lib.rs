@@ -5,6 +5,7 @@ pub mod fit;
 pub mod css;
 pub mod font;
 pub mod pyfmt;
+#[cfg(feature = "png")]
 pub mod png;
 pub mod route;
 pub mod scene;
