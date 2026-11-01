@@ -4,4 +4,5 @@
 pub mod fit;
 pub mod font;
 pub mod route;
+pub mod scene;
 pub mod text;

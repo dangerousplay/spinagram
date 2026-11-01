@@ -94,9 +94,9 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Rust tests: a JSON fixture with every item type round-trips to an equal `serde_json::Value` (SCN-02)
-- [ ] Rust test: `version: 2` errors with the exact message naming 2 and 1 (SCN-05)
-- [ ] Rust gate passes
+- [x] Rust tests: a JSON fixture with every item type round-trips to an equal `serde_json::Value` (SCN-02)
+- [x] Rust test: `version: 2` errors with the exact message naming 2 and 1 (SCN-05)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust
