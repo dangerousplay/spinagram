@@ -5,6 +5,7 @@ import CodePanel from "./CodePanel";
 import CanvasBar from "./canvas/CanvasBar";
 import InlineEdit from "./canvas/InlineEdit";
 import ShortcutSheet from "./canvas/ShortcutSheet";
+import SvgHost from "./canvas/svgHost";
 import { escapeStep, matchKey, selectionFrame } from "./canvas/interaction";
 import { readPaletteOpen, writePaletteOpen } from "./canvas/paletteState";
 import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
@@ -189,7 +190,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         if (e instanceof ApiError) setError({ message: e.message, file: e.file });
         else setError({ message: String(e) });
       })
-      .finally(() => !ctl.signal.aborted && setLoading(false));
+      .finally(() => {
+        if (ctl.signal.aborted) return;
+        setLoading(false);
+        canvas.clearPreview(); // a failed render must not leave a drop ghost or preview behind
+      });
     return () => ctl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagramKey, layout, rev, tick]);
@@ -320,7 +325,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
             }`}
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, width: size?.w, height: size?.h }}
           >
-            <div dangerouslySetInnerHTML={{ __html: canvas.preview ?? svg }} />
+            <SvgHost markup={canvas.preview ?? svg} />
             {canvas.selectedBoxes.map((b, i) => (
               <div
                 key={`${b.id}-${i}`}
@@ -357,6 +362,15 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
                 className="pointer-events-none absolute rounded-sm border-2 border-dashed border-emerald-500 bg-emerald-500/10"
                 style={{ left: canvas.dropBox.x, top: canvas.dropBox.y, width: canvas.dropBox.w, height: canvas.dropBox.h }}
               />
+            )}
+            {canvas.ghost && (
+              <div
+                data-testid="drop-ghost"
+                className="pointer-events-none absolute grid place-items-center rounded-sm border-2 border-dashed border-emerald-500 bg-white/70 text-[13px] font-medium text-slate-600"
+                style={{ left: canvas.ghost.x, top: canvas.ghost.y, width: canvas.ghost.w, height: canvas.ghost.h }}
+              >
+                {canvas.ghost.label}
+              </div>
             )}
             {canvas.editing && <InlineEdit key={canvas.editing.id} editing={canvas.editing} onCommit={canvas.commitEdit} onCancel={canvas.cancelEdit} />}
             {inspect && report && <Overlay report={report} hover={hover} selected={selected} scale={view.scale} />}

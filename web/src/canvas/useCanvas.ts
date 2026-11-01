@@ -8,7 +8,7 @@ import { dragMoves, dragTo, startDrag, type Drag } from "./drag";
 import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps, type Item, type Op } from "./ops";
 import { boxOf, containerAt, containerBox, hitTest, hitZone, rubberBand, zoneBox, zoneMoveShapes, type Box, type Kind, type SceneJson, type Sel } from "./scene";
 import { History } from "./history";
-import { dropOps, type PaletteItem } from "./palette";
+import { dropOps, ghostOf, type Ghost, type PaletteItem } from "./palette";
 import { cursorFor, EMPTY_BURST, nudgeMoves, nudgeOps, pressNudge, TOAST_MS, type Burst, type Cursor } from "./interaction";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
 
@@ -43,6 +43,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const [props, setProps] = useState<ContainerProps | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [ghost, setGhost] = useState<Ghost | null>(null); // the box of a just-dropped item, until its render arrives
   const [notice, setNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -155,6 +156,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         } catch (e) {
           // the Rust core refused the batch: its reason shows next to the pointer, and nothing is saved
           setPreview(null);
+          setGhost(null);
           showToast(e instanceof Error ? e.message : String(e));
           reload();
           return;
@@ -164,6 +166,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         reload();
       } catch (e) {
         setPreview(null);
+        setGhost(null);
         if (e instanceof ApiError && e.status === 409) {
           history.current.clear();
           setNotice(CHANGED_ON_DISK);
@@ -463,7 +466,9 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const add = useCallback(
     (item: PaletteItem, x: number, y: number) => {
       if (!active || !sceneRef.current) return;
-      void commit(dropOps(sceneRef.current, item, x, y));
+      const ops = dropOps(sceneRef.current, item, x, y);
+      setGhost(ghostOf(ops));
+      void commit(ops);
     },
     [active, commit],
   );
@@ -564,7 +569,11 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     editing,
     dragging: drag !== null || band !== null,
     preview,
-    clearPreview: useCallback(() => setPreview(null), []),
+    ghost,
+    clearPreview: useCallback(() => {
+      setPreview(null);
+      setGhost(null);
+    }, []),
     notice,
     toast,
     cursor,

@@ -749,14 +749,26 @@ where the host is empty or the old SVG was removed before the new one was ready.
 
 **Done when**:
 
-- [ ] Before/after numbers recorded in notes (observer counts of host replacements and empty frames, for one palette drag-and-drop and one node drag)
-- [ ] bun tests for the host updater (jsdom or happy-dom): an update keeps unchanged nodes as the same DOM objects (identity check), changes the changed ones, and never leaves the host empty
-- [ ] Browser check after the fix: 0 empty frames, 0 full-host replacements during dragover, and at most 1 update batch per committed edit
-- [ ] Web gate passes
+- [x] Before/after numbers recorded in notes (observer counts of host replacements and empty frames, for one palette drag-and-drop and one node drag)
+- [x] bun tests for the host updater (jsdom or happy-dom): an update keeps unchanged nodes as the same DOM objects (identity check), changes the changed ones, and never leaves the host empty
+- [x] Browser check after the fix: 0 empty frames, 0 full-host replacements during dragover, and at most 1 update batch per committed edit
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `fix(web): update the diagram in place instead of redrawing it`
+
+**Notes**: Pick: **morphdom 2.7.8** (small, no dependencies, keyed morphing); `happy-dom` 21.0.4 is a dev dependency for the host tests (it drops the content of `<style>` inside `<svg>`, so the tests stand a `<defs>` in for the font style; Chrome parses it correctly). Installed with bun 1.4.2.
+Cause confirmed by the observer (`MutationObserver` on the SVG host, plus a per-frame empty-host check; `spinagram serve` on a scratch copy of `examples/showcase/`, port 8799, `editable_platform`):
+| Case | Before (innerHTML) | After (`SvgHost` + `patchSvg`) |
+| --- | --- | --- |
+| Palette drag, 6 dragover events | 0 mutations | 0 mutations |
+| Palette drop of a Box | 1 full host replacement, 1 `<style>` and 10 `<image>` re-created | 0 replacements, 125 of 128 elements kept (3 new), the 10 images the same objects, a ghost shown for 2 frames, 1 update batch |
+| Node drag (down, move, up) | 3 full replacements, 3 `<style>`, 30 `<image>` re-created | 0 replacements, 112 of 131 elements kept (19 re-created: the moved node and its edges), the same 10 image objects, 3 batches (live preview, snapped release preview, server render) |
+| Empty or unstyled frames | 0 (innerHTML is atomic within a task, but every embedded image was decoded again) | 0 |
+What it took beyond a plain morph: rendered elements have no ids, so one new box shifted every later element and morphdom re-created them. `patchSvg` keys each element by tag, attributes and its place among identical ones (an `<image>` by its href only), and first removes old elements with no counterpart so matched ones are not moved past them. The preview (WASM) and the server render order an icon and its text differently, so on a hand-off the images are moved (same objects, same task, no repaint) rather than re-created. `useCanvas` gained `ghost` (`ghostOf(ops)` in `palette.ts`): a dashed placeholder at the dropped box at once, cleared when the render arrives or fails.
+SPEC_DEVIATION: a node drag after release makes two batches (the snapped preview, then the server render) rather than one. The first is a visible snap from the unsnapped live drag; the second changes the DOM order of image and text siblings only, no pixels. Dropping the release preview would make the node jump back until the save finished.
+Gate: bun test 139 pass (was 127; +9 host tests, +3 ghost tests), `bun run build` ok, bundle not committed here (T29).
 
 ---
 

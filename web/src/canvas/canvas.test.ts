@@ -36,7 +36,7 @@ import {
   type KeyAction,
   type KeyLike,
 } from "./interaction";
-import { buildCorpus, displayName, dropOps, newId, noMatch, search, type IconEntry } from "./palette";
+import { buildCorpus, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
 const scene: SceneJson = {
   width: 1000,
@@ -842,5 +842,23 @@ describe("keymap table and the shortcut sheet", () => {
     expect(matchKey(mk("ArrowLeft", { ctrlKey: true }))).toBeNull();
     expect(matchKey(mk("Delete", { metaKey: true }))).toBeNull();
     expect(matchKey(mk("z", { ctrlKey: true, altKey: true }))).toBeNull();
+  });
+});
+
+describe("drop ghost (T24)", () => {
+  const sc = { width: 1000, height: 700, items: [], zones: [] } as unknown as SceneJson;
+  test("a dropped box shows a ghost at exactly the place the node will be added, labelled with its title", () => {
+    const ops = dropOps(sc, { type: "shape", kind: "box", title: "Box" }, 500, 300);
+    const add = ops[0] as { x: number; y: number; w: number; h: number };
+    expect(ghostOf(ops)).toEqual({ x: add.x, y: add.y, w: add.w, h: add.h, label: "New box" });
+  });
+  test("a zone ghost is the zone rectangle and a row ghost spans both boxes", () => {
+    expect(ghostOf(dropOps(sc, { type: "zone", title: "Zone" }, 100, 100))).toEqual({ x: 100, y: 100, w: 600, h: 400, label: "Zone" });
+    const g = ghostOf(dropOps(sc, { type: "row", title: "Row" }, 500, 300))!;
+    expect(g.w).toBe(220 * 2 + 20);
+    expect(g.h).toBe(96);
+  });
+  test("operations that add nothing give no ghost", () => {
+    expect(ghostOf([{ op: "delete", id: "a" } as never])).toBeNull();
   });
 });

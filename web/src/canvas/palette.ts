@@ -145,3 +145,18 @@ export function dropOps(scene: SceneJson, item: PaletteItem, px: number, py: num
     }
   }
 }
+
+/** The placeholder shown at the drop point while the edit is saved and rendered: the bounding box of every box
+ * the operations add, with the title of the first. Null when they add nothing with a position. */
+export type Ghost = { x: number; y: number; w: number; h: number; label: string };
+export function ghostOf(ops: Op[]): Ghost | null {
+  const boxes: Ghost[] = [];
+  for (const o of ops) {
+    if (o.op === "add_zone") boxes.push({ x: o.x, y: o.y, w: o.w, h: o.h, label: o.label ?? o.id });
+    else if (o.op === "add_node" && o.x !== undefined && o.y !== undefined) boxes.push({ x: o.x, y: o.y, w: o.w ?? NODE_W, h: o.h ?? NODE_H, label: o.title ?? o.id });
+  }
+  if (!boxes.length) return null;
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y, label: boxes[0].label };
+}
