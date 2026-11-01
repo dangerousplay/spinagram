@@ -368,3 +368,26 @@ Phase 3:  T9 ------→ T10 -----→ T11 -----→ T12
 | T10 | binding + backend | integration | integration | ✅ |
 | T11 | bench | none | none | ✅ |
 | T12 | CI + docs | none | none | ✅ |
+
+---
+
+## Fix tasks (from validation iteration 1)
+
+### F1: Match the interpreter's sum() in the Rust writer
+
+**What**: Tell the core whether the running Python uses compensated `sum()` (3.12+) and use plain left-to-right addition otherwise, wherever `py_sum` reproduces a Python `sum()`.
+**Where**: `rust/spinagram-core/src/pyfmt.rs`
+**Depends on**: None
+**Reuses**: `py_sum`, `scene_json.dumps`, `svg_draw` binding
+**Requirement**: SVG-01
+
+**Done when**:
+
+- [ ] Rust tests: compensated mode `[0.1]*10` → `1.0`; plain mode → `0.9999999999999999` (values from Python 3.11 / 3.13)
+- [ ] Python test: the flag the writer sends equals `sys.version_info >= (3, 12)`
+- [ ] `tests/test_rust_svg.py` run under Python 3.11 if an interpreter is available (`uv run --python 3.11 ...` in a scratch venv), else noted
+- [ ] Build gate passes
+
+**Tests**: unit (Rust) + unit (Python)
+**Gate**: build
+**Commit**: `fix(rust): follow the interpreter's sum() in the svg writer`
