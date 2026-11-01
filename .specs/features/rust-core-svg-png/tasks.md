@@ -174,9 +174,9 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Rust tests with expected strings taken from Python for every value listed in SVG-02, for both formats (one assertion per value) (SVG-02)
-- [ ] Rust tests for `& < > " '` and non-ASCII in both escape modes (SVG-03)
-- [ ] Rust gate passes
+- [x] Rust tests with expected strings taken from Python for every value listed in SVG-02, for both formats (one assertion per value) (SVG-02)
+- [x] Rust tests for `& < > " '` and non-ASCII in both escape modes (SVG-03)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust
