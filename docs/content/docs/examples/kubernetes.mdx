@@ -23,9 +23,7 @@ The cluster is a dark canvas inside the AWS region. Its three lanes (networking,
 platform add-ons) are groups with a direction, and the managed services sit in their own column so the
 arrows to them stay short. Dashed purple arrows are control loops (sync, certificates, DNS records), not traffic.
 
-![Kubernetes platform on Amazon EKS with Cilium, Gateway API, Karpenter and Argo CD](/assets/examples/eks01.svg)
-
-<include meta='title="examples/kubernetes/eks_platform.py"'>../../../../examples/kubernetes/eks_platform.py</include>
+<Example id="eks01" />
 
 ## How Gateway API routes a request
 
@@ -33,9 +31,7 @@ An architecture and a flowchart on one slide: the `HTTPRoute`'s rules are drawn 
 (`/api/*`, then a canary header), and each outcome points at the Service it selects. The flowchart is a region
 inside the cluster group: `with d.flowchart("HTTPRoute rules", direction="right") as fc:`.
 
-![Gateway API routing with Cilium: Gateway resources, HTTPRoute rules as a flowchart and backend Services](/assets/examples/eks02.svg)
-
-<include meta='title="examples/kubernetes/eks_gateway.py"'>../../../../examples/kubernetes/eks_gateway.py</include>
+<Example id="eks02" />
 
 ## How a change ships
 
@@ -43,15 +39,14 @@ GitOps as an activity with swimlanes: GitHub Actions builds, signs and pushes; A
 syncs; Karpenter and the rolling update run in parallel; Prometheus gates the result and Argo CD rolls back on
 errors.
 
-![Shipping a change with GitOps, in GitHub Actions, Argo CD, EKS cluster and Prometheus lanes](/assets/examples/eks03.svg)
-
-<include meta='title="examples/kubernetes/eks_gitops.py"'>../../../../examples/kubernetes/eks_gitops.py</include>
+<Example id="eks03" />
 
 ## The shared stylesheet
 
-One file styles both architecture slides: Cilium yellow, Gateway API teal, add-ons violet, AWS orange.
+One file styles both architecture slides: Cilium yellow, Gateway API teal, add-ons violet, AWS orange. Switch
+slides and open `eks.css`: it is the same file on both.
 
-<include meta='title="examples/kubernetes/eks.css"'>../../../../examples/kubernetes/eks.css</include>
+<Example id={['eks01', 'eks02']} />
 
 ## Make it yours
 
