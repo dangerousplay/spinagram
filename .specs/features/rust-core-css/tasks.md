@@ -104,9 +104,9 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Rust tests: each cascade level ordering (normal < inline < important < inline important), specificity ties broken by order then index (CSS-04)
-- [ ] Rust tests: `var()` nested, fallback with `rgb(1, 2, 3)`, unknown → token name, 9-level nesting stops after 8 (CSS-05)
-- [ ] Rust gate passes
+- [x] Rust tests: each cascade level ordering (normal < inline < important < inline important), specificity ties broken by order then index (CSS-04)
+- [x] Rust tests: `var()` nested, fallback with `rgb(1, 2, 3)`, unknown → token name, 9-level nesting stops after 8 (CSS-05)
+- [x] Rust gate passes
 
 **Tests**: unit (Rust)
 **Gate**: rust

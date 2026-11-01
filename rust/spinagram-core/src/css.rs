@@ -359,6 +359,151 @@ impl Matcher {
     }
 }
 
+// cascade ----------------------------------------------------------------------------------------
+
+/// A style rule: selectors sharing one declaration block. `order` is its position over all sheets.
+#[derive(Clone, Debug)]
+pub struct Rule {
+    pub selectors: Vec<Selector>,
+    pub decls: Vec<Decl>,
+    pub order: i64,
+}
+
+/// A matched declaration: `rule` is the rule index or -1 for the element's inline css; `sel` the index of the
+/// selector that matched; `decl` the declaration index; `resolved` the value after `var()` (None for `--custom`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Entry {
+    pub rule: i64,
+    pub sel: usize,
+    pub decl: usize,
+    pub resolved: Option<String>,
+}
+
+/// Pseudo-elements in the order of the result: the element itself, then `title`, `body`, `label`.
+pub const PSEUDOS: [&str; 4] = ["", "title", "body", "label"];
+
+type Custom = std::rc::Rc<std::collections::HashMap<String, String>>;
+
+/// `var(--x[, fallback])` replacement, as `css._substitute`: up to 8 passes; an unknown `--x` without a fallback
+/// becomes `x` (the theme token). Fallbacks may contain functions.
+pub fn substitute(value: &str, custom: &std::collections::HashMap<String, String>) -> String {
+    let mut v: Vec<char> = value.chars().collect();
+    for _ in 0..8 {
+        let Some(i) = find_var(&v) else { break };
+        let (mut depth, mut j) = (1i32, i + 4);
+        while j < v.len() && depth != 0 {
+            match v[j] {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+            j += 1;
+        }
+        let inner: String = v[i + 4..j - 1].iter().collect();
+        let (name, fb) = match inner.split_once(',') {
+            Some((n, f)) => (n, f),
+            None => (inner.as_str(), ""),
+        };
+        let name = name.trim();
+        let rep: String = match custom.get(name) {
+            Some(r) => r.clone(),
+            None if !fb.trim().is_empty() => fb.trim().to_string(),
+            None => name.chars().skip(2).collect(),
+        };
+        let mut next: Vec<char> = v[..i].to_vec();
+        next.extend(rep.chars());
+        next.extend_from_slice(&v[j..]);
+        v = next;
+    }
+    v.into_iter().collect()
+}
+
+fn find_var(v: &[char]) -> Option<usize> {
+    v.windows(4).position(|w| w == ['v', 'a', 'r', '('])
+}
+
+fn level(important: bool, inline: bool) -> u8 {
+    match (inline, important) {
+        (false, false) => 0,
+        (true, false) => 1,
+        (false, true) => 2,
+        (true, true) => 3,
+    }
+}
+
+type SortKey = (u8, (u32, u32, u32), i64, usize);
+
+/// For every element (index order) and pseudo-element (`PSEUDOS`): the declarations that apply, in cascade order
+/// (the winner of a property last): by `(important, specificity, rule order, declaration index)`, with inline
+/// declarations at levels 1 (normal) and 3 (important). Custom properties inherit from the parent element; a
+/// pseudo-element sees its element's custom properties plus its own.
+pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
+    let specs: Vec<Vec<(u32, u32, u32)>> = rules.iter().map(|r| r.selectors.iter().map(Selector::specificity).collect()).collect();
+    let mut matcher = Matcher::default();
+    let mut out: Vec<[Vec<Entry>; 4]> = Vec::with_capacity(tree.nodes.len());
+    let mut customs: Vec<Custom> = Vec::with_capacity(tree.nodes.len());
+    for (el, node) in tree.nodes.iter().enumerate() {
+        let mut found: [Vec<(SortKey, Entry)>; 4] = Default::default();
+        for (ri, r) in rules.iter().enumerate() {
+            for (si, sel) in r.selectors.iter().enumerate() {
+                let slot = match sel.pseudo_element {
+                    None => 0,
+                    Some(p) => PSEUDOS.iter().position(|x| *x == p.name()).expect("a known pseudo-element"),
+                };
+                if matcher.matches(sel, tree, el) {
+                    for (di, d) in r.decls.iter().enumerate() {
+                        let key = (level(d.important, false), specs[ri][si], r.order, di);
+                        found[slot].push((key, Entry { rule: ri as i64, sel: si, decl: di, resolved: None }));
+                    }
+                }
+            }
+        }
+        for (di, d) in node.inline.iter().enumerate() {
+            found[0].push(((level(d.important, true), (0, 0, 0), 0, di), Entry { rule: -1, sel: 0, decl: di, resolved: None }));
+        }
+        let decl_of = |e: &Entry| -> &Decl {
+            if e.rule < 0 { &node.inline[e.decl] } else { &rules[e.rule as usize].decls[e.decl] }
+        };
+        let parent_custom: Custom = node.parent.map_or_else(Default::default, |p| customs[p].clone());
+        let mut element_custom = parent_custom;
+        let mut result: [Vec<Entry>; 4] = Default::default();
+        for slot in 0..4 {
+            let mut list = std::mem::take(&mut found[slot]);
+            list.sort_by_key(|f| f.0);
+            let own: Vec<(&str, &str)> = list
+                .iter()
+                .map(|(_, e)| decl_of(e))
+                .filter(|d| d.name.starts_with("--"))
+                .map(|d| (d.name.as_str(), d.value.as_str()))
+                .collect();
+            let custom: Custom = if own.is_empty() {
+                element_custom.clone()
+            } else {
+                let mut m = (*element_custom).clone();
+                for (k, v) in own {
+                    m.insert(k.to_string(), v.to_string());
+                }
+                std::rc::Rc::new(m)
+            };
+            result[slot] = list
+                .into_iter()
+                .map(|(_, mut e)| {
+                    let d = decl_of(&e);
+                    e.resolved = if d.name.starts_with("--") { None } else { Some(substitute(&d.value, &custom)) };
+                    e
+                })
+                .collect();
+            if slot == 0 {
+                element_custom = custom; // children inherit the element's own scope, not a pseudo-element's
+            }
+        }
+        customs.push(element_custom);
+        out.push(result);
+    }
+    out
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -872,5 +1017,444 @@ mod tests {
     #[test]
     fn fallback_attr_value_not_ident() {
         assert!(parse_selectors(r####"[w=100px]"####).is_err());
+    }
+
+    // Cascade expectations come from Python's compute() trace over the same tree and rules (see cascade_fixture).
+    fn rule(order: i64, selectors: &[&str], decls: &[(&str, &str, bool)]) -> Rule {
+        Rule {
+            selectors: selectors.iter().flat_map(|s| parse_selectors(s).unwrap()).collect(),
+            decls: self::decls(decls),
+            order,
+        }
+    }
+
+    fn decls(list: &[(&str, &str, bool)]) -> Vec<Decl> {
+        list.iter().map(|(n, v, i)| Decl { name: n.to_string(), value: v.to_string(), important: *i }).collect()
+    }
+
+    /// `(name, value, resolved)` of each entry, in cascade order.
+    fn listing_of<'a>(tree: &'a Tree, el: usize, rules: &'a [Rule], entries: &'a [Entry]) -> Vec<(&'a str, &'a str, Option<&'a str>)> {
+        entries
+            .iter()
+            .map(|e| {
+                let d = if e.rule < 0 { &tree.nodes[el].inline[e.decl] } else { &rules[e.rule as usize].decls[e.decl] };
+                (d.name.as_str(), d.value.as_str(), e.resolved.as_deref())
+            })
+            .collect()
+    }
+
+    fn cascade_fixture() -> Tree {
+        tree(vec![
+            node(None, "diagram", &[], Some("d"), &[], &[]),
+            node(Some(0), "group", &["group"], Some("g1"), &["a"], &[]),
+            node(Some(1), "node", &["box"], Some("n1"), &["hot"], &[]),
+            node(Some(1), "node", &["box"], Some("n2"), &[], &[]),
+            node(Some(0), "edge", &[], None, &[], &[]),
+        ])
+    }
+
+    #[test]
+    fn cascade_levels_normal_inline_important() {
+        let mut t = cascade_fixture();
+        t.nodes[2].inline = decls(&[(r####"stroke"####, r####"#c00"####, false), (r####"opacity"####, r####"0.5"####, true), (r####"font-size"####, r####"20"####, false)]);
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"stroke"####, r####"#111"####, false)]),
+            rule(1, &[r####"node"####], &[(r####"fill"####, r####"#222"####, true)]),
+            rule(2, &[r####"node"####], &[(r####"stroke-width"####, r####"1"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"stroke"####, r####"#111"####, Some(r####"#111"####)), (r####"stroke-width"####, r####"1"####, Some(r####"1"####)), (r####"stroke"####, r####"#c00"####, Some(r####"#c00"####)), (r####"font-size"####, r####"20"####, Some(r####"20"####)), (r####"fill"####, r####"#222"####, Some(r####"#222"####)), (r####"opacity"####, r####"0.5"####, Some(r####"0.5"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"stroke"####, r####"#111"####, Some(r####"#111"####)), (r####"stroke-width"####, r####"1"####, Some(r####"1"####)), (r####"fill"####, r####"#222"####, Some(r####"#222"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_specificity_then_order_then_index() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"fill"####, r####"#111"####, false), (r####"fill"####, r####"#112"####, false)]),
+            rule(1, &[r####".hot"####], &[(r####"fill"####, r####"#222"####, false)]),
+            rule(2, &[r####"#n1"####], &[(r####"fill"####, r####"#333"####, false)]),
+            rule(3, &[r####"node.hot"####], &[(r####"fill"####, r####"#444"####, false)]),
+            rule(4, &[r####"node"####], &[(r####"fill"####, r####"#555"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"fill"####, r####"#112"####, Some(r####"#112"####)), (r####"fill"####, r####"#555"####, Some(r####"#555"####)), (r####"fill"####, r####"#222"####, Some(r####"#222"####)), (r####"fill"####, r####"#444"####, Some(r####"#444"####)), (r####"fill"####, r####"#333"####, Some(r####"#333"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"fill"####, r####"#112"####, Some(r####"#112"####)), (r####"fill"####, r####"#555"####, Some(r####"#555"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_selector_list_duplicates_and_ties() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####, r####"node"####], &[(r####"fill"####, r####"#111"####, false), (r####"stroke"####, r####"#222"####, false)]),
+            rule(1, &[r####"box"####], &[(r####"fill"####, r####"#333"####, false)]),
+            rule(2, &[r####"[kind]"####], &[(r####"fill"####, r####"#444"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"stroke"####, r####"#222"####, Some(r####"#222"####)), (r####"stroke"####, r####"#222"####, Some(r####"#222"####)), (r####"fill"####, r####"#333"####, Some(r####"#333"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"stroke"####, r####"#222"####, Some(r####"#222"####)), (r####"stroke"####, r####"#222"####, Some(r####"#222"####)), (r####"fill"####, r####"#333"####, Some(r####"#333"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_important_beats_specificity() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"#n1"####], &[(r####"fill"####, r####"#111"####, false)]),
+            rule(1, &[r####"node"####], &[(r####"fill"####, r####"#222"####, true)]),
+            rule(2, &[r####".hot"####], &[(r####"fill"####, r####"#333"####, true)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"fill"####, r####"#111"####, Some(r####"#111"####)), (r####"fill"####, r####"#222"####, Some(r####"#222"####)), (r####"fill"####, r####"#333"####, Some(r####"#333"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"fill"####, r####"#222"####, Some(r####"#222"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_pseudo_elements_split() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node::title"####], &[(r####"color"####, r####"#111"####, false)]),
+            rule(1, &[r####"node"####], &[(r####"color"####, r####"#222"####, false)]),
+            rule(2, &[r####"::label"####], &[(r####"color"####, r####"#333"####, false)]),
+            rule(3, &[r####"group::body"####], &[(r####"color"####, r####"#444"####, false)]),
+            rule(4, &[r####"node::title"####], &[(r####"font-size"####, r####"12"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), vec![(r####"color"####, r####"#333"####, Some(r####"#333"####))], "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), vec![(r####"color"####, r####"#444"####, Some(r####"#444"####))], "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), vec![(r####"color"####, r####"#333"####, Some(r####"#333"####))], "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"color"####, r####"#222"####, Some(r####"#222"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), vec![(r####"color"####, r####"#111"####, Some(r####"#111"####)), (r####"font-size"####, r####"12"####, Some(r####"12"####))], "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), vec![(r####"color"####, r####"#333"####, Some(r####"#333"####))], "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"color"####, r####"#222"####, Some(r####"#222"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), vec![(r####"color"####, r####"#111"####, Some(r####"#111"####)), (r####"font-size"####, r####"12"####, Some(r####"12"####))], "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), vec![(r####"color"####, r####"#333"####, Some(r####"#333"####))], "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), vec![(r####"color"####, r####"#333"####, Some(r####"#333"####))], "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_nested_and_inherited() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"diagram"####], &[(r####"--a"####, r####"var(--b)"####, false), (r####"--b"####, r####"Inter"####, false), (r####"--p"####, r####"Parent"####, false)]),
+            rule(1, &[r####"node"####], &[(r####"font-family"####, r####"var(--a)"####, false)]),
+            rule(2, &[r####"group"####], &[(r####"font-family"####, r####"var(--p)"####, false)]),
+            rule(3, &[r####"edge"####], &[(r####"font-family"####, r####"var(--none)"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), vec![(r####"--a"####, r####"var(--b)"####, None), (r####"--b"####, r####"Inter"####, None), (r####"--p"####, r####"Parent"####, None)], "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), vec![(r####"font-family"####, r####"var(--p)"####, Some(r####"Parent"####))], "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"font-family"####, r####"var(--a)"####, Some(r####"Inter"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"font-family"####, r####"var(--a)"####, Some(r####"Inter"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), vec![(r####"font-family"####, r####"var(--none)"####, Some(r####"none"####))], "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_fallbacks() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"font-family"####, r####"var(--missing, rgb(1, 2, 3))"####, false)]),
+            rule(1, &[r####"group"####], &[(r####"font-family"####, r####"var( --x , fallback )"####, false)]),
+            rule(2, &[r####"edge"####], &[(r####"font-family"####, r####"var(--nope,)"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), vec![(r####"font-family"####, r####"var( --x , fallback )"####, Some(r####"fallback"####))], "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"font-family"####, r####"var(--missing, rgb(1, 2, 3))"####, Some(r####"rgb(1, 2, 3)"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"font-family"####, r####"var(--missing, rgb(1, 2, 3))"####, Some(r####"rgb(1, 2, 3)"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), vec![(r####"font-family"####, r####"var(--nope,)"####, Some(r####"nope"####))], "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_pseudo_scope() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"--c"####, r####"Own"####, false)]),
+            rule(1, &[r####"node::title"####], &[(r####"--d"####, r####"PseudoOnly"####, false), (r####"font-family"####, r####"var(--c)"####, false)]),
+            rule(2, &[r####"node::body"####], &[(r####"font-family"####, r####"var(--d)"####, false)]),
+            rule(3, &[r####"node::label"####], &[(r####"font-family"####, r####"var(--c)"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"--c"####, r####"Own"####, None)], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), vec![(r####"--d"####, r####"PseudoOnly"####, None), (r####"font-family"####, r####"var(--c)"####, Some(r####"Own"####))], "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), vec![(r####"font-family"####, r####"var(--d)"####, Some(r####"d"####))], "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), vec![(r####"font-family"####, r####"var(--c)"####, Some(r####"Own"####))], "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"--c"####, r####"Own"####, None)], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), vec![(r####"--d"####, r####"PseudoOnly"####, None), (r####"font-family"####, r####"var(--c)"####, Some(r####"Own"####))], "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), vec![(r####"font-family"####, r####"var(--d)"####, Some(r####"d"####))], "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), vec![(r####"font-family"####, r####"var(--c)"####, Some(r####"Own"####))], "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_custom_wins_by_cascade() {
+        let mut t = cascade_fixture();
+        t.nodes[2].inline = decls(&[(r####"--k"####, r####"Inline"####, false)]);
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"--k"####, r####"First"####, false)]),
+            rule(1, &[r####".hot"####], &[(r####"--k"####, r####"Hot"####, false)]),
+            rule(2, &[r####"#n1"####], &[(r####"--k"####, r####"Id"####, false)]),
+            rule(3, &[r####"node"####], &[(r####"font-family"####, r####"var(--k)"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"--k"####, r####"First"####, None), (r####"font-family"####, r####"var(--k)"####, Some(r####"Inline"####)), (r####"--k"####, r####"Hot"####, None), (r####"--k"####, r####"Id"####, None), (r####"--k"####, r####"Inline"####, None)], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"--k"####, r####"First"####, None), (r####"font-family"####, r####"var(--k)"####, Some(r####"First"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_nine_levels() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"--v0"####, r####"var(--v1)"####, false), (r####"--v1"####, r####"var(--v2)"####, false), (r####"--v2"####, r####"var(--v3)"####, false), (r####"--v3"####, r####"var(--v4)"####, false), (r####"--v4"####, r####"var(--v5)"####, false), (r####"--v5"####, r####"var(--v6)"####, false), (r####"--v6"####, r####"var(--v7)"####, false), (r####"--v7"####, r####"var(--v8)"####, false), (r####"--v8"####, r####"var(--v9)"####, false), (r####"--v9"####, r####"End"####, false), (r####"font-family"####, r####"var(--v0)"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"--v0"####, r####"var(--v1)"####, None), (r####"--v1"####, r####"var(--v2)"####, None), (r####"--v2"####, r####"var(--v3)"####, None), (r####"--v3"####, r####"var(--v4)"####, None), (r####"--v4"####, r####"var(--v5)"####, None), (r####"--v5"####, r####"var(--v6)"####, None), (r####"--v6"####, r####"var(--v7)"####, None), (r####"--v7"####, r####"var(--v8)"####, None), (r####"--v8"####, r####"var(--v9)"####, None), (r####"--v9"####, r####"End"####, None), (r####"font-family"####, r####"var(--v0)"####, Some(r####"var(--v8)"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"--v0"####, r####"var(--v1)"####, None), (r####"--v1"####, r####"var(--v2)"####, None), (r####"--v2"####, r####"var(--v3)"####, None), (r####"--v3"####, r####"var(--v4)"####, None), (r####"--v4"####, r####"var(--v5)"####, None), (r####"--v5"####, r####"var(--v6)"####, None), (r####"--v6"####, r####"var(--v7)"####, None), (r####"--v7"####, r####"var(--v8)"####, None), (r####"--v8"####, r####"var(--v9)"####, None), (r####"--v9"####, r####"End"####, None), (r####"font-family"####, r####"var(--v0)"####, Some(r####"var(--v8)"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_eight_levels() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"--v0"####, r####"var(--v1)"####, false), (r####"--v1"####, r####"var(--v2)"####, false), (r####"--v2"####, r####"var(--v3)"####, false), (r####"--v3"####, r####"var(--v4)"####, false), (r####"--v4"####, r####"var(--v5)"####, false), (r####"--v5"####, r####"var(--v6)"####, false), (r####"--v6"####, r####"var(--v7)"####, false), (r####"--v7"####, r####"End"####, false), (r####"font-family"####, r####"var(--v0)"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"--v0"####, r####"var(--v1)"####, None), (r####"--v1"####, r####"var(--v2)"####, None), (r####"--v2"####, r####"var(--v3)"####, None), (r####"--v3"####, r####"var(--v4)"####, None), (r####"--v4"####, r####"var(--v5)"####, None), (r####"--v5"####, r####"var(--v6)"####, None), (r####"--v6"####, r####"var(--v7)"####, None), (r####"--v7"####, r####"End"####, None), (r####"font-family"####, r####"var(--v0)"####, Some(r####"End"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"--v0"####, r####"var(--v1)"####, None), (r####"--v1"####, r####"var(--v2)"####, None), (r####"--v2"####, r####"var(--v3)"####, None), (r####"--v3"####, r####"var(--v4)"####, None), (r####"--v4"####, r####"var(--v5)"####, None), (r####"--v5"####, r####"var(--v6)"####, None), (r####"--v6"####, r####"var(--v7)"####, None), (r####"--v7"####, r####"End"####, None), (r####"font-family"####, r####"var(--v0)"####, Some(r####"End"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_unclosed() {
+        let t = cascade_fixture();
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"font-family"####, r####"var(--oops })"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"font-family"####, r####"var(--oops })"####, Some(r####"oops }"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"font-family"####, r####"var(--oops })"####, Some(r####"oops }"####))], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
+    }
+
+    #[test]
+    fn cascade_var_inline_uses_css_scope() {
+        let mut t = cascade_fixture();
+        t.nodes[2].inline = decls(&[(r####"font-family"####, r####"var(--z)"####, false)]);
+        let rules = vec![
+            rule(0, &[r####"node"####], &[(r####"--z"####, r####"FromRule"####, false)])
+        ];
+        let got = cascade(&t, &rules);
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::title");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::body");
+        assert_eq!(listing_of(&t, 0, &rules, &got[0][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 0 ::label");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::title");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::body");
+        assert_eq!(listing_of(&t, 1, &rules, &got[1][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 1 ::label");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][0]), vec![(r####"--z"####, r####"FromRule"####, None), (r####"font-family"####, r####"var(--z)"####, Some(r####"FromRule"####))], "element 2 ::");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::title");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::body");
+        assert_eq!(listing_of(&t, 2, &rules, &got[2][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 2 ::label");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][0]), vec![(r####"--z"####, r####"FromRule"####, None)], "element 3 ::");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::title");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::body");
+        assert_eq!(listing_of(&t, 3, &rules, &got[3][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 3 ::label");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][0]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][1]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::title");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][2]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::body");
+        assert_eq!(listing_of(&t, 4, &rules, &got[4][3]), Vec::<(&str, &str, Option<&str>)>::new(), "element 4 ::label");
     }
 }
