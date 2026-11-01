@@ -298,9 +298,9 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Workflow parses; new step present; other jobs unchanged (PAR-12)
-- [ ] README updated with numbers from T11
-- [ ] Build gate passes
+- [x] Workflow parses; new step present; other jobs unchanged (PAR-12)
+- [x] README updated with numbers from T11
+- [x] Build gate passes
 
 **Tests**: none
 **Gate**: build

@@ -96,6 +96,8 @@ jobs:
         run: SPINAGRAM_RUST=1 uv run --no-sync pytest -q
       - name: Routing parity and speed
         run: uv run --no-sync python rust/bench/route_parity.py
+      - name: SVG parity (the PNG comparison needs Chromium and is skipped here)
+        run: uv run --no-sync python rust/bench/svg_png_parity.py --svg-only
       - name: Text parity and speed
         run: uv run --no-sync python rust/bench/parity.py
 
