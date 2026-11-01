@@ -10,3 +10,51 @@ html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
 }
+
+/* Example code panel: an always-dark editor whose scroll bars never hide */
+.example-code {
+  --example-bg: #0b1120;
+  background: var(--example-bg);
+  color: #e2e8f0;
+}
+
+.example-code [data-line-numbers] .line::after,
+.example-code .line::after {
+  color: #475569;
+}
+
+.example-scroll {
+  overflow: scroll;
+}
+
+.example-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.example-scroll::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.example-scroll::-webkit-scrollbar-thumb {
+  background: #334155;
+  border: 3px solid #0f172a;
+  border-radius: 999px;
+}
+
+.example-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.example-scroll::-webkit-scrollbar-corner {
+  display: block;
+  background: #0f172a;
+}
+
+/* browsers without ::-webkit-scrollbar (Firefox) get the standard properties instead */
+@supports not selector(::-webkit-scrollbar) {
+  .example-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 #0f172a;
+  }
+}

@@ -16,18 +16,30 @@ export async function Example({ id, caption, start = 0 }: { id: ViewId | ViewId[
     ids.map(async (key) => {
       const view = views[key];
       const files = await Promise.all(
-        view.files.map(async (file) => ({
-          name: path.basename(file),
-          path: file,
-          url: sourceUrl(file),
-          code: (
-            <ServerCodeBlock
-              lang={file.endsWith('.css') ? 'css' : 'python'}
-              code={readFileSync(path.join(EXAMPLES, file), 'utf8').trimEnd()}
-              codeblock={{ className: 'rounded-none border-0 bg-transparent shadow-none' }}
-            />
-          ),
-        })),
+        view.files.map(async (file) => {
+          const lang = file.endsWith('.css') ? ('css' as const) : ('python' as const);
+          const code = readFileSync(path.join(EXAMPLES, file), 'utf8').trimEnd();
+          return {
+            name: path.basename(file),
+            path: file,
+            url: sourceUrl(file),
+            lang,
+            lines: code.split('\n').length,
+            code: (
+              <ServerCodeBlock
+                lang={lang}
+                code={code}
+                themes={{ light: 'github-dark-default', dark: 'github-dark-default' }}
+                codeblock={{
+                  className: 'example-code my-0 h-full rounded-none border-0 bg-transparent shadow-none',
+                  'data-line-numbers': true,
+                  // the code view scrolls itself, so its scroll bars stay at its edges
+                  viewportProps: { className: 'example-scroll max-h-[420px] @5xl:h-full @5xl:max-h-none' },
+                }}
+              />
+            ),
+          };
+        }),
       );
       return { key, label: view.label, src: `${basePath}${view.src}`, alt: view.alt, files };
     }),

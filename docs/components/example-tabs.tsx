@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Code2, ExternalLink, Maximize2 } from 'lucide-react';
+import { ExternalLink, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface ExampleFile {
   name: string;
   path: string;
   url: string;
+  lang: 'python' | 'css';
+  lines: number;
   code: ReactNode;
 }
 
@@ -18,6 +20,11 @@ export interface ExampleView {
   alt: string;
   files: ExampleFile[];
 }
+
+const LANGS = {
+  python: { label: 'Python', color: '#FACC15' },
+  css: { label: 'CSS', color: '#A78BFA' },
+};
 
 const DOTS = {
   backgroundImage: 'radial-gradient(color-mix(in oklab, var(--color-fd-foreground) 14%, transparent) 1px, transparent 1px)',
@@ -76,41 +83,59 @@ export function ExampleTabs({ views, caption, start = 0 }: { views: ExampleView[
           </a>
         </div>
 
-        <div className="flex min-w-0 flex-col border-t @5xl:border-l @5xl:border-t-0">
-          <div className="flex items-center gap-2 border-b bg-fd-secondary/50 px-2 py-1.5">
-            <div role="tablist" aria-label="Source" className="flex min-w-0 flex-1 flex-wrap gap-1">
-              {view.files.map((f, i) => (
-                <button
-                  key={f.path}
-                  type="button"
-                  role="tab"
-                  aria-selected={f === file}
-                  onClick={() => setTab(i)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-xs transition-colors',
-                    f === file
-                      ? 'bg-fd-background text-fd-foreground shadow-sm ring-1 ring-fd-border'
-                      : 'text-fd-muted-foreground hover:text-fd-foreground',
-                  )}
-                >
-                  <Code2 className="size-3.5" /> {f.name}
-                </button>
-              ))}
+        <div className="flex min-w-0 flex-col border-t border-[#1E293B] bg-[#0B1120] text-slate-300 @5xl:border-l @5xl:border-t-0">
+          <div className="flex items-stretch border-b border-white/10 bg-[#070B16]">
+            <div className="flex shrink-0 items-center gap-1.5 px-3" aria-hidden>
+              <span className="size-2.5 rounded-full bg-[#FF5F57]" />
+              <span className="size-2.5 rounded-full bg-[#FEBC2E]" />
+              <span className="size-2.5 rounded-full bg-[#28C840]" />
+            </div>
+            <div role="tablist" aria-label="Source" className="flex min-w-0 flex-1 overflow-x-auto">
+              {view.files.map((f, i) => {
+                const selected = f === file;
+                return (
+                  <button
+                    key={f.path}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setTab(i)}
+                    className={cn(
+                      'relative inline-flex shrink-0 items-center gap-2 border-r border-white/5 px-3.5 py-2.5 font-mono text-xs transition-colors',
+                      selected ? 'bg-[#0B1120] text-slate-50' : 'text-slate-500 hover:bg-white/5 hover:text-slate-200',
+                    )}
+                  >
+                    {selected ? (
+                      <span className="absolute inset-x-0 top-0 h-0.5" style={{ background: LANGS[f.lang].color }} />
+                    ) : null}
+                    <span className="size-2 rounded-full" style={{ background: LANGS[f.lang].color }} />
+                    {f.name}
+                  </button>
+                );
+              })}
             </div>
             <a
               href={file.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground"
+              aria-label={`Open ${file.name} on GitHub`}
+              title="Open on GitHub"
+              className="inline-flex shrink-0 items-center px-3 text-slate-500 transition-colors hover:text-slate-100"
             >
-              GitHub <ExternalLink className="size-3" />
+              <ExternalLink className="size-3.5" />
             </a>
           </div>
-          {/* wide: the code fills the diagram's height and scrolls; narrow: it flows below with a cap */}
+          {/* wide: the code fills the diagram's height; narrow: it flows below with a cap. It scrolls itself. */}
           <div className="relative @5xl:min-h-[320px] @5xl:flex-1">
-            <div className="max-h-[420px] overflow-auto text-[13px] @5xl:absolute @5xl:inset-0 @5xl:max-h-none">
-              {file.code}
-            </div>
+            <div className="h-full @5xl:absolute @5xl:inset-0">{file.code}</div>
+          </div>
+          <div className="flex items-center gap-3 border-t border-white/10 bg-[#070B16] px-3 py-1.5 font-mono text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full" style={{ background: LANGS[file.lang].color }} />
+              {LANGS[file.lang].label}
+            </span>
+            <span>{file.lines} lines</span>
+            <span className="ml-auto truncate">examples/{file.path}</span>
           </div>
         </div>
       </div>
