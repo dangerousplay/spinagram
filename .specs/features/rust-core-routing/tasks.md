@@ -210,10 +210,10 @@ T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: `Crossings(120, drawn)(p, q)` equals `120 * sum(crosses(p, q, *s) for s in drawn)` for crossing, touching and parallel segments (ROUTE-11)
-- [ ] Test: `route_ortho` passes a `Crossings` with its `penalty` and the drawn segments (spy on `route`)
-- [ ] Existing `tests/test_engine_route.py` and `tests/test_cd_route.py` pass unchanged
-- [ ] Quick gate passes
+- [x] Test: `Crossings(120, drawn)(p, q)` equals `120 * sum(crosses(p, q, *s) for s in drawn)` for crossing, touching and parallel segments (ROUTE-11)
+- [x] Test: `route_ortho` passes a `Crossings` with its `penalty` and the drawn segments (spy on `route`)
+- [x] Existing `tests/test_engine_route.py` and `tests/test_cd_route.py` pass unchanged
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick

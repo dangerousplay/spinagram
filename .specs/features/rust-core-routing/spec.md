@@ -167,7 +167,7 @@ the two implementations cannot drift.
 | ROUTE-08 | P1: Rust routing | In Tasks | Implementing |
 | ROUTE-09 | P1: Rust routing | In Tasks | Implementing |
 | ROUTE-10 | P1: Rust routing | In Tasks | Implementing |
-| ROUTE-11 | P1: Rust routing | In Tasks | Pending |
+| ROUTE-11 | P1: Rust routing | In Tasks | Implementing |
 | PAR-01 | P2: parity in CI | In Tasks | Pending |
 | PAR-02 | P2: parity in CI | In Tasks | Pending |
 | PAR-03 | P2: parity in CI | In Tasks | Pending |

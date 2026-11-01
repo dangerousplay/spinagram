@@ -236,3 +236,42 @@ def test_engine_ortho_pays_the_crossing_penalty():  # EDG-18 through the engine 
     d.edge("a", "b", route="ortho")
     cs = _conns(build_scene(d, THEME))
     assert crossings(cs) == 0 and _axis_aligned(cs[1].points)
+
+
+# Crossings penalty object (ROUTE-11) ----------------------------------------------------------------------------
+from unittest import mock  # noqa: E402
+
+from spinagram.engine import route as engine_route  # noqa: E402
+from spinagram.engine.route import Crossings, crosses  # noqa: E402
+
+DRAWN = [((50, -100), (50, 100)), ((0, 10), (100, 10)), ((200, 0), (300, 0))]
+
+
+@pytest.mark.parametrize("p,q", [((0, 0), (100, 0)),      # crosses the vertical drawn segment at x=50
+                                 ((50, 10), (50, 60)),     # touches the horizontal drawn segment at its end
+                                 ((0, 5), (100, 5)),       # parallel to the horizontal one, crosses the vertical
+                                 ((0, 50), (30, 50))],     # misses everything
+                         ids=["crossing", "touching", "parallel", "none"])
+def test_crossings_equals_the_old_closure(p, q):  # ROUTE-11
+    assert Crossings(120, DRAWN)(p, q) == 120 * sum(crosses(p, q, *s) for s in DRAWN)
+
+
+def test_crossings_values_for_known_cases():  # ROUTE-11: spec-defined costs, not derived from the code
+    c = Crossings(120, DRAWN)
+    assert c((0, 0), (100, 0)) == 120     # one strict crossing
+    assert c((50, 20), (50, 60)) == 0     # touches, no strict crossing
+    assert c((0, 50), (30, 50)) == 0
+
+
+def test_route_ortho_passes_a_crossings_object():  # ROUTE-11
+    d = Diagram("R", "Route")
+    d.box("A", id="a", x=200, y=300, w=200, h=60)
+    d.box("B", id="b", x=700, y=500, w=200, h=60)
+    d.edge((450, 480), (750, 480))
+    d.edge("a", "b", route="ortho")
+    with mock.patch.object(engine_route, "route", wraps=engine_route.route) as spy:
+        build_scene(d, THEME)
+    pen = spy.call_args.kwargs["penalty"]
+    assert isinstance(pen, Crossings)
+    assert pen.cost == engine_route.CROSSING
+    assert [tuple(map(tuple, s)) for s in pen.drawn] == [((450, 480), (750, 480))]
