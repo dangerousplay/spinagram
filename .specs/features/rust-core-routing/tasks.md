@@ -398,8 +398,8 @@ Phase 3:  T10 -----→ T11 -----→ T12
 
 **Done when**:
 
-- [ ] With the deepcopy removed from the hit path of `yamlload.load_file` (scratch check, discarded), the new assertions fail
-- [ ] Quick gate passes on `tests/test_yamlload.py`
+- [x] With the deepcopy removed from the hit path of `yamlload.load_file` (scratch check, discarded), the new assertions fail
+- [x] Quick gate passes on `tests/test_yamlload.py`
 
 **Tests**: unit
 **Gate**: quick

@@ -56,9 +56,13 @@ def test_changed_mtime_only_reparses(tmp_path):  # YAML-04 clause 2 (mtime_ns, s
 def test_mutating_result_does_not_touch_next_load(tmp_path):  # YAML-05
     f = tmp_path / "t.yaml"
     f.write_text("a: {b: [1, 2]}\n")
-    first = yamlload.load_file(f)
+    first = yamlload.load_file(f)  # cache miss
     first["a"]["b"].append(3)
     first["z"] = 1
+    second = yamlload.load_file(f)  # cache hit
+    assert second == {"a": {"b": [1, 2]}}
+    second["a"]["b"].append(4)
+    second["y"] = 1
     assert yamlload.load_file(f) == {"a": {"b": [1, 2]}}
 
 
@@ -91,6 +95,11 @@ def test_theme_data_mutation_does_not_leak_to_next_load():  # YAML-05 (theme sid
     first.data["colors"] = {"mutated": "#123456"}
     first.data["_css"].append("/nope.css")
     first.data["added"] = 1
+    second = Theme.load("default")  # theme.yaml served from the cache
+    assert yaml.safe_dump(second.data) == before
+    second.data["colors"] = {"mutated": "#654321"}
+    second.data["_css"].append("/nope2.css")
+    second.data["added2"] = 2
     assert yaml.safe_dump(Theme.load("default").data) == before
 
 
