@@ -23,6 +23,17 @@ uv run --all-extras --no-sync python rust/bench/css_parity.py      # CSS inspect
 bash rust/bench/render_all.sh OUT                          # every example to SVG, for byte-identity checks
 ```
 
+## Wheels and source builds
+
+CI builds one abi3 wheel per target (CPython 3.11+): manylinux and musllinux for x86_64 and aarch64, macOS arm64
+and x86_64, Windows x64 and arm64. Linux aarch64, musllinux, macOS x86_64 and Windows arm64 are cross-compiled.
+Each wheel that has a matching runner is installed there and checked with `rust/bench/wheel_smoke.py`, which
+renders examples with and without the core and requires byte-identical SVGs plus a resvg PNG.
+
+CI also builds the sdist. On a platform without a wheel, `pip install spinagram-core` builds it from that sdist
+with maturin, which needs a Rust toolchain (`rustup`, stable); the `core-source-install` job checks this on Linux,
+macOS and Windows. To build from a checkout instead: `pip install ./rust/spinagram-core-py`.
+
 `SPINAGRAM_RUST=1` switches `spinagram.text.measure` and `spinagram.engine.textfit.fit_blocks` to the core
 (see `src/spinagram/rust.py`). Without the flag or the wheel, everything is pure Python. Use `--no-sync`
 so `uv run` does not remove the locally installed wheel.

@@ -128,6 +128,123 @@ jobs:
         run: cargo verus verify -p spinagram-core
         working-directory: rust
 
+  # One abi3 wheel per target serves CPython 3.11+. Cross-compiled where the runner can: Linux aarch64 and both
+  # musllinux targets in maturin's cross images, macOS x86_64 from the arm64 runner, Windows arm64 from x64.
+  core-wheels:
+    name: spinagram-core wheel (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { name: linux-aarch64, os: ubuntu-latest, target: aarch64, manylinux: auto }
+          - { name: musllinux-x86_64, os: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
+          - { name: musllinux-aarch64, os: ubuntu-latest, target: aarch64, manylinux: musllinux_1_2 }
+          - { name: macos-arm64, os: macos-latest, target: aarch64-apple-darwin }
+          - { name: macos-x86_64, os: macos-latest, target: x86_64-apple-darwin }
+          - { name: windows-x64, os: windows-latest, target: x64 }
+          - { name: windows-arm64, os: windows-latest, target: aarch64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: rust/spinagram-core-py
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist
+          sccache: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-wheel-${{ matrix.name }}
+          path: rust/spinagram-core-py/dist/*.whl
+          if-no-files-found: error
+
+  core-sdist:
+    name: spinagram-core sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: rust/spinagram-core-py
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-sdist
+          path: rust/spinagram-core-py/dist/*.tar.gz
+          if-no-files-found: error
+
+  # Install each wheel on a runner of its own platform and render examples with and without the core.
+  core-wheel-smoke:
+    name: spinagram-core wheel smoke (${{ matrix.name }})
+    needs: core-wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest }
+          - { name: linux-aarch64, os: ubuntu-24.04-arm }
+          - { name: macos-arm64, os: macos-latest }
+          - { name: windows-x64, os: windows-latest }
+          - { name: windows-arm64, os: windows-11-arm }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: core-wheel-${{ matrix.name }}
+          path: dist
+      - run: python -m pip install . dist/*.whl
+      - run: python rust/bench/wheel_smoke.py
+
+  core-musllinux-smoke:
+    name: spinagram-core wheel smoke (musllinux-x86_64, import)
+    needs: core-wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: core-wheel-musllinux-x86_64
+          path: dist
+      - name: Import in Alpine
+        run: |
+          docker run --rm -v "$PWD/dist:/dist" python:3.13-alpine sh -c \
+            'pip install -q /dist/*.whl && python -c "import spinagram_core as c; print(c.__version__)"'
+
+  # Where no wheel matches, pip builds spinagram-core from the sdist with the local Rust toolchain.
+  core-source-install:
+    name: spinagram-core from source (${{ matrix.os }})
+    needs: core-sdist
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: core-sdist
+          path: dist
+      - name: Build and install from the sdist
+        run: python -m pip install . --no-binary spinagram-core dist/*.tar.gz
+      - run: python rust/bench/wheel_smoke.py
+
   build:
     name: Build sdist + wheel (uv)
     needs: [web, lint, test]

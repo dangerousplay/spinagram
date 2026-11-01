@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "spinagram-core"
-description = "Rust core for spinagram (spike): text measurement and fitting"
+description = "Rust core for spinagram: text fitting, edge routing, SVG/PNG drawing and the CSS cascade"
 requires-python = ">=3.11"
 license = "MIT"
 dynamic = ["version"]
