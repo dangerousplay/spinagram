@@ -1,4 +1,4 @@
-"""Spike harness: compare spinagram_core (Rust) with spinagram.text / engine.textfit (Python, Pillow).
+"""Spike harness: compare spinagram._core (Rust) with spinagram.text / engine.textfit (Python, Pillow).
 
 Run from the repo root after installing the wheel:
     uv run --all-extras --no-sync python rust/bench/parity.py
@@ -10,7 +10,7 @@ import statistics
 import time
 from pathlib import Path
 
-import spinagram_core as core
+from spinagram import _core as core
 from spinagram.engine import textfit
 from spinagram.text import BUNDLED, measure
 from spinagram.theme import FontRef
@@ -101,7 +101,7 @@ def bench(texts: list[str], cases: list[tuple]) -> None:
             best = min(best, time.perf_counter() - t)
         return best
 
-    arial = FONT_FILES[2]
+    arial = FONT_FILES[min(2, len(FONT_FILES) - 1)]  # Arial where installed, else a bundled font
     m_py = clock(lambda: [measure(t, fontref(arial, 14)) for t in texts])
     m_rs = clock(lambda: [core.measure(t, rust_font(arial, 14), FALLBACKS) for t in texts])
     f_py = clock(lambda: [fit_python(*c) for c in cases])

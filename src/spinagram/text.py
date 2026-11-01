@@ -19,8 +19,9 @@ _HEURISTIC = {False: 0.53, True: 0.60}  # average advance / size; bold is wider
 def _pil_font(path: str, size_tenths: int):
     from PIL import ImageFont
 
-    # Measure at 10x and scale down: Pillow rounds advances to integer pixels.
-    return ImageFont.truetype(path, size_tenths)
+    # Measure at 10x and scale down: Pillow rounds advances to integer pixels. BASIC layout on every platform:
+    # Pillow's Linux wheels default to raqm, whose unrounded HarfBuzz advances would change widths per OS.
+    return ImageFont.truetype(path, size_tenths, layout_engine=ImageFont.Layout.BASIC)
 
 
 @lru_cache(maxsize=16)

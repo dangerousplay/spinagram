@@ -112,6 +112,15 @@ def test_measure_uses_fallback_metrics(theme, ch):  # TXT-15
     assert measure(f"ab{ch}", f) == pytest.approx(_plain("ab", f) + _plain(ch, fb))
 
 
+
+def test_pillow_measures_with_basic_layout_everywhere():
+    """Linux Pillow wheels default to raqm (unrounded advances); widths must not depend on the platform."""
+    from PIL import ImageFont
+
+    from spinagram.text import _pil_font
+
+    assert _pil_font(str(BUNDLED[0][1]), 200).layout_engine == ImageFont.Layout.BASIC
+
 # SVG (TXT-12) -------------------------------------------------------------------------------------------------
 SVG_CASES = [
     ("warning-check", "ok ⚠ ✓", ["Noto Sans Symbols 2"]),

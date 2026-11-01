@@ -1,7 +1,0 @@
-# The extension module leaves Python symbols undefined; the interpreter provides them. maturin passes these flags
-# itself, plain `cargo build --workspace` needs them on macOS.
-[target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
-
-[target.x86_64-apple-darwin]
-rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
