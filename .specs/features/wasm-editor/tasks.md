@@ -214,14 +214,16 @@ Add a build script that produces `web/src/wasm/` (gitignored). Add the crate to 
 
 **Done when**:
 
-- [ ] Test: the endpoint returns JSON that validates against `rust/schema/scene.schema.json` for a YAML example
-- [ ] Test: `editable` is false for a Python spec and for an engine-laid-out YAML, and true for a hand-placed YAML
-- [ ] Test: an unknown key gives 404
-- [ ] Full gate passes
+- [x] Test: the endpoint returns JSON that validates against `rust/schema/scene.schema.json` for a YAML example
+- [x] Test: `editable` is false for a Python spec and for an engine-laid-out YAML, and true for a hand-placed YAML
+- [x] Test: an unknown key gives 404
+- [x] Full gate passes
 
 **Tests**: integration
 **Gate**: full
 **Commit**: `feat(ui): serve scene json for the canvas`
+
+**Notes**: Response shape: {scene, editable, files}; `files` maps each icon or image path in the scene to base64 (the browser has no file system, so `renderSvg` needs the bytes: registerFile). `GET /api/fonts/{file name}` serves only fonts a rendered scene uses (404 otherwise). editable = YAML spec, alone in its file, not engine-laid-out (`d.auto`), no rows/columns/snakes. A spec that fails to load gives the same status as `.svg` (no diagrams: 404). Tests in tests/test_ui.py (6 new).
 
 ---
 

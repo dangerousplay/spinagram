@@ -468,3 +468,92 @@ def test_deleted_stylesheet_errors_then_recovers(env):  # INS-18
     sheet.write_text(".critical { fill: #0A0B0C }")
     apply_changes(ws, ws.theme_roots(), {sheet.resolve()})
     assert "#0A0B0C" in ws.render("styled.yaml#ST")[0]
+
+
+# canvas scene endpoint (spec: .specs/features/wasm-editor, CTR-02 partial) ------------------------------------
+def _scene_schema_validator():
+    import json
+    from pathlib import Path
+
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = json.loads((Path(__file__).resolve().parents[1] / "rust" / "schema" / "scene.schema.json").read_text())
+    return jsonschema.Draft202012Validator(schema)
+
+
+def test_scene_endpoint_returns_json_that_validates_against_the_scene_schema(env):
+    c = client(Workspace([env / "specs"]))
+    r = c.get("/api/diagrams/one.yaml%23D1.scene")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/json")
+    assert "no-store" in r.headers["cache-control"]
+    body = r.json()
+    errors = list(_scene_schema_validator().iter_errors(body["scene"]))
+    assert not errors, errors[0].message
+    assert body["scene"]["id"] == "D1" and body["scene"]["title"] == "First"
+    assert [i["id"] for i in body["scene"]["items"] if i["type"] == "shape" and i["role"] == "node"] == ["a"]
+    assert body["files"] == {}
+
+
+def test_scene_endpoint_carries_icon_bytes_by_path(env):
+    import base64
+
+    (env / "specs" / "icon.svg").write_text(SVG_DOT)
+    (env / "specs" / "ic.yaml").write_text(
+        "id: IC\ntitle: icon\nnodes:\n  - {id: a, x: 100, y: 200, w: 300, h: 120, title: A, icon: icon.svg}\n")
+    body = client(Workspace([env / "specs"])).get("/api/diagrams/ic.yaml%23IC.scene").json()
+    icons = [i["icon"]["path"] for i in body["scene"]["items"] if i["type"] == "shape" and i.get("icon")]
+    assert len(icons) == 1 and base64.b64decode(body["files"][icons[0]]).decode() == SVG_DOT
+
+
+def test_scene_endpoint_says_whether_the_diagram_is_canvas_editable(env):
+    specs = env / "specs"
+    (specs / "spec.py").write_text("from spinagram import Diagram\nd = Diagram('PY', 'py')\nd.add('box', 'A', x=10, y=10, w=100, h=60)\n")
+    (specs / "rows.yaml").write_text("id: RW\ntitle: rows\nrows:\n  - {x: 100, y: 100, nodes: [{id: a, title: A, w: 100, h: 60}]}\n")
+    node = "  nodes:\n    - {id: a, x: 100, y: 200, w: 300, h: 120, title: A}\n"
+    (specs / "multi.yaml").write_text(f"- id: M1\n  title: m1\n{node}- id: M2\n  title: m2\n{node}")
+    c = client(Workspace([specs]))
+    editable = {k: c.get(f"/api/diagrams/{k.replace('#', '%23')}.scene").json()["editable"]
+                for k in ("one.yaml#D1", "auto.yaml#AU", "spec.py#PY", "rows.yaml#RW")}
+    assert editable == {"one.yaml#D1": True, "auto.yaml#AU": False, "spec.py#PY": False, "rows.yaml#RW": False}
+    ws = Workspace([specs])
+    multi = [k for k in ws.all_keys() if k.startswith("multi.yaml")]
+    assert len(multi) == 2 and not any(c.get(f"/api/diagrams/{k.replace('#', '%23')}.scene").json()["editable"] for k in multi)
+
+
+def test_scene_endpoint_unknown_key_is_404_and_a_broken_spec_is_422(env):
+    (env / "specs" / "bad.yaml").write_text("id: BD\ntitle: bad\nnodes:\n  - {id: a, x: 1, y: 1, w: 10, h: 10, bogus: 1}\n")
+    c = client(Workspace([env / "specs"]))
+    assert c.get("/api/diagrams/nope.yaml%23X.scene").status_code == 404
+    assert c.get("/api/diagrams/one.yaml%23NOPE.scene").status_code == 404
+    r = c.get("/api/diagrams/bad.yaml%23BD.scene")
+    assert r.status_code in (404, 422)  # a spec that fails to load has no diagrams, like the .svg route
+    assert r.status_code == c.get("/api/diagrams/bad.yaml%23BD.svg").status_code
+
+
+def test_scene_endpoint_follows_the_render_cache(env):
+    ws = Workspace([env / "specs"])
+    c = client(ws)
+    first = c.get("/api/diagrams/one.yaml%23D1.scene").json()
+    (env / "specs" / "one.yaml").write_text(BOX.format(id="D1", title="Second"))
+    apply_changes(ws, ws.theme_roots(), {env / "specs" / "one.yaml"})
+    again = c.get("/api/diagrams/one.yaml%23D1.scene").json()
+    assert first["scene"]["title"] == "First" and again["scene"]["title"] == "Second"
+
+
+def test_font_route_serves_only_fonts_a_scene_uses(env):
+    c = client(Workspace([env / "specs"]))
+    assert c.get("/api/fonts/NotoSansMath-Regular.ttf").status_code == 404  # no scene has used it
+    assert c.get("/api/fonts/..%2F..%2Fetc%2Fpasswd").status_code == 404
+    body = c.get("/api/diagrams/one.yaml%23D1.scene").json()
+    fonts = {f["file"] for i in body["scene"]["items"] for f in _fonts_of(i) if f["file"]}
+    for path in fonts:
+        r = c.get(f"/api/fonts/{path.rsplit('/', 1)[-1]}")
+        assert r.status_code == 200 and len(r.content) > 1000
+
+
+def _fonts_of(item: dict):
+    blocks = []
+    if item["type"] == "shape" and item.get("label"):
+        blocks = item["label"]["blocks"]
+    elif item["type"] == "text":
+        blocks = [item["block"]]
+    return [b["font"] for b in blocks]

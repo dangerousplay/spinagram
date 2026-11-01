@@ -74,6 +74,22 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         meta = quote(json.dumps({**info, "overflow": list(info["overflow"]) if info.get("overflow") else None}))
         return Response(svg, media_type="image/svg+xml", headers={**NO_STORE, "X-Diagram-Info": meta})
 
+    async def scene(req: Request) -> Response:
+        key = req.path_params["key"]
+        try:
+            doc = await run_in_threadpool(ws.scene, key, req.query_params.get("layout") or None)
+        except KeyError:
+            return _err(404, f"unknown diagram {key}")
+        except RenderError as exc:
+            return _err(422, str(exc), file=exc.file)
+        return JSONResponse(doc, headers=NO_STORE)
+
+    async def font(req: Request) -> Response:
+        try:
+            return FileResponse(ws.font_file(req.path_params["name"]))
+        except KeyError:
+            return _err(404, "unknown font")
+
     async def styles(req: Request) -> Response:
         key = req.path_params["key"]
         try:
@@ -235,7 +251,9 @@ def create_app(ws: Workspace, bus: EventBus | None = None, packs: PackService | 
         Route("/api/workspace/open", open_folder, methods=["POST"]),
         Route("/api/fs", list_dir),
         Route("/api/diagrams/{key:path}.svg", diagram),
+        Route("/api/diagrams/{key:path}.scene", scene),
         Route("/api/diagrams/{key:path}.styles", styles),
+        Route("/api/fonts/{name}", font),
         Route("/api/diagrams/{key:path}.source", source),
         Route("/api/files", save, methods=["PUT"]),
         Route("/api/themes", theme_list),

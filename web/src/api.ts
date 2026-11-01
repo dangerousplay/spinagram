@@ -29,6 +29,10 @@ export type { SourceFile };
 export type DirEntry = { name: string; path: string; specs: number };
 export type DirListing = { path: string; parent: string | null; specs: number; dirs: DirEntry[] };
 
+// Canvas (`api/diagrams/<key>.scene`): the scene JSON of rust/schema/scene.schema.json, whether the canvas can edit it,
+// and the icon and image bytes the scene names (path -> base64).
+export type SceneDoc = { scene: unknown; editable: boolean; files: Record<string, string> };
+
 export type DiagramInfo = { overflow: [number, number] | null; warnings: string[]; missing_packs: string[] };
 
 // CSS inspector (`api/diagrams/<key>.styles`, built by spinagram.css.inspect + ui.workspace.geometry)
@@ -170,6 +174,13 @@ export const api = {
     const q = layout ? `?layout=${enc(layout)}` : "";
     return json<StyleReport>(`api/diagrams/${key.split("/").map(enc).join("/")}.styles${q}`, { signal });
   },
+  /** The scene for the canvas: the scene JSON, whether the diagram is canvas-editable, and its icon bytes. */
+  scene: (key: string, layout: string | null, signal?: AbortSignal) => {
+    const q = layout ? `?layout=${enc(layout)}` : "";
+    return json<SceneDoc>(`${diagramPath(key)}.scene${q}`, { signal });
+  },
+  /** Where the browser loads the fonts a scene names (``renderSvg``'s font base). */
+  fontBase: "api/fonts/",
   themes: () => json<ThemeEntry[]>("api/themes"),
   theme: (ref: string) => json<ThemeSheet>(`api/themes/${enc(ref)}`),
   /** The theme's sample diagram as an image URL. */
