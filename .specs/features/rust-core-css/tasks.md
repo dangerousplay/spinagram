@@ -124,8 +124,8 @@ T7 → T8
 
 **Done when**:
 
-- [ ] Test (importorskip): for a fixture tree and every selector feature, binding match sets equal Python `matches` (CSS-03)
-- [ ] Wheel + quick gate pass
+- [x] Test (importorskip): for a fixture tree and every selector feature, binding match sets equal Python `matches` (CSS-03)
+- [x] Wheel + quick gate pass
 
 **Tests**: integration
 **Gate**: quick

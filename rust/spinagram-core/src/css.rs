@@ -504,6 +504,110 @@ pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
 }
 
 
+// JSON boundary ----------------------------------------------------------------------------------
+
+#[derive(serde::Deserialize)]
+struct NodeIn {
+    parent: Option<usize>,
+    #[serde(rename = "type")]
+    typ: String,
+    #[serde(default)]
+    kinds: Vec<String>,
+    id: Option<String>,
+    #[serde(default)]
+    classes: Vec<String>,
+    #[serde(default)]
+    attrs: HashMap<String, String>,
+    #[serde(default)]
+    inline: Vec<DeclIn>,
+}
+
+#[derive(serde::Deserialize)]
+struct DeclIn {
+    name: String,
+    value: String,
+    #[serde(default)]
+    important: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct RuleIn {
+    selectors: Vec<String>,
+    decls: Vec<DeclIn>,
+    order: i64,
+}
+
+impl From<DeclIn> for Decl {
+    fn from(d: DeclIn) -> Decl {
+        Decl { name: d.name, value: d.value, important: d.important }
+    }
+}
+
+/// The style tree from `{"nodes": [{parent, type, kinds, id, classes, attrs, inline}, ...]}` in pre-order.
+pub fn tree_from_json(json: &str) -> Result<Tree, String> {
+    #[derive(serde::Deserialize)]
+    struct In {
+        nodes: Vec<NodeIn>,
+    }
+    let parsed: In = serde_json::from_str(json).map_err(|e| format!("invalid style tree: {e}"))?;
+    let nodes = parsed
+        .nodes
+        .into_iter()
+        .map(|n| Node {
+            parent: n.parent,
+            typ: n.typ,
+            kinds: n.kinds,
+            id: n.id,
+            classes: n.classes,
+            attrs: n.attrs,
+            inline: n.inline.into_iter().map(Decl::from).collect(),
+            ..Node::default()
+        })
+        .collect();
+    let mut tree = Tree { nodes };
+    tree.link();
+    Ok(tree)
+}
+
+/// The cascade as JSON: per element, per pseudo-element (`PSEUDOS` order), a list of
+/// `[rule index or -1, selector index, declaration index, resolved value or null]`.
+/// `rules_json` is `[{"selectors": [text], "decls": [{name, value, important}], "order": n}]`.
+pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, String> {
+    let tree = tree_from_json(tree_json)?;
+    let raw: Vec<RuleIn> = serde_json::from_str(rules_json).map_err(|e| format!("invalid rules: {e}"))?;
+    let mut rules = Vec::with_capacity(raw.len());
+    for r in raw {
+        let mut selectors = Vec::new();
+        for text in &r.selectors {
+            let mut parsed = parse_selectors(text)?;
+            if parsed.len() != 1 {
+                return Err(format!("expected one selector in {text:?}"));
+            }
+            selectors.append(&mut parsed);
+        }
+        rules.push(Rule { selectors, decls: r.decls.into_iter().map(Decl::from).collect(), order: r.order });
+    }
+    let result = cascade(&tree, &rules);
+    type Row = (i64, usize, usize, Option<String>);
+    let json: Vec<Vec<Vec<Row>>> = result
+        .into_iter()
+        .map(|el| el.into_iter().map(|list| list.into_iter().map(|e| (e.rule, e.sel, e.decl, e.resolved)).collect()).collect())
+        .collect();
+    serde_json::to_string(&json).map_err(|e| e.to_string())
+}
+
+/// For each selector text, the indices of the elements it matches (pseudo-elements ignored), as JSON.
+pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, String> {
+    let tree = tree_from_json(tree_json)?;
+    let mut matcher = Matcher::default();
+    let mut out: Vec<Vec<usize>> = Vec::with_capacity(texts.len());
+    for t in texts {
+        let sels = parse_selectors(t)?;
+        out.push((0..tree.nodes.len()).filter(|&i| sels.iter().any(|s| matcher.matches(s, &tree, i))).collect());
+    }
+    serde_json::to_string(&out).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

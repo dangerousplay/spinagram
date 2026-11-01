@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use spinagram_core::fit::{self, BlockSpec};
 use spinagram_core::font;
+use spinagram_core::css;
 use spinagram_core::png;
 use spinagram_core::scene;
 use spinagram_core::svg::{self, DrawError};
@@ -142,6 +143,19 @@ fn render_png<'py>(py: Python<'py>, svg: &str, width: f64, height: f64, scale: f
     Ok(PyBytes::new(py, &bytes))
 }
 
+/// The CSS cascade of a style tree (JSON) under rules (JSON): per element and pseudo-element the matched
+/// declarations in cascade order, as JSON. `ValueError` when a selector cannot be parsed.
+#[pyfunction]
+fn css_cascade(py: Python<'_>, tree: &str, rules: &str) -> PyResult<String> {
+    py.detach(|| css::cascade_json(tree, rules)).map_err(PyValueError::new_err)
+}
+
+/// For each selector text, the indices of the elements of a style tree (JSON) it matches, as JSON.
+#[pyfunction]
+fn css_select(py: Python<'_>, tree: &str, selectors: Vec<String>) -> PyResult<String> {
+    py.detach(|| css::select_json(tree, &selectors)).map_err(PyValueError::new_err)
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Linker workaround, see rust/README.md: the macOS 27 linker writes a misaligned string table (and dyld
@@ -158,6 +172,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(route, m)?)?;
     m.add_function(wrap_pyfunction!(scene_roundtrip, m)?)?;
     m.add_function(wrap_pyfunction!(svg_draw, m)?)?;
+    m.add_function(wrap_pyfunction!(css_cascade, m)?)?;
+    m.add_function(wrap_pyfunction!(css_select, m)?)?;
     m.add_function(wrap_pyfunction!(render_png, m)?)?;
     Ok(())
 }
