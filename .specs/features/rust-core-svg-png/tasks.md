@@ -215,10 +215,10 @@ T9 → T10 → T11 → T12
 
 **Done when**:
 
-- [ ] Test: for every example scene and each `fonts` mode, Rust-mode `to_svg` == Python-mode `to_svg` (SVG-01, one parametrized assertion per mode)
-- [ ] Test: core inactive → Python path used (spy) (SVG-07)
-- [ ] Test: `chars` from Rust equal Python's per face for a scene with fallback runs and empty lines (SVG-08)
-- [ ] Build gate passes (both modes; `render_all.sh` both modes == T1 baseline)
+- [x] Test: for every example scene and each `fonts` mode, Rust-mode `to_svg` == Python-mode `to_svg` (SVG-01, one parametrized assertion per mode)
+- [x] Test: core inactive → Python path used (spy) (SVG-07)
+- [x] Test: `chars` from Rust equal Python's per face for a scene with fallback runs and empty lines (SVG-08)
+- [x] Build gate passes (both modes; `render_all.sh` both modes == T1 baseline)
 
 **Tests**: integration
 **Gate**: build

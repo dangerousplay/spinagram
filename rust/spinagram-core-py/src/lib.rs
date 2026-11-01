@@ -1,11 +1,12 @@
 //! Python bindings for spinagram-core, imported as `spinagram_core._core`. Fonts cross the boundary as
 //! `(file or None, size, weight)`; the fallback chain is a list of font file paths.
 
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyFileNotFoundError, PyValueError};
 use pyo3::prelude::*;
 use spinagram_core::fit::{self, BlockSpec};
 use spinagram_core::font;
 use spinagram_core::scene;
+use spinagram_core::svg::{self, DrawError};
 use spinagram_core::route::{self as core_route, Crossings, Options, Pt, Rect, Side};
 use spinagram_core::text::{Font, Measurer};
 
@@ -114,8 +115,28 @@ fn scene_roundtrip(json: &str) -> PyResult<String> {
     Ok(scene::to_json(&parsed))
 }
 
+type Chars = Vec<(String, u32, bool, String)>;
+
+/// Draw the items of a scene JSON as SVG fragments: `(defs, back, mid, front, chars)` where `chars` lists
+/// `(family, weight, italic, characters)` for each face drawn. A missing image raises `FileNotFoundError`.
+#[pyfunction]
+fn svg_draw(py: Python<'_>, json: &str) -> PyResult<(String, String, String, String, Chars)> {
+    let drawn = py
+        .detach(|| scene::parse(json).map_err(DrawError::Scene).and_then(|s| svg::draw(&s)))
+        .map_err(|e| match e {
+            DrawError::NotFound(p) => PyFileNotFoundError::new_err(format!("[Errno 2] No such file or directory: '{p}'")),
+            other => PyValueError::new_err(other.to_string()),
+        })?;
+    let chars = drawn.chars.into_iter().map(|((fam, w, it), cs)| (fam, w, it, cs.into_iter().collect())).collect();
+    Ok((drawn.defs, drawn.back, drawn.mid, drawn.front, chars))
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Linker workaround, see rust/README.md: the macOS 27 linker writes a misaligned string table (and dyld
+    // refuses the module) when the number of indirect symbols is odd. Touching one more Python data symbol
+    // adds one GOT entry and changes the parity.
+    std::hint::black_box(unsafe { pyo3::ffi::PyExc_KeyError });
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(covers, m)?)?;
     m.add_function(wrap_pyfunction!(measure, m)?)?;
@@ -124,5 +145,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fit_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(route, m)?)?;
     m.add_function(wrap_pyfunction!(scene_roundtrip, m)?)?;
+    m.add_function(wrap_pyfunction!(svg_draw, m)?)?;
     Ok(())
 }

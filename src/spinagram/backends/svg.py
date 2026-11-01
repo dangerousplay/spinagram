@@ -12,8 +12,12 @@ from pathlib import Path
 from typing import Sequence
 from urllib.parse import quote_plus
 
+from .. import scene_json
+from ..rust import core
 from ..scene import Cell, Connector, Icon, Image, Label, Line, Run, Scene, Shape, TableGrid, Text, TextBlock
 from . import fontsubset
+
+_CORE = core()  # the Rust drawing step when SPINAGRAM_RUST=1 and the wheel is installed
 
 DASH = ' stroke-dasharray="10 7"'
 FONT_MODES = ("subset", "embed", "link")
@@ -256,7 +260,14 @@ class _Svg:
             elif isinstance(it, TableGrid):
                 self.table(it)
 
+    def _draw_rust(self) -> tuple[str, str, str, str, dict[tuple, set[str]]]:
+        """The same layers from the Rust core (the scene crosses as JSON)."""
+        defs, back, mid, front, chars = _CORE.svg_draw(scene_json.dumps(self.s))
+        return defs, back, mid, front, {(fam, weight, italic): set(cs) for fam, weight, italic, cs in chars}
+
     def render(self) -> str:
+        if _CORE is not None:
+            return self._assemble(*self._draw_rust())
         self._draw()
         return self._assemble(self.defs, self.back, self.mid, self.front, self.chars)
 
