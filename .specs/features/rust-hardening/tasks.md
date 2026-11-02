@@ -64,6 +64,8 @@ Remove `EdgeText::parse`/`endpoint` from `edit.rs`.
 **Tests**: the vector table on both sides; existing edge rewrite byte tests.
 **Gate**: rust + pytest of the new file
 **Commit**: `refactor(core): edge grammar on winnow with vectors shared with the Python loader`
+**Status**: Done
+**Notes**: Vectors: 319 edge strings and 23 edge ends from the Python loader; the Rust grammar also agreed on 12,059 random strings in a one-off run. Endpoint.frac is f64.
 
 ### T3: Typed edit operations and validated ends
 

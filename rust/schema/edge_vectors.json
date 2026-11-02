@@ -1,0 +1,2473 @@
+{
+ "about": "Edge strings and edge ends with the result of the loader (spinagram.model.parse_edge and spinagram.engine.endpoints._split). Run by cargo test (edge_syntax) and tests/test_edge_vectors.py.",
+ "edges": [
+  {
+   "input": "a -> b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b: label",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": "label",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a->b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a <-> b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "a <- b",
+   "parsed": {
+    "src": "b",
+    "dst": "a",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -- b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "a --> b",
+   "parsed": {
+    "src": "a",
+    "dst": "> b",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "a<->b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "a<-b",
+   "parsed": {
+    "src": "b",
+    "dst": "a",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a - b",
+   "parsed": null
+  },
+  {
+   "input": "a -> b -> c",
+   "parsed": {
+    "src": "a",
+    "dst": "b -> c",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b -> c: x",
+   "parsed": {
+    "src": "a",
+    "dst": "b -> c",
+    "label": "x",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a <- b -> c",
+   "parsed": {
+    "src": "b -> c",
+    "dst": "a",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -- b <- c",
+   "parsed": {
+    "src": "a",
+    "dst": "b <- c",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "a.right@0.3 -> b.left: label",
+   "parsed": {
+    "src": "a.right@0.3",
+    "dst": "b.left",
+    "label": "label",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a.right@0.3 <-> zone:z : the label",
+   "parsed": {
+    "src": "a.right@0.3",
+    "dst": "zone:z",
+    "label": "the label",
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "a -> zone:z",
+   "parsed": {
+    "src": "a",
+    "dst": "zone:z",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> zone:z: hi",
+   "parsed": {
+    "src": "a",
+    "dst": "zone:z",
+    "label": "hi",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "zone:z -> a",
+   "parsed": {
+    "src": "zone:z",
+    "dst": "a",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> aws:s3",
+   "parsed": {
+    "src": "a",
+    "dst": "aws",
+    "label": "s3",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> zone:",
+   "parsed": {
+    "src": "a",
+    "dst": "zone",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> zone: x",
+   "parsed": {
+    "src": "a",
+    "dst": "zone: x",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> zone:z:x",
+   "parsed": {
+    "src": "a",
+    "dst": "zone:z",
+    "label": "x",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b:",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b: ",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b:  x : y",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": "x : y",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b: x\n",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": "x",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b\n",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a\n-> b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a ->\nb",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b\nc",
+   "parsed": {
+    "src": "a",
+    "dst": "b\nc",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b: x\ny",
+   "parsed": null
+  },
+  {
+   "input": "\na -> b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "   a   ->   b   :   label  ",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": "label  ",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "\ta\t->\tb\t",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a　->　b: é",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": "é",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " -> b",
+   "parsed": {
+    "src": " ",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> ",
+   "parsed": {
+    "src": "a",
+    "dst": " ",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> :x",
+   "parsed": {
+    "src": "a",
+    "dst": " ",
+    "label": "x",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "-> b",
+   "parsed": null
+  },
+  {
+   "input": "a ->",
+   "parsed": null
+  },
+  {
+   "input": "a",
+   "parsed": null
+  },
+  {
+   "input": "",
+   "parsed": null
+  },
+  {
+   "input": "->",
+   "parsed": null
+  },
+  {
+   "input": "<->",
+   "parsed": null
+  },
+  {
+   "input": "a -> b -> ",
+   "parsed": {
+    "src": "a",
+    "dst": "b ->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "x<->y<-z",
+   "parsed": {
+    "src": "x",
+    "dst": "y<-z",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "ü -> ö: ñ",
+   "parsed": {
+    "src": "ü",
+    "dst": "ö",
+    "label": "ñ",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a b -> c d: e f",
+   "parsed": {
+    "src": "a b",
+    "dst": "c d",
+    "label": "e f",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a-b -> c-d",
+   "parsed": {
+    "src": "a-b",
+    "dst": "c-d",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> b <-> c",
+   "parsed": {
+    "src": "a",
+    "dst": "b <-> c",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a<-b<-c",
+   "parsed": {
+    "src": "b<-c",
+    "dst": "a",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a--b--c",
+   "parsed": {
+    "src": "a",
+    "dst": "b--c",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "a -> b: x: y",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": "x: y",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a -> zone:zone:z",
+   "parsed": {
+    "src": "a",
+    "dst": "zone:zone",
+    "label": "z",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "zone: -> b",
+   "parsed": {
+    "src": "zone:",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a \u001c-> b",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a ->\u001fb",
+   "parsed": {
+    "src": "a",
+    "dst": "b",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "\n--",
+   "parsed": null
+  },
+  {
+   "input": " éb",
+   "parsed": null
+  },
+  {
+   "input": "\n <-.",
+   "parsed": {
+    "src": ".",
+    "dst": " ",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<--->é",
+   "parsed": {
+    "src": "<",
+    "dst": "->é",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "<->:--> b--z",
+   "parsed": {
+    "src": "<->:",
+    "dst": "> b--z",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "--z",
+   "parsed": null
+  },
+  {
+   "input": "->aa.zone:<->->zé",
+   "parsed": {
+    "src": "->aa.zone:",
+    "dst": "->zé",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "> ",
+   "parsed": null
+  },
+  {
+   "input": ":<->",
+   "parsed": {
+    "src": ">",
+    "dst": ":",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "->é :----<->-<",
+   "parsed": {
+    "src": "->é :",
+    "dst": "--<->-<",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " @a@-zone:",
+   "parsed": null
+  },
+  {
+   "input": " é \nz>",
+   "parsed": null
+  },
+  {
+   "input": "é<<a<:z-",
+   "parsed": null
+  },
+  {
+   "input": " <.@ ",
+   "parsed": null
+  },
+  {
+   "input": "zz <- >--",
+   "parsed": {
+    "src": ">--",
+    "dst": "zz",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "--.\nbzone:",
+   "parsed": null
+  },
+  {
+   "input": " :->é :",
+   "parsed": {
+    "src": ":",
+    "dst": "é",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<-ézone:é->@..",
+   "parsed": {
+    "src": "<-ézone:é",
+    "dst": "@..",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " ",
+   "parsed": null
+  },
+  {
+   "input": "<",
+   "parsed": null
+  },
+  {
+   "input": "zz<->a@-:",
+   "parsed": {
+    "src": "zz",
+    "dst": "a@-",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "<->\n \n--\n",
+   "parsed": {
+    "src": "<",
+    "dst": "--",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "az-a",
+   "parsed": null
+  },
+  {
+   "input": "<-zone:<->--.zone:",
+   "parsed": {
+    "src": "<-zone:",
+    "dst": "--.zone",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "\n ---:",
+   "parsed": {
+    "src": " ",
+    "dst": "-",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " é :--<->\n",
+   "parsed": {
+    "src": "é :",
+    "dst": "<->",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "<zone:--:: : --",
+   "parsed": null
+  },
+  {
+   "input": ">- .-b",
+   "parsed": null
+  },
+  {
+   "input": "--zone:bzone:.:<-:",
+   "parsed": null
+  },
+  {
+   "input": "ébza->:- ",
+   "parsed": null
+  },
+  {
+   "input": " -><-",
+   "parsed": {
+    "src": " ",
+    "dst": "<-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "zone:. zone::@",
+   "parsed": null
+  },
+  {
+   "input": "<->-\n\néé é",
+   "parsed": {
+    "src": "<",
+    "dst": "-\n\néé é",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ":-",
+   "parsed": null
+  },
+  {
+   "input": "->->  --é ",
+   "parsed": {
+    "src": "->",
+    "dst": "--é",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "bé<-",
+   "parsed": null
+  },
+  {
+   "input": " azone:--<<",
+   "parsed": {
+    "src": "azone:",
+    "dst": "<<",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "é-:: ---",
+   "parsed": {
+    "src": "é-::",
+    "dst": "-",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "-- :<->",
+   "parsed": {
+    "src": ">",
+    "dst": "-- :",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ">b-<-zone:z",
+   "parsed": {
+    "src": "zone:z",
+    "dst": ">b-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "a.>.",
+   "parsed": null
+  },
+  {
+   "input": " <-> b.--",
+   "parsed": {
+    "src": "<",
+    "dst": "b.--",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "éa   - ",
+   "parsed": null
+  },
+  {
+   "input": "\n",
+   "parsed": null
+  },
+  {
+   "input": "\nz",
+   "parsed": null
+  },
+  {
+   "input": "@<-.a",
+   "parsed": {
+    "src": ".a",
+    "dst": "@",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "b::",
+   "parsed": null
+  },
+  {
+   "input": "-zone:é-",
+   "parsed": null
+  },
+  {
+   "input": "@--bz",
+   "parsed": {
+    "src": "@",
+    "dst": "bz",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "@<- .",
+   "parsed": {
+    "src": ".",
+    "dst": "@",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<--z",
+   "parsed": {
+    "src": "<",
+    "dst": "z",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "-<-><->é->",
+   "parsed": {
+    "src": "-",
+    "dst": "<->é->",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "->-\né->>",
+   "parsed": null
+  },
+  {
+   "input": "->é:. :",
+   "parsed": null
+  },
+  {
+   "input": ":a",
+   "parsed": null
+  },
+  {
+   "input": ":",
+   "parsed": null
+  },
+  {
+   "input": ">z >",
+   "parsed": null
+  },
+  {
+   "input": " --ézone:.->@ ",
+   "parsed": {
+    "src": "--ézone:.",
+    "dst": "@",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " :>\n a\n",
+   "parsed": null
+  },
+  {
+   "input": "->.-zone::",
+   "parsed": null
+  },
+  {
+   "input": "-:>z<-><-- a",
+   "parsed": {
+    "src": "-:>z",
+    "dst": "<-- a",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": ":--",
+   "parsed": null
+  },
+  {
+   "input": ">:-> ->@--\n<->",
+   "parsed": {
+    "src": ">:",
+    "dst": "->@--\n<->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " ",
+   "parsed": null
+  },
+  {
+   "input": " -- -z\n.",
+   "parsed": {
+    "src": " ",
+    "dst": "-z\n.",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " -->",
+   "parsed": {
+    "src": " ",
+    "dst": ">",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ".b<-",
+   "parsed": null
+  },
+  {
+   "input": "<->\n",
+   "parsed": {
+    "src": "<",
+    "dst": "\n",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "@-<z---- a",
+   "parsed": {
+    "src": "@-<z",
+    "dst": "-- a",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "  é@ @@",
+   "parsed": null
+  },
+  {
+   "input": ">>é:@é-zone:<->",
+   "parsed": {
+    "src": ">",
+    "dst": ">>é:@é-zone:",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " zone:> ",
+   "parsed": null
+  },
+  {
+   "input": "<-><->\n ---.",
+   "parsed": {
+    "src": "<",
+    "dst": "<->\n ---.",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ":< @-",
+   "parsed": null
+  },
+  {
+   "input": "@ b.",
+   "parsed": null
+  },
+  {
+   "input": "\n->@----",
+   "parsed": {
+    "src": "->@",
+    "dst": "--",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "\n@",
+   "parsed": null
+  },
+  {
+   "input": "<->a <->",
+   "parsed": {
+    "src": "<",
+    "dst": "a <->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "é\né<",
+   "parsed": null
+  },
+  {
+   "input": ".",
+   "parsed": null
+  },
+  {
+   "input": ">é",
+   "parsed": null
+  },
+  {
+   "input": "a\n ",
+   "parsed": null
+  },
+  {
+   "input": "é<-",
+   "parsed": null
+  },
+  {
+   "input": "\n\nzzzone:\n<->",
+   "parsed": {
+    "src": ">",
+    "dst": "zzzone:",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "b",
+   "parsed": null
+  },
+  {
+   "input": "  <zone: <->zone:@a",
+   "parsed": {
+    "src": "<zone:",
+    "dst": "zone:@a",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "--:. ->-@@",
+   "parsed": {
+    "src": "--:.",
+    "dst": "-@@",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<->  éb--",
+   "parsed": {
+    "src": "<",
+    "dst": "éb--",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "@>.--<- ",
+   "parsed": {
+    "src": "@>.",
+    "dst": "<-",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "-->:z: <->b",
+   "parsed": {
+    "src": "-->:z:",
+    "dst": "b",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "--é:  <->zone:zone:<",
+   "parsed": {
+    "src": "--é:",
+    "dst": "zone:zone",
+    "label": "<",
+    "arrow": "both"
+   }
+  },
+  {
+   "input": " -> z<--b",
+   "parsed": {
+    "src": "-b",
+    "dst": "-> z",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<--> ->:a",
+   "parsed": {
+    "src": "<",
+    "dst": "> ->",
+    "label": "a",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " @-<->:",
+   "parsed": {
+    "src": ">",
+    "dst": "@-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " @b<-a:@ ",
+   "parsed": {
+    "src": "a",
+    "dst": "@b",
+    "label": "@ ",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "zone:z ::\nz ",
+   "parsed": null
+  },
+  {
+   "input": ": -> z@a",
+   "parsed": {
+    "src": ":",
+    "dst": "z@a",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "zone: <-> ",
+   "parsed": {
+    "src": "zone:",
+    "dst": " ",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "  \nzone:éa\n\n",
+   "parsed": null
+  },
+  {
+   "input": "\né.",
+   "parsed": null
+  },
+  {
+   "input": ":<",
+   "parsed": null
+  },
+  {
+   "input": "a>zone:",
+   "parsed": null
+  },
+  {
+   "input": ":-z>-zone::<-",
+   "parsed": null
+  },
+  {
+   "input": " -",
+   "parsed": null
+  },
+  {
+   "input": "zone::é<zone:<.:",
+   "parsed": null
+  },
+  {
+   "input": "<-b--@ ",
+   "parsed": {
+    "src": "<-b",
+    "dst": "@",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "bé ->@ é",
+   "parsed": {
+    "src": "bé",
+    "dst": "@ é",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "--@:-> <-éa",
+   "parsed": {
+    "src": "--@:",
+    "dst": "<-éa",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "-->-- a-zone:b",
+   "parsed": {
+    "src": "-",
+    "dst": "-- a-zone",
+    "label": "b",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "é->->",
+   "parsed": {
+    "src": "é",
+    "dst": "->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "\na zone:--",
+   "parsed": null
+  },
+  {
+   "input": "->->  \n",
+   "parsed": {
+    "src": "->",
+    "dst": "\n",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "->:>->zone:-",
+   "parsed": {
+    "src": "->:>",
+    "dst": "zone:-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "z-é>.a->-<->",
+   "parsed": {
+    "src": "z-é>.a",
+    "dst": "-<->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "@\n< ",
+   "parsed": null
+  },
+  {
+   "input": "zone:z .->",
+   "parsed": null
+  },
+  {
+   "input": "@-<-zone:.éé :",
+   "parsed": {
+    "src": "zone:.éé",
+    "dst": "@-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "b-",
+   "parsed": null
+  },
+  {
+   "input": "@ a>  zone:--a",
+   "parsed": {
+    "src": "@ a>  zone:",
+    "dst": "a",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ":é",
+   "parsed": null
+  },
+  {
+   "input": "bz",
+   "parsed": null
+  },
+  {
+   "input": ">:-b\n zone:zb",
+   "parsed": null
+  },
+  {
+   "input": "< zone:zzone:é<<- ",
+   "parsed": {
+    "src": " ",
+    "dst": "< zone:zzone:é<",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "zz <-zone:",
+   "parsed": {
+    "src": "zone",
+    "dst": "zz",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "-",
+   "parsed": null
+  },
+  {
+   "input": "- --> ",
+   "parsed": {
+    "src": "-",
+    "dst": ">",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "<b é>>",
+   "parsed": null
+  },
+  {
+   "input": "é>::<->\n",
+   "parsed": {
+    "src": "é>::",
+    "dst": "\n",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "<:",
+   "parsed": null
+  },
+  {
+   "input": ">-",
+   "parsed": null
+  },
+  {
+   "input": ":b>-é@<-",
+   "parsed": null
+  },
+  {
+   "input": "\nzone:zone:-\n",
+   "parsed": null
+  },
+  {
+   "input": ":é->: --- ",
+   "parsed": {
+    "src": ":é->:",
+    "dst": "-",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "  @",
+   "parsed": null
+  },
+  {
+   "input": " ->:->",
+   "parsed": null
+  },
+  {
+   "input": "-\n.\n: ",
+   "parsed": null
+  },
+  {
+   "input": "a:",
+   "parsed": null
+  },
+  {
+   "input": ">->é",
+   "parsed": {
+    "src": ">",
+    "dst": "é",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "b.:.",
+   "parsed": null
+  },
+  {
+   "input": "a \n--<é",
+   "parsed": {
+    "src": "a",
+    "dst": "<é",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "> ->b:\nb ",
+   "parsed": {
+    "src": ">",
+    "dst": "b",
+    "label": "b ",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "z> <-<->",
+   "parsed": {
+    "src": "<->",
+    "dst": "z>",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ">b:-----   ",
+   "parsed": {
+    "src": ">b:",
+    "dst": "---",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "@:-->",
+   "parsed": {
+    "src": "@:",
+    "dst": ">",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "> -:--",
+   "parsed": null
+  },
+  {
+   "input": ">  <-",
+   "parsed": null
+  },
+  {
+   "input": "\na",
+   "parsed": null
+  },
+  {
+   "input": ">->: -> ",
+   "parsed": {
+    "src": ">->:",
+    "dst": " ",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " :-",
+   "parsed": null
+  },
+  {
+   "input": "--",
+   "parsed": null
+  },
+  {
+   "input": ": ab: ",
+   "parsed": null
+  },
+  {
+   "input": "é::z->----zone:",
+   "parsed": {
+    "src": "é::z",
+    "dst": "----zone",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ":>a",
+   "parsed": null
+  },
+  {
+   "input": "----<.>--<\n@",
+   "parsed": {
+    "src": "-",
+    "dst": "-<.>--<\n@",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " -é zone:----",
+   "parsed": {
+    "src": "-é zone:",
+    "dst": "--",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "éa bb-",
+   "parsed": null
+  },
+  {
+   "input": "@:<-> -\n-- ",
+   "parsed": {
+    "src": "@:",
+    "dst": "-\n--",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": ".<--<-\n<",
+   "parsed": {
+    "src": "-<-\n<",
+    "dst": ".",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " é<-><->..>",
+   "parsed": {
+    "src": "é",
+    "dst": "<->..>",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "><-:-",
+   "parsed": null
+  },
+  {
+   "input": " :ézone:z >->zone:",
+   "parsed": {
+    "src": ":ézone:z >",
+    "dst": "zone",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "--:b .",
+   "parsed": null
+  },
+  {
+   "input": "- >->baé----",
+   "parsed": {
+    "src": "- >",
+    "dst": "baé----",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "--<:<-> ",
+   "parsed": {
+    "src": "--<:",
+    "dst": " ",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": " :.z",
+   "parsed": null
+  },
+  {
+   "input": " ->",
+   "parsed": null
+  },
+  {
+   "input": ".- z.é<",
+   "parsed": null
+  },
+  {
+   "input": "-->:",
+   "parsed": null
+  },
+  {
+   "input": "->b--",
+   "parsed": null
+  },
+  {
+   "input": "-b",
+   "parsed": null
+  },
+  {
+   "input": "é<->b@:",
+   "parsed": {
+    "src": "é",
+    "dst": "b@",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "@>",
+   "parsed": null
+  },
+  {
+   "input": "éaa",
+   "parsed": null
+  },
+  {
+   "input": ": ",
+   "parsed": null
+  },
+  {
+   "input": "<->:-<-.z--",
+   "parsed": {
+    "src": ".z--",
+    "dst": "<->:-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " b",
+   "parsed": null
+  },
+  {
+   "input": "@\nz",
+   "parsed": null
+  },
+  {
+   "input": "z<-a--\nz ",
+   "parsed": {
+    "src": "a--\nz",
+    "dst": "z",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "-- a-> zone:",
+   "parsed": {
+    "src": "-- a",
+    "dst": "zone",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "@--é\n",
+   "parsed": {
+    "src": "@",
+    "dst": "é",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ">--.>:--:: ",
+   "parsed": {
+    "src": ">",
+    "dst": ".>",
+    "label": "--:: ",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " a\n<->.<zone:é-",
+   "parsed": {
+    "src": "a",
+    "dst": ".<zone",
+    "label": "é-",
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "z.b",
+   "parsed": null
+  },
+  {
+   "input": ".<a:--a",
+   "parsed": {
+    "src": ".<a:",
+    "dst": "a",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ".<-é:. <-",
+   "parsed": {
+    "src": "é",
+    "dst": ".",
+    "label": ". <-",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ":-zone:<->- bzone:",
+   "parsed": {
+    "src": ":-zone:",
+    "dst": "- bzone",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": ":@ ",
+   "parsed": null
+  },
+  {
+   "input": "--\n<->",
+   "parsed": {
+    "src": ">",
+    "dst": "--",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "-z a z<:",
+   "parsed": null
+  },
+  {
+   "input": "----->é:",
+   "parsed": {
+    "src": "-",
+    "dst": "-->é",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ":z@zzone:bzone:",
+   "parsed": null
+  },
+  {
+   "input": "- <>\n",
+   "parsed": null
+  },
+  {
+   "input": "zone::-- ",
+   "parsed": {
+    "src": "zone::",
+    "dst": " ",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "@<-.-",
+   "parsed": {
+    "src": ".-",
+    "dst": "@",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "z<-",
+   "parsed": null
+  },
+  {
+   "input": "<- --<-> <-b:",
+   "parsed": {
+    "src": "<-",
+    "dst": "<-> <-b",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "--<-- > ",
+   "parsed": {
+    "src": "- >",
+    "dst": "--",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "é>@-- é",
+   "parsed": {
+    "src": "é>@",
+    "dst": "é",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "<--:\na",
+   "parsed": null
+  },
+  {
+   "input": "->\n<->-\n ",
+   "parsed": {
+    "src": "->",
+    "dst": "-",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "--@é-->> ",
+   "parsed": {
+    "src": "--@é",
+    "dst": ">>",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": " <-",
+   "parsed": null
+  },
+  {
+   "input": "--->a b->a-:",
+   "parsed": {
+    "src": "-",
+    "dst": ">a b->a-",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "a \n",
+   "parsed": null
+  },
+  {
+   "input": "@---:<->->z",
+   "parsed": {
+    "src": "@",
+    "dst": "-",
+    "label": "<->->z",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "  -<-z<zone:",
+   "parsed": {
+    "src": "z<zone",
+    "dst": "-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ">-->",
+   "parsed": {
+    "src": ">",
+    "dst": ">",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "zone:\n<<->éb",
+   "parsed": null
+  },
+  {
+   "input": " a..a<-",
+   "parsed": null
+  },
+  {
+   "input": ":-.:",
+   "parsed": null
+  },
+  {
+   "input": "--z.\n b zone:",
+   "parsed": null
+  },
+  {
+   "input": "a\n-- .",
+   "parsed": {
+    "src": "a",
+    "dst": ".",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ">a-a ",
+   "parsed": null
+  },
+  {
+   "input": " --><-",
+   "parsed": {
+    "src": "-",
+    "dst": "<-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ".z\n  --.:<-",
+   "parsed": {
+    "src": ".z",
+    "dst": ".",
+    "label": "<-",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": ">. @@ ",
+   "parsed": null
+  },
+  {
+   "input": "<zone:",
+   "parsed": null
+  },
+  {
+   "input": "\n<---><- b",
+   "parsed": {
+    "src": "<",
+    "dst": "-><- b",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "--a-:.",
+   "parsed": null
+  },
+  {
+   "input": "--<:<->--b",
+   "parsed": {
+    "src": "--<:",
+    "dst": "--b",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "<-zone:  :\n",
+   "parsed": null
+  },
+  {
+   "input": "z:-->-:@z",
+   "parsed": {
+    "src": "z:",
+    "dst": ">-",
+    "label": "@z",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "->a b",
+   "parsed": null
+  },
+  {
+   "input": "zone: :zb a",
+   "parsed": null
+  },
+  {
+   "input": "z->b><->:",
+   "parsed": {
+    "src": "z",
+    "dst": "b><->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<-><@\n >@ :",
+   "parsed": {
+    "src": "<",
+    "dst": "<@\n >@",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "\naz<:<@",
+   "parsed": null
+  },
+  {
+   "input": "bé\n ",
+   "parsed": null
+  },
+  {
+   "input": "->éé::\n",
+   "parsed": null
+  },
+  {
+   "input": "aé::b",
+   "parsed": null
+  },
+  {
+   "input": ": --z@:->a",
+   "parsed": {
+    "src": ":",
+    "dst": "z@",
+    "label": "->a",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "-: zone:  @-",
+   "parsed": null
+  },
+  {
+   "input": "a<-> <: <-",
+   "parsed": {
+    "src": "a",
+    "dst": "<",
+    "label": "<-",
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "  \n:zone:z-> ",
+   "parsed": {
+    "src": ":zone:z",
+    "dst": " ",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": " :.-<:zone:",
+   "parsed": null
+  },
+  {
+   "input": "\n.->--:- ",
+   "parsed": {
+    "src": ".",
+    "dst": "--",
+    "label": "- ",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "<->zone:<-",
+   "parsed": {
+    "src": "<",
+    "dst": "zone:<-",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "->:.-",
+   "parsed": null
+  },
+  {
+   "input": "<<->->-b<",
+   "parsed": {
+    "src": "<",
+    "dst": "->-b<",
+    "label": null,
+    "arrow": "both"
+   }
+  },
+  {
+   "input": "< ---: zone:>-",
+   "parsed": {
+    "src": "<",
+    "dst": "-",
+    "label": "zone:>-",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "<:<a  é",
+   "parsed": null
+  },
+  {
+   "input": "--\n",
+   "parsed": null
+  },
+  {
+   "input": "\n-b--:",
+   "parsed": null
+  },
+  {
+   "input": "@a :",
+   "parsed": null
+  },
+  {
+   "input": "\n <>zone:é",
+   "parsed": null
+  },
+  {
+   "input": "<-> >bzone:@a",
+   "parsed": {
+    "src": "<",
+    "dst": ">bzone",
+    "label": "@a",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "@:<-:  \n",
+   "parsed": null
+  },
+  {
+   "input": "z-->:---z",
+   "parsed": {
+    "src": "z",
+    "dst": ">",
+    "label": "---z",
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "--a< -- >.",
+   "parsed": {
+    "src": "--a<",
+    "dst": ">.",
+    "label": null,
+    "arrow": "none"
+   }
+  },
+  {
+   "input": "- -<->",
+   "parsed": {
+    "src": ">",
+    "dst": "- -",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "-><->",
+   "parsed": {
+    "src": ">",
+    "dst": "->",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "z",
+   "parsed": null
+  },
+  {
+   "input": "-  -",
+   "parsed": null
+  },
+  {
+   "input": ".bb z<-@<--",
+   "parsed": {
+    "src": "@<--",
+    "dst": ".bb z",
+    "label": null,
+    "arrow": "end"
+   }
+  },
+  {
+   "input": "  -zone:",
+   "parsed": null
+  },
+  {
+   "input": "<-> bzone:\n:",
+   "parsed": {
+    "src": "<",
+    "dst": "bzone",
+    "label": ":",
+    "arrow": "end"
+   }
+  },
+  {
+   "input": ">::",
+   "parsed": null
+  },
+  {
+   "input": " :zz:.\nzb",
+   "parsed": null
+  },
+  {
+   "input": "--: -.a  ",
+   "parsed": null
+  },
+  {
+   "input": ">\nz:azone:",
+   "parsed": null
+  }
+ ],
+ "endpoints": [
+  {
+   "input": "a",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "",
+    "frac": ""
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": null,
+    "frac": null
+   }
+  },
+  {
+   "input": "a.right",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": ""
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": null
+   }
+  },
+  {
+   "input": "a.right@0.3",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": "0.3"
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": 0.3
+   }
+  },
+  {
+   "input": "zone:z",
+   "raw": {
+    "target": "zone",
+    "id": "z",
+    "side": "",
+    "frac": ""
+   },
+   "typed": {
+    "target": "zone",
+    "id": "z",
+    "side": null,
+    "frac": null
+   }
+  },
+  {
+   "input": "zone:z.top",
+   "raw": {
+    "target": "zone",
+    "id": "z",
+    "side": "top",
+    "frac": ""
+   },
+   "typed": {
+    "target": "zone",
+    "id": "z",
+    "side": "top",
+    "frac": null
+   }
+  },
+  {
+   "input": "zone:z.top@0.75",
+   "raw": {
+    "target": "zone",
+    "id": "z",
+    "side": "top",
+    "frac": "0.75"
+   },
+   "typed": {
+    "target": "zone",
+    "id": "z",
+    "side": "top",
+    "frac": 0.75
+   }
+  },
+  {
+   "input": "a.top@1",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "top",
+    "frac": "1"
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "top",
+    "frac": 1.0
+   }
+  },
+  {
+   "input": "a.bottom@0",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "bottom",
+    "frac": "0"
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "bottom",
+    "frac": 0.0
+   }
+  },
+  {
+   "input": "a.left@.5",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "left",
+    "frac": ".5"
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "left",
+    "frac": 0.5
+   }
+  },
+  {
+   "input": "b.diagonal",
+   "raw": {
+    "target": "node",
+    "id": "b",
+    "side": "diagonal",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": "a.right@x",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": "x"
+   },
+   "typed": null
+  },
+  {
+   "input": "a@0.3",
+   "raw": {
+    "target": "node",
+    "id": "a@0",
+    "side": "3",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": "a.b.c",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "b.c",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": "zone:",
+   "raw": {
+    "target": "zone",
+    "id": "",
+    "side": "",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": "",
+   "raw": {
+    "target": "node",
+    "id": "",
+    "side": "",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": "zone:.top",
+   "raw": {
+    "target": "zone",
+    "id": "",
+    "side": "top",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": ".right",
+   "raw": {
+    "target": "node",
+    "id": "",
+    "side": "right",
+    "frac": ""
+   },
+   "typed": null
+  },
+  {
+   "input": "a.right@",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": ""
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": null
+   }
+  },
+  {
+   "input": "a.@0.5",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "",
+    "frac": "0.5"
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": null,
+    "frac": 0.5
+   }
+  },
+  {
+   "input": "a.right@0.3@0.4",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": "0.3@0.4"
+   },
+   "typed": null
+  },
+  {
+   "input": "é.left@0.5",
+   "raw": {
+    "target": "node",
+    "id": "é",
+    "side": "left",
+    "frac": "0.5"
+   },
+   "typed": {
+    "target": "node",
+    "id": "é",
+    "side": "left",
+    "frac": 0.5
+   }
+  },
+  {
+   "input": "zone:é",
+   "raw": {
+    "target": "zone",
+    "id": "é",
+    "side": "",
+    "frac": ""
+   },
+   "typed": {
+    "target": "zone",
+    "id": "é",
+    "side": null,
+    "frac": null
+   }
+  },
+  {
+   "input": "a.right@ 0.5",
+   "raw": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": " 0.5"
+   },
+   "typed": {
+    "target": "node",
+    "id": "a",
+    "side": "right",
+    "frac": 0.5
+   }
+  }
+ ]
+}

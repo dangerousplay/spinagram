@@ -3,6 +3,7 @@
 
 pub mod fit;
 pub mod css;
+pub mod edge_syntax;
 pub mod edit;
 pub mod font;
 pub mod pyfmt;

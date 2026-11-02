@@ -41,6 +41,17 @@ impl Side {
             _ => None,
         }
     }
+
+    /// The side as the loader names it.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Side::Top => "top",
+            Side::Bottom => "bottom",
+            Side::Left => "left",
+            Side::Right => "right",
+        }
+    }
 }
 
 /// A fixed cost per strict crossing with already drawn segments (`engine.route.Crossings`).

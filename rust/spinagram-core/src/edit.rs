@@ -10,6 +10,7 @@ use std::fmt;
 use saphyr_parser::ScalarStyle;
 use serde::Deserialize;
 
+use crate::edge_syntax::{split_endpoint, EdgeOp, EdgeText};
 use crate::yaml_span::{edited_lists_have_no_anchors, parse_diagram, Node, Val};
 
 /// One edit. JSON form: `{"op": "move", "id": "a", "x": 10, "y": 20}`, `"from"`/`"to"` for edges.
@@ -366,73 +367,7 @@ fn leading_ws(line: &str) -> usize {
 
 /// The node (or zone) id of an edge endpoint: `a.right@0.3` is `a`, `zone:z` is `z`.
 fn endpoint(s: &str) -> &str {
-    let s = s.trim();
-    s.strip_prefix("zone:").unwrap_or(s).split('.').next().unwrap_or(s)
-}
-
-/// A string edge cut where the loader's `parse_edge` cuts it, keeping the exact spacing so a rewrite changes only
-/// what it must: `{lead}{src}{gap1}{op}{gap2}{dst}{tail}`, where `tail` is empty or ` : label`.
-struct EdgeText {
-    lead: String,
-    src: String,
-    gap1: String,
-    op: &'static str,
-    gap2: String,
-    dst: String,
-    tail: String,
-}
-
-impl EdgeText {
-    fn parse(t: &str) -> Option<EdgeText> {
-        let (i, op) = ["<->", "->", "<-", "--"].iter().filter_map(|op| t.find(op).map(|i| (i, *op))).min_by_key(|(i, _)| *i)?;
-        let left = &t[..i];
-        let src = left.trim();
-        let lead = left[..left.len() - left.trim_start().len()].to_owned();
-        if src.is_empty() {
-            return None;
-        }
-        let gap1 = left[left.trim_end().len()..].to_owned();
-        let rest = &t[i + op.len()..];
-        let r = rest.trim_start();
-        let gap2 = rest[..rest.len() - r.len()].to_owned();
-        let name_from = if r.starts_with("zone:") { 5 } else { 0 };
-        let colon = r[name_from..].find(':').map(|c| c + name_from);
-        let dst_end = colon.map_or(r.trim_end().len(), |c| r[..c].trim_end().len());
-        let dst = r[..dst_end].to_owned();
-        if dst.is_empty() || dst == "zone:" {
-            return None;
-        }
-        Some(EdgeText { lead, src: src.to_owned(), gap1, op, gap2, dst, tail: r[dst_end..].to_owned() })
-    }
-
-    /// The label after the colon, or none.
-    fn label(&self) -> Option<&str> {
-        let l = self.tail.trim_start().strip_prefix(':')?.trim_start();
-        (!l.is_empty()).then_some(l)
-    }
-
-    fn with_label(&self, label: Option<&str>) -> String {
-        let ws = &self.tail[..self.tail.len() - self.tail.trim_start().len()];
-        let tail = match label {
-            Some(l) => format!("{ws}: {l}"),
-            None => String::new(),
-        };
-        self.render(&self.src, &self.dst, &tail)
-    }
-
-    fn render(&self, src: &str, dst: &str, tail: &str) -> String {
-        format!("{}{src}{}{}{}{dst}{tail}", self.lead, self.gap1, self.op, self.gap2)
-    }
-
-    /// `(from, to)` as the loader reads them: `<-` points the other way.
-    fn ends(&self) -> (&str, &str) {
-        if self.op == "<-" { (&self.dst, &self.src) } else { (&self.src, &self.dst) }
-    }
-
-    fn with_ends(&self, from: &str, to: &str) -> String {
-        let (l, r) = if self.op == "<-" { (to, from) } else { (from, to) };
-        self.render(l, r, &self.tail)
-    }
+    split_endpoint(s.trim()).id
 }
 
 /// `(src, dst)` node ids of an edge entry: `"a -> b: label"` or `{from, to}`.
@@ -1275,9 +1210,9 @@ fn set_props(src: &str, root: &Node, id: &str, props: &BTreeMap<String, serde_js
         let (from, to) = p.ends();
         let mut pairs: Vec<(String, String)> = vec![("from".into(), text_scalar(from, true)), ("to".into(), text_scalar(to, true))];
         match p.op {
-            "--" => pairs.push(("arrow".into(), "none".into())),
-            "<->" => pairs.push(("arrow".into(), "both".into())),
-            _ => {}
+            EdgeOp::Line => pairs.push(("arrow".into(), "none".into())),
+            EdgeOp::Both => pairs.push(("arrow".into(), "both".into())),
+            EdgeOp::Forward | EdgeOp::Backward => {}
         }
         if let Some(l) = p.label() {
             pairs.push(("label".into(), text_scalar(l, true)));
@@ -2347,7 +2282,7 @@ mod tests {
     #[test]
     fn the_edge_text_parser_reads_the_loaders_forms() {
         let p = EdgeText::parse("a.right@0.3 <-> zone:z : the label").unwrap();
-        assert_eq!((p.src.as_str(), p.op, p.dst.as_str(), p.label()), ("a.right@0.3", "<->", "zone:z", Some("the label")));
+        assert_eq!((p.src.as_str(), p.op.as_str(), p.dst.as_str(), p.label()), ("a.right@0.3", "<->", "zone:z", Some("the label")));
         assert!(EdgeText::parse("nothing here").is_none());
     }
 }
