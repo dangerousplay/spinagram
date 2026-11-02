@@ -251,3 +251,59 @@ the first check.
   band.
 - **Two update batches:** a node drag makes 2 update batches after release (author's SPEC_DEVIATION). The second
   only reorders siblings, with no visible change.
+
+---
+
+# Validation, insert redraw, toolbar dock and inspector iteration (T34–T42)
+
+**Result**: PASS.
+**Verifier:** orchestrator session. The author was a separate Sonnet sub-agent.
+**Diff range:** `67312e4..fef8543`, 9 commits, plus the verifier's test commit.
+
+## Gates (re-run independently)
+
+| Gate | Result |
+|---|---|
+| cargo | 227 passed; clippy `-D warnings` and `cargo deny` clean |
+| ruff | clean |
+| pytest, Rust default / `SPINAGRAM_RUST=0` | 2870 passed, 3 skipped / 2870 passed, 3 skipped |
+| SVG parity (`rust/bench/svg_png_parity.py`) | 49 of 49 identical in subset, embed and link modes |
+| wasm `bun test` | 23 pass |
+| `bunx bun@1.4.2 install --frozen-lockfile` | no changes |
+| web `bun test` + build (bun 1.4.2) | 245 pass (246 after the verifier's test); the rebuilt bundle equals the committed one |
+
+## Insert redraw: the orchestrator's measurement, repeated after the fix
+
+On a scratch copy of the AWS showcase, with a MutationObserver on `document.body` and a Box tool click:
+
+| | Before (measured earlier) | After |
+|---|---|---|
+| Toolbar subtree remounts | 2 | 0 (the same DOM element before and after) |
+| `<image>` removals or additions | 16 removed and 16 re-added | 0 |
+| Image count | 16 | 16 |
+
+## Browser check (independent; own server and tab)
+
+| Step | Result or YAML diff |
+|---|---|
+| Click Orders API | the Elements panel opens with the nested tree (AWS Cloud → account → Region → VPC → Private subnet · app → Column → Orders API), quick actions and properties |
+| Title "Orders API" → "Orders service" in the panel | `title: Orders service` only |
+| Box tool insert | `{id: new-box, kind: box, title: New box, x: 1700, y: 984, w: 220, h: 96}` (clamped inside the canvas) |
+| Click the SQL edge | selected with end handles; the panel shows From, To, Label, Route, Dashed and Color, with the reverse, parallel and delete actions |
+| Tick Dashed | `{from: api, to: db, label: SQL, route: ortho, dashed: true}` only |
+| Dock toggle | the toolbar moves to a horizontal bar above the status row and does not cover the zoom controls |
+
+## Discrimination sensor (independent)
+
+| Mutant | Result |
+|---|---|
+| R1 no `insertNew` before morphdom | killed |
+| R2 no drop of unmatched old elements | survived: **equivalent**. `insertNew` plus keyed morphdom already remove deleted groups without detaching other images; a delete test was added (`svgHost.test.ts`) and passes with or without the step |
+| R3 edge hit-test ignores the tolerance | killed |
+| R4 `set_props` accepts any key (`prop_kind` returns `Any`) | killed. A first variant failed to compile and was redone as a valid mutant |
+| R5 reverse of a string edge keeps its ends | killed |
+
+## Notes
+
+- **New ops:** the author added `delete` by edge id `e<i>` and zone `duplicate`, beyond T38's list. Both are tested.
+- **New boxes off the diagram:** a new box placed by clicking outside the diagram is clamped into the canvas corner. That works, but it can land off-screen at small zoom.
