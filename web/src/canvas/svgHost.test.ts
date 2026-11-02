@@ -162,6 +162,24 @@ describe("patchSvg", () => {
     expect(h.querySelector('[data-id="b@front"] image')).toBe(b);
   });
 
+  test("deleting the first item group never detaches the images of the items after it", async () => {
+    const h = host();
+    patchSvg(h, svg(node("a", 10, "AAA") + node("b", 60, "BBB") + node("c", 110, "CCC")));
+    const removed: string[] = [];
+    const mo = new win.MutationObserver((ms) => {
+      for (const m of ms) {
+        for (const n of Array.from(m.removedNodes) as Element[]) {
+          const imgs = n.localName === "image" ? [n] : Array.from(n.querySelectorAll?.("image") ?? []);
+          removed.push(...imgs.map((i) => i.getAttribute("x") ?? ""));
+        }
+      }
+    });
+    mo.observe(h as unknown as Node, { childList: true, subtree: true });
+    patchSvg(h, svg(node("b", 60, "BBB") + node("c", 110, "CCC")));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(removed.filter((x) => x !== "10")).toEqual([]); // no image of a remaining item leaves the tree
+  });
+
   test("a group moved in the order keeps its elements (keyed by data-id, not position)", () => {
     const h = host();
     patchSvg(h, svg(node("a", 10, "AAA") + node("b", 60, "BBB")));
