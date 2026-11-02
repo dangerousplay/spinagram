@@ -20,6 +20,7 @@ use winnow::combinator::{opt, preceded};
 use winnow::prelude::*;
 use winnow::token::{literal, rest, take_till, take_while};
 
+use crate::edit_values::Arrow;
 use crate::route::Side;
 
 /// The prefix that makes an edge end a zone instead of a node.
@@ -54,11 +55,11 @@ impl EdgeOp {
 
     /// The edge's `arrow` value.
     #[must_use]
-    pub fn arrow(self) -> &'static str {
+    pub fn arrow(self) -> Arrow {
         match self {
-            EdgeOp::Both => "both",
-            EdgeOp::Forward | EdgeOp::Backward => "end",
-            EdgeOp::Line => "none",
+            EdgeOp::Both => Arrow::Both,
+            EdgeOp::Forward | EdgeOp::Backward => Arrow::End,
+            EdgeOp::Line => Arrow::None,
         }
     }
 }
@@ -295,7 +296,7 @@ impl EdgeText {
 
     /// The loader's `arrow` value.
     #[must_use]
-    pub fn arrow(&self) -> &'static str {
+    pub fn arrow(&self) -> Arrow {
         self.op.arrow()
     }
 
@@ -352,7 +353,7 @@ mod tests {
             let input = case["input"].as_str().unwrap();
             let got = EdgeText::parse(input).map(|p| {
                 let (src, dst) = p.ends();
-                serde_json::json!({"src": src, "dst": dst, "label": p.label(), "arrow": p.arrow()})
+                serde_json::json!({"src": src, "dst": dst, "label": p.label(), "arrow": p.arrow().to_string()})
             });
             let want = (!case["parsed"].is_null()).then(|| case["parsed"].clone());
             assert_eq!(got, want, "{input:?}");

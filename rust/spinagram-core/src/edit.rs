@@ -2417,6 +2417,13 @@ mod tests {
     }
 
     #[test]
+    fn a_duplicated_id_addresses_its_first_entry() {
+        let y = "nodes:\n  - {id: a, at: [0, 0, 10, 10]}\n  - {id: a, at: [50, 0, 10, 10]}\n";
+        let out = apply_ops_json(y, r#"[{"op":"move","id":"a","x":5,"y":5}]"#).unwrap();
+        assert_eq!(out, "nodes:\n  - {id: a, at: [5, 5, 10, 10]}\n  - {id: a, at: [50, 0, 10, 10]}\n");
+    }
+
+    #[test]
     fn the_edge_text_parser_reads_the_loaders_forms() {
         let p = EdgeText::parse("a.right@0.3 <-> zone:z : the label").unwrap();
         assert_eq!((p.src.as_str(), p.op.as_str(), p.dst.as_str(), p.label()), ("a.right@0.3", "<->", "zone:z", Some("the label")));

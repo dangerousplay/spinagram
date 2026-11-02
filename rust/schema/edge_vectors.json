@@ -2166,6 +2166,14 @@
   {
    "input": ">\nz:azone:",
    "parsed": null
+  },
+  {
+   "input": "a -> b: x\n\n",
+   "parsed": null
+  },
+  {
+   "input": "a -> b: x\n ",
+   "parsed": null
   }
  ],
  "endpoints": [

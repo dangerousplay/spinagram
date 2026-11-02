@@ -474,6 +474,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: M3 rust/spinagram-core/src/edit.rs:611 (rust)
 - last seen: 2026-11-01T19:50:12Z
 
+### L-078 - When porting a regex to a parser, add vectors for every anchor rule ($ before a final newline, trailing text after it), not only for the happy forms.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `rust/grammar` · harmful: 0
+- features: rust-hardening
+- evidence: rust/spinagram-core/src/edge_syntax.rs end() (rust/grammar)
+- last seen: 2026-11-02T18:04:55Z
+
+### L-079 - When replacing a linear find with a hash index, pin the duplicate-key rule (first or last wins) with a test.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `rust/edit` · harmful: 0
+- features: rust-hardening
+- evidence: rust/spinagram-core/src/edit.rs Index::new (rust/edit)
+- last seen: 2026-11-02T18:04:56Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
