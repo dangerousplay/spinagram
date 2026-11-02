@@ -11,6 +11,7 @@ import {
   FileText,
   Group,
   Hand,
+  ListTree,
   MousePointer2,
   PanelBottom,
   PanelLeftRightDashed,
@@ -49,6 +50,7 @@ const ICONS: Record<string, LucideIcon> = {
   undo: Undo2,
   redo: Redo2,
   palette: Shapes,
+  elements: ListTree,
   help: CircleHelp,
   dock: PanelBottom,
   // containers

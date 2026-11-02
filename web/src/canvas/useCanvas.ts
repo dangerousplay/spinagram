@@ -46,6 +46,7 @@ export type Editing = { id: string; kind: "node" | "zone" | "edge"; box: Box; te
 
 export function useCanvas({ diagramKey, layout, enabled, rev, scale, tick, reload }: Options) {
   const [scene, setScene] = useState<SceneJson | null>(null);
+  const [files, setFiles] = useState<Record<string, string>>({}); // icon and image bytes of the scene (path -> base64)
   const [editable, setEditable] = useState<boolean | null>(null); // null until the scene arrived
   const [ready, setReady] = useState(false); // the worker holds the scene
   const [selected, setSelected] = useState<Sel[]>([]);
@@ -103,6 +104,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, scale, tick, reloa
       .then(async (doc) => {
         setEditable(doc.editable);
         setScene(doc.scene as SceneJson);
+        setFiles(doc.files);
         const pe = pendingEdit.current;
         const pb = pe ? editBoxOf(doc.scene as SceneJson, pe) : null;
         if (pe && pb) {
@@ -753,9 +755,15 @@ export function useCanvas({ diagramKey, layout, enabled, rev, scale, tick, reloa
   const last = selected[selected.length - 1];
   const selection: Selection | null = last ? { ...last, nonce } : null;
 
+  /** Select elements from outside the canvas (a row of the element tree). */
+  const select = useCallback((sel: Sel[]) => active && pick(sel), [active, pick]);
+
   return {
     shown,
     active,
+    scene,
+    files,
+    select,
     editable,
     selection,
     selected,

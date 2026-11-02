@@ -1,5 +1,7 @@
 // The slice of the scene JSON (rust/schema/scene.schema.json) the canvas reads: node boxes, for hit-testing.
 export type Pt = [number, number];
+export type SceneBlock = { paragraphs?: string[]; lines?: string[] };
+export type SceneLabel = { blocks?: SceneBlock[] };
 /** A connector as the scene gives it: its drawn path (a quadratic curve has three control points), its label shape
  * and the shapes at its ends (a node id for a node end). */
 export type SceneEnd = { shape_id: string; target?: string };
@@ -14,7 +16,11 @@ export type SceneItem = {
   h?: number;
   points?: Pt[];
   route?: string;
-  label?: { x: number; y: number; w: number; h: number } | null;
+  /** a shape's label (its text blocks), or a connector's label pill (a shape with a box and its own label) */
+  label?: (SceneLabel & { x?: number; y?: number; w?: number; h?: number; label?: SceneLabel | null }) | null;
+  icon?: { path?: string } | null;
+  /** a text item's text */
+  block?: SceneBlock;
   src?: SceneEnd;
   dst?: SceneEnd;
 };
@@ -187,10 +193,11 @@ export function sceneEdges(scene: SceneJson): SceneEdge[] {
     const path = edgePath(it);
     if (path.length < 2) continue;
     const l = it.label;
+    const hasBox = l && l.x !== undefined && l.y !== undefined && l.w !== undefined && l.h !== undefined;
     out.push({
       id: it.id,
       path,
-      label: l ? { id: `${it.id}-label`, x: l.x, y: l.y, w: l.w, h: l.h } : null,
+      label: hasBox ? { id: `${it.id}-label`, x: l.x!, y: l.y!, w: l.w!, h: l.h! } : null,
       from: it.src?.target === "node" ? it.src.shape_id : null,
       to: it.dst?.target === "node" ? it.dst.shape_id : null,
     });

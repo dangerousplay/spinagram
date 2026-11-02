@@ -7,14 +7,14 @@ import type { useCanvas } from "./useCanvas";
 
 type Canvas = ReturnType<typeof useCanvas>;
 
-type Props = { canvas: Canvas; dock: Dock; paletteOpen: boolean; sheetOpen: boolean; onPalette: () => void; onHelp: () => void; onDock: (dock: Dock) => void };
+type Props = { canvas: Canvas; dock: Dock; paletteOpen: boolean; elementsOpen: boolean; sheetOpen: boolean; onPalette: () => void; onElements: () => void; onHelp: () => void; onDock: (dock: Dock) => void };
 
 const base = "grid size-8 place-items-center rounded-md text-slate-700 transition-colors dark:text-slate-200";
 const idle = "hover:bg-slate-100 dark:hover:bg-slate-700";
 const on = "bg-blue-600 text-white hover:bg-blue-700 dark:text-white";
 const off = "cursor-not-allowed opacity-35";
 
-export default function Toolbar({ canvas, dock, paletteOpen, sheetOpen, onPalette, onHelp, onDock }: Props) {
+export default function Toolbar({ canvas, dock, paletteOpen, elementsOpen, sheetOpen, onPalette, onElements, onHelp, onDock }: Props) {
   if (!canvas.shown) return null; // stays mounted while a save re-fetches the scene (`active` false): buttons just disable
   const live = canvas.active;
   const nodes = canvas.selected.filter((s) => s.kind === "node").length;
@@ -29,10 +29,11 @@ export default function Toolbar({ canvas, dock, paletteOpen, sheetOpen, onPalett
     undo: canvas.undo,
     redo: canvas.redo,
     palette: onPalette,
+    elements: onElements,
     help: onHelp,
     dock: () => onDock(otherDock(dock)),
   };
-  const pressed: Partial<Record<ActionId, boolean>> = { palette: paletteOpen, help: sheetOpen };
+  const pressed: Partial<Record<ActionId, boolean>> = { palette: paletteOpen, elements: elementsOpen, help: sheetOpen };
   const layout = dockLayout(dock);
   const tip = (text: string) => (
     <span
@@ -77,7 +78,7 @@ export default function Toolbar({ canvas, dock, paletteOpen, sheetOpen, onPalett
               type="button"
               disabled={!ok}
               className={`${base} ${!ok ? off : hot ? on : idle}`}
-              aria-pressed={a.id === "palette" || a.id === "help" ? hot : undefined}
+              aria-pressed={a.id === "palette" || a.id === "elements" || a.id === "help" ? hot : undefined}
               aria-label={a.label}
               onClick={run[a.id]}
             >

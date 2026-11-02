@@ -26,6 +26,7 @@ export const ACTIONS = [
   { id: "undo", label: "Undo" },
   { id: "redo", label: "Redo" },
   { id: "palette", label: "Palette" },
+  { id: "elements", label: "Elements" },
   { id: "help", label: "Shortcuts" },
   { id: "dock", label: "Dock the toolbar left or at the bottom" },
 ] as const;

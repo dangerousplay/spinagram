@@ -75,3 +75,32 @@ export function writeDock(dock: Dock, store: Store | null = defaultStore()): voi
 }
 
 export const otherDock = (dock: Dock): Dock => (dock === "left" ? "bottom" : "left");
+
+// Remembered state of the Elements panel: whether it is open, and whether it is pinned. Unpinned, selecting an element
+// opens it; pinned, it stays as the user left it (open or closed). Anything missing or malformed gives closed and
+// unpinned.
+export const ELEMENTS_KEY = "spinagram.elements.panel";
+
+export type ElementsPref = { open: boolean; pinned: boolean };
+export const ELEMENTS_DEFAULT: ElementsPref = { open: false, pinned: false };
+
+export function readElements(store: Store | null = defaultStore()): ElementsPref {
+  try {
+    const raw = JSON.parse(store?.getItem(ELEMENTS_KEY) ?? "null");
+    if (!raw || typeof raw !== "object") return ELEMENTS_DEFAULT;
+    return { open: raw.open === true, pinned: raw.pinned === true };
+  } catch {
+    return ELEMENTS_DEFAULT;
+  }
+}
+
+export function writeElements(pref: ElementsPref, store: Store | null = defaultStore()): void {
+  try {
+    store?.setItem(ELEMENTS_KEY, JSON.stringify(pref));
+  } catch {
+    /* storage unavailable: the state still holds for this page */
+  }
+}
+
+/** The panel's state after the selection changed: unpinned, a selection opens it; pinned, nothing changes. */
+export const afterSelection = (pref: ElementsPref, selected: boolean): ElementsPref => (selected && !pref.pinned && !pref.open ? { ...pref, open: true } : pref);

@@ -8,7 +8,8 @@ import ShortcutSheet from "./canvas/ShortcutSheet";
 import Toolbar from "./canvas/Toolbar";
 import SvgHost from "./canvas/svgHost";
 import { escapeStep, matchKey, selectionFrame } from "./canvas/interaction";
-import { readDock, readPaletteOpen, writeDock, writePaletteOpen, type Dock } from "./canvas/paletteState";
+import { afterSelection, readDock, readElements, readPaletteOpen, writeDock, writeElements, writePaletteOpen, type Dock, type ElementsPref } from "./canvas/paletteState";
+import ElementTree from "./canvas/ElementTree";
 import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
 import type { PaletteItem } from "./canvas/palette";
 import { useCanvas } from "./canvas/useCanvas";
@@ -88,6 +89,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     setDockState(d);
     writeDock(d);
   };
+  const [elements, setElementsState] = useState<ElementsPref>(readElements); // the Elements panel: open, and pinned
+  const setElements = useCallback((next: ElementsPref) => {
+    setElementsState(next);
+    writeElements(next);
+  }, []);
   const [paletteOpen, setPaletteOpenState] = useState(readPaletteOpen); // starts collapsed, remembered per browser
   const setPaletteOpen = useCallback((open: boolean) => {
     setPaletteOpenState(open);
@@ -111,6 +117,12 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   }, [canvasOn, rev]);
   const reloadDiagram = useCallback(() => setTick((t) => t + 1), []);
   const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, scale: view.scale, tick, reload: reloadDiagram });
+
+  // selecting an element opens the Elements panel unless it is pinned (the panel remembers only what the user set)
+  const selectedNonce = canvas.selection?.nonce;
+  useEffect(() => {
+    if (selectedNonce !== undefined) setElementsState((p) => afterSelection(p, true));
+  }, [selectedNonce]);
 
   const toggleInspect = useCallback(() => {
     setInspect((on) => {
@@ -496,6 +508,8 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         dock={dock}
         onDock={setDock}
         paletteOpen={paletteOpen}
+        elementsOpen={elements.open}
+        onElements={() => setElements({ ...elements, open: !elements.open })}
         sheetOpen={sheet}
         onPalette={() => (paletteOpen ? setPaletteOpen(false) : openPalette())}
         onHelp={() => setSheet((v) => !v)}
@@ -609,6 +623,17 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         </button>
       </div>
     </div>
+    {canvas.shown && elements.open && (
+      <ElementTree
+        scene={canvas.scene}
+        files={canvas.files}
+        selected={canvas.selected}
+        pinned={elements.pinned}
+        onSelect={canvas.select}
+        onPin={() => setElements({ ...elements, pinned: !elements.pinned })}
+        onClose={() => setElements({ ...elements, open: false })}
+      />
+    )}
     {codeMounted && (
       <div className={code ? "flex w-[44%] min-w-[420px] shrink-0" : "hidden"}>
         <CodePanel

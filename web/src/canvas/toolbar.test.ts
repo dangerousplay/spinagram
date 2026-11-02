@@ -43,7 +43,7 @@ describe("canvas ui states", () => {
     win.document.body.appendChild(box);
     const root = createRoot(box as unknown as Element);
     const render = (ready: boolean) =>
-      flushSync(() => root.render(createElement(Toolbar, { canvas: fake(true, true, ready), dock: "left", onDock() {}, paletteOpen: false, sheetOpen: false, onPalette() {}, onHelp() {} })));
+      flushSync(() => root.render(createElement(Toolbar, { canvas: fake(true, true, ready), dock: "left", onDock() {}, paletteOpen: false, elementsOpen: false, sheetOpen: false, onPalette() {}, onElements() {}, onHelp() {} })));
     render(true);
     const bar = box.querySelector('[role="toolbar"]');
     expect(bar).not.toBeNull();
@@ -116,7 +116,7 @@ describe("toolbar dock", () => {
     const root = createRoot(box as unknown as Element);
     const asked: string[] = [];
     flushSync(() =>
-      root.render(createElement(Toolbar, { canvas: fake(true, true, true), dock: "bottom", onDock: (d: string) => void asked.push(d), paletteOpen: false, sheetOpen: false, onPalette() {}, onHelp() {} })),
+      root.render(createElement(Toolbar, { canvas: fake(true, true, true), dock: "bottom", onDock: (d: string) => void asked.push(d), paletteOpen: false, elementsOpen: false, sheetOpen: false, onPalette() {}, onElements() {}, onHelp() {} })),
     );
     expect(box.querySelector('[role="toolbar"]')?.getAttribute("aria-orientation")).toBe("horizontal");
     (box.querySelector(`[aria-label="${ACTIONS.find((a) => a.id === "dock")!.label}"]`) as HTMLButtonElement).click();

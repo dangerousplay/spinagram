@@ -43,6 +43,7 @@ export const KEYMAP: Binding[] = [
   { action: "pointer", keys: "Alt+drag", label: "Pan" },
   { action: "pointer", keys: "Space+drag", label: "Pan while Space is held, in any tool" },
   { action: "pointer", keys: "Click or drag (Box, Text, Zone)", label: "Place the default size centred on the point, or draw the rectangle" },
+  { action: "pointer", keys: "Elements button (toolbar)", label: "Show or hide the element tree; selecting an element opens it unless it is pinned" },
   { action: "pointer", keys: "Dock button (toolbar)", label: "Move the toolbar between the left edge and the bottom; it is remembered" },
   { action: "pointer", keys: "Click an edge", label: "Select the edge (Shift adds more); Delete removes it, double-click edits its label" },
   { action: "pointer", keys: "Drag an end handle of a selected edge", label: "Reconnect that end to another node; a release elsewhere cancels" },

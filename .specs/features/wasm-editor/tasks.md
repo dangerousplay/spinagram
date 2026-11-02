@@ -1295,12 +1295,14 @@ Document them in `src/spinagram/edit.py` and `rust/README.md`.
 
 **Done when**:
 
-- [ ] bun tests: the tree built from the zone, container and connector fixtures (nesting, order, edges group); the filter keeps ancestors of matches; selection sync both ways (pure functions)
-- [ ] Web gate passes
+- [x] bun tests: the tree built from the zone, container and connector fixtures (nesting, order, edges group); the filter keeps ancestors of matches; selection sync both ways (pure functions)
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): element tree panel synced with the canvas`
+
+**Notes**: `tree.ts` builds the tree from the scene JSON: zones nest by `children`; a row or column sits in the zone that lists its members (top level when none does) with its members under it; free nodes follow; the "Edges" group lists `from → to (label)` for the edges of the spec. Titles come from the scene (a node's first label block, the text item `z<k>-label` of a zone, an edge pill's label), ids when the scene has no text; a node and a zone show their own pack icon (the scene's icon bytes, `files`, as data URIs), the rest an `EditorIcon`. `filterTree` keeps matches (title or id, case-insensitive; the Edges heading never matches) and the rows above them; `selectFromRow` replaces the selection, Shift or Ctrl/Cmd toggles, the Edges heading selects nothing; `revealSelection` opens only the collapsed rows above a canvas selection; the panel scrolls it into view. `ElementTree.tsx` is the panel (right of the canvas, left of the code tab): filter box, collapsible rows, pin and close. A row click selects through `canvas.select`, so the code panel highlights the entry as for a canvas click. State (`paletteState.ts`, key `spinagram.elements.panel`: open and pinned; storage failures give closed and unpinned): unpinned, selecting an element opens the panel (`afterSelection`; that automatic opening is not written to storage, only the user's toggles and pin are); pinned, it stays as the user left it. A new toolbar action "Elements" (`ListTree` icon, action table, a row in the `?` sheet) toggles it. `useCanvas` now also returns `scene`, `files` and `select`. Tests: `tree.test.ts` +16 (nesting and order, row keys and kinds, icons and the id fallback, the three filter cases, selection sync both ways, reveal, collapsed rows, panel state round-trip and fallback, auto-open rule, the action's icon and sheet row); `toolbar.test.ts` updated for the new props. Eight mutants (filter ancestors, group row, heading match, container placement, reveal, container members, zone nesting, pin rule) checked in a scratch worktree (removed afterwards): all killed. Browser check (port 8799, scratch showcase copy): clicking Orders API opened the panel with its row highlighted and every row showing its icon; clicking Billing worker in the tree selected it on the canvas. Gate: bun test 219 pass (was 203), typecheck and build ok (bundle not committed here, T42).
 
 ---
 
