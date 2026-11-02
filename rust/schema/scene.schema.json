@@ -1,19 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Scene",
+  "description": "A finished diagram: what the SVG writer draws.",
   "type": "object",
   "properties": {
     "background": {
+      "description": "Page background colour.",
       "type": "string"
     },
+    "containers": {
+      "description": "Row and column containers. Written only when there are some.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContainerInfo"
+      }
+    },
     "height": {
+      "description": "Height in px.",
       "type": "number",
       "format": "double"
     },
     "id": {
+      "description": "Id of the item.",
       "type": "string"
     },
     "item_facts": {
+      "description": "Fact ids shown as the tooltip of each item.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -23,35 +35,49 @@
       }
     },
     "items": {
+      "description": "Everything to draw, back to front.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/Item"
       }
     },
     "meta_tooltips": {
+      "description": "Tooltip text of each fact id.",
       "type": "object",
       "additionalProperties": {
         "type": "string"
       }
     },
     "slug": {
+      "description": "File-name form of the title.",
       "type": "string"
     },
     "sources": {
+      "description": "Source references, kept as written.",
       "type": "array",
       "items": true
     },
     "title": {
+      "description": "Title of the diagram.",
       "type": "string"
     },
     "version": {
+      "description": "Scene format version.",
       "type": "integer",
       "format": "uint32",
       "minimum": 0
     },
     "width": {
+      "description": "Width in px.",
       "type": "number",
       "format": "double"
+    },
+    "zones": {
+      "description": "Zones with the ids the spec declares. Written only when there are zones.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ZoneInfo"
+      }
     }
   },
   "required": [
@@ -68,21 +94,60 @@
     "meta_tooltips"
   ],
   "$defs": {
+    "Align": {
+      "description": "Horizontal alignment of a label.",
+      "oneOf": [
+        {
+          "description": "Text starts at the box's left edge.",
+          "type": "string",
+          "const": "left"
+        },
+        {
+          "description": "Text is centred in the box.",
+          "type": "string",
+          "const": "center"
+        }
+      ]
+    },
+    "Axis": {
+      "description": "The direction of a container.",
+      "oneOf": [
+        {
+          "description": "Members side by side (`rows:`).",
+          "type": "string",
+          "const": "row"
+        },
+        {
+          "description": "Members stacked (`columns:`).",
+          "type": "string",
+          "const": "column"
+        }
+      ]
+    },
     "Binding": {
+      "description": "Where a connector end attaches.",
       "type": "object",
       "properties": {
+        "explicit": {
+          "description": "The author fixed the side (`node.side`): routers keep it. Written only when true; absent means false.",
+          "type": "boolean"
+        },
         "frac": {
+          "description": "Position along the side, 0 to 1.",
           "type": "number",
           "format": "double"
         },
         "shape_id": {
+          "description": "Id of the bound shape.",
           "type": "string"
         },
         "side": {
-          "type": "string"
+          "description": "The side of the box.",
+          "$ref": "#/$defs/Side"
         },
         "target": {
-          "type": "string"
+          "description": "Whether the end is a node or a zone.",
+          "$ref": "#/$defs/EndpointTarget"
         }
       },
       "required": [
@@ -93,21 +158,26 @@
       ]
     },
     "Cell": {
+      "description": "One cell of a table.",
       "type": "object",
       "properties": {
         "block": {
+          "description": "The text to draw.",
           "$ref": "#/$defs/TextBlock"
         },
         "bold": {
+          "description": "Whether the cell text is bold.",
           "type": "boolean"
         },
         "fill": {
+          "description": "Fill colour; `None` is no fill.",
           "type": [
             "string",
             "null"
           ]
         },
         "icon": {
+          "description": "The icon drawn in it, if any.",
           "anyOf": [
             {
               "$ref": "#/$defs/Icon"
@@ -118,6 +188,7 @@
           ]
         },
         "pad_left": {
+          "description": "Space left of the text, in px.",
           "type": "number",
           "format": "double"
         }
@@ -129,18 +200,23 @@
       ]
     },
     "Connector": {
+      "description": "A line between two points or shapes, with heads.",
       "type": "object",
       "properties": {
         "arrow_end": {
+          "description": "Whether a head is drawn at the destination.",
           "type": "boolean"
         },
         "arrow_start": {
+          "description": "Whether a head is drawn at the source.",
           "type": "boolean"
         },
         "color": {
+          "description": "Colour as CSS text.",
           "type": "string"
         },
         "dash": {
+          "description": "Explicit dash pattern; `None` uses the default dash when `dashed`.",
           "type": [
             "array",
             "null"
@@ -151,9 +227,11 @@
           }
         },
         "dashed": {
+          "description": "Whether the stroke is dashed.",
           "type": "boolean"
         },
         "dst": {
+          "description": "Binding of the destination end.",
           "anyOf": [
             {
               "$ref": "#/$defs/Binding"
@@ -164,9 +242,11 @@
           ]
         },
         "id": {
+          "description": "Id of the item.",
           "type": "string"
         },
         "label": {
+          "description": "Label of the item.",
           "anyOf": [
             {
               "$ref": "#/$defs/TaggedShape"
@@ -177,16 +257,20 @@
           ]
         },
         "marker_end": {
-          "type": "string"
+          "description": "Head at the destination.",
+          "$ref": "#/$defs/MarkerKind"
         },
         "marker_start": {
-          "type": "string"
+          "description": "Head at the source.",
+          "$ref": "#/$defs/MarkerKind"
         },
         "opacity": {
+          "description": "Opacity of the whole item.",
           "type": "number",
           "format": "double"
         },
         "points": {
+          "description": "The polyline; for a curve `[start, control, end]`.",
           "type": "array",
           "items": {
             "type": "array",
@@ -199,9 +283,11 @@
           }
         },
         "route": {
-          "type": "string"
+          "description": "How the points are joined.",
+          "$ref": "#/$defs/ConnectorRoute"
         },
         "src": {
+          "description": "Binding of the source end.",
           "anyOf": [
             {
               "$ref": "#/$defs/Binding"
@@ -212,6 +298,7 @@
           ]
         },
         "width": {
+          "description": "Width in px.",
           "type": "number",
           "format": "double"
         }
@@ -230,32 +317,112 @@
         "opacity"
       ]
     },
+    "ConnectorRoute": {
+      "description": "How a connector's points are joined.",
+      "oneOf": [
+        {
+          "description": "One straight segment.",
+          "type": "string",
+          "const": "straight"
+        },
+        {
+          "description": "A polyline.",
+          "type": "string",
+          "const": "poly"
+        },
+        {
+          "description": "A quadratic curve through three points.",
+          "type": "string",
+          "const": "curve"
+        }
+      ]
+    },
+    "ContainerInfo": {
+      "description": "A `rows`/`columns` container (`row0`, `column1`, ...): axis, member node ids in order, and the box\n`[x, y, w, h]` enclosing the members.",
+      "type": "object",
+      "properties": {
+        "axis": {
+          "description": "Whether the members run along a row or a column.",
+          "$ref": "#/$defs/Axis"
+        },
+        "box": {
+          "description": "The box `[x, y, w, h]` the label is laid out in.",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "id": {
+          "description": "Id of the item.",
+          "type": "string"
+        },
+        "members": {
+          "description": "Ids of the member nodes, in order.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "axis",
+        "members",
+        "box"
+      ]
+    },
+    "EndpointTarget": {
+      "description": "What an edge end points at.",
+      "oneOf": [
+        {
+          "description": "A node.",
+          "type": "string",
+          "const": "node"
+        },
+        {
+          "description": "A zone (`zone:` prefix).",
+          "type": "string",
+          "const": "zone"
+        }
+      ]
+    },
     "Font": {
+      "description": "A font as the scene names it.",
       "type": "object",
       "properties": {
         "fallback": {
+          "description": "CSS generic family appended after `family`.",
           "type": "string"
         },
         "family": {
+          "description": "Font family name.",
           "type": "string"
         },
         "figma_style": {
+          "description": "Figma font style name.",
           "type": "string"
         },
         "file": {
+          "description": "Path of the font file, if any.",
           "type": [
             "string",
             "null"
           ]
         },
         "italic": {
+          "description": "Whether the face is italic.",
           "type": "boolean"
         },
         "size": {
+          "description": "Size in px.",
           "type": "number",
           "format": "double"
         },
         "weight": {
+          "description": "Font weight.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0
@@ -271,16 +438,20 @@
       ]
     },
     "Icon": {
+      "description": "An icon or image drawn at a position.",
       "type": "object",
       "properties": {
         "path": {
+          "description": "Path of the file.",
           "type": "string"
         },
         "size": {
+          "description": "Size in px.",
           "type": "number",
           "format": "double"
         },
         "w": {
+          "description": "Width in px.",
           "type": [
             "number",
             "null"
@@ -288,10 +459,12 @@
           "format": "double"
         },
         "x": {
+          "description": "Left edge (or anchor) in px.",
           "type": "number",
           "format": "double"
         },
         "y": {
+          "description": "Top edge (or first baseline) in px.",
           "type": "number",
           "format": "double"
         }
@@ -304,27 +477,34 @@
       ]
     },
     "Image": {
+      "description": "An image file drawn in a box.",
       "type": "object",
       "properties": {
         "h": {
+          "description": "Height in px.",
           "type": "number",
           "format": "double"
         },
         "id": {
+          "description": "Id of the item.",
           "type": "string"
         },
         "path": {
+          "description": "Path of the file.",
           "type": "string"
         },
         "w": {
+          "description": "Width in px.",
           "type": "number",
           "format": "double"
         },
         "x": {
+          "description": "Left edge (or anchor) in px.",
           "type": "number",
           "format": "double"
         },
         "y": {
+          "description": "Top edge (or first baseline) in px.",
           "type": "number",
           "format": "double"
         }
@@ -339,8 +519,10 @@
       ]
     },
     "Item": {
+      "description": "Anything a scene draws.",
       "oneOf": [
         {
+          "description": "A shape.",
           "type": "object",
           "properties": {
             "type": {
@@ -354,6 +536,7 @@
           ]
         },
         {
+          "description": "A connector.",
           "type": "object",
           "properties": {
             "type": {
@@ -367,6 +550,7 @@
           ]
         },
         {
+          "description": "Free text.",
           "type": "object",
           "properties": {
             "type": {
@@ -380,6 +564,7 @@
           ]
         },
         {
+          "description": "A line.",
           "type": "object",
           "properties": {
             "type": {
@@ -393,6 +578,7 @@
           ]
         },
         {
+          "description": "An image.",
           "type": "object",
           "properties": {
             "type": {
@@ -406,6 +592,7 @@
           ]
         },
         {
+          "description": "A table.",
           "type": "object",
           "properties": {
             "type": {
@@ -421,18 +608,22 @@
       ]
     },
     "Label": {
+      "description": "Text blocks laid out in a box.",
       "type": "object",
       "properties": {
         "align": {
-          "type": "string"
+          "description": "Horizontal alignment.",
+          "$ref": "#/$defs/Align"
         },
         "blocks": {
+          "description": "The text blocks, top to bottom.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/TextBlock"
           }
         },
         "box": {
+          "description": "The box `[x, y, w, h]` the label is laid out in.",
           "type": "array",
           "items": {
             "type": "number",
@@ -442,11 +633,13 @@
           "minItems": 4
         },
         "gap": {
+          "description": "Space between blocks, in px.",
           "type": "number",
           "format": "double"
         },
         "valign": {
-          "type": "string"
+          "description": "Vertical alignment.",
+          "$ref": "#/$defs/VAlign"
         }
       },
       "required": [
@@ -458,31 +651,39 @@
       ]
     },
     "Line": {
+      "description": "A straight line.",
       "type": "object",
       "properties": {
         "color": {
+          "description": "Colour as CSS text.",
           "type": "string"
         },
         "id": {
+          "description": "Id of the item.",
           "type": "string"
         },
         "width": {
+          "description": "Width in px.",
           "type": "number",
           "format": "double"
         },
         "x1": {
+          "description": "Start x in px.",
           "type": "number",
           "format": "double"
         },
         "x2": {
+          "description": "End x in px.",
           "type": "number",
           "format": "double"
         },
         "y1": {
+          "description": "Start y in px.",
           "type": "number",
           "format": "double"
         },
         "y2": {
+          "description": "End y in px.",
           "type": "number",
           "format": "double"
         }
@@ -497,14 +698,97 @@
         "width"
       ]
     },
+    "LineCap": {
+      "description": "The stroke line cap of a shape.",
+      "oneOf": [
+        {
+          "description": "Flat ends.",
+          "type": "string",
+          "const": "butt"
+        },
+        {
+          "description": "Rounded ends.",
+          "type": "string",
+          "const": "round"
+        },
+        {
+          "description": "Square ends.",
+          "type": "string",
+          "const": "square"
+        }
+      ]
+    },
+    "MarkerKind": {
+      "description": "The head drawn at a connector end.",
+      "oneOf": [
+        {
+          "description": "A filled triangle.",
+          "type": "string",
+          "const": "arrow"
+        },
+        {
+          "description": "An outlined chevron.",
+          "type": "string",
+          "const": "open-arrow"
+        },
+        {
+          "description": "A filled diamond.",
+          "type": "string",
+          "const": "diamond"
+        },
+        {
+          "description": "An outlined diamond.",
+          "type": "string",
+          "const": "open-diamond"
+        },
+        {
+          "description": "A filled circle.",
+          "type": "string",
+          "const": "circle"
+        },
+        {
+          "description": "A bar across the line.",
+          "type": "string",
+          "const": "bar"
+        },
+        {
+          "description": "No head.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "Paint": {
+      "description": "How a symbol part is painted.",
+      "oneOf": [
+        {
+          "description": "Fill with the shape's fill and stroke with its stroke.",
+          "type": "string",
+          "const": "shape"
+        },
+        {
+          "description": "Fill with the stroke colour.",
+          "type": "string",
+          "const": "solid"
+        },
+        {
+          "description": "Outline only.",
+          "type": "string",
+          "const": "stroke"
+        }
+      ]
+    },
     "Part": {
+      "description": "One path of a symbol shape.",
       "type": "object",
       "properties": {
         "d": {
+          "description": "SVG path data.",
           "type": "string"
         },
         "paint": {
-          "type": "string"
+          "description": "How the part is painted.",
+          "$ref": "#/$defs/Paint"
         }
       },
       "required": [
@@ -512,17 +796,65 @@
         "paint"
       ]
     },
+    "Role": {
+      "description": "What a shape is for; it picks the layer it is drawn in.",
+      "oneOf": [
+        {
+          "description": "A diagram node.",
+          "type": "string",
+          "const": "node"
+        },
+        {
+          "description": "A zone background.",
+          "type": "string",
+          "const": "zone"
+        },
+        {
+          "description": "A pill.",
+          "type": "string",
+          "const": "pill"
+        },
+        {
+          "description": "A legend swatch.",
+          "type": "string",
+          "const": "swatch"
+        },
+        {
+          "description": "Frame and title furniture.",
+          "type": "string",
+          "const": "chrome"
+        },
+        {
+          "description": "A panel.",
+          "type": "string",
+          "const": "panel"
+        },
+        {
+          "description": "A badge or accent that belongs to a node.",
+          "type": "string",
+          "const": "node-part"
+        },
+        {
+          "description": "A callout.",
+          "type": "string",
+          "const": "callout"
+        }
+      ]
+    },
     "Run": {
       "description": "A piece of a line drawn with one font. `base`: it uses the block's own font (no fallback span).",
       "type": "object",
       "properties": {
         "base": {
+          "description": "The run uses the block's own font (no fallback span).",
           "type": "boolean"
         },
         "font": {
+          "description": "The font.",
           "$ref": "#/$defs/Font"
         },
         "text": {
+          "description": "The text.",
           "type": "string"
         }
       },
@@ -533,15 +865,22 @@
       ]
     },
     "Shape": {
+      "description": "A box, diamond or symbol with its label and icon.",
       "type": "object",
       "properties": {
         "cap": {
-          "type": [
-            "string",
-            "null"
+          "description": "Stroke line cap; `None` is a butt cap.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineCap"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "dash": {
+          "description": "Explicit dash pattern; `None` uses the default dash when `dashed`.",
           "type": [
             "array",
             "null"
@@ -552,23 +891,28 @@
           }
         },
         "dashed": {
+          "description": "Whether the stroke is dashed.",
           "type": "boolean"
         },
         "fill": {
+          "description": "Fill colour; `None` is no fill.",
           "type": [
             "string",
             "null"
           ]
         },
         "fill_opacity": {
+          "description": "Opacity of the fill only.",
           "type": "number",
           "format": "double"
         },
         "h": {
+          "description": "Height in px.",
           "type": "number",
           "format": "double"
         },
         "icon": {
+          "description": "The icon drawn in it, if any.",
           "anyOf": [
             {
               "$ref": "#/$defs/Icon"
@@ -579,12 +923,15 @@
           ]
         },
         "id": {
+          "description": "Id of the item.",
           "type": "string"
         },
         "kind": {
-          "type": "string"
+          "description": "The kind of shape.",
+          "$ref": "#/$defs/ShapeKind"
         },
         "label": {
+          "description": "Label of the item.",
           "anyOf": [
             {
               "$ref": "#/$defs/Label"
@@ -595,10 +942,12 @@
           ]
         },
         "opacity": {
+          "description": "Opacity of the whole item.",
           "type": "number",
           "format": "double"
         },
         "parts": {
+          "description": "Symbol geometry, if the shape has one.",
           "type": [
             "array",
             "null"
@@ -608,11 +957,13 @@
           }
         },
         "radius": {
+          "description": "Corner radius in px.",
           "type": "number",
           "format": "double"
         },
         "role": {
-          "type": "string"
+          "description": "What the shape is for.",
+          "$ref": "#/$defs/Role"
         },
         "shadow": {
           "description": "`(dx, dy, blur, colour, alpha)`",
@@ -645,24 +996,29 @@
           ]
         },
         "stroke": {
+          "description": "Stroke colour; `None` is no stroke.",
           "type": [
             "string",
             "null"
           ]
         },
         "stroke_width": {
+          "description": "Stroke width in px.",
           "type": "number",
           "format": "double"
         },
         "w": {
+          "description": "Width in px.",
           "type": "number",
           "format": "double"
         },
         "x": {
+          "description": "Left edge (or anchor) in px.",
           "type": "number",
           "format": "double"
         },
         "y": {
+          "description": "Top edge (or first baseline) in px.",
           "type": "number",
           "format": "double"
         }
@@ -682,13 +1038,45 @@
         "fill_opacity"
       ]
     },
+    "ShapeKind": {
+      "description": "The kind of a shape: the node kind or `rect`, `pill` and the like. The kinds whose outline touches the box\nonly at side midpoints are named; any other kind is kept as written.",
+      "type": "string"
+    },
+    "Side": {
+      "description": "A side of a box. The declaration order is the order of `ports` and Python's dict order.",
+      "oneOf": [
+        {
+          "description": "The upper edge.",
+          "type": "string",
+          "const": "top"
+        },
+        {
+          "description": "The lower edge.",
+          "type": "string",
+          "const": "bottom"
+        },
+        {
+          "description": "The left edge.",
+          "type": "string",
+          "const": "left"
+        },
+        {
+          "description": "The right edge.",
+          "type": "string",
+          "const": "right"
+        }
+      ]
+    },
     "Table": {
+      "description": "A grid of cells.",
       "type": "object",
       "properties": {
         "border": {
+          "description": "Colour of the row separators.",
           "type": "string"
         },
         "cells": {
+          "description": "Rows of cells; row 0 is the header.",
           "type": "array",
           "items": {
             "type": "array",
@@ -698,6 +1086,7 @@
           }
         },
         "col_widths": {
+          "description": "Width of each column.",
           "type": "array",
           "items": {
             "type": "number",
@@ -705,13 +1094,16 @@
           }
         },
         "header_radius": {
+          "description": "Corner radius of the header row.",
           "type": "number",
           "format": "double"
         },
         "id": {
+          "description": "Id of the item.",
           "type": "string"
         },
         "row_heights": {
+          "description": "Height of each row.",
           "type": "array",
           "items": {
             "type": "number",
@@ -719,10 +1111,12 @@
           }
         },
         "x": {
+          "description": "Left edge (or anchor) in px.",
           "type": "number",
           "format": "double"
         },
         "y": {
+          "description": "Top edge (or first baseline) in px.",
           "type": "number",
           "format": "double"
         }
@@ -742,6 +1136,7 @@
       "description": "A shape nested in another item carries its own `type` tag, as in the item list.",
       "oneOf": [
         {
+          "description": "A shape.",
           "type": "object",
           "properties": {
             "type": {
@@ -757,15 +1152,19 @@
       ]
     },
     "Text": {
+      "description": "Free text at a position.",
       "type": "object",
       "properties": {
         "anchor": {
-          "type": "string"
+          "description": "Which end of the text sits at `x`.",
+          "$ref": "#/$defs/TextAnchor"
         },
         "block": {
+          "description": "The text to draw.",
           "$ref": "#/$defs/TextBlock"
         },
         "id": {
+          "description": "Id of the item.",
           "type": "string"
         },
         "letter_spacing": {
@@ -773,6 +1172,7 @@
           "type": "number"
         },
         "width": {
+          "description": "Width in px.",
           "type": [
             "number",
             "null"
@@ -780,10 +1180,12 @@
           "format": "double"
         },
         "x": {
+          "description": "Left edge (or anchor) in px.",
           "type": "number",
           "format": "double"
         },
         "y": {
+          "description": "Top edge (or first baseline) in px.",
           "type": "number",
           "format": "double"
         }
@@ -797,32 +1199,59 @@
         "letter_spacing"
       ]
     },
+    "TextAnchor": {
+      "description": "SVG `text-anchor` of a text item.",
+      "oneOf": [
+        {
+          "description": "Text starts at x.",
+          "type": "string",
+          "const": "start"
+        },
+        {
+          "description": "Text is centred on x.",
+          "type": "string",
+          "const": "middle"
+        },
+        {
+          "description": "Text ends at x.",
+          "type": "string",
+          "const": "end"
+        }
+      ]
+    },
     "TextBlock": {
+      "description": "Lines of text drawn in one font and colour.",
       "type": "object",
       "properties": {
         "color": {
+          "description": "Colour as CSS text.",
           "type": "string"
         },
         "font": {
+          "description": "The font.",
           "$ref": "#/$defs/Font"
         },
         "leading": {
+          "description": "Line height in px.",
           "type": "number",
           "format": "double"
         },
         "lines": {
+          "description": "The wrapped lines.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "paragraphs": {
+          "description": "The source paragraphs.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "runs": {
+          "description": "The text as runs per line, each in its own font.",
           "type": [
             "array",
             "null"
@@ -841,6 +1270,47 @@
         "font",
         "color",
         "leading"
+      ]
+    },
+    "VAlign": {
+      "description": "Vertical alignment of a label.",
+      "oneOf": [
+        {
+          "description": "Blocks start at the box's top edge.",
+          "type": "string",
+          "const": "top"
+        },
+        {
+          "description": "Blocks are centred in the box.",
+          "type": "string",
+          "const": "middle"
+        }
+      ]
+    },
+    "ZoneInfo": {
+      "description": "A zone: the id the edit operations use, the id of its shape in `items`, and its declared children.",
+      "type": "object",
+      "properties": {
+        "children": {
+          "description": "Ids of the elements the zone holds.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "Id of the item.",
+          "type": "string"
+        },
+        "shape_id": {
+          "description": "Id of the bound shape.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "shape_id",
+        "children"
       ]
     }
   }

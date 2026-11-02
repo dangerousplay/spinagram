@@ -14,6 +14,11 @@ node tests/js/figma_mock.mjs out/figma/<slug>-01.js     # dry-run a Figma script
 [Rust toolchain](https://rustup.rs); it rebuilds whenever a Rust source changes. `SPINAGRAM_RUST=0` runs the
 pure-Python reference engine instead. `rust/README.md` covers the Rust tests, lints, Verus proofs and parity checks.
 
+The editor canvas runs the Rust core as WebAssembly (`rust/spinagram-wasm`). Building the web bundle needs it built
+first: `rustup target add wasm32-unknown-unknown`, `cargo install wasm-bindgen-cli --locked` (the version of the
+`wasm-bindgen` crate in `rust/Cargo.lock`), then `bash rust/spinagram-wasm/build.sh`, which writes `web/src/wasm/`.
+`cd rust/spinagram-wasm && bun test` runs its tests. `rust/README.md` has the details.
+
 Feature specs live in `.specs/` (spec-driven: project, then spec, design and tasks per feature).
 
 ## Live UI frontend
@@ -22,14 +27,18 @@ Source is in `web/` (React + TypeScript + Vite + Tailwind CSS v4, built with bun
 
 ```bash
 cd web
+bash ../rust/spinagram-wasm/build.sh   # the canvas needs the wasm build in web/src/wasm
 bun install && bun run dev      # proxies /api to `spinagram serve --port 8765`
-bun run build                   # rewrites src/spinagram/ui/static/
+bun run build                   # writes src/spinagram/ui/static/ (the .wasm included)
 ```
 
-CI fails if the committed bundle is stale. Build with the bun version CI pins (`BUN_VERSION` in
-`.github/workflows/ci.yml`) and `bun install --frozen-lockfile`: an older bun ignores the lockfile, resolves
-other versions and produces a different bundle. Without upgrading bun: `bunx bun@1.4.2 install --frozen-lockfile`
-then `bunx bun@1.4.2 run build`.
+The built bundle is not committed: `src/spinagram/ui/static/` is ignored by git. `spinagram serve` shows a
+placeholder page until you build it, and the one test that needs the real bundle skips. CI builds it once (the `web`
+job), and the wheel and sdist jobs download that build into place before maturin runs, so every wheel and the sdist
+carry it (`include` under `[tool.maturin]` in `pyproject.toml` keeps the ignored files in the archives). To build a
+wheel or an sdist yourself, run `bun run build` first. CI uses the bun version pinned as `BUN_VERSION` in
+`.github/workflows/ci.yml` with `bun install --frozen-lockfile`; an older bun ignores the lockfile and resolves
+other versions. Without upgrading bun: `bunx bun@1.4.2 install --frozen-lockfile` then `bunx bun@1.4.2 run build`.
 
 ## Docs
 

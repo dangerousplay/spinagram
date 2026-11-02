@@ -493,7 +493,9 @@ def _placed_diagram():
 # (tests/test_engine_labels.py::test_golden_label_change_is_the_centring). Updated by T59 (OUT-04): every SVG
 # carries a content-hash <metadata>; without it the SVG is the T19 one (test_engine_output.py pins that).
 # Re-taken on the rebase onto 0.3.0: edge labels also stay clear of arrowheads (only label positions moved).
-UNSTYLED_GOLDEN = "aa8ccb4edafd3179d7881812e85649a6d72e151eb6a554cd8f929e58cbbb50da"
+# Re-taken for wasm-editor T34 (CTR-01): every item's drawing sits in a <g data-id>; the drawing itself is as before
+# (tests/test_engine_output.py::test_golden_change_is_only_the_hash_metadata strips the groups to the old bytes).
+UNSTYLED_GOLDEN = "ddec00fe9d4a2cbfb96e9c36355f43eb0385e69c3e57ae2e281721e9d3044704"
 
 
 def test_unstyled_svg_matches_pre_css_golden():  # CSS-27

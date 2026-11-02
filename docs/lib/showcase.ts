@@ -54,6 +54,9 @@ export const views = {
   net01: { label: 'Campus', src: '/assets/gallery/net01.svg', alt: 'Campus network with a redundant core and access layer', files: ['showcase/campus_network.py', 'showcase/campus.css', 'showcase/showcase.css'] },
   net02: { label: 'EVPN fabric', src: '/assets/gallery/net02.svg', alt: 'EVPN-VXLAN data center fabric with an eBGP underlay', files: ['showcase/evpn_fabric.py', 'showcase/fabric.css', 'showcase/showcase.css'] },
 
+  // editable on the canvas
+  edit01: { label: 'Editable platform', src: '/assets/gallery/edit01.svg', alt: 'Hand-placed AWS platform in the AWS group conventions: Cloud, account, region, VPC, public and private subnets, each with its icon', files: ['showcase/editable_platform.yaml', 'showcase/aws.css', 'showcase/showcase.css'] },
+
   // slides
   note01: { label: 'Decisions', src: '/assets/gallery/note01.svg', alt: 'Architecture decisions slide with cards, a quote and open questions', files: ['showcase/notes.py', 'showcase/notes.css', 'showcase/showcase.css'] },
 } satisfies Record<string, ShowcaseView>;

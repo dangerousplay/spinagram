@@ -235,6 +235,7 @@ class Scene:
     fallbacks: list[tuple[str, str, str]] = field(default_factory=list)  # (char, font role, fallback family)
     rows: list[tuple[str, list[str], bool]] = field(default_factory=list)  # (row0 | column1, node ids, same_icon_size)
     zone_children: dict[str, list[str]] = field(default_factory=dict)  # zone shape id → child shape ids (declared)
+    zone_ids: dict[str, str] = field(default_factory=dict)  # zone shape id (z0) → the id the spec declares (or z0)
     not_straight: list[str] = field(default_factory=list)  # straight=True edges that could not be made straight
     icon_sources: dict[str, tuple] = field(default_factory=dict)  # icon name → (resolved ref, source)
     vendor_hints: dict[str, tuple[str, str, str]] = field(default_factory=dict)  # node → (title, vendor ref, icon)

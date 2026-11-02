@@ -1,0 +1,5 @@
+# Fixture: zones with children, flow style
+id: Z02
+title: Zones flow
+zones: [{id: za, label: A, x: 0, y: 0, w: 500, h: 400, children: [zb, m1]}, {id: zb, label: B, x: 50, y: 50, w: 200, h: 200}]
+nodes: [{id: m1, title: M1, at: [300, 100, 100, 50]}, {id: m2, title: M2, x: 600, y: 10}]

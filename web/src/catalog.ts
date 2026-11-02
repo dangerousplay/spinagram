@@ -132,3 +132,9 @@ export function packSections(packs: Pack[]): Section<Pack>[] {
     ["Not downloaded", packs.filter((p) => !p.fetched)],
   ]);
 }
+
+/** The first non-empty line of a render error, cut to one short line for a gallery card. */
+export function errorLine(message: string, max = 90): string {
+  const line = message.split(/\r?\n/).map((l) => l.trim()).find((l) => l !== "") ?? "";
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+}

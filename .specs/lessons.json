@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 77,
+  "next_id": 80,
   "lessons": [
     {
       "id": "L-001",
@@ -1382,6 +1382,60 @@
       ],
       "created": "2026-11-01T04:17:28Z",
       "last_seen": "2026-11-01T04:17:28Z"
+    },
+    {
+      "id": "L-077",
+      "key": "surviving_mutant::when a guard is unit tested in isolation also test that the public entry point calls it inject a failing case through apply ops or a removed call survives",
+      "text": "When a guard is unit-tested in isolation, also test that the public entry point calls it (inject a failing case through apply_ops), or a removed call survives.",
+      "signal": "surviving_mutant",
+      "scope": "rust",
+      "status": "candidate",
+      "features": [
+        "wasm-editor"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M3 rust/spinagram-core/src/edit.rs:611 (rust)"
+      ],
+      "created": "2026-11-01T19:50:12Z",
+      "last_seen": "2026-11-01T19:50:12Z"
+    },
+    {
+      "id": "L-078",
+      "key": "surviving_mutant::when porting a regex to a parser add vectors for every anchor rule before a final newline trailing text after it not only for the happy forms",
+      "text": "When porting a regex to a parser, add vectors for every anchor rule ($ before a final newline, trailing text after it), not only for the happy forms.",
+      "signal": "surviving_mutant",
+      "scope": "rust/grammar",
+      "status": "candidate",
+      "features": [
+        "rust-hardening"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "rust/spinagram-core/src/edge_syntax.rs end() (rust/grammar)"
+      ],
+      "created": "2026-11-02T18:04:55Z",
+      "last_seen": "2026-11-02T18:04:55Z"
+    },
+    {
+      "id": "L-079",
+      "key": "surviving_mutant::when replacing a linear find with a hash index pin the duplicate key rule first or last wins with a test",
+      "text": "When replacing a linear find with a hash index, pin the duplicate-key rule (first or last wins) with a test.",
+      "signal": "surviving_mutant",
+      "scope": "rust/edit",
+      "status": "candidate",
+      "features": [
+        "rust-hardening"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "rust/spinagram-core/src/edit.rs Index::new (rust/edit)"
+      ],
+      "created": "2026-11-02T18:04:56Z",
+      "last_seen": "2026-11-02T18:04:56Z"
     }
   ]
 }

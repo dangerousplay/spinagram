@@ -3,7 +3,8 @@
 ``dumps(scene)`` carries every field the SVG writer and ``Scene.fonts()`` read: items tagged by ``type``
 (``shape``, ``connector``, ``text``, ``line``, ``image``, ``table``), nested labels, text blocks, runs, fonts,
 icons, symbol parts and table cells. Paths are absolute strings and tuples are arrays. QA-only fields of
-``Scene`` (issues, fits, zone bookkeeping) are not written. The format is described by
+``Scene`` (issues, fits, zone header bookkeeping) are not written; ``zones`` and ``containers`` tell the canvas
+which zone holds which element and which row or column groups which nodes. The format is described by
 ``rust/schema/scene.schema.json``.
 """
 from __future__ import annotations
@@ -49,7 +50,13 @@ def _icon(icon: Icon | None) -> dict[str, Any] | None:
 
 
 def _binding(b: Binding | None) -> dict[str, Any] | None:
-    return None if b is None else {"shape_id": b.shape_id, "side": b.side, "frac": b.frac, "target": b.target}
+    if b is None:
+        return None
+    # ``explicit`` (the author chose the side; set by ``engine.endpoints``, routers keep such a side) is written only when true
+    out = {"shape_id": b.shape_id, "side": b.side, "frac": b.frac, "target": b.target}
+    if b.__dict__.get("explicit", False):
+        out["explicit"] = True
+    return out
 
 
 def _shape(s: Shape) -> dict[str, Any]:
@@ -95,11 +102,59 @@ def _item(it) -> dict[str, Any]:
     raise TypeError(f"unknown scene item {type(it).__name__}")
 
 
+def _zones(scene: Scene) -> list[dict[str, Any]]:
+    """Each zone: the id the spec declares, its shape id in ``items``, and its declared children (node and zone ids)."""
+    return [{"id": zid, "shape_id": sid,
+             "children": [scene.zone_ids.get(c, c) for c in scene.zone_children.get(sid, [])]}
+            for sid, zid in scene.zone_ids.items()]
+
+
+def _containers(scene: Scene) -> list[dict[str, Any]]:
+    """Each ``rows``/``columns`` container: ``row0``/``column1`` (the id the edit operations use), its axis, member
+    node ids in order, and the box that encloses the members' shapes."""
+    shapes = scene.shapes()
+    out = []
+    for name, ids, _same_icon_size in scene.rows:
+        boxes = [shapes[i] for i in ids if i in shapes]
+        x0 = min((s.x for s in boxes), default=0.0)
+        y0 = min((s.y for s in boxes), default=0.0)
+        x1 = max((s.x + s.w for s in boxes), default=0.0)
+        y1 = max((s.y + s.h for s in boxes), default=0.0)
+        out.append({"id": name, "axis": name.rstrip("0123456789"), "members": list(ids),
+                    "box": [x0, y0, x1 - x0, y1 - y0]})
+    return out
+
+
 def to_dict(scene: Scene) -> dict[str, Any]:
-    return {"version": VERSION, "id": scene.id, "title": scene.title, "slug": scene.slug, "width": scene.width,
+    doc = {"version": VERSION, "id": scene.id, "title": scene.title, "slug": scene.slug, "width": scene.width,
             "height": scene.height, "background": scene.background, "items": [_item(i) for i in scene.items],
             "item_facts": {k: list(v) for k, v in scene.item_facts.items()}, "sources": list(scene.sources),
             "meta_tooltips": dict(scene.meta_tooltips)}
+    for key, rows in (("zones", _zones(scene)), ("containers", _containers(scene))):
+        if rows:  # written only when there are some, as in the Rust writer
+            doc[key] = rows
+    return doc
+
+
+def file_paths(scene: Scene) -> list[str]:
+    """The image and icon files on disk the scene draws, as ``dumps`` writes them: the only files the Rust writer
+    may read for it (a scene read from elsewhere names paths that nobody vouched for)."""
+    paths: list[str] = []
+
+    def shape(s: Shape) -> None:
+        if s.icon is not None:
+            paths.append(_path(s.icon.path))
+
+    for it in scene.items:
+        if isinstance(it, Shape):
+            shape(it)
+        elif isinstance(it, Connector) and it.label is not None:
+            shape(it.label)
+        elif isinstance(it, Image):
+            paths.append(_path(it.path))
+        elif isinstance(it, TableGrid):
+            paths.extend(_path(c.icon.path) for row in it.cells for c in row if c.icon is not None)
+    return list(dict.fromkeys(paths))
 
 
 def dumps(scene: Scene) -> str:

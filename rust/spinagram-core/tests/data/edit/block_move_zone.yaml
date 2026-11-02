@@ -1,0 +1,37 @@
+# Fixture: block-style entries
+id: T01
+title: Block fixture   # trailing comment
+
+zones:
+  # the zone
+  - id: zone-a
+    label: Zone A
+    x: 30
+    y: 40
+    w: 400
+    h: 300
+
+nodes:
+  # first node
+  - id: a
+    title: Alpha   # keep me
+    at: [40, 60, 120, 60]
+
+  - id: b
+    title: Beta
+    x: 240
+    y: 60
+    w: 120
+    h: 60
+  - id: c
+    title: Gamma
+
+groups:
+  - id: g1
+    label: G
+    children: [a, b]
+edges:
+  - "a -> b: calls"
+  - {from: b, to: c}
+  - "c -> a"
+# trailing file comment

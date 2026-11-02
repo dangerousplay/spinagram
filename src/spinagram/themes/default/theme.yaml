@@ -72,14 +72,54 @@ styles:
     region:   {fill: none, stroke: gray, stroke_width: 1.5, dashed: true, label: text-muted, radius: 12, upper: false}
     lane:     {fill: none, stroke: border, stroke_width: 1.5, label: primary-deep, radius: 0, upper: false}
     behavior: {fill: neutral-soft, label: text-muted, opacity: 1, upper: false}
-    # AWS Architecture Icons groups (icons from the `aws` pack): outline, no fill, corner icon flush with the
-    # outline (header inset: false keeps the AWS convention).
+    # Provider group styles: pick one with a zone's `color`. Each follows its provider's diagram convention (outline
+    # colour, solid or dashed line, corner icon flush with the outline via `header: {inset: false}`).
+    #
+    # AWS Architecture Icons groups (icons from the `aws` pack). Source: the group rules of the AWS Architecture Icons
+    # deck, https://aws.amazon.com/architecture/icons/ (groups nest, 2 pt lines, corner icon not resized). Colours:
+    # Cloud #242F3E, Account #E7157B, Region #00A4A6 dashed, VPC #8C4FFF, public subnet #7AA116 green, private subnet
+    # #00A4A6 teal, Availability Zone #147EBA dashed (no icon), Auto Scaling and Spot Fleet #ED7100 dashed, corporate
+    # data center and server contents #7D8998.
     aws-cloud:   {fill: none, stroke: "#242F3E", label: "#242F3E", icon: "aws:group-aws-cloud", radius: 0, upper: false, header: {inset: false}}
     aws-account: {fill: none, stroke: "#E7157B", label: "#E7157B", icon: "aws:group-aws-account", radius: 0, upper: false, header: {inset: false}}
     aws-region:  {fill: none, stroke: "#00A4A6", dashed: true, label: "#00A4A6", icon: "aws:group-region", radius: 0, upper: false, header: {inset: false}}
     aws-vpc:     {fill: none, stroke: "#8C4FFF", label: "#8C4FFF", icon: "aws:group-virtualprivatecloud-vpc", radius: 0, upper: false, header: {inset: false}}
     aws-az:      {fill: none, stroke: "#147EBA", dashed: true, label: "#147EBA", radius: 0, upper: false}
-    aws-subnet:  {fill: "#E6F6F7", stroke: "#00A4A6", label: "#007B7D", icon: "aws:group-privatesubnet", radius: 0, upper: false, header: {inset: false}, opacity: 1}
+    aws-public-subnet:  {fill: "#F2F6E8", stroke: "#7AA116", label: "#5F7F10", icon: "aws:group-publicsubnet", radius: 0, upper: false, header: {inset: false}, opacity: 1}
+    aws-private-subnet: &aws-private-subnet {fill: "#E6F6F7", stroke: "#00A4A6", label: "#007B7D", icon: "aws:group-privatesubnet", radius: 0, upper: false, header: {inset: false}, opacity: 1}
+    aws-subnet:  *aws-private-subnet   # the earlier name of the private subnet
+    aws-auto-scaling-group: {fill: none, stroke: "#ED7100", dashed: true, label: "#ED7100", icon: "aws:group-auto-scalinggroup", radius: 0, upper: false, header: {inset: false}}
+    aws-corporate-dc:       {fill: none, stroke: "#7D8998", label: "#5A6472", icon: "aws:group-corporatedatacenter", radius: 0, upper: false, header: {inset: false}}
+    aws-spot-fleet:         {fill: none, stroke: "#ED7100", dashed: true, label: "#ED7100", icon: "aws:group-spot-fleet", radius: 0, upper: false, header: {inset: false}}
+    aws-server-contents:    {fill: none, stroke: "#7D8998", label: "#5A6472", icon: "aws:group-servercontents", radius: 0, upper: false, header: {inset: false}}
+    aws-ec2-contents:       {fill: none, stroke: "#ED7100", dashed: true, label: "#ED7100", icon: "aws:group-ec2instancecontents", radius: 0, upper: false, header: {inset: false}}
+    #
+    # Azure (icons from the `azure` pack). Source: Microsoft's Azure icon set and architecture diagram guidance,
+    # https://learn.microsoft.com/en-us/azure/architecture/icons/ . Microsoft publishes no colour table for group
+    # boxes; the styles use the Azure blue (#0078D4) and the nesting of its reference diagrams: management group
+    # (dashed) > subscription > resource group > virtual network (dashed) > subnet (tinted).
+    azure-management-group: {fill: none, stroke: "#0078D4", dashed: true, label: "#004E8C", icon: "azure:management-groups", radius: 0, upper: false, header: {inset: false}}
+    azure-subscription:     {fill: none, stroke: "#0078D4", label: "#004E8C", icon: "azure:subscriptions", radius: 0, upper: false, header: {inset: false}}
+    azure-resource-group:   {fill: "#F3F9FD", stroke: "#50A0DC", label: "#004E8C", icon: "azure:resource-groups", radius: 0, upper: false, header: {inset: false}, opacity: 1}
+    azure-vnet:             {fill: none, stroke: "#0078D4", dashed: true, label: "#004E8C", icon: "azure:virtual-networks", radius: 0, upper: false, header: {inset: false}}
+    azure-subnet:           {fill: "#E5F1FB", stroke: "#0078D4", label: "#004E8C", icon: "azure:subnet", radius: 0, upper: false, header: {inset: false}, opacity: 1}
+    #
+    # Google Cloud (icons from the `gcp` pack). Source: the Google Cloud architecture icons and diagram elements,
+    # https://cloud.google.com/architecture/icons . Google draws regions, zones and subnets as coloured areas and puts
+    # icons on the cloud, the project and the network: zone #E3F2FD, region #E8EAF6, subnetwork #FFF3E0 (area colours
+    # of Google's diagram template, as listed in the public template deck).
+    gcp-cloud:   {fill: none, stroke: "#4285F4", label: "#1967D2", icon: "gcp:cloud-generic", radius: 0, upper: false, header: {inset: false}}
+    gcp-project: {fill: none, stroke: "#9AA0A6", label: "#3C4043", icon: "gcp:project", radius: 0, upper: false, header: {inset: false}}
+    gcp-region:  {fill: "#E8EAF6", stroke: "#C5CAE9", label: "#3949AB", radius: 0, upper: false, opacity: 1}
+    gcp-zone:    {fill: "#E3F2FD", stroke: "#BBDEFB", label: "#1565C0", radius: 0, upper: false, opacity: 1}
+    gcp-vpc:     {fill: none, stroke: "#4285F4", dashed: true, label: "#1967D2", icon: "gcp:virtual-private-cloud", radius: 0, upper: false, header: {inset: false}}
+    gcp-subnet:  {fill: "#FFF3E0", stroke: "#FFE0B2", label: "#E65100", radius: 0, upper: false, opacity: 1}
+    #
+    # Kubernetes (icons from the `k8s` pack). Source: the Kubernetes community icon set,
+    # https://github.com/kubernetes/community/tree/master/icons . The set has an icon for a namespace but none for a
+    # cluster, so the cluster is the plain Kubernetes-blue (#326CE5) outline and the namespace a dashed one with `ns`.
+    k8s-cluster:   {fill: none, stroke: "#326CE5", label: "#326CE5", radius: 0, upper: false}
+    k8s-namespace: {fill: none, stroke: "#326CE5", dashed: true, label: "#326CE5", icon: "k8s:ns", radius: 0, upper: false, header: {inset: false}}
   legend:
     default: primary
     dark: primary-deep

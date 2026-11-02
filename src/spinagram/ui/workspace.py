@@ -1,6 +1,7 @@
 """The specs a ``serve`` session watches: loading, rendering to SVG, caching and invalidation."""
 from __future__ import annotations
 
+import base64
 import contextlib
 import re
 import sys
@@ -12,8 +13,10 @@ from pathlib import Path
 
 from ..autolayout import apply_layout
 from ..backends.svg import to_svg
+from .. import scene_json
 from ..layout import build_scene
 from ..model import Diagram
+from ..scene import Scene
 from ..theme import Theme, _load_raw
 from ..yaml_io import load
 from . import files as fsx
@@ -78,6 +81,31 @@ def _message(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {msg}{where}"
 
 
+def _scene_files(doc: dict) -> dict[str, str]:
+    """Path → base64 of every file a scene document names (icons, images) that exists."""
+    paths: set[str] = set()
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "image" and isinstance(node.get("path"), str):
+                paths.add(node["path"])
+            icon = node.get("icon")
+            if isinstance(icon, dict) and isinstance(icon.get("path"), str):
+                paths.add(icon["path"])
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(doc["items"])
+    out = {}
+    for p in sorted(paths):
+        with contextlib.suppress(OSError):
+            out[p] = base64.b64encode(Path(p).read_bytes()).decode("ascii")
+    return out
+
+
 @dataclass
 class SpecFile:
     path: Path
@@ -104,6 +132,7 @@ class Workspace:
         self._sheets: dict[str, list[Path]] = {}  # diagram key → its stylesheet files, kept while its spec is broken
         self._cache: dict[tuple, str] = {}
         self._geom: dict[tuple, dict] = {}
+        self._scenes: dict[tuple, Scene] = {}  # the scene behind each cached render, for the canvas
         self._lock = threading.RLock()
         self.reload_theme()
         self.rescan()
@@ -161,6 +190,7 @@ class Workspace:
             self._sheets = {}
             self._cache.clear()
             self._geom.clear()
+            self._scenes.clear()
             self.rescan()
 
     def rel(self, f: Path) -> str:
@@ -214,6 +244,7 @@ class Workspace:
             self.theme_gen += 1
             self._cache.clear()
             self._geom.clear()
+            self._scenes.clear()
 
     def theme_roots(self) -> list[Path]:
         """Directories of the active theme and every theme it extends."""
@@ -262,6 +293,7 @@ class Workspace:
     def _drop(self, keys: list[str]) -> None:
         self._cache = {k: v for k, v in self._cache.items() if k[0] not in keys}
         self._geom = {k: v for k, v in self._geom.items() if k[0] not in keys}
+        self._scenes = {k: v for k, v in self._scenes.items() if k[0] not in keys}
 
     @staticmethod
     def sheet_path(d: Diagram, sheet: str) -> Path | None:
@@ -447,7 +479,37 @@ class Workspace:
             out = (svg, {"overflow": scene.layout_overflow, "warnings": msgs, "missing_packs": _missing_packs(msgs)})
             self._cache[ck] = out
             self._geom[ck] = geometry(laid, scene)
+            self._scenes[ck] = scene
             return out
+
+    def canvas_editable(self, key: str) -> bool:
+        """Whether the canvas can edit the diagram: a hand-placed diagram alone in its YAML file, row and column
+        containers included. Python specs, engine layouts (``layout:`` or no coordinates), snakes and multi-diagram
+        files are not."""
+        with self._lock:
+            sf, d = self.find(key)
+            return (d is not None and sf.path.suffix in (".yaml", ".yml") and len(sf.diagrams) == 1 and not d.auto
+                    and not d.snakes)
+
+    def scene(self, key: str, layout: str | None = None) -> dict:
+        """The scene of one diagram for the canvas: ``scene`` (:mod:`spinagram.scene_json`), ``editable``, and the
+        bytes of the icons and images the scene names, ``files`` (path → base64). Raises like :meth:`render`."""
+        with self._lock:
+            self.render(key, layout)
+            sf, d = self.find(key)
+            engine = (layout or self.layout) if d.auto else None
+            scene = self._scenes[(key, self.theme_gen, engine)]
+            doc = scene_json.to_dict(scene)
+            return {"scene": doc, "editable": self.canvas_editable(key), "files": _scene_files(doc)}
+
+    def font_file(self, name: str) -> Path:
+        """The font file named ``name`` (a file name) that a rendered scene uses; ``KeyError`` for any other."""
+        with self._lock:
+            for sc in self._scenes.values():
+                for f in sc.fonts():
+                    if f.file and Path(f.file).name == name:
+                        return Path(f.file)
+        raise KeyError(name)
 
     def styles(self, key: str, layout: str | None = None) -> dict:
         """The CSS inspector payload of one diagram: :func:`spinagram.css.inspect` plus ``geometry`` (scene
@@ -480,6 +542,7 @@ class Workspace:
         with self._lock:
             self._cache.clear()
             self._geom.clear()
+            self._scenes.clear()
 
     # summary --------------------------------------------------------------------------------------
     def summary(self) -> dict:

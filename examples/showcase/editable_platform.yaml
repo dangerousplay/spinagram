@@ -1,0 +1,42 @@
+# A hand-placed diagram made to be edited on the canvas (`spinagram serve`, Canvas), drawn with the AWS group
+# conventions: AWS Cloud > AWS account > Region > VPC > public and private subnets, each group with its own icon and
+# outline (the `aws-*` zone styles of the theme; Users sit outside the cloud). Two columns, nine icon nodes and
+# labelled edges. Drag nodes between subnets, drag a zone to move its children, change a zone's style from the bar,
+# drop a VPC or a subnet from the palette's Zones. Render: spinagram render examples/showcase/editable_platform.yaml
+id: EDIT01
+title: Editable platform
+subtitle: Hand-placed on a grid, so every node, zone and group can be moved on the canvas
+stylesheets: [showcase.css, aws.css]
+
+zones:
+  - {id: cloud, label: "AWS Cloud", color: aws-cloud, x: 330, y: 175, w: 1550, h: 830, children: [account]}
+  - {id: account, label: "AWS account · production", color: aws-account, x: 360, y: 235, w: 1490, h: 740, children: [cdn, region]}
+  - {id: region, label: "Region · eu-west-1", color: aws-region, x: 390, y: 410, w: 1430, h: 540, children: [vpc, bucket, monitor]}
+  - {id: vpc, label: "VPC · 10.0.0.0/16", color: aws-vpc, x: 420, y: 470, w: 1070, h: 470, children: [public, app, data]}
+  - {id: public, label: "Public subnet", color: aws-public-subnet, x: 450, y: 530, w: 300, h: 190, children: [alb]}
+  - {id: app, label: "Private subnet · app", color: aws-private-subnet, x: 780, y: 530, w: 340, h: 380, children: [api, worker]}
+  - {id: data, label: "Private subnet · data", color: aws-private-subnet, x: 1150, y: 530, w: 310, h: 380, children: [db, cache]}
+
+nodes:
+  - {id: users, title: Users, text: Browsers and apps, at: [80, 560, 220, 96], icon: "network:internet", class: external}
+  - {id: cdn, title: CloudFront, text: Edge cache and TLS, at: [400, 292, 220, 96], icon: "aws:cloudfront", class: edge-service}
+  - {id: alb, title: Load balancer, text: Application LB, at: [490, 600, 220, 96], icon: "aws:elastic-load-balancing", class: load-balancer}
+  - {id: api, title: Orders API, text: ECS service, icon: "aws:amazon-elastic-container-service", class: app-tier}
+  - {id: worker, title: Billing worker, text: Lambda, icon: "aws:aws-lambda", class: app-tier}
+  - {id: db, title: Orders DB, text: Aurora PostgreSQL, icon: "aws:amazon-aurora", class: database}
+  - {id: cache, title: Session cache, text: ElastiCache, icon: "aws:elasti-cache", class: database}
+  - {id: bucket, title: Reports, text: S3, at: [1540, 600, 220, 96], icon: "aws:amazon-simple-storage-service", class: storage}
+  - {id: monitor, title: Monitoring, text: CloudWatch, at: [1540, 736, 220, 96], icon: "aws:cloud-watch", class: edge-service}
+
+columns:
+  - {x: 820, y: 600, gap: 40, nodes: [api, worker]}
+  - {x: 1175, y: 600, gap: 40, nodes: [db, cache]}
+
+edges:
+  - {from: users, to: cdn, label: HTTPS, route: ortho}
+  - {from: cdn.bottom, to: alb.top, label: origin, route: ortho}
+  - {from: alb, to: api, label: forward, route: ortho}
+  - {from: api, to: db, label: SQL, route: ortho}
+  - {from: worker, to: cache, label: jobs, route: ortho}
+  - {from: db, to: bucket, label: export, route: ortho}
+  - {from: cache, to: monitor, label: metrics, route: ortho}

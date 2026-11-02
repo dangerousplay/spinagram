@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import re
 import html
 import sys
 from functools import lru_cache
@@ -66,6 +67,22 @@ def _mime(path: Path) -> str:
         path.suffix.lower(), "application/octet-stream")
 
 
+_ID_SAFE = re.compile(r"[A-Za-z0-9_-]*\Z")
+
+
+def _marker_key(color: str) -> str:
+    """The colour as the tail of a marker id: itself when it is plain (``FF00AA``, ``red``), otherwise ``x`` and a
+    64-bit FNV-1a hash of it, so any colour (``rgb(1,2,3)``, ``var(--c)``, a quote) yields a valid XML id.
+    ``backends/svg.rs`` computes the same."""
+    bare = color.strip("#")
+    if _ID_SAFE.match(bare):
+        return bare
+    h = 0xCBF29CE484222325
+    for byte in bare.encode("utf-8"):
+        h = ((h ^ byte) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
+    return f"x{h:016x}"
+
+
 def _family(block: TextBlock) -> str:
     return f"&apos;{_attr(block.font.family)}&apos;, {_attr(block.font.fallback)}"
 
@@ -107,7 +124,7 @@ class _Svg:
         ls = f' letter-spacing="{letter_spacing}"' if letter_spacing else ""
         style = ' font-style="italic"' if f.italic else ""
         out.append(f'<text x="{x:.1f}" y="{baseline:.1f}" font-family="{_family(block)}" font-size="{f.size:g}" '
-                   f'font-weight="{f.weight}"{style} fill="{block.color}" text-anchor="{anchor}"{ls}>{spans}</text>')
+                   f'font-weight="{f.weight}"{style} fill="{_attr(block.color)}" text-anchor="{anchor}"{ls}>{spans}</text>')
 
     def label(self, out: list[str], label: Label) -> None:
         anchor = "middle" if label.align == "center" else "start"
@@ -128,6 +145,7 @@ class _Svg:
         if sh not in self._filters:
             fid = f"sh{len(self._filters)}"
             dx, dy, blur, color, alpha = sh
+            color = _attr(color)
             self.defs.append(f'<filter id="{fid}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow '
                              f'dx="{dx:g}" dy="{dy:g}" stdDeviation="{blur / 2:g}" flood-color="{color}" '
                              f'flood-opacity="{alpha:g}"/></filter>')
@@ -135,14 +153,15 @@ class _Svg:
         return f' filter="url(#{self._filters[sh]})"'
 
     def marker(self, color: str, kind: str = "arrow") -> str:
+        key, color = _marker_key(color), _attr(color)
         if kind != "arrow" and kind in _MARKERS:
-            mid = f"m{kind}-{color.strip('#')}"
+            mid = f"m{kind}-{key}"
             if mid not in self._markers:
                 self._markers.add(mid)
                 self.defs.append(f'<marker id="{mid}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" '
                                  f'markerHeight="8" orient="auto-start-reverse">{_MARKERS[kind].format(c=color)}</marker>')
             return mid
-        mid = "m" + color.strip("#")
+        mid = "m" + key
         if mid not in self._markers:
             self._markers.add(mid)
             self.defs.append(f'<marker id="{mid}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
@@ -163,24 +182,43 @@ class _Svg:
         return el[:-2] + f">{tip}</{tag}>" if tip and el.endswith("/>") else el
 
     # items --------------------------------------------------------------------
+    def _mark(self) -> tuple[int, int, int]:
+        return len(self.back), len(self.mid), len(self.front)
+
+    def _wrap(self, item_id: str, mark: tuple[int, int, int]) -> None:
+        """Group what an item drew since ``mark`` per layer as ``<g data-id>`` (CTR-01). The first layer written
+        carries the item id; later layers add ``@mid`` or ``@front`` so every ``data-id`` is unique."""
+        first = True
+        for layer, name, start in ((self.back, "back", mark[0]), (self.mid, "mid", mark[1]),
+                                   (self.front, "front", mark[2])):
+            if len(layer) > start:
+                key = item_id if first else f"{item_id}@{name}"
+                first = False
+                layer[start:] = [f'<g data-id="{_attr(key)}">' + "".join(layer[start:]) + "</g>"]
+
     def shape(self, s: Shape) -> None:
+        mark = self._mark()
+        self._shape(s)
+        self._wrap(s.id, mark)
+
+    def _shape(self, s: Shape) -> None:
         layer = self.back if s.role in ("zone", "chrome") else (self.front if s.role in ("pill", "swatch") else self.mid)
-        stroke = (f' stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"' if s.stroke and s.stroke_width
+        stroke = (f' stroke="{_attr(s.stroke)}" stroke-width="{s.stroke_width:g}"' if s.stroke and s.stroke_width
                   else "")
         dash = _dash(s.dashed, s.dash) + (f' stroke-linecap="{s.cap}"' if s.cap and s.stroke else "")
         op = f' opacity="{s.opacity:g}"' if s.opacity < 1 else ""
         op += self.shadow(s.shadow)
-        fill = s.fill or "none"
+        fill = _attr(s.fill or "none")
         fop = f' fill-opacity="{s.fill_opacity:g}"' if s.fill_opacity < 1 and s.fill else ""
         if s.parts:
             for i, part in enumerate(s.parts):
                 if part.paint == "solid":
-                    paint = f'fill="{s.stroke or fill}"'
+                    paint = f'fill="{_attr(s.stroke) if s.stroke else fill}"'
                 elif part.paint == "stroke":
-                    paint = f'fill="none" stroke="{s.stroke}" stroke-width="{s.stroke_width:g}"'
+                    paint = f'fill="none" stroke="{_attr(s.stroke)}" stroke-width="{s.stroke_width:g}"'
                 else:
                     paint = f'fill="{fill}"{fop}{stroke}'
-                el = f'<path d="{part.d}" {paint}{dash}{op}/>'
+                el = f'<path d="{_attr(part.d)}" {paint}{dash}{op}/>'
                 layer.append(self._with_tip(el, "path", self.tip(s.id)) if i == 0 else el)
         elif s.kind == "diamond":
             cx, cy = s.x + s.w / 2, s.y + s.h / 2
@@ -206,24 +244,31 @@ class _Svg:
         ends = (f' marker-end="url(#{self.marker(c.color, c.marker_end)})"' if c.arrow_end else "") + (
             f' marker-start="url(#{self.marker(c.color, c.marker_start)})"' if c.arrow_start else "")
         op = f' opacity="{c.opacity:g}"' if c.opacity < 1 else ""
-        self.mid.append(f'<path d="{d}" fill="none" stroke="{c.color}" stroke-width="{c.width:g}"'
+        mark = self._mark()
+        self.mid.append(f'<path d="{d}" fill="none" stroke="{_attr(c.color)}" stroke-width="{c.width:g}"'
                         f'{_dash(c.dashed, c.dash)}{op}{ends}/>')
+        self._wrap(c.id, mark)
         if c.label:
             self.shape(c.label)
 
     def table(self, t: TableGrid) -> None:
+        mark = self._mark()
+        self._table(t)
+        self._wrap(t.id, mark)
+
+    def _table(self, t: TableGrid) -> None:
         x0, total = t.x, t.w
         y = t.y
         for r, (rh, row) in enumerate(zip(t.row_heights, t.cells)):
             if r == 0:
-                fill = row[0].fill if row else "none"
+                fill = _attr(row[0].fill) if row else "none"
                 self.mid.append(f'<rect x="{x0:.1f}" y="{y:.1f}" width="{total:.1f}" height="{rh:.1f}" '
                                 f'rx="{t.header_radius:g}" fill="{fill}"/>')
             else:
                 self.mid.append(f'<rect x="{x0:.1f}" y="{y:.1f}" width="{total:.1f}" height="{rh:.1f}" '
-                                f'fill="{row[0].fill}"/>')
+                                f'fill="{_attr(row[0].fill)}"/>')
                 self.mid.append(f'<line x1="{x0:.1f}" y1="{y + rh:.1f}" x2="{x0 + total:.1f}" y2="{y + rh:.1f}" '
-                                f'stroke="{t.border}" stroke-width="1"/>')
+                                f'stroke="{_attr(t.border)}" stroke-width="1"/>')
             cx = x0
             for wcol, cell in zip(t.col_widths, row):
                 self.cell(cell, cx, y, wcol, rh)
@@ -250,22 +295,28 @@ class _Svg:
             elif isinstance(it, Connector):
                 self.connector(it)
             elif isinstance(it, Text):
+                mark = self._mark()
                 layer = self.back if it.id.startswith("z") else self.front
                 self.text_lines(layer, it.block, it.x, it.y, it.anchor, it.letter_spacing)
                 tip = self.tip(it.id)
                 if tip:
                     layer[-1] = layer[-1].replace("</text>", f"{tip}</text>", 1)
+                self._wrap(it.id, mark)
             elif isinstance(it, Line):
+                mark = self._mark()
                 self.front.append(f'<line x1="{it.x1:.1f}" y1="{it.y1:.1f}" x2="{it.x2:.1f}" y2="{it.y2:.1f}" '
-                                  f'stroke="{it.color}" stroke-width="{it.width:g}"/>')
+                                  f'stroke="{_attr(it.color)}" stroke-width="{it.width:g}"/>')
+                self._wrap(it.id, mark)
             elif isinstance(it, Image):
+                mark = self._mark()
                 self.image(self.front, it.path, it.x, it.y, it.w, it.h)
+                self._wrap(it.id, mark)
             elif isinstance(it, TableGrid):
                 self.table(it)
 
     def _draw_rust(self) -> tuple[str, str, str, str, dict[tuple, set[str]]]:
         """The same layers from the Rust core (the scene crosses as JSON)."""
-        defs, back, mid, front, chars = _CORE.svg_draw(scene_json.dumps(self.s), COMPENSATED_SUM)
+        defs, back, mid, front, chars = _CORE.svg_draw(scene_json.dumps(self.s), COMPENSATED_SUM, scene_json.file_paths(self.s))
         return defs, back, mid, front, {(fam, weight, italic): set(cs) for fam, weight, italic, cs in chars}
 
     def render(self) -> str:
@@ -286,7 +337,7 @@ class _Svg:
             meta = f'<metadata id="spinagram-sources">{_esc(_json.dumps(s.sources, ensure_ascii=False))}</metadata>'
         head = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:g} {H:g}" width="{W:g}" height="{H:g}">'
         rest = (f'<title>{_esc(s.title)}</title>{meta}<defs><style>{"".join(faces)}</style>{"".join(defs)}'
-                f'</defs><rect width="{W:g}" height="{H:g}" fill="{s.background}"/>'
+                f'</defs><rect width="{W:g}" height="{H:g}" fill="{_attr(s.background)}"/>'
                 + "".join(back) + "".join(mid) + "".join(front) + "</svg>")
         # content hash of the SVG without this element: identical input, identical hash (CI drift checks)
         digest = hashlib.sha256((head + rest).encode("utf-8")).hexdigest()

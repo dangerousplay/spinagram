@@ -1,0 +1,46 @@
+# Fixture: properties, duplicate and edge operations, block style
+id: P01
+title: Props block   # trailing comment
+
+zones:
+  - id: vpc
+    label: VPC
+    color: aws-vpc   # the style
+    x: 20
+    y: 20
+    w: 800
+    h: 500
+    children: [api, db]
+
+nodes:
+  - id: api
+    title: API   # the api
+    text: Orders
+    class: app
+    at: [100, 100, 220, 96]
+  - id: db
+    title: DB
+    x: 400
+    y: 100
+    w: 220
+    h: 96
+  - id: cache
+    title: Cache
+
+rows:
+  - x: 50
+    y: 600
+    nodes: [cache, {id: inline, title: Inline}]
+
+edges:
+  - "api -> db: reads"
+  - api -> cache
+  - {from: db, to: cache, label: sync, route: ortho, via: [[10, 20], [30, 40]]}
+  - from: cache
+    to: api
+    dashed: true
+    color: "#ff0000"   # red
+  - "api.right@0.3 <- db.left"
+  - label: first
+    from: cache
+    to: db

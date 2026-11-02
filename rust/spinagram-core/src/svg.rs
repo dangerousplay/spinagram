@@ -4,40 +4,69 @@
 //! the document around them (font faces, head, metadata, hash), so subsetting stays in fontTools.
 
 use crate::pyfmt::{attr, esc, f1, g, py_sum, repr_f64};
-use crate::scene::{Cell, Connector, Font, Icon, Item, Label, Scene, Shape, Table, Text, TextBlock};
+use crate::scene::{SceneError, Align, Cell, Connector, ConnectorRoute, Font, Icon, Item, Label, MarkerKind, Paint, Role, Scene, Shape, ShapeKind, Table, Text, TextAnchor, TextBlock, VAlign};
 use base64::Engine;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
+use thiserror::Error;
+
+/// The dash pattern of a dashed shape or connector without an explicit pattern.
 const DASH: &str = " stroke-dasharray=\"10 7\"";
+/// The view box every marker is drawn in.
+const MARKER_VIEW_BOX: &str = "0 0 10 10";
+/// Marker anchor and size, in marker units, of the filled arrow head (its tip sits near the line end).
+const ARROW_REF_X: u8 = 9;
+const ARROW_SIZE: u8 = 7;
+/// Marker anchor and size of every other head, which is centred on the line end.
+const HEAD_REF_X: u8 = 5;
+const HEAD_SIZE: u8 = 8;
+/// Marker anchor on the line, shared by all heads.
+const MARKER_REF_Y: u8 = 5;
+/// The filter region of a drop shadow: offset and size as a share of the shape's box.
+const SHADOW_OFFSET: &str = "-20%";
+const SHADOW_SIZE: &str = "140%";
+/// Where the baseline sits below the top of a line, as a share of the font size (Python's `0.8`).
+const ASCENT: f64 = 0.8;
+/// Space, in px, left of an icon in a table cell.
+const CELL_ICON_PAD: f64 = 14.0;
+/// Text items whose id starts with this are zone captions and draw behind the shapes (`backends/svg.py`).
+const ZONE_TEXT_PREFIX: char = 'z';
 
 /// `(family, weight, italic)` -> characters drawn in that face
 pub type Chars = BTreeMap<(String, u32, bool), BTreeSet<char>>;
 
+/// The layers of a drawn scene and the characters used per font face.
 #[derive(Debug, Default)]
 pub struct Drawn {
+    /// Markup for the `<defs>` block (markers, filters).
     pub defs: String,
+    /// Markup drawn behind the shapes.
     pub back: String,
+    /// Markup drawn between the back and the front.
     pub mid: String,
+    /// Markup drawn in front of the shapes.
     pub front: String,
+    /// Characters drawn, per font face.
     pub chars: Chars,
 }
 
-#[derive(Debug)]
+/// Why a scene could not be drawn.
+#[derive(Debug, Error)]
 pub enum DrawError {
     /// An image or icon file does not exist.
+    #[error("[Errno 2] No such file or directory: '{0}'")]
     NotFound(String),
+    /// A file could not be read.
+    #[error("{0}")]
     Io(String),
-    Scene(String),
-}
-
-impl std::fmt::Display for DrawError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DrawError::NotFound(p) => write!(f, "[Errno 2] No such file or directory: '{p}'"),
-            DrawError::Io(m) | DrawError::Scene(m) => write!(f, "{m}"),
-        }
-    }
+    /// The scene JSON is not a scene.
+    #[error(transparent)]
+    Scene(#[from] SceneError),
+    /// A curve connector without exactly three points.
+    #[error("connector {0}: a curve needs 3 points")]
+    Curve(String),
 }
 
 type Shadow = (f64, f64, f64, String, f64);
@@ -49,28 +78,152 @@ enum Layer {
     Front,
 }
 
-fn marker_body(kind: &str, c: &str) -> Option<String> {
+/// The body of a marker other than the default arrow, in the marker's 10 x 10 view box.
+fn marker_body(kind: MarkerKind, c: &str) -> Option<String> {
     Some(match kind {
-        "open-arrow" => format!("<path d=\"M1,1 L9,5 L1,9\" fill=\"none\" stroke=\"{c}\" stroke-width=\"1.5\"/>"),
-        "diamond" => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"{c}\"/>"),
-        "open-diamond" => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"#FFFFFF\" stroke=\"{c}\" stroke-width=\"1.2\"/>"),
-        "circle" => format!("<circle cx=\"5\" cy=\"5\" r=\"4\" fill=\"{c}\"/>"),
-        "bar" => format!("<path d=\"M8,0 L8,10\" stroke=\"{c}\" stroke-width=\"2\"/>"),
-        _ => return None,
+        MarkerKind::OpenArrow => format!("<path d=\"M1,1 L9,5 L1,9\" fill=\"none\" stroke=\"{c}\" stroke-width=\"1.5\"/>"),
+        MarkerKind::Diamond => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"{c}\"/>"),
+        MarkerKind::OpenDiamond => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"#FFFFFF\" stroke=\"{c}\" stroke-width=\"1.2\"/>"),
+        MarkerKind::Circle => format!("<circle cx=\"5\" cy=\"5\" r=\"4\" fill=\"{c}\"/>"),
+        MarkerKind::Bar => format!("<path d=\"M8,0 L8,10\" stroke=\"{c}\" stroke-width=\"2\"/>"),
+        MarkerKind::Arrow | MarkerKind::None => return None,
     })
 }
 
-fn mime(path: &str) -> &'static str {
-    let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    match ext.as_str() {
-        "svg" => "image/svg+xml",
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "otf" => "font/otf",
-        "ttf" => "font/ttf",
-        "woff2" => "font/woff2",
-        "woff" => "font/woff",
-        _ => "application/octet-stream",
+fn files() -> &'static Mutex<HashMap<String, Arc<Vec<u8>>>> {
+    static FILES: OnceLock<Mutex<HashMap<String, Arc<Vec<u8>>>>> = OnceLock::new();
+    FILES.get_or_init(Mutex::default)
+}
+
+/// Make the bytes of an image or icon available under `path`, so a scene that names that path draws without a
+/// file system. This is how the browser supplies icons; registered files win over files on disk.
+pub fn register_file(path: &str, bytes: &[u8]) {
+    files().lock().unwrap_or_else(PoisonError::into_inner).insert(path.to_owned(), Arc::new(bytes.to_vec()));
+}
+
+/// Which files on disk a scene may embed. A scene is data from outside, so a path it names is read only when the
+/// host registered the bytes ([`register_file`]), listed the file here, or the file lies inside a root listed here.
+/// Any other path is skipped like a missing icon: nothing is read and nothing is drawn.
+#[derive(Clone, Debug, Default)]
+pub struct FileAccess {
+    files: HashSet<String>,
+    roots: Vec<std::path::PathBuf>,
+}
+
+impl FileAccess {
+    /// No file on disk: only registered files can be embedded.
+    #[must_use]
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    /// Allow the file named exactly `path`, as the scene writes it.
+    #[must_use]
+    pub fn with_file(mut self, path: impl Into<String>) -> Self {
+        self.files.insert(path.into());
+        self
+    }
+
+    /// Allow every file inside the directory `root` (symbolic links and `..` are resolved before the check).
+    #[must_use]
+    pub fn with_root(mut self, root: impl AsRef<std::path::Path>) -> Self {
+        let root = root.as_ref();
+        self.roots.push(std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf()));
+        self
+    }
+
+    fn permits(&self, path: &str) -> bool {
+        // wasm32 has no file system, so nothing can be read: an unregistered path stays a loud "not found"
+        if cfg!(target_arch = "wasm32") || self.files.contains(path) {
+            return true;
+        }
+        let p = std::path::Path::new(path);
+        // a file that does not exist yet is checked by its lexical form, so a missing file inside a root is an error
+        let resolved = std::fs::canonicalize(p).unwrap_or_else(|_| lexical(p));
+        self.roots.iter().any(|root| resolved.starts_with(root))
+    }
+}
+
+/// `p` with `.` and `..` folded away, without touching the file system.
+fn lexical(p: &std::path::Path) -> std::path::PathBuf {
+    use std::path::Component;
+    let mut out = std::path::PathBuf::new();
+    for c in p.components() {
+        match c {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::CurDir => {}
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// The bytes registered under `path`, or those of the file when `access` permits it. `None`: not allowed, skip it.
+fn read_file(path: &str, access: &FileAccess) -> Result<Option<Arc<Vec<u8>>>, DrawError> {
+    if let Some(b) = files().lock().unwrap_or_else(PoisonError::into_inner).get(path) {
+        return Ok(Some(b.clone()));
+    }
+    if !access.permits(path) {
+        return Ok(None);
+    }
+    read_disk(path).map(Some)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_disk(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
+    std::fs::read(path).map(Arc::new).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => DrawError::NotFound(path.to_string()),
+        _ => DrawError::Io(format!("{path}: {e}")),
+    })
+}
+
+/// There is no file system on wasm32: only registered files exist.
+#[cfg(target_arch = "wasm32")]
+fn read_disk(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
+    Err(DrawError::NotFound(path.to_string()))
+}
+
+/// The media types of the files a scene embeds (images, icons and fonts).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MimeType {
+    Svg,
+    Png,
+    Jpeg,
+    Otf,
+    Ttf,
+    Woff2,
+    Woff,
+    Binary,
+}
+
+impl MimeType {
+    fn of(path: &str) -> MimeType {
+        let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+        match ext.as_str() {
+            "svg" => MimeType::Svg,
+            "png" => MimeType::Png,
+            "jpg" | "jpeg" => MimeType::Jpeg,
+            "otf" => MimeType::Otf,
+            "ttf" => MimeType::Ttf,
+            "woff2" => MimeType::Woff2,
+            "woff" => MimeType::Woff,
+            _ => MimeType::Binary,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            MimeType::Svg => "image/svg+xml",
+            MimeType::Png => "image/png",
+            MimeType::Jpeg => "image/jpeg",
+            MimeType::Otf => "font/otf",
+            MimeType::Ttf => "font/ttf",
+            MimeType::Woff2 => "font/woff2",
+            MimeType::Woff => "font/woff",
+            MimeType::Binary => "application/octet-stream",
+        }
     }
 }
 
@@ -81,6 +234,17 @@ fn opt(s: Option<&String>) -> &str {
 
 fn truthy(s: Option<&String>) -> bool {
     s.is_some_and(|v| !v.is_empty())
+}
+
+/// The colour as the tail of a marker id: itself when it is plain (`FF00AA`, `red`), otherwise `x` and a 64-bit
+/// FNV-1a hash of it, so any colour (`rgb(1,2,3)`, `var(--c)`, a quote) yields a valid XML id.
+fn marker_key(color: &str) -> String {
+    let bare = color.trim_matches('#');
+    if bare.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-')) {
+        return bare.to_owned();
+    }
+    let hash = bare.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
+    format!("x{hash:016x}")
 }
 
 fn dash(dashed: bool, pattern: Option<&[f64]>) -> String {
@@ -103,11 +267,12 @@ fn block_height(b: &TextBlock) -> f64 {
 }
 
 fn baseline_offset(b: &TextBlock) -> f64 {
-    (b.leading - b.font.size) / 2.0 + b.font.size * 0.8
+    (b.leading - b.font.size) / 2.0 + b.font.size * ASCENT
 }
 
 struct Writer<'a> {
     scene: &'a Scene,
+    access: &'a FileAccess,
     chars: Chars,
     defs: Vec<String>,
     back: Vec<String>,
@@ -121,8 +286,8 @@ struct Writer<'a> {
 }
 
 impl<'a> Writer<'a> {
-    fn new(scene: &'a Scene, compensated_sum: bool) -> Self {
-        Writer { scene, chars: Chars::new(), defs: vec![], back: vec![], mid: vec![], front: vec![], markers: HashSet::new(),
+    fn new(scene: &'a Scene, access: &'a FileAccess, compensated_sum: bool) -> Self {
+        Writer { scene, access, chars: Chars::new(), defs: vec![], back: vec![], mid: vec![], front: vec![], markers: HashSet::new(),
                  filters: vec![], images: HashMap::new(), compensated_sum }
     }
 
@@ -134,11 +299,34 @@ impl<'a> Writer<'a> {
         }
     }
 
+    fn mark(&self) -> [usize; 3] {
+        [self.back.len(), self.mid.len(), self.front.len()]
+    }
+
+    /// Group what an item drew since `mark` per layer as `<g data-id>` (CTR-01). The first layer written carries
+    /// the item id; later layers add `@mid` or `@front` so every `data-id` is unique.
+    fn wrap(&mut self, item_id: &str, mark: [usize; 3]) {
+        let mut first = true;
+        for (i, name) in ["back", "mid", "front"].into_iter().enumerate() {
+            let layer = match i {
+                0 => &mut self.back,
+                1 => &mut self.mid,
+                _ => &mut self.front,
+            };
+            if layer.len() > mark[i] {
+                let key = if first { item_id.to_string() } else { format!("{item_id}@{name}") };
+                first = false;
+                let inner: String = layer.drain(mark[i]..).collect();
+                layer.push(format!("<g data-id=\"{}\">{inner}</g>", attr(&key)));
+            }
+        }
+    }
+
     fn used(&mut self, font: &Font, text: &str) {
         self.chars.entry((font.family.clone(), font.weight, font.italic)).or_default().extend(text.chars());
     }
 
-    fn text_lines(&mut self, out: Layer, block: &TextBlock, x: f64, baseline: f64, anchor: &str, letter_spacing: &str) {
+    fn text_lines(&mut self, out: Layer, block: &TextBlock, x: f64, baseline: f64, anchor: TextAnchor, letter_spacing: &str) {
         let f = &block.font;
         let runs = block.runs.as_ref().filter(|r| !r.is_empty());
         let mut spans = String::new();
@@ -180,42 +368,40 @@ impl<'a> Writer<'a> {
         let ls = if letter_spacing.is_empty() { String::new() } else { format!(" letter-spacing=\"{letter_spacing}\"") };
         let style = if f.italic { " font-style=\"italic\"" } else { "" };
         let el = format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"{}\"{style} fill=\"{}\" text-anchor=\"{anchor}\"{ls}>{spans}</text>",
-            f1(x), f1(baseline), family(f), g(f.size), f.weight, block.color);
+            "<text x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"{}\"{style} fill=\"{}\" text-anchor=\"{}\"{ls}>{spans}</text>",
+            f1(x), f1(baseline), family(f), g(f.size), f.weight, attr(&block.color), anchor.as_str());
         self.layer(out).push(el);
     }
 
     #[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     fn label(&mut self, out: Layer, label: &Label) {
-        let anchor = if label.align == "center" { "middle" } else { "start" };
+        let anchor = if label.align == Align::Center { TextAnchor::Middle } else { TextAnchor::Start };
         let [x, y, w, h] = label.bbox;
         let heights: Vec<f64> = label.blocks.iter().map(block_height).collect();
         let total = py_sum(&heights, self.compensated_sum) + label.gap * label.blocks.len().saturating_sub(1) as f64;
-        let mut top = if label.valign == "middle" { y + (h - total) / 2.0 } else { y };
+        let mut top = if label.valign == VAlign::Middle { y + (h - total) / 2.0 } else { y };
         for (b, height) in label.blocks.iter().zip(heights) {
-            let bx = if label.align == "center" { x + w / 2.0 } else { x };
+            let bx = if label.align == Align::Center { x + w / 2.0 } else { x };
             self.text_lines(out, b, bx, top + baseline_offset(b), anchor, "");
             top += height + label.gap;
         }
     }
 
-    fn b64(&mut self, path: &str) -> Result<String, DrawError> {
+    /// The file as base64, or `None` when the scene may not read it.
+    fn b64(&mut self, path: &str) -> Result<Option<String>, DrawError> {
         if let Some(s) = self.images.get(path) {
-            return Ok(s.clone());
+            return Ok(Some(s.clone()));
         }
-        let bytes = std::fs::read(path).map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => DrawError::NotFound(path.to_string()),
-            _ => DrawError::Io(format!("{path}: {e}")),
-        })?;
-        let s = base64::engine::general_purpose::STANDARD.encode(bytes);
+        let Some(bytes) = read_file(path, self.access)? else { return Ok(None) };
+        let s = base64::engine::general_purpose::STANDARD.encode(&*bytes);
         self.images.insert(path.to_string(), s.clone());
-        Ok(s)
+        Ok(Some(s))
     }
 
     fn image(&mut self, out: Layer, path: &str, x: f64, y: f64, w: f64, h: f64) -> Result<(), DrawError> {
-        let data = self.b64(path)?;
+        let Some(data) = self.b64(path)? else { return Ok(()) };
         let el = format!("<image x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" href=\"data:{};base64,{data}\"/>",
-                         f1(x), f1(y), g(w), g(h), mime(path));
+                         f1(x), f1(y), g(w), g(h), MimeType::of(path).as_str());
         self.layer(out).push(el);
         Ok(())
     }
@@ -229,8 +415,9 @@ impl<'a> Writer<'a> {
         let id = if let Some((_, id)) = self.filters.iter().find(|(k, _)| k == sh) { id.clone() } else {
             let id = format!("sh{}", self.filters.len());
             let (dx, dy, blur, color, alpha) = sh;
+            let color = attr(color);
             self.defs.push(format!(
-                "<filter id=\"{id}\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"{}\" dy=\"{}\" stdDeviation=\"{}\" flood-color=\"{color}\" flood-opacity=\"{}\"/></filter>",
+                "<filter id=\"{id}\" x=\"{SHADOW_OFFSET}\" y=\"{SHADOW_OFFSET}\" width=\"{SHADOW_SIZE}\" height=\"{SHADOW_SIZE}\"><feDropShadow dx=\"{}\" dy=\"{}\" stdDeviation=\"{}\" flood-color=\"{color}\" flood-opacity=\"{}\"/></filter>",
                 g(*dx), g(*dy), g(blur / 2.0), g(*alpha)));
             self.filters.push((sh.clone(), id.clone()));
             id
@@ -238,20 +425,22 @@ impl<'a> Writer<'a> {
         format!(" filter=\"url(#{id})\"")
     }
 
-    fn marker(&mut self, color: &str, kind: &str) -> String {
-        let bare = color.trim_matches('#');
-        if kind != "arrow" {
+    fn marker(&mut self, color: &str, kind: MarkerKind) -> String {
+        let bare = marker_key(color);
+        let color = attr(color);
+        let color = color.as_str();
+        if kind != MarkerKind::Arrow {
             if let Some(body) = marker_body(kind, color) {
                 let id = format!("m{kind}-{bare}");
                 if self.markers.insert(id.clone()) {
-                    self.defs.push(format!("<marker id=\"{id}\" viewBox=\"0 0 10 10\" refX=\"5\" refY=\"5\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto-start-reverse\">{body}</marker>"));
+                    self.defs.push(format!("<marker id=\"{id}\" viewBox=\"{MARKER_VIEW_BOX}\" refX=\"{HEAD_REF_X}\" refY=\"{MARKER_REF_Y}\" markerWidth=\"{HEAD_SIZE}\" markerHeight=\"{HEAD_SIZE}\" orient=\"auto-start-reverse\">{body}</marker>"));
                 }
                 return id;
             }
         }
         let id = format!("m{bare}");
         if self.markers.insert(id.clone()) {
-            self.defs.push(format!("<marker id=\"{id}\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto-start-reverse\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"{color}\"/></marker>"));
+            self.defs.push(format!("<marker id=\"{id}\" viewBox=\"{MARKER_VIEW_BOX}\" refX=\"{ARROW_REF_X}\" refY=\"{MARKER_REF_Y}\" markerWidth=\"{ARROW_SIZE}\" markerHeight=\"{ARROW_SIZE}\" orient=\"auto-start-reverse\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"{color}\"/></marker>"));
         }
         id
     }
@@ -274,40 +463,47 @@ impl<'a> Writer<'a> {
     }
 
     fn shape(&mut self, s: &Shape) -> Result<(), DrawError> {
-        let layer = match s.role.as_str() {
-            "zone" | "chrome" => Layer::Back,
-            "pill" | "swatch" => Layer::Front,
+        let mark = self.mark();
+        self.shape_body(s)?;
+        self.wrap(&s.id, mark);
+        Ok(())
+    }
+
+    fn shape_body(&mut self, s: &Shape) -> Result<(), DrawError> {
+        let layer = match s.role {
+            Role::Zone | Role::Chrome => Layer::Back,
+            Role::Pill | Role::Swatch => Layer::Front,
             _ => Layer::Mid,
         };
         let stroke = if truthy(s.stroke.as_ref()) && s.stroke_width != 0.0 {
-            format!(" stroke=\"{}\" stroke-width=\"{}\"", opt(s.stroke.as_ref()), g(s.stroke_width))
+            format!(" stroke=\"{}\" stroke-width=\"{}\"", attr(opt(s.stroke.as_ref())), g(s.stroke_width))
         } else {
             String::new()
         };
         let cap = match &s.cap {
-            Some(c) if !c.is_empty() && truthy(s.stroke.as_ref()) => format!(" stroke-linecap=\"{c}\""),
+            Some(c) if truthy(s.stroke.as_ref()) => format!(" stroke-linecap=\"{}\"", c.as_str()),
             _ => String::new(),
         };
         let dash = dash(s.dashed, s.dash.as_deref()) + &cap;
         let mut op = if s.opacity < 1.0 { format!(" opacity=\"{}\"", g(s.opacity)) } else { String::new() };
         op += &self.shadow(s.shadow.as_ref());
-        let fill = if truthy(s.fill.as_ref()) { opt(s.fill.as_ref()) } else { "none" };
+        let fill = if truthy(s.fill.as_ref()) { attr(opt(s.fill.as_ref())) } else { "none".to_owned() };
         let fop = if s.fill_opacity < 1.0 && truthy(s.fill.as_ref()) { format!(" fill-opacity=\"{}\"", g(s.fill_opacity)) } else { String::new() };
         let tip = self.tip(&s.id);
         match s.parts.as_ref().filter(|p| !p.is_empty()) {
             Some(parts) => {
                 for (i, part) in parts.iter().enumerate() {
-                    let paint = match part.paint.as_str() {
-                        "solid" => format!("fill=\"{}\"", if truthy(s.stroke.as_ref()) { opt(s.stroke.as_ref()) } else { fill }),
-                        "stroke" => format!("fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"", opt(s.stroke.as_ref()), g(s.stroke_width)),
-                        _ => format!("fill=\"{fill}\"{fop}{stroke}"),
+                    let paint = match part.paint {
+                        Paint::Solid => format!("fill=\"{}\"", if truthy(s.stroke.as_ref()) { attr(opt(s.stroke.as_ref())) } else { fill.clone() }),
+                        Paint::Stroke => format!("fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"", attr(opt(s.stroke.as_ref())), g(s.stroke_width)),
+                        Paint::Shape => format!("fill=\"{fill}\"{fop}{stroke}"),
                     };
-                    let el = format!("<path d=\"{}\" {paint}{dash}{op}/>", part.d);
+                    let el = format!("<path d=\"{}\" {paint}{dash}{op}/>", attr(&part.d));
                     let el = if i == 0 { Self::with_tip(el, "path", &tip) } else { el };
                     self.layer(layer).push(el);
                 }
             }
-            None if s.kind == "diamond" => {
+            None if s.kind == ShapeKind::Diamond => {
                 let (cx, cy) = (s.x + s.w / 2.0, s.y + s.h / 2.0);
                 let pts = format!("{},{} {},{} {},{} {},{}", f1(cx), f1(s.y), f1(s.x + s.w), f1(cy), f1(cx), f1(s.y + s.h), f1(s.x), f1(cy));
                 let el = format!("<polygon points=\"{pts}\" fill=\"{fill}\"{fop}{stroke}{dash}{op}/>");
@@ -319,7 +515,7 @@ impl<'a> Writer<'a> {
                 self.layer(layer).push(Self::with_tip(el, "rect", &tip));
             }
         }
-        let text_layer = if s.role == "zone" { Layer::Back } else { Layer::Front };
+        let text_layer = if s.role == Role::Zone { Layer::Back } else { Layer::Front };
         if let Some(icon) = &s.icon {
             self.icon(Layer::Front, icon)?;
         }
@@ -330,9 +526,9 @@ impl<'a> Writer<'a> {
     }
 
     fn connector(&mut self, c: &Connector) -> Result<(), DrawError> {
-        let d = if c.route == "curve" {
+        let d = if c.route == ConnectorRoute::Curve {
             let [p1, p2, p3] = c.points[..] else {
-                return Err(DrawError::Scene(format!("connector {}: a curve needs 3 points", c.id)));
+                return Err(DrawError::Curve(c.id.clone()));
             };
             format!("M{},{} Q{},{} {},{}", f1(p1[0]), f1(p1[1]), f1(p2[0]), f1(p2[1]), f1(p3[0]), f1(p3[1]))
         } else {
@@ -341,14 +537,16 @@ impl<'a> Writer<'a> {
         };
         let mut ends = String::new();
         if c.arrow_end {
-            let _ = write!(ends, " marker-end=\"url(#{})\"", self.marker(&c.color, &c.marker_end));
+            let _ = write!(ends, " marker-end=\"url(#{})\"", self.marker(&c.color, c.marker_end));
         }
         if c.arrow_start {
-            let _ = write!(ends, " marker-start=\"url(#{})\"", self.marker(&c.color, &c.marker_start));
+            let _ = write!(ends, " marker-start=\"url(#{})\"", self.marker(&c.color, c.marker_start));
         }
         let op = if c.opacity < 1.0 { format!(" opacity=\"{}\"", g(c.opacity)) } else { String::new() };
+        let mark = self.mark();
         self.mid.push(format!("<path d=\"{d}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"{}{op}{ends}/>",
-                              c.color, g(c.width), dash(c.dashed, c.dash.as_deref())));
+                              attr(&c.color), g(c.width), dash(c.dashed, c.dash.as_deref())));
+        self.wrap(&c.id, mark);
         if let Some(crate::scene::TaggedShape::Shape(label)) = &c.label {
             self.shape(label)?;
         }
@@ -356,11 +554,18 @@ impl<'a> Writer<'a> {
     }
 
     fn table(&mut self, t: &Table) -> Result<(), DrawError> {
+        let mark = self.mark();
+        self.table_body(t)?;
+        self.wrap(&t.id, mark);
+        Ok(())
+    }
+
+    fn table_body(&mut self, t: &Table) -> Result<(), DrawError> {
         let x0 = t.x;
         let total = py_sum(&t.col_widths, self.compensated_sum);
         let mut y = t.y;
         for (r, (rh, row)) in t.row_heights.iter().zip(&t.cells).enumerate() {
-            let fill = row.first().map_or("none", |c| opt(c.fill.as_ref()));
+            let fill = attr(row.first().map_or("none", |c| opt(c.fill.as_ref())));
             if r == 0 {
                 self.mid.push(format!("<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"{}\" fill=\"{fill}\"/>",
                                       f1(x0), f1(y), f1(total), f1(*rh), g(t.header_radius)));
@@ -368,7 +573,7 @@ impl<'a> Writer<'a> {
                 self.mid.push(format!("<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{fill}\"/>",
                                       f1(x0), f1(y), f1(total), f1(*rh)));
                 self.mid.push(format!("<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"1\"/>",
-                                      f1(x0), f1(y + rh), f1(x0 + total), f1(y + rh), t.border));
+                                      f1(x0), f1(y + rh), f1(x0 + total), f1(y + rh), attr(&t.border)));
             }
             let mut cx = x0;
             for (wcol, cell) in t.col_widths.iter().zip(row) {
@@ -387,16 +592,22 @@ impl<'a> Writer<'a> {
 
     fn cell(&mut self, cell: &Cell, x: f64, y: f64, h: f64) -> Result<(), DrawError> {
         if let Some(icon) = &cell.icon {
-            self.image(Layer::Front, &icon.path, x + 14.0, y + (h - icon.size) / 2.0, icon.size, icon.size)?;
+            self.image(Layer::Front, &icon.path, x + CELL_ICON_PAD, y + (h - icon.size) / 2.0, icon.size, icon.size)?;
         }
         let b = &cell.block;
         let top = y + (h - block_height(b)) / 2.0;
-        self.text_lines(Layer::Front, b, x + cell.pad_left, top + baseline_offset(b), "start", "");
+        self.text_lines(Layer::Front, b, x + cell.pad_left, top + baseline_offset(b), TextAnchor::Start, "");
         Ok(())
     }
 
     fn text_item(&mut self, it: &Text) {
-        let layer = if it.id.starts_with('z') { Layer::Back } else { Layer::Front };
+        let mark = self.mark();
+        self.text_item_body(it);
+        self.wrap(&it.id, mark);
+    }
+
+    fn text_item_body(&mut self, it: &Text) {
+        let layer = if it.id.starts_with(ZONE_TEXT_PREFIX) { Layer::Back } else { Layer::Front };
         let ls = match it.letter_spacing.as_f64() {
             Some(v) if v != 0.0 => match it.letter_spacing.as_i64() {
                 Some(i) => i.to_string(),
@@ -404,7 +615,7 @@ impl<'a> Writer<'a> {
             },
             _ => String::new(),
         };
-        self.text_lines(layer, &it.block, it.x, it.y, &it.anchor, &ls);
+        self.text_lines(layer, &it.block, it.x, it.y, it.anchor, &ls);
         let tip = self.tip(&it.id);
         if !tip.is_empty() {
             if let Some(last) = self.layer(layer).last_mut() {
@@ -420,10 +631,18 @@ impl<'a> Writer<'a> {
                 Item::Shape(s) => self.shape(s)?,
                 Item::Connector(c) => self.connector(c)?,
                 Item::Text(t) => self.text_item(t),
-                Item::Line(l) => self.front.push(format!(
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\"/>",
-                    f1(l.x1), f1(l.y1), f1(l.x2), f1(l.y2), l.color, g(l.width))),
-                Item::Image(i) => self.image(Layer::Front, &i.path, i.x, i.y, i.w, i.h)?,
+                Item::Line(l) => {
+                    let mark = self.mark();
+                    self.front.push(format!(
+                        "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\"/>",
+                        f1(l.x1), f1(l.y1), f1(l.x2), f1(l.y2), attr(&l.color), g(l.width)));
+                    self.wrap(&l.id, mark);
+                }
+                Item::Image(i) => {
+                    let mark = self.mark();
+                    self.image(Layer::Front, &i.path, i.x, i.y, i.w, i.h)?;
+                    self.wrap(&i.id, mark);
+                }
                 Item::Table(t) => self.table(t)?,
             }
         }
@@ -437,9 +656,68 @@ impl<'a> Writer<'a> {
 ///
 /// # Errors
 ///
-/// When an image or icon file is missing or unreadable, or a curve does not have three points.
+/// When a curve does not have three points. Files on disk are not read; see [`draw_with`].
 pub fn draw(scene: &Scene, compensated_sum: bool) -> Result<Drawn, DrawError> {
-    Writer::new(scene, compensated_sum).draw()
+    draw_with(scene, compensated_sum, &FileAccess::none())
+}
+
+/// [`draw`] with files on disk that the scene may embed.
+///
+/// # Errors
+///
+/// When a permitted image or icon file is missing or unreadable, or a curve does not have three points.
+pub fn draw_with(scene: &Scene, compensated_sum: bool, access: &FileAccess) -> Result<Drawn, DrawError> {
+    Writer::new(scene, access, compensated_sum).draw()
+}
+
+fn collect_block<'a>(b: &'a TextBlock, seen: &mut Vec<&'a Font>) {
+    let runs = b.runs.iter().flatten().flatten().map(|r| &r.font);
+    for f in std::iter::once(&b.font).chain(runs) {
+        if !seen.iter().any(|o| (&o.family, o.weight, o.italic) == (&f.family, f.weight, f.italic)) {
+            seen.push(f);
+        }
+    }
+}
+
+/// Distinct fonts of a scene, in the order `Scene.fonts()` finds them (labels, texts, connector labels, tables).
+#[must_use]
+pub fn scene_fonts(scene: &Scene) -> Vec<&Font> {
+    let mut seen: Vec<&Font> = Vec::new();
+    for it in &scene.items {
+        match it {
+            Item::Shape(s) => s.label.iter().flat_map(|l| &l.blocks).for_each(|b| collect_block(b, &mut seen)),
+            Item::Text(t) => collect_block(&t.block, &mut seen),
+            Item::Connector(c) => {
+                if let Some(crate::scene::TaggedShape::Shape(s)) = &c.label {
+                    s.label.iter().flat_map(|l| &l.blocks).for_each(|b| collect_block(b, &mut seen));
+                }
+            }
+            Item::Table(t) => t.cells.iter().flatten().for_each(|c| collect_block(&c.block, &mut seen)),
+            _ => {}
+        }
+    }
+    seen
+}
+
+/// A standalone SVG document around the drawn layers, for the browser: faces are `@font-face` rules that
+/// load `{font_base}{file name}` (no embedded subsets), and the sources metadata and content hash are left
+/// out. The layers (`back`, `mid`, `front`) are byte-identical to the server's.
+#[must_use]
+pub fn document(scene: &Scene, drawn: &Drawn, font_base: &str) -> String {
+    let faces: String = scene_fonts(scene)
+        .iter()
+        .filter_map(|f| {
+            let file = f.file.as_deref()?;
+            let name = std::path::Path::new(file).file_name()?.to_str()?;
+            Some(format!(
+                "@font-face{{font-family:'{}';src:url({font_base}{name});font-weight:{};font-style:{}}}",
+                f.family, f.weight, if f.italic { "italic" } else { "normal" }))
+        })
+        .collect();
+    let (w, h) = (g(scene.width), g(scene.height));
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {w} {h}\" width=\"{w}\" height=\"{h}\"><title>{}</title><defs><style>{}</style>{}</defs><rect width=\"{w}\" height=\"{h}\" fill=\"{}\"/>{}{}{}</svg>",
+        esc(&scene.title), esc(&faces), drawn.defs, attr(&scene.background), drawn.back, drawn.mid, drawn.front)
 }
 
 #[cfg(test)]
@@ -447,10 +725,41 @@ mod tests {
     use super::*;
     use crate::scene;
 
+    #[test]
+    fn the_file_registry_recovers_from_a_poisoned_lock() {
+        let poisoner = std::thread::spawn(|| {
+            let _guard = files().lock().unwrap();
+            panic!("poison the registry on purpose");
+        });
+        assert!(poisoner.join().is_err());
+        assert!(files().is_poisoned());
+        register_file("/poison/test.png", b"bytes");
+        assert_eq!(read_file("/poison/test.png", &FileAccess::none()).unwrap().unwrap().as_slice(), b"bytes");
+    }
+
     const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
+    fn drawn_grouped(json: &str) -> Drawn {
+        draw_with(&scene::parse(&json.replace("@ROOT@", ROOT)).unwrap(), true, &FileAccess::none().with_root(ROOT)).unwrap()
+    }
+
+    /// Removes the `<g data-id>` wrappers (CTR-01, pinned by the `groups_*` tests) so the drawing tests below
+    /// keep comparing the bytes of the drawn elements.
+    fn ungroup(s: &str) -> String {
+        let mut out = s.to_string();
+        while let Some(i) = out.find("<g data-id=\"") {
+            let j = i + out[i..].find("\">").unwrap() + 2;
+            out.replace_range(i..j, "");
+        }
+        out.replace("</g>", "")
+    }
+
     fn drawn(json: &str) -> Drawn {
-        draw(&scene::parse(&json.replace("@ROOT@", ROOT)).unwrap(), true).unwrap()
+        let mut d = drawn_grouped(json);
+        d.back = ungroup(&d.back);
+        d.mid = ungroup(&d.mid);
+        d.front = ungroup(&d.front);
+        d
     }
 
     fn chars(d: &Drawn) -> String {
@@ -608,9 +917,104 @@ second</title></polygon>"##);
     #[test]
     fn missing_image_names_the_path() {
         let json = r##"{"version":1,"id":"S","title":"T","slug":"s","width":10,"height":10,"background":"#fff","items":[{"type":"image","id":"i","path":"/no/such/file.png","x":0,"y":0,"w":1,"h":1}],"item_facts":{},"sources":[],"meta_tooltips":{}}"##;
-        match draw(&scene::parse(json).unwrap(), true) {
+        let access = FileAccess::none().with_file("/no/such/file.png");
+        match draw_with(&scene::parse(json).unwrap(), true, &access) {
             Err(DrawError::NotFound(p)) => assert_eq!(p, "/no/such/file.png"),
             other => panic!("expected NotFound, got {other:?}"),
         }
+    }
+
+    fn scene_with(item: &str) -> Scene {
+        let json = format!(r##"{{"version":1,"id":"S","title":"T","slug":"s","width":10,"height":10,"background":"#fff","items":[{item}],"item_facts":{{}},"sources":[],"meta_tooltips":{{}}}}"##);
+        scene::parse(&json).unwrap()
+    }
+
+    fn image_item(path: &str) -> String {
+        format!(r#"{{"type":"image","id":"i","path":{},"x":0,"y":0,"w":1,"h":1}}"#, serde_json::to_string(path).unwrap())
+    }
+
+    #[test]
+    fn a_file_outside_the_allowed_roots_is_skipped_not_read() {  // SEC-02
+        let pixel = format!("{ROOT}/rust/spinagram-core/tests/data/pixel.png");
+        let scene = scene_with(&image_item(&pixel));
+        // nothing is allowed: skipped like a missing icon, no error and nothing drawn
+        let none = draw(&scene, true).unwrap();
+        assert!(!none.front.contains("<image"), "{}", none.front);
+        // the file is inside an allowed root: embedded
+        let inside = draw_with(&scene, true, &FileAccess::none().with_root(format!("{ROOT}/rust"))).unwrap();
+        assert!(inside.front.contains("<image") && inside.front.contains("data:image/png;base64,"));
+        // another root, or the exact file
+        assert!(!draw_with(&scene, true, &FileAccess::none().with_root(format!("{ROOT}/examples"))).unwrap().front.contains("<image"));
+        assert!(draw_with(&scene, true, &FileAccess::none().with_file(pixel)).unwrap().front.contains("<image"));
+    }
+
+    #[test]
+    fn a_path_that_climbs_out_of_the_root_or_follows_a_link_out_is_refused() {  // SEC-02
+        let root = format!("{ROOT}/rust/spinagram-core/tests/data");
+        let access = FileAccess::none().with_root(&root);
+        let climb = scene_with(&image_item(&format!("{root}/../../Cargo.toml")));
+        assert!(!draw_with(&climb, true, &access).unwrap().front.contains("<image"));
+        let missing = scene_with(&image_item(&format!("{root}/../../no-such.png")));
+        assert!(!matches!(draw_with(&missing, true, &access), Err(DrawError::NotFound(_))), "outside the root: skipped, not reported");
+        #[cfg(unix)]
+        {
+            let dir = std::env::temp_dir().join(format!("spinagram-link-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let link = dir.join("escape.png");
+            let _ = std::fs::remove_file(&link);
+            std::os::unix::fs::symlink(format!("{root}/pixel.png"), &link).unwrap();
+            // the link lies in the allowed directory but points outside it
+            let out = draw_with(&scene_with(&image_item(link.to_str().unwrap())), true, &FileAccess::none().with_root(&dir)).unwrap();
+            assert!(!out.front.contains("<image"));
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+
+    #[test]
+    fn a_registered_file_is_embedded_without_an_allowed_root() {
+        register_file("/registered/only.png", b"\x89PNG");
+        let d = draw(&scene_with(&image_item("/registered/only.png")), true).unwrap();
+        assert!(d.front.contains("data:image/png;base64,"));
+    }
+
+    #[test]
+    fn colours_are_attribute_escaped() {  // SEC-01
+        let evil = r#"x\" onload=\"y"#;
+        let item = format!(
+            r#"{{"type":"line","id":"l","x1":0,"y1":0,"x2":1,"y2":1,"color":"{evil}","width":1}},
+               {{"type":"connector","id":"c","points":[[0,0],[5,5]],"route":"straight","color":"{evil}","width":1,"dashed":false,"arrow_start":false,"arrow_end":true,"src":null,"dst":null,"label":null,"dash":null,"marker_start":"arrow","marker_end":"circle","opacity":1.0}},
+               {{"type":"shape","id":"s","kind":"rect","x":0,"y":0,"w":5,"h":5,"fill":"{evil}","stroke":"{evil}","stroke_width":1,"radius":0,"dashed":false,"opacity":1.0,"label":null,"icon":null,"role":"node","parts":[{{"d":"M 0 0 \" x=\"1","paint":"solid"}}],"dash":null,"shadow":[1,1,2,"{evil}",0.5],"fill_opacity":1.0,"cap":null}}"#);
+        let d = draw(&scene_with(&item), true).unwrap();
+        let all = format!("{}{}{}{}", d.defs, d.back, d.mid, d.front);
+        assert!(!all.contains("onload=\"y"), "{all}");
+        assert!(all.contains("x&quot; onload=&quot;y"), "{all}");
+        assert!(!all.contains(" x=\"1\""), "the path data is escaped too: {all}");
+        // every id and every url(#id) reference is a valid XML name
+        for id in all.split("id=\"").skip(1).map(|r| r.split('"').next().unwrap()) {
+            assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-')), "bad id {id:?}");
+        }
+    }
+
+    #[test]
+    fn marker_ids_are_valid_names_for_every_colour_and_stable_for_plain_ones() {  // SEC-01
+        assert_eq!(marker_key("#FF00AA"), "FF00AA");
+        assert_eq!(marker_key("red"), "red");
+        assert_eq!(marker_key("#abc"), "abc");
+        let rgb = marker_key("rgb(1,2,3)");
+        assert!(rgb.starts_with('x') && rgb.len() == 17 && rgb.chars().all(|c| c.is_ascii_alphanumeric()), "{rgb}");
+        assert_ne!(rgb, marker_key("rgb(1,2,4)"));
+        assert_eq!(rgb, marker_key("rgb(1,2,3)"));
+        // 64-bit FNV-1a of "rgb(1,2,3)", the value `spinagram.backends.svg` computes
+        assert_eq!(rgb, "xb114c0dd91cdd7d7");
+    }
+
+    #[test]
+    fn groups_carry_the_item_id_and_split_by_layer() {  // CTR-01
+        let d = drawn_grouped(r##"{"version": 1, "id": "S", "title": "T", "slug": "s", "width": 400, "height": 300, "background": "#fff", "items": [{"type": "shape", "id": "z<1", "kind": "rect", "x": 1, "y": 2, "w": 30, "h": 40, "fill": "#eee", "stroke": null, "stroke_width": 0, "radius": 0, "dashed": false, "opacity": 1.0, "role": "zone", "icon": {"path": "@ROOT@/examples/icons/acme.svg", "x": 16, "y": 28, "size": 24, "w": null}, "parts": null, "dash": null, "shadow": null, "fill_opacity": 1.0, "cap": null}, {"type": "line", "id": "l", "x1": 0, "y1": 0, "x2": 5, "y2": 5, "color": "#fff", "width": 1}], "item_facts": {}, "sources": [], "meta_tooltips": {}}"##);
+        assert!(d.back.starts_with("<g data-id=\"z&lt;1\"><rect "), "{}", d.back);
+        assert!(d.back.ends_with("</g>"));
+        assert!(d.front.starts_with("<g data-id=\"z&lt;1@front\"><image "), "{}", d.front);
+        assert!(d.front.contains("<g data-id=\"l\"><line "));
+        assert_eq!(d.mid, "");
     }
 }

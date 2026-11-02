@@ -10,18 +10,20 @@
 //! identifier (`[w=100px]`). Parsing those fails here and the caller falls back to the Python path, so results
 //! stay identical. No crate reproduces spinagram's looser grammar.
 
-use cssparser::{CowRcStr, ParseError, Parser as CssParser, ToCss};
+use cssparser::{CowRcStr, ParseError, Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
 use selectors::attr::{AttrSelectorOperation, CaseSensitivity, NamespaceConstraint};
 use selectors::context::{
     MatchingContext, MatchingForInvalidation, MatchingMode, NeedsSelectorFlags, QuirksMode, SelectorCaches,
 };
 use selectors::matching::{matches_selector, ElementSelectorFlags};
-use selectors::parser::{NonTSPseudoClass, Parser, PseudoElement, SelectorImpl, SelectorParseErrorKind};
+use selectors::parser::{NonTSPseudoClass, Parser, SelectorImpl, SelectorParseErrorKind};
 use selectors::{Element, OpaqueElement};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt;
+use thiserror::Error;
+use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 
 use crate::verified;
 
@@ -60,30 +62,43 @@ impl PrecomputedHash for Str {
 }
 
 /// The pseudo-elements spinagram styles.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Pe {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString, AsRefStr, IntoStaticStr, VariantArray)]
+#[strum(serialize_all = "lowercase")]
+pub enum PseudoElement {
+    /// `::title`
     Title,
+    /// `::body`
     Body,
+    /// `::label`
     Label,
 }
 
-impl Pe {
+/// Cascade slots: the element itself, then each [`PseudoElement`] in declaration order.
+pub const SLOTS: usize = 1 + PseudoElement::VARIANTS.len();
+
+impl PseudoElement {
     fn name(self) -> &'static str {
+        self.into()
+    }
+
+    /// Position in a cascade result: 0 is the element itself, so the first pseudo-element is 1.
+    #[must_use]
+    pub fn slot(self) -> usize {
         match self {
-            Pe::Title => "title",
-            Pe::Body => "body",
-            Pe::Label => "label",
+            PseudoElement::Title => 1,
+            PseudoElement::Body => 2,
+            PseudoElement::Label => 3,
         }
     }
 }
 
-impl ToCss for Pe {
+impl ToCss for PseudoElement {
     fn to_css<W: fmt::Write>(&self, dest: &mut W) -> fmt::Result {
         write!(dest, "::{}", self.name())
     }
 }
 
-impl PseudoElement for Pe {}
+impl selectors::parser::PseudoElement for PseudoElement {}
 
 /// Spinagram has no pseudo-classes beyond the built-in `:first-child`, `:last-child`, `:root` and `:not()`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -105,6 +120,7 @@ impl NonTSPseudoClass for NoPseudoClass {
     }
 }
 
+/// The `selectors` crate's type family for spinagram elements.
 #[derive(Clone, Debug)]
 pub struct Impl;
 
@@ -118,7 +134,7 @@ impl SelectorImpl for Impl {
     type BorrowedNamespaceUrl = str;
     type BorrowedLocalName = str;
     type NonTSPseudoClass = NoPseudoClass;
-    type PseudoElement = Pe;
+    type PseudoElement = PseudoElement;
 }
 
 struct SelectorParser;
@@ -127,22 +143,19 @@ impl<'i> Parser<'i> for SelectorParser {
     type Impl = Impl;
     type Error = SelectorParseErrorKind;
 
-    fn parse_pseudo_element(&self, name: CowRcStr<'i>) -> Result<Pe, ParseError<Self::Error>> {
-        match &*name {
-            "title" => Ok(Pe::Title),
-            "body" => Ok(Pe::Body),
-            "label" => Ok(Pe::Label),
-            _ => Err(ParseError::custom(SelectorParseErrorKind::UnsupportedPseudoClassOrElement)),
-        }
+    fn parse_pseudo_element(&self, name: CowRcStr<'i>) -> Result<PseudoElement, ParseError<Self::Error>> {
+        name.parse().map_err(|_| ParseError::custom(SelectorParseErrorKind::UnsupportedPseudoClassOrElement))
     }
 }
 
 /// A parsed selector with the text it came from.
 #[derive(Clone, Debug)]
 pub struct Selector {
+    /// The text.
     pub text: String,
     inner: selectors::parser::Selector<Impl>,
-    pub pseudo_element: Option<Pe>,
+    /// The pseudo-element the selector styles, if any.
+    pub pseudo_element: Option<PseudoElement>,
 }
 
 impl Selector {
@@ -155,12 +168,40 @@ impl Selector {
     }
 }
 
+/// Why CSS input was refused.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum CssError {
+    /// A selector is outside the grammar the `selectors` crate accepts.
+    #[error("cannot parse selector {text:?}: {kind}")]
+    Selector {
+        /// The selector text.
+        text: String,
+        /// The parser's reason.
+        kind: String,
+    },
+    /// The selector list is empty.
+    #[error("empty selector {0:?}")]
+    Empty(String),
+    /// A rule holds a selector list where one selector is required.
+    #[error("expected one selector in {0:?}")]
+    NotOne(String),
+    /// The style tree JSON is not a style tree.
+    #[error("invalid style tree: {0}")]
+    Tree(String),
+    /// The rules JSON is not a list of rules.
+    #[error("invalid rules: {0}")]
+    Rules(String),
+    /// A result did not serialise.
+    #[error("{0}")]
+    Write(String),
+}
+
 /// A comma list of selectors, each with its own source text.
 ///
 /// # Errors
 ///
-/// When the text is empty or a selector is outside the grammar the `selectors` crate accepts.
-pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, String> {
+/// [`CssError`] when the text is empty or a selector is outside the grammar the `selectors` crate accepts.
+pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, CssError> {
     let mut parser = CssParser::new(text);
     let list = parser
         .parse_comma_separated(|p| {
@@ -170,9 +211,9 @@ pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, String> {
             let pseudo_element = inner.pseudo_element().copied();
             Ok(Selector { text: src, inner, pseudo_element })
         })
-        .map_err(|e| format!("cannot parse selector {text:?}: {:?}", e.kind))?;
+        .map_err(|e| CssError::Selector { text: text.to_owned(), kind: format!("{:?}", e.kind) })?;
     if list.is_empty() {
-        return Err(format!("empty selector {text:?}"));
+        return Err(CssError::Empty(text.to_owned()));
     }
     Ok(list)
 }
@@ -182,30 +223,41 @@ pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, String> {
 /// A declaration as the stylesheet or an inline `css=` gave it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Decl {
+    /// Name of the property.
     pub name: String,
+    /// The value as written.
     pub value: String,
+    /// Whether the declaration is `!important`.
     pub important: bool,
 }
 
 /// One element of the style tree: the diagram, a group, a node, an edge...
 #[derive(Clone, Debug, Default)]
 pub struct Node {
+    /// Index of the parent element.
     pub parent: Option<usize>,
+    /// Ids of the elements the zone holds.
     pub children: Vec<usize>,
     /// Position among the parent's children (set by `Tree::link`).
     pub pos: usize,
+    /// Element type (node kind or `zone`).
     pub typ: String,
     /// Extra type names it answers to (node kind).
     pub kinds: Vec<String>,
+    /// Id of the item.
     pub id: Option<String>,
+    /// CSS classes.
     pub classes: Vec<String>,
+    /// Attributes, by name, as text.
     pub attrs: HashMap<String, String>,
+    /// The element's own declarations (a `css:` value).
     pub inline: Vec<Decl>,
 }
 
 /// Elements in pre-order; index 0 is the root. Children are listed in document order.
 #[derive(Clone, Debug, Default)]
 pub struct Tree {
+    /// The elements, in pre-order.
     pub nodes: Vec<Node>,
 }
 
@@ -304,7 +356,7 @@ impl Element for El<'_> {
         match *pc {}
     }
 
-    fn match_pseudo_element(&self, _pe: &Pe, _: &mut MatchingContext<Impl>) -> bool {
+    fn match_pseudo_element(&self, _pe: &PseudoElement, _: &mut MatchingContext<Impl>) -> bool {
         true // the pseudo-element is the caller's concern: the originating element matches
     }
 
@@ -371,8 +423,11 @@ impl Matcher {
 /// A style rule: selectors sharing one declaration block. `order` is its position over all sheets.
 #[derive(Clone, Debug)]
 pub struct Rule {
+    /// The rule's selectors.
     pub selectors: Vec<Selector>,
+    /// Declarations, in source order.
     pub decls: Vec<Decl>,
+    /// Position of the rule in the stylesheet.
     pub order: i64,
 }
 
@@ -380,47 +435,70 @@ pub struct Rule {
 /// selector that matched; `decl` the declaration index; `resolved` the value after `var()` (None for `--custom`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Entry {
+    /// Index of the rule, or `None` for inline declarations.
     pub rule: Option<usize>,
+    /// Index of the selector that matched.
     pub sel: usize,
+    /// Index of the declaration in its rule.
     pub decl: usize,
+    /// The value after `var()` substitution.
     pub resolved: Option<String>,
 }
 
-/// Pseudo-elements in the order of the result: the element itself, then `title`, `body`, `label`.
-pub const PSEUDOS: [&str; 4] = ["", "title", "body", "label"];
-
 type Custom = std::rc::Rc<std::collections::HashMap<String, String>>;
 
+/// How many times `substitute` rescans for `var(` after a replacement (Python's limit): nested references resolve
+/// to this depth, deeper ones stay as text.
+const MAX_VAR_PASSES: usize = 8;
+
 /// `var(--x[, fallback])` replacement, as `css._substitute`: up to 8 passes; an unknown `--x` without a fallback
-/// becomes `x` (the theme token). Fallbacks may contain functions.
+/// becomes `x` (the theme token). Fallbacks may contain functions, including nested `var()`.
+///
+/// The extent of a `var(` is Python's parenthesis count (the proved scanner), so an unclosed `var(--oops` and a
+/// parenthesis inside a string behave as they do there. The `cssparser` tokenizer splits the name from the
+/// fallback at the first comma that is not inside a nested function or block.
 #[must_use]
 pub fn substitute<S: std::hash::BuildHasher>(value: &str, custom: &std::collections::HashMap<String, String, S>) -> String {
-    let mut chars: Vec<char> = value.chars().collect();
-    for _ in 0..8 {
-        let Some(start) = find_var(&chars) else { break };
-        let end = verified::brackets::scan_close(&chars, start + 4);
+    let mut value = value.to_owned();
+    for _ in 0..MAX_VAR_PASSES {
+        let Some(start) = value.find("var(") else { break };
+        let from = start + "var(".len();
+        let tail: Vec<char> = value[from..].chars().collect();
+        let close = verified::brackets::scan_close(&tail, 0);
+        let byte = |chars: usize| from + value[from..].char_indices().nth(chars).map_or(value.len() - from, |(i, _)| i);
         // Python slices `value[i + 4:j - 1]`, which is empty when nothing follows `var(`
-        let inner: String = chars[start + 4..end.saturating_sub(1).max(start + 4)].iter().collect();
-        let (name, fallback) = match inner.split_once(',') {
-            Some((n, f)) => (n, f),
-            None => (inner.as_str(), ""),
-        };
+        let inner = &value[from..byte(close.saturating_sub(1))];
+        let (name, fallback) = split_var(inner);
         let name = name.trim();
         let replacement: String = match custom.get(name) {
             Some(r) => r.clone(),
             None if !fallback.trim().is_empty() => fallback.trim().to_string(),
             None => name.chars().skip(2).collect(),
         };
-        let mut next: Vec<char> = chars[..start].to_vec();
-        next.extend(replacement.chars());
-        next.extend_from_slice(&chars[end..]);
-        chars = next;
+        value.replace_range(start..byte(close), &replacement);
     }
-    chars.into_iter().collect()
+    value
 }
 
-fn find_var(v: &[char]) -> Option<usize> {
-    v.windows(4).position(|w| w == ['v', 'a', 'r', '('])
+/// The text of a `var()` cut into the name and the fallback at the first top-level comma. The tokenizer skips
+/// nested functions and blocks; text with strings, comments or escapes is cut at the first comma as Python does.
+fn split_var(inner: &str) -> (&str, &str) {
+    let first_comma = || inner.split_once(',').unwrap_or((inner, ""));
+    if inner.contains(['"', '\\', '\'']) || inner.contains("/*") {
+        return first_comma();
+    }
+    let mut parser = CssParser::new(inner);
+    loop {
+        match parser.next_including_whitespace_and_comments() {
+            // a block that is not entered is skipped whole by the next call; a comma is one byte
+            Ok(Token::Comma) => {
+                let after = parser.position().byte_index();
+                return (&inner[..after - 1], &inner[after..]);
+            }
+            Ok(_) => {}
+            Err(_) => return (inner, ""),
+        }
+    }
 }
 
 fn level(important: bool, inline: bool) -> u8 {
@@ -451,31 +529,24 @@ fn sorted_by_cascade(found: Vec<(SortKey, Entry)>) -> Vec<(SortKey, Entry)> {
     let mut slots: Vec<Option<(SortKey, Entry)>> = found.into_iter().map(Some).collect();
     verified::cascade::stable_order(&keys)
         .into_iter()
-        .map(|p| slots[p].take().expect("a permutation visits each position once"))
+        .filter_map(|p| slots.get_mut(p).and_then(Option::take))
         .collect()
 }
 
-/// For every element (index order) and pseudo-element (`PSEUDOS`): the declarations that apply, in cascade order
+/// For every element (index order) and pseudo-element (`SLOTS`): the declarations that apply, in cascade order
 /// (the winner of a property last): by `(important, specificity, rule order, declaration index)`, with inline
 /// declarations at levels 1 (normal) and 3 (important). Custom properties inherit from the parent element; a
 /// pseudo-element sees its element's custom properties plus its own.
-///
-/// # Panics
-///
-/// Never for a tree built by `Tree::link`: every selector's pseudo-element is one of `PSEUDOS`.
-pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
+pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; SLOTS]> {
     let specs: Vec<Vec<(u32, u32, u32)>> = rules.iter().map(|r| r.selectors.iter().map(Selector::specificity).collect()).collect();
     let mut matcher = Matcher::default();
-    let mut out: Vec<[Vec<Entry>; 4]> = Vec::with_capacity(tree.nodes.len());
+    let mut out: Vec<[Vec<Entry>; SLOTS]> = Vec::with_capacity(tree.nodes.len());
     let mut customs: Vec<Custom> = Vec::with_capacity(tree.nodes.len());
     for (el, node) in tree.nodes.iter().enumerate() {
-        let mut found: [Vec<(SortKey, Entry)>; 4] = Default::default();
+        let mut found: [Vec<(SortKey, Entry)>; SLOTS] = Default::default();
         for (ri, r) in rules.iter().enumerate() {
             for (si, sel) in r.selectors.iter().enumerate() {
-                let slot = match sel.pseudo_element {
-                    None => 0,
-                    Some(p) => PSEUDOS.iter().position(|x| *x == p.name()).expect("a known pseudo-element"),
-                };
+                let slot = sel.pseudo_element.map_or(0, PseudoElement::slot);
                 if matcher.matches(sel, tree, el) {
                     for (di, d) in r.decls.iter().enumerate() {
                         let key = (level(d.important, false), specs[ri][si], r.order, di);
@@ -495,8 +566,8 @@ pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
         };
         let parent_custom: Custom = node.parent.map_or_else(Default::default, |p| customs[p].clone());
         let mut element_custom = parent_custom;
-        let mut result: [Vec<Entry>; 4] = Default::default();
-        for slot in 0..4 {
+        let mut result: [Vec<Entry>; SLOTS] = Default::default();
+        for slot in 0..SLOTS {
             let mut list = std::mem::take(&mut found[slot]);
             list = sorted_by_cascade(list);
             let own: Vec<(&str, &str)> = list
@@ -577,12 +648,12 @@ impl From<DeclIn> for Decl {
 /// # Errors
 ///
 /// When the JSON does not describe a style tree.
-pub fn tree_from_json(json: &str) -> Result<Tree, String> {
+pub fn tree_from_json(json: &str) -> Result<Tree, CssError> {
     #[derive(serde::Deserialize)]
     struct In {
         nodes: Vec<NodeIn>,
     }
-    let parsed: In = serde_json::from_str(json).map_err(|e| format!("invalid style tree: {e}"))?;
+    let parsed: In = serde_json::from_str(json).map_err(|e| CssError::Tree(e.to_string()))?;
     let nodes = parsed
         .nodes
         .into_iter()
@@ -605,23 +676,23 @@ pub fn tree_from_json(json: &str) -> Result<Tree, String> {
 /// One cascade entry on the JSON boundary: rule index or -1 for inline, selector, declaration, resolved value.
 type Row = (i64, usize, usize, Option<String>);
 
-/// The cascade as JSON: per element, per pseudo-element (`PSEUDOS` order), a list of
+/// The cascade as JSON: per element, per pseudo-element (`PseudoElement` order), a list of
 /// `[rule index or -1, selector index, declaration index, resolved value or null]`.
 /// `rules_json` is `[{"selectors": [text], "decls": [{name, value, important}], "order": n}]`.
 ///
 /// # Errors
 ///
-/// When the tree or rules JSON is invalid or a selector cannot be parsed.
-pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, String> {
+/// [`CssError`] when the tree or rules JSON is invalid or a selector cannot be parsed.
+pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, CssError> {
     let tree = tree_from_json(tree_json)?;
-    let raw: Vec<RuleIn> = serde_json::from_str(rules_json).map_err(|e| format!("invalid rules: {e}"))?;
+    let raw: Vec<RuleIn> = serde_json::from_str(rules_json).map_err(|e| CssError::Rules(e.to_string()))?;
     let mut rules = Vec::with_capacity(raw.len());
     for r in raw {
         let mut selectors = Vec::new();
         for text in &r.selectors {
             let mut parsed = parse_selectors(text)?;
             if parsed.len() != 1 {
-                return Err(format!("expected one selector in {text:?}"));
+                return Err(CssError::NotOne(text.clone()));
             }
             selectors.append(&mut parsed);
         }
@@ -632,15 +703,15 @@ pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, String>
         .into_iter()
         .map(|el| el.into_iter().map(|list| list.into_iter().map(|e| (e.rule.map_or(-1, |r| i64::try_from(r).unwrap_or(i64::MAX)), e.sel, e.decl, e.resolved)).collect()).collect())
         .collect();
-    serde_json::to_string(&json).map_err(|e| e.to_string())
+    serde_json::to_string(&json).map_err(|e| CssError::Write(e.to_string()))
 }
 
 /// For each selector text, the indices of the elements it matches (pseudo-elements ignored), as JSON.
 ///
 /// # Errors
 ///
-/// When the tree JSON is invalid or a selector cannot be parsed.
-pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, String> {
+/// [`CssError`] when the tree JSON is invalid or a selector cannot be parsed.
+pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, CssError> {
     let tree = tree_from_json(tree_json)?;
     let mut matcher = Matcher::default();
     let mut out: Vec<Vec<usize>> = Vec::with_capacity(texts.len());
@@ -648,7 +719,7 @@ pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, String> 
         let sels = parse_selectors(t)?;
         out.push((0..tree.nodes.len()).filter(|&i| sels.iter().any(|s| matcher.matches(s, &tree, i))).collect());
     }
-    serde_json::to_string(&out).map_err(|e| e.to_string())
+    serde_json::to_string(&out).map_err(|e| CssError::Write(e.to_string()))
 }
 
 #[cfg(test)]
@@ -659,7 +730,7 @@ mod tests {
     // the tree in fixture().
     fn canon(sel: &Selector) -> String {
         let (a, b, c) = sel.specificity();
-        format!("{}~{}~({a},{b},{c})", sel.text, sel.pseudo_element.map_or("-", Pe::name))
+        format!("{}~{}~({a},{b},{c})", sel.text, sel.pseudo_element.map_or("-", PseudoElement::name))
     }
 
     fn node(parent: Option<usize>, typ: &str, kinds: &[&str], id: Option<&str>, classes: &[&str], attrs: &[(&str, &str)]) -> Node {
@@ -1621,5 +1692,41 @@ mod tests {
         ] {
             assert_eq!(substitute(value, &custom), want, "_substitute({value:?})");
         }
+    }
+
+    // Expected strings come from Python's _substitute(value, {"--a": "Z", "--b": "B C"}).
+    #[test]
+    fn substitute_resolves_nested_fallbacks_like_python() {
+        let custom: HashMap<String, String> = HashMap::from([("--a".to_string(), "Z".to_string()), ("--b".to_string(), "B C".to_string())]);
+        for (value, want) in [
+            ("var(--a, var(--b, red))", "Z"),
+            ("var(--x, var(--b, red))", "B C"),
+            ("var(--x, var(--y, red))", "red"),
+            ("var(--x, var(--y, rgb(1, 2, 3)))", "rgb(1, 2, 3)"),
+            ("var(--x, rgb(1, 2, 3)) solid", "rgb(1, 2, 3) solid"),
+            ("var( --a , x )", "Z"),
+            ("1px var(--a) var(--b) 2px", "1px Z B C 2px"),
+            ("var(--x,)", "x"),
+            ("var()", ""),
+            ("var(--\u{e9}, \u{fc}n\u{ef})", "\u{fc}n\u{ef}"),
+            ("var(--x, \")\") tail", "\"\") tail"),
+            ("var(--x, /* ) */ y)", "/* */ y)"),
+            ("a var(--x, var(--y, var(--z, var(--w, var(--v, var(--u, var(--t, var(--s, deep)))))))) b", "a deep b"),
+            ("var(--x, var(--a))", "Z"),
+        ] {
+            assert_eq!(substitute(value, &custom), want, "_substitute({value:?})");
+        }
+    }
+
+    #[test]
+    fn split_var_cuts_at_the_first_top_level_comma() {
+        assert_eq!(split_var("--a, red"), ("--a", " red"));
+        assert_eq!(split_var("--a"), ("--a", ""));
+        assert_eq!(split_var("--a,"), ("--a", ""));
+        // a comma inside a nested function is part of the fallback (no comma at the top level of the name)
+        assert_eq!(split_var("--a, rgb(1, 2, 3)"), ("--a", " rgb(1, 2, 3)"));
+        assert_eq!(split_var("rgb(1, 2), x"), ("rgb(1, 2)", " x"));
+        // strings and comments keep Python's first-comma cut
+        assert_eq!(split_var("--a, \",\""), ("--a", " \",\""));
     }
 }

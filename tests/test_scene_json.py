@@ -160,3 +160,39 @@ def test_wrong_version_raises_valueerror_with_the_rust_message(core):  # SCN-05
     doc["version"] = 2
     with pytest.raises(ValueError, match=r"scene version 2 is not supported \(expected 1\)"):
         core.scene_roundtrip(json.dumps(doc))
+
+
+# zones and containers for the canvas (T11) ---------------------------------------------------------------------
+def _container_scene() -> Scene:
+    a = Shape("a", "rect", 10, 20, 100, 50, None, role="node")
+    b = Shape("b", "rect", 150, 40, 80, 60, None, role="node")
+    z = Shape("z0", "rect", 0, 0, 400, 300, None, role="zone")
+    sc = Scene("S2", "t", "s2", 640, 480, "#fff", [z, a, b])
+    sc.rows = [("row0", ["a", "b"], False), ("column1", ["b"], False)]
+    sc.zone_ids = {"z0": "outer"}
+    sc.zone_children = {"z0": ["a"]}
+    return sc
+
+
+def test_scene_lists_containers_with_axis_members_and_enclosing_box():
+    doc = scene_json.to_dict(_container_scene())
+    assert doc["containers"] == [
+        {"id": "row0", "axis": "row", "members": ["a", "b"], "box": [10, 20, 220, 80]},
+        {"id": "column1", "axis": "column", "members": ["b"], "box": [150, 40, 80, 60]}]
+
+
+def test_scene_lists_zones_with_declared_id_shape_id_and_children():
+    doc = scene_json.to_dict(_container_scene())
+    assert doc["zones"] == [{"id": "outer", "shape_id": "z0", "children": ["a"]}]
+
+
+def test_scene_without_zones_or_containers_omits_the_keys():
+    doc = scene_json.to_dict(full_scene())
+    assert "zones" not in doc and "containers" not in doc
+
+
+def test_container_scene_validates_and_round_trips(core):
+    jsonschema = pytest.importorskip("jsonschema")
+    doc = scene_json.to_dict(_container_scene())
+    jsonschema.validate(doc, json.loads(SCHEMA.read_text()))
+    assert json.loads(core.scene_roundtrip(json.dumps(doc))) == doc

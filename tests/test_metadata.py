@@ -205,7 +205,7 @@ def test_showcase_groups_by_provider_without_metadata():
     assert got == {"AWS01": "AWS", "AWS02": "AWS", "GCP01": "Google Cloud",
                    "K8S01": "Kubernetes", "K8S02": "Kubernetes", "NOTE01": "Decisions",  # NOTE01 declares one
                    "HOME01": "Self-hosted", "NET01": "Network", "NET02": "Network",
-                   "AI01": "AI"}
+                   "AI01": "AI", "EDIT01": "AWS"}
 
 
 # META-28..31: CLI filters -------------------------------------------------------------------------
@@ -233,7 +233,7 @@ def test_cli_repeated_tags_must_all_match(capsys):
 
 
 def test_cli_category_filter(capsys):
-    assert _checked(capsys, "--category", "aws").startswith("2 diagram(s)")
+    assert _checked(capsys, "--category", "aws").startswith("3 diagram(s)")  # AWS01, AWS02, EDIT01
     assert _checked(capsys, "--category", "google cloud").startswith("1 diagram(s)")
 
 

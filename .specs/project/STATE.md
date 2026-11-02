@@ -11,7 +11,7 @@
   user asked for all four. `build_scene` applies layout itself; laid-out copy has `layout=None`.
 
 - 2026-10-09 · Live UI (`spinagram serve`): Starlette + uvicorn + watchfiles (extra `ui`), SSE events,
-  React + TS + Vite + Tailwind v4 SPA built with bun into `src/spinagram/ui/static` (committed, ships in wheel).
+  React + TS + Vite + Tailwind v4 SPA built with bun into `src/spinagram/ui/static` (not committed: CI builds it, the wheels and sdist ship it).
   `icons.AUTO_FETCH=False` under serve: packs are fetched explicitly from the UI. See `features/live-ui/`.
 - 2026-10-12 · Diagram import (D2, PlantUML): toolchain-backed parsing — D2 via official D2.js (WASM) under
   bun/node installed into the cache like elkjs; PlantUML via own description-grammar parser over `--preproc`
@@ -95,6 +95,23 @@
   `pedantic` warn with `#[expect(..., reason)]` exceptions; `cargo deny` (permissive licences, crates.io only); Verus
   `0.2026.10.26.d17fbd0` (toolchain 1.99.1) proves the core's discrete kernels in `spinagram-core/src/verified/`, which
   production code calls (no drift); floating-point geometry stays covered by parity harnesses, not proofs.
+
+- 2026-11-01 · Rich editor platform (user decisions, `features/wasm-editor/`): the canvas edits YAML only (Python
+  specs convert one way through `yaml_io.dump`; Python stays in code editing and preview). The Rust core grows into
+  the whole YAML → scene pipeline and runs in a Web Worker (wasm-bindgen), with the server render as fallback.
+  Targets: local `serve` and a static web playground. Edit operations and the YAML patch that keeps comments live in
+  Rust, shared by canvas, MCP, CLI and Python. The worker sends scene diffs keyed by element id; React updates only
+  those SVG elements. First features: live reflow + smart edges, code↔canvas sync + live QA, AI edits via the same
+  operations. RustPython and Pyodide dropped (no user Python in the browser). See
+  `research/web-editor-wasm-runtime.md` §8.
+
+- 2026-11-02 · Rust hardening (user directive, `features/rust-hardening/`): YAML spans stay on `saphyr-parser`
+  events in a `yaml_span` module (the `saphyr` loader gives char spans, flow ends before the bracket, no flow flag and
+  no scalar style, so it needs the same fix-ups and loses information); the edge DSL and endpoints move to one
+  `winnow` grammar checked against Python `parse_edge` through shared vectors (`logos` cannot express its
+  backtracking); closed string sets become `strum` enums with today's serialised strings; `thiserror` errors keep the
+  op index across PyO3 and wasm. The built UI bundle is no longer committed: CI builds it and ships it in wheels and
+  the sdist.
 
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /

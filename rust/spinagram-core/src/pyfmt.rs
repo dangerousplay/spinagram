@@ -23,8 +23,9 @@ fn special(x: f64) -> String {
 
 /// Digits and decimal exponent of `x` from Rust's `{:e}` output (`1.234e-5` -> ("1234", -5)), sign stripped.
 fn split_e(s: &str) -> (String, i32) {
-    let (mant, exp) = s.trim_start_matches('-').split_once('e').expect("exponent form");
-    (mant.replace('.', ""), exp.parse().expect("exponent"))
+    // `{:e}` always writes `<mantissa>e<exponent>`; a missing part reads as exponent 0
+    let (mant, exp) = s.trim_start_matches('-').split_once('e').unwrap_or((s, "0"));
+    (mant.replace('.', ""), exp.parse().unwrap_or(0))
 }
 
 fn sci(digits: &str, exp: i32) -> String {

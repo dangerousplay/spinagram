@@ -1,0 +1,43 @@
+# Fixture: zones with children, block style
+id: Z01
+title: Zones block   # trailing comment
+
+zones:
+  - id: outer
+    label: Outer
+    x: 20
+    y: 20
+    w: 800
+    h: 500
+    children: [inner, n1]
+  - id: inner
+    label: Inner
+    x: 60
+    y: 80
+    w: 300
+    h: 300
+    children:
+      - n2
+  # a zone with no children yet
+  - id: empty
+    label: Empty
+    x: 900
+    y: 20
+    w: 300
+    h: 300
+
+nodes:
+  - id: n1
+    title: One
+    at: [400, 100, 120, 60]
+  - id: n2   # in inner
+    title: Two
+    x: 80
+    y: 120
+    w: 120
+    h: 60
+  - id: n3
+    title: Three
+    at: [950, 400, 120, 60]
+edges:
+  - "n1 -> n2"

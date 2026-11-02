@@ -8,3 +8,6 @@ out/
 # Rust build output, and the extension an editable install compiles into the package
 rust/target/
 src/spinagram/_core.*
+
+# The built web UI (`bun run build` in web/): CI builds it and every wheel and the sdist ship it
+src/spinagram/ui/static/

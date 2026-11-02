@@ -42,6 +42,21 @@ def client(ws: Workspace, **kw) -> TestClient:
     return TestClient(create_app(ws, watch=False, **kw), base_url="http://127.0.0.1")
 
 
+def test_zone_styles_endpoint_lists_the_theme_zone_styles(env):
+    ws = Workspace([env / "specs"])
+    with client(ws) as c:
+        r = c.get("/api/zone-styles")
+        assert r.status_code == 200
+        by = {s["name"]: s for s in r.json()}
+        assert by["aws-vpc"]["icon"] == "aws:group-virtualprivatecloud-vpc"
+        assert by["aws-vpc"]["stroke"] == "#8C4FFF" and by["aws-vpc"]["fill"] is None and not by["aws-vpc"]["dashed"]
+        assert by["aws-region"]["dashed"] is True
+        assert by["azure-resource-group"]["icon"] == "azure:resource-groups"
+        assert by["aws-az"]["icon"] is None and by["soft"]["icon"] is None
+        assert {"gcp-project", "k8s-namespace", "aws-subnet"} <= set(by)
+        assert by["aws-subnet"] == {**by["aws-private-subnet"], "name": "aws-subnet"}
+
+
 # workspace ----------------------------------------------------------------------------------------
 def test_workspace_lists_and_renders(env):
     ws = Workspace([env / "specs"])
@@ -468,3 +483,160 @@ def test_deleted_stylesheet_errors_then_recovers(env):  # INS-18
     sheet.write_text(".critical { fill: #0A0B0C }")
     apply_changes(ws, ws.theme_roots(), {sheet.resolve()})
     assert "#0A0B0C" in ws.render("styled.yaml#ST")[0]
+
+
+# canvas scene endpoint (spec: .specs/features/wasm-editor, CTR-02 partial) ------------------------------------
+def _scene_schema_validator():
+    import json
+    from pathlib import Path
+
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = json.loads((Path(__file__).resolve().parents[1] / "rust" / "schema" / "scene.schema.json").read_text())
+    return jsonschema.Draft202012Validator(schema)
+
+
+def test_scene_endpoint_returns_json_that_validates_against_the_scene_schema(env):
+    c = client(Workspace([env / "specs"]))
+    r = c.get("/api/diagrams/one.yaml%23D1.scene")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/json")
+    assert "no-store" in r.headers["cache-control"]
+    body = r.json()
+    errors = list(_scene_schema_validator().iter_errors(body["scene"]))
+    assert not errors, errors[0].message
+    assert body["scene"]["id"] == "D1" and body["scene"]["title"] == "First"
+    assert [i["id"] for i in body["scene"]["items"] if i["type"] == "shape" and i["role"] == "node"] == ["a"]
+    assert body["files"] == {}
+
+
+def test_scene_endpoint_carries_icon_bytes_by_path(env):
+    import base64
+
+    (env / "specs" / "icon.svg").write_text(SVG_DOT)
+    (env / "specs" / "ic.yaml").write_text(
+        "id: IC\ntitle: icon\nnodes:\n  - {id: a, x: 100, y: 200, w: 300, h: 120, title: A, icon: icon.svg}\n")
+    body = client(Workspace([env / "specs"])).get("/api/diagrams/ic.yaml%23IC.scene").json()
+    icons = [i["icon"]["path"] for i in body["scene"]["items"] if i["type"] == "shape" and i.get("icon")]
+    assert len(icons) == 1 and base64.b64decode(body["files"][icons[0]]).decode() == SVG_DOT
+
+
+def test_scene_endpoint_says_whether_the_diagram_is_canvas_editable(env):
+    specs = env / "specs"
+    (specs / "spec.py").write_text("from spinagram import Diagram\nd = Diagram('PY', 'py')\nd.add('box', 'A', x=10, y=10, w=100, h=60)\n")
+    (specs / "rows.yaml").write_text("id: RW\ntitle: rows\nrows:\n  - {x: 100, y: 100, nodes: [{id: a, title: A, w: 100, h: 60}]}\n")
+    (specs / "rowsauto.yaml").write_text("id: RA\ntitle: rows\nlayout: {engine: flex}\nrows:\n  - {x: 100, y: 100, nodes: [{id: a, title: A, w: 100, h: 60}]}\n")
+    node = "  nodes:\n    - {id: a, x: 100, y: 200, w: 300, h: 120, title: A}\n"
+    (specs / "multi.yaml").write_text(f"- id: M1\n  title: m1\n{node}- id: M2\n  title: m2\n{node}")
+    c = client(Workspace([specs]))
+    editable = {k: c.get(f"/api/diagrams/{k.replace('#', '%23')}.scene").json()["editable"]
+                for k in ("one.yaml#D1", "auto.yaml#AU", "spec.py#PY", "rows.yaml#RW", "rowsauto.yaml#RA")}
+    # a hand-placed YAML with a row is editable (T11); Python specs and engine layouts still are not
+    assert editable == {"one.yaml#D1": True, "auto.yaml#AU": False, "spec.py#PY": False, "rows.yaml#RW": True,
+                        "rowsauto.yaml#RA": False}
+    ws = Workspace([specs])
+    multi = [k for k in ws.all_keys() if k.startswith("multi.yaml")]
+    assert len(multi) == 2 and not any(c.get(f"/api/diagrams/{k.replace('#', '%23')}.scene").json()["editable"] for k in multi)
+
+
+def test_scene_endpoint_lists_containers_and_zone_children(env):
+    (env / "specs" / "zr.yaml").write_text(
+        "id: ZR\ntitle: zr\nzones:\n  - {id: outer, label: O, x: 20, y: 20, w: 800, h: 500, children: [inner, a]}\n"
+        "  - {id: inner, label: I, x: 60, y: 80, w: 300, h: 300, children: [b]}\n"
+        "nodes:\n  - {id: a, title: A, at: [400, 100, 120, 60]}\n  - {id: b, title: B, at: [80, 120, 120, 60]}\n"
+        "  - {id: c, title: C}\n  - {id: d, title: D}\n"
+        "rows:\n  - {x: 100, y: 600, gap: 30, nodes: [c, d]}\n")
+    body = client(Workspace([env / "specs"])).get("/api/diagrams/zr.yaml%23ZR.scene").json()
+    assert body["editable"] is True
+    errors = list(_scene_schema_validator().iter_errors(body["scene"]))
+    assert not errors, errors[0].message
+    scene = body["scene"]
+    assert [(z["id"], z["children"]) for z in scene["zones"]] == [("outer", ["inner", "a"]), ("inner", ["b"])]
+    shapes = {i["id"]: i for i in scene["items"] if i["type"] == "shape"}
+    assert all(shapes[z["shape_id"]]["role"] == "zone" for z in scene["zones"])
+    (row,) = scene["containers"]
+    assert (row["id"], row["axis"], row["members"]) == ("row0", "row", ["c", "d"])
+    x0, y0 = min(shapes[m]["x"] for m in "cd"), min(shapes[m]["y"] for m in "cd")
+    x1 = max(shapes[m]["x"] + shapes[m]["w"] for m in "cd")
+    y1 = max(shapes[m]["y"] + shapes[m]["h"] for m in "cd")
+    assert row["box"] == [x0, y0, x1 - x0, y1 - y0] and row["box"][0] == 100 and row["box"][1] == 600
+
+
+def test_the_editable_showcase_example_is_canvas_editable(tmp_path):
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "examples" / "showcase"
+    ws = Workspace([root])
+    key = next(k for k in ws.all_keys() if k.startswith("editable_platform.yaml"))
+    body = client(ws).get(f"/api/diagrams/{key.replace('#', '%23')}.scene").json()
+    assert body["editable"] is True
+    scene = body["scene"]
+    assert [z["id"] for z in scene["zones"]] == ["cloud", "account", "region", "vpc", "public", "app", "data"]
+    assert {c["id"]: c["axis"] for c in scene["containers"]} == {"column0": "column", "column1": "column"}
+    nodes = [i for i in scene["items"] if i["type"] == "shape" and i["role"] == "node"]
+    assert len(nodes) == 9 and sum(1 for i in scene["items"] if i["type"] == "connector") == 7
+    # the AWS group conventions: each group has its aws-* zone style, so each shows its group icon
+    from spinagram.yaml_io import load
+
+    d = load(root / "editable_platform.yaml")[0]
+    assert {z.id: z.color for z in d.zones} == {
+        "cloud": "aws-cloud", "account": "aws-account", "region": "aws-region", "vpc": "aws-vpc",
+        "public": "aws-public-subnet", "app": "aws-private-subnet", "data": "aws-private-subnet"}
+
+
+def test_scene_endpoint_unknown_key_is_404_and_a_broken_spec_is_422(env):
+    (env / "specs" / "bad.yaml").write_text("id: BD\ntitle: bad\nnodes:\n  - {id: a, x: 1, y: 1, w: 10, h: 10, bogus: 1}\n")
+    c = client(Workspace([env / "specs"]))
+    assert c.get("/api/diagrams/nope.yaml%23X.scene").status_code == 404
+    assert c.get("/api/diagrams/one.yaml%23NOPE.scene").status_code == 404
+    r = c.get("/api/diagrams/bad.yaml%23BD.scene")
+    assert r.status_code in (404, 422)  # a spec that fails to load has no diagrams, like the .svg route
+    assert r.status_code == c.get("/api/diagrams/bad.yaml%23BD.svg").status_code
+
+
+def test_scene_endpoint_follows_the_render_cache(env):
+    ws = Workspace([env / "specs"])
+    c = client(ws)
+    first = c.get("/api/diagrams/one.yaml%23D1.scene").json()
+    (env / "specs" / "one.yaml").write_text(BOX.format(id="D1", title="Second"))
+    apply_changes(ws, ws.theme_roots(), {env / "specs" / "one.yaml"})
+    again = c.get("/api/diagrams/one.yaml%23D1.scene").json()
+    assert first["scene"]["title"] == "First" and again["scene"]["title"] == "Second"
+
+
+def test_font_route_serves_only_fonts_a_scene_uses(env):
+    c = client(Workspace([env / "specs"]))
+    assert c.get("/api/fonts/NotoSansMath-Regular.ttf").status_code == 404  # no scene has used it
+    assert c.get("/api/fonts/..%2F..%2Fetc%2Fpasswd").status_code == 404
+    body = c.get("/api/diagrams/one.yaml%23D1.scene").json()
+    fonts = {f["file"] for i in body["scene"]["items"] for f in _fonts_of(i) if f["file"]}
+    for path in fonts:
+        r = c.get(f"/api/fonts/{path.rsplit('/', 1)[-1]}")
+        assert r.status_code == 200 and len(r.content) > 1000
+
+
+def _fonts_of(item: dict):
+    blocks = []
+    if item["type"] == "shape" and item.get("label"):
+        blocks = item["label"]["blocks"]
+    elif item["type"] == "text":
+        blocks = [item["block"]]
+    return [b["font"] for b in blocks]
+
+
+def test_static_wasm_is_served_as_application_wasm(env, tmp_path, monkeypatch):
+    from spinagram.ui import server
+
+    static = tmp_path / "static"
+    (static / "assets").mkdir(parents=True)
+    (static / "index.html").write_text("<html></html>")
+    (static / "assets" / "spinagram_wasm_bg.wasm").write_bytes(b"\0asm\1\0\0\0")
+    monkeypatch.setattr(server, "STATIC", static)
+    r = client(Workspace([env / "specs"])).get("/assets/spinagram_wasm_bg.wasm")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/wasm"
+
+
+def test_the_built_bundle_ships_the_wasm_the_canvas_loads():  # BLD-04
+    from spinagram.ui.server import STATIC
+
+    if not (STATIC / "assets" / "spinagram_wasm_bg.wasm").is_file():
+        pytest.skip("the web UI is not built (bash rust/spinagram-wasm/build.sh, then bun run build in web/)")
+    assert (STATIC / "assets" / "spinagram_wasm_bg.wasm").read_bytes()[:4] == b"\0asm"

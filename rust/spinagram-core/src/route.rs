@@ -7,38 +7,62 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::BinaryHeap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
+
 use crate::verified::bisect::{lower_bound, order_key};
 use crate::verified::grid::neighbour;
 
+/// A point `(x, y)` in px.
 pub type Pt = (f64, f64);
 /// `(x, y, w, h)`
 pub type Rect = (f64, f64, f64, f64);
 
+/// Distance, in px, a route keeps from the boxes it goes around.
 pub const MARGIN: f64 = 14.0;
+/// Cost, in px of length, of a bend in a route.
 pub const BEND: f64 = 60.0;
+/// Cost, in px of length, of leaving from a side that other edges use.
 pub const BUSY: f64 = 400.0;
+/// Distance, in px, under which two parallel route segments count as close.
 pub const CLOSE: f64 = 4.0;
+/// Slack, in px, inside a box's edge before a point counts as inside it.
+const INSIDE_PAD: f64 = 0.5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A side of a box. The declaration order is the order of `ports` and Python's dict order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Display, EnumString, AsRefStr, IntoStaticStr, VariantArray)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum Side {
+    /// The upper edge.
     Top,
+    /// The lower edge.
     Bottom,
+    /// The left edge.
     Left,
+    /// The right edge.
     Right,
 }
 
 impl Side {
-    /// Python's dict order: top, bottom, left, right.
+    /// All sides in Python's dict order: top, bottom, left, right.
     pub const ALL: [Side; 4] = [Side::Top, Side::Bottom, Side::Left, Side::Right];
 
+    /// The side as the loader names it.
     #[must_use]
-    pub fn from_name(s: &str) -> Option<Side> {
-        match s {
-            "top" => Some(Side::Top),
-            "bottom" => Some(Side::Bottom),
-            "left" => Some(Side::Left),
-            "right" => Some(Side::Right),
-            _ => None,
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    /// The side a polyline leaves a box from when its first step goes `(dx, dy)`; right for a zero step.
+    #[must_use]
+    pub fn of_step(dx: i8, dy: i8) -> Side {
+        match (dx, dy) {
+            (-1, 0) => Side::Left,
+            (0, 1) => Side::Bottom,
+            (0, -1) => Side::Top,
+            _ => Side::Right,
         }
     }
 }
@@ -46,7 +70,9 @@ impl Side {
 /// A fixed cost per strict crossing with already drawn segments (`engine.route.Crossings`).
 #[derive(Clone, Debug)]
 pub struct Crossings {
+    /// Cost of one crossing, in px of length.
     pub cost: f64,
+    /// Segments of the connectors drawn so far.
     pub drawn: Vec<(Pt, Pt)>,
 }
 
@@ -87,7 +113,7 @@ fn port(p: &[(Pt, Dir); 4], s: Side) -> (Pt, Dir) {
 #[expect(clippy::many_single_char_names, reason = "geometry names (x, y, w, h, a, b) mirror the Python port")]
 fn inside(px: f64, py: f64, b: Rect) -> bool {
     let (x, y, w, h) = b;
-    let pad = 0.5;
+    let pad = INSIDE_PAD;
     x + pad < px && px < x + w - pad && y + pad < py && py < y + h - pad
 }
 
@@ -108,10 +134,10 @@ fn simplify(pts: &[Pt]) -> Vec<Pt> {
         if out.last() == Some(&p) {
             continue;
         }
-        if out.len() >= 2 {
-            let (a, b) = (out[out.len() - 2], out[out.len() - 1]);
+        if let [.., a, b] = out[..] {
             if (a.0 == b.0 && b.0 == p.0) || (a.1 == b.1 && b.1 == p.1) {
-                *out.last_mut().unwrap() = p;
+                out.pop();
+                out.push(p);
                 continue;
             }
         }
@@ -193,7 +219,8 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
         let (mx, my) = (f64::midpoint(xs[i1], xs[i2]), f64::midpoint(ys[j1], ys[j2]));
         !obs.iter().any(|&b| inside(mx, my, b))
     };
-    let grown: Vec<Rect> = obs[..obs.len() - 2].iter().map(|&(x, y, w, h)| (x - margin, y - margin, w + 2.0 * margin, h + 2.0 * margin)).collect();
+    // `route` appends the source and destination boxes last; they are not grown
+    let grown: Vec<Rect> = obs[..obs.len().saturating_sub(2)].iter().map(|&(x, y, w, h)| (x - margin, y - margin, w + 2.0 * margin, h + 2.0 * margin)).collect();
     let seg_close = |i1: usize, j1: usize, i2: usize, j2: usize| {
         let (mx, my) = (f64::midpoint(xs[i1], xs[i2]), f64::midpoint(ys[j1], ys[j2]));
         grown.iter().any(|&b| inside(mx, my, b))
@@ -261,12 +288,19 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
 /// already attach to, `crossing` is the per-crossing cost, `guides` add grid lines, `fracs` move the ports.
 #[derive(Clone, Debug)]
 pub struct Options<'a> {
+    /// Distance, in px, the route keeps from boxes.
     pub margin: f64,
+    /// Fixed sides of the source and destination, if any.
     pub sides: (Option<Side>, Option<Side>),
+    /// Sides of the source that other edges already use.
     pub busy_src: &'a [Side],
+    /// Sides of the destination that other edges already use.
     pub busy_dst: &'a [Side],
+    /// The per-crossing cost and the segments already drawn.
     pub crossing: Option<&'a Crossings>,
+    /// Extra grid lines the router may use.
     pub guides: &'a [Pt],
+    /// Fixed positions along the source and destination sides.
     pub fracs: (Option<f64>, Option<f64>),
 }
 

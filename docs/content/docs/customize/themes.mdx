@@ -70,6 +70,30 @@ Keys are single characters; values are strings. `check` lists each replacement a
 | `defaults.node.icon_min` | 24 | Smallest size a centred icon shrinks to before the text shrinks |
 | `icons.prefer_vendor_for_services` | false | Swap a generic icon for the vendor icon a box title names; see [Layout engine](/docs/write/layout-engine#icons) |
 
+## Provider zone styles
+
+The default theme draws zones in the diagramming style of each cloud provider: the provider's outline colour,
+dashed or solid, and its group icon in the top-left corner, flush with the outline. Use the name as a zone's
+`color:` in YAML or a group's `style=` in Python, or pick it in the [canvas editor](/docs/tools/canvas-editor)
+palette. The icons come from the provider's icon pack, so download that pack first (`spinagram icons fetch aws`, or
+**Fetch** in the palette).
+
+```yaml
+zones:
+  - {id: vpc, label: "VPC 10.0.0.0/16", color: aws-vpc, x: 96, y: 356, w: 984, h: 600}
+```
+
+| Provider | Styles | Notes |
+|---|---|---|
+| AWS | `aws-cloud`, `aws-account`, `aws-region`, `aws-vpc`, `aws-az`, `aws-public-subnet`, `aws-private-subnet`, `aws-auto-scaling-group`, `aws-corporate-dc`, `aws-spot-fleet`, `aws-server-contents`, `aws-ec2-contents` | The colours and icons of the AWS Architecture Icons groups. `aws-az` has no icon, as in AWS diagrams. `aws-subnet` is the earlier name of `aws-private-subnet` |
+| Azure | `azure-management-group`, `azure-subscription`, `azure-resource-group`, `azure-vnet`, `azure-subnet` | Follows the nesting of Microsoft's architecture diagrams |
+| Google Cloud | `gcp-cloud`, `gcp-project`, `gcp-region`, `gcp-zone`, `gcp-vpc`, `gcp-subnet` | Coloured areas as in Google's diagram templates. Region, zone and subnet have no icon |
+| Kubernetes | `k8s-cluster`, `k8s-namespace` | The Kubernetes icon set has no cluster icon, so `k8s-cluster` has none |
+
+Only AWS publishes official group colours. The Azure and Google Cloud colours follow their diagram templates, so
+compare them with the provider's current guidance when exact brand colours matter. Each block of `theme.yaml` cites
+its sources. A theme can add its own zone styles; the palette lists every zone style of the active theme.
+
 [`src/spinagram/themes/default/theme.yaml`](https://github.com/dangerousplay/spinagram/blob/main/src/spinagram/themes/default/theme.yaml)
 documents every key: `canvas`, `colors`, font roles (with font files for metrics and embedding),
 `styles` for nodes, edges, zones, legends and tables, `icons`, and page chrome.

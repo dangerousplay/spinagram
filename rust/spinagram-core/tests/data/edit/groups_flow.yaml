@@ -1,0 +1,5 @@
+# Fixture: containers, flow style
+id: G02
+title: Groups flow
+nodes: [{id: a, at: [100, 10, 50, 50]}, {id: b, at: [10, 40, 50, 50]}, {id: d}, {id: e}, {id: f}]
+rows: [{x: 0, y: 300, gap: 10, nodes: [d, e, f]}]

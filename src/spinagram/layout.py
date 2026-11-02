@@ -750,6 +750,7 @@ def build_scene(diagram: Diagram, theme: Theme) -> Scene:
     scene.text_scale_rows = {f"{c.axis}{k}" for k, c in enumerate(diagram.containers)
                              if (c.same_size if c.same_text_scale is None else c.same_text_scale)}
     shape_of = {(z.id or f"z{k}"): f"z{k}" for k, z in enumerate(diagram.zones)}
+    scene.zone_ids = {sid: zid for zid, sid in shape_of.items()}
     scene.zone_children = {f"z{k}": [shape_of.get(c, c) for c in z.children]
                            for k, z in enumerate(diagram.zones) if z.children}
     if not scene.laid_out:  # engines size gaps themselves; collisions are reported for hand-placed diagrams

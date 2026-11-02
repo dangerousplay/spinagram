@@ -7,202 +7,541 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use std::collections::BTreeMap;
+use thiserror::Error;
+use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 
+use crate::edge_syntax::EndpointTarget;
+use crate::edit_values::Axis;
+use crate::route::Side;
+
+/// The scene format version this crate reads.
 pub const VERSION: u32 = 1;
 
+/// Derive set of a closed string enum on the scene's wire: serde, JSON Schema and the strum conversions.
+macro_rules! wire_enum {
+    ($(#[$meta:meta])* $name:ident { $($(#[$vmeta:meta])* $variant:ident),+ $(,)? }, $rule:literal) => {
+        $(#[$meta])*
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Display, EnumString, AsRefStr, IntoStaticStr, VariantArray)]
+        #[serde(rename_all = $rule)]
+        #[strum(serialize_all = $rule)]
+        pub enum $name {
+            $($(#[$vmeta])* $variant),+
+        }
+
+        impl $name {
+            /// The value as the scene writes it.
+            #[must_use]
+            pub fn as_str(self) -> &'static str {
+                self.into()
+            }
+        }
+    };
+}
+
+wire_enum! {
+    /// Horizontal alignment of a label.
+    Align { /** Text starts at the box's left edge. */ Left, /** Text is centred in the box. */ Center }, "lowercase"
+}
+
+wire_enum! {
+    /// Vertical alignment of a label.
+    VAlign { /** Blocks start at the box's top edge. */ Top, /** Blocks are centred in the box. */ Middle }, "lowercase"
+}
+
+wire_enum! {
+    /// SVG `text-anchor` of a text item.
+    TextAnchor { /** Text starts at x. */ Start, /** Text is centred on x. */ Middle, /** Text ends at x. */ End }, "lowercase"
+}
+
+wire_enum! {
+    /// How a symbol part is painted.
+    Paint {
+        /** Fill with the shape's fill and stroke with its stroke. */ Shape,
+        /** Fill with the stroke colour. */ Solid,
+        /** Outline only. */ Stroke,
+    }, "lowercase"
+}
+
+wire_enum! {
+    /// What a shape is for; it picks the layer it is drawn in.
+    Role {
+        /** A diagram node. */ Node,
+        /** A zone background. */ Zone,
+        /** A pill. */ Pill,
+        /** A legend swatch. */ Swatch,
+        /** Frame and title furniture. */ Chrome,
+        /** A panel. */ Panel,
+        /** A badge or accent that belongs to a node. */ NodePart,
+        /** A callout. */ Callout,
+    }, "kebab-case"
+}
+
+wire_enum! {
+    /// How a connector's points are joined.
+    ConnectorRoute {
+        /** One straight segment. */ Straight,
+        /** A polyline. */ Poly,
+        /** A quadratic curve through three points. */ Curve,
+    }, "lowercase"
+}
+
+wire_enum! {
+    /// The head drawn at a connector end.
+    MarkerKind {
+        /** A filled triangle. */ Arrow,
+        /** An outlined chevron. */ OpenArrow,
+        /** A filled diamond. */ Diamond,
+        /** An outlined diamond. */ OpenDiamond,
+        /** A filled circle. */ Circle,
+        /** A bar across the line. */ Bar,
+        /** No head. */ None,
+    }, "kebab-case"
+}
+
+wire_enum! {
+    /// The stroke line cap of a shape.
+    LineCap { /** Flat ends. */ Butt, /** Rounded ends. */ Round, /** Square ends. */ Square }, "lowercase"
+}
+
+/// The kind of a shape: the node kind or `rect`, `pill` and the like. The kinds whose outline touches the box
+/// only at side midpoints are named; any other kind is kept as written.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(from = "String", into = "String")]
+#[schemars(with = "String")]
+pub enum ShapeKind {
+    /// `diamond`
+    Diamond,
+    /// `decision`
+    Decision,
+    /// `merge`
+    Merge,
+    /// `choice`
+    Choice,
+    /// `connector`
+    Connector,
+    /// `initial`
+    Initial,
+    /// `final`
+    Final,
+    /// `flow_final`
+    FlowFinal,
+    /// `history`
+    History,
+    /// `deep_history`
+    DeepHistory,
+    /// Any other kind (`rect`, `pill`, `action`, ...).
+    Other(String),
+}
+
+impl ShapeKind {
+    /// The kind as the scene writes it.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match self {
+            ShapeKind::Diamond => "diamond",
+            ShapeKind::Decision => "decision",
+            ShapeKind::Merge => "merge",
+            ShapeKind::Choice => "choice",
+            ShapeKind::Connector => "connector",
+            ShapeKind::Initial => "initial",
+            ShapeKind::Final => "final",
+            ShapeKind::FlowFinal => "flow_final",
+            ShapeKind::History => "history",
+            ShapeKind::DeepHistory => "deep_history",
+            ShapeKind::Other(s) => s,
+        }
+    }
+
+    /// Whether the outline touches the box only at side midpoints, so an anchor ignores the fraction
+    /// (`Shape.anchor`): a diamond or one of the state-chart and flowchart marks.
+    #[must_use]
+    pub fn midpoint_anchor(&self) -> bool {
+        !matches!(self, ShapeKind::Other(_))
+    }
+}
+
+impl From<String> for ShapeKind {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "diamond" => ShapeKind::Diamond,
+            "decision" => ShapeKind::Decision,
+            "merge" => ShapeKind::Merge,
+            "choice" => ShapeKind::Choice,
+            "connector" => ShapeKind::Connector,
+            "initial" => ShapeKind::Initial,
+            "final" => ShapeKind::Final,
+            "flow_final" => ShapeKind::FlowFinal,
+            "history" => ShapeKind::History,
+            "deep_history" => ShapeKind::DeepHistory,
+            _ => ShapeKind::Other(s),
+        }
+    }
+}
+
+impl From<ShapeKind> for String {
+    fn from(k: ShapeKind) -> Self {
+        k.as_str().to_owned()
+    }
+}
+
+/// A font as the scene names it.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Font {
+    /// Font family name.
     pub family: String,
+    /// Font weight.
     pub weight: u32,
+    /// Whether the face is italic.
     pub italic: bool,
+    /// Size in px.
     pub size: f64,
+    /// Path of the font file, if any.
     pub file: Option<String>,
+    /// CSS generic family appended after `family`.
     pub fallback: String,
+    /// Figma font style name.
     pub figma_style: String,
 }
 
 /// A piece of a line drawn with one font. `base`: it uses the block's own font (no fallback span).
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Run {
+    /// The text.
     pub text: String,
+    /// The font.
     pub font: Font,
+    /// The run uses the block's own font (no fallback span).
     pub base: bool,
 }
 
+/// Lines of text drawn in one font and colour.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TextBlock {
+    /// The wrapped lines.
     pub lines: Vec<String>,
+    /// The source paragraphs.
     pub paragraphs: Vec<String>,
+    /// The font.
     pub font: Font,
+    /// Colour as CSS text.
     pub color: String,
+    /// Line height in px.
     pub leading: f64,
+    /// The text as runs per line, each in its own font.
     pub runs: Option<Vec<Vec<Run>>>,
 }
 
+/// Text blocks laid out in a box.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Label {
+    /// The text blocks, top to bottom.
     pub blocks: Vec<TextBlock>,
     #[serde(rename = "box")]
+    /// The box `[x, y, w, h]` the label is laid out in.
     pub bbox: [f64; 4],
-    pub align: String,
+    /// Horizontal alignment.
+    pub align: Align,
+    /// Space between blocks, in px.
     pub gap: f64,
-    pub valign: String,
+    /// Vertical alignment.
+    pub valign: VAlign,
 }
 
+/// An icon or image drawn at a position.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Icon {
+    /// Path of the file.
     pub path: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Size in px.
     pub size: f64,
+    /// Width in px.
     pub w: Option<f64>,
 }
 
+/// One path of a symbol shape.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Part {
+    /// SVG path data.
     pub d: String,
-    pub paint: String,
+    /// How the part is painted.
+    pub paint: Paint,
 }
 
+/// A box, diamond or symbol with its label and icon.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Shape {
+    /// Id of the item.
     pub id: String,
-    pub kind: String,
+    /// The kind of shape.
+    pub kind: ShapeKind,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Width in px.
     pub w: f64,
+    /// Height in px.
     pub h: f64,
+    /// Fill colour; `None` is no fill.
     pub fill: Option<String>,
+    /// Stroke colour; `None` is no stroke.
     pub stroke: Option<String>,
+    /// Stroke width in px.
     pub stroke_width: f64,
+    /// Corner radius in px.
     pub radius: f64,
+    /// Whether the stroke is dashed.
     pub dashed: bool,
+    /// Opacity of the whole item.
     pub opacity: f64,
+    /// Label of the item.
     pub label: Option<Label>,
+    /// The icon drawn in it, if any.
     pub icon: Option<Icon>,
-    pub role: String,
+    /// What the shape is for.
+    pub role: Role,
+    /// Symbol geometry, if the shape has one.
     pub parts: Option<Vec<Part>>,
+    /// Explicit dash pattern; `None` uses the default dash when `dashed`.
     pub dash: Option<Vec<f64>>,
     /// `(dx, dy, blur, colour, alpha)`
     pub shadow: Option<(f64, f64, f64, String, f64)>,
+    /// Opacity of the fill only.
     pub fill_opacity: f64,
-    pub cap: Option<String>,
+    /// Stroke line cap; `None` is a butt cap.
+    pub cap: Option<LineCap>,
 }
 
+/// Where a connector end attaches.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Binding {
+    /// Id of the bound shape.
     pub shape_id: String,
-    pub side: String,
+    /// The side of the box.
+    pub side: Side,
+    /// Position along the side, 0 to 1.
     pub frac: f64,
-    pub target: String,
+    /// Whether the end is a node or a zone.
+    pub target: EndpointTarget,
+    /// The author fixed the side (`node.side`): routers keep it. Written only when true; absent means false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub explicit: bool,
 }
 
 /// A shape nested in another item carries its own `type` tag, as in the item list.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]
 pub enum TaggedShape {
+    /// A shape.
     #[serde(rename = "shape")]
     Shape(Shape),
 }
 
+/// A line between two points or shapes, with heads.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Connector {
+    /// Id of the item.
     pub id: String,
+    /// The polyline; for a curve `[start, control, end]`.
     pub points: Vec<[f64; 2]>,
-    pub route: String,
+    /// How the points are joined.
+    pub route: ConnectorRoute,
+    /// Colour as CSS text.
     pub color: String,
+    /// Width in px.
     pub width: f64,
+    /// Whether the stroke is dashed.
     pub dashed: bool,
+    /// Whether a head is drawn at the source.
     pub arrow_start: bool,
+    /// Whether a head is drawn at the destination.
     pub arrow_end: bool,
+    /// Binding of the source end.
     pub src: Option<Binding>,
+    /// Binding of the destination end.
     pub dst: Option<Binding>,
+    /// Label of the item.
     pub label: Option<TaggedShape>,
+    /// Explicit dash pattern; `None` uses the default dash when `dashed`.
     pub dash: Option<Vec<f64>>,
-    pub marker_start: String,
-    pub marker_end: String,
+    /// Head at the source.
+    pub marker_start: MarkerKind,
+    /// Head at the destination.
+    pub marker_end: MarkerKind,
+    /// Opacity of the whole item.
     pub opacity: f64,
 }
 
+/// Free text at a position.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Text {
+    /// Id of the item.
     pub id: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// The text to draw.
     pub block: TextBlock,
-    pub anchor: String,
+    /// Which end of the text sits at `x`.
+    pub anchor: TextAnchor,
     /// Kept as written (int or float): the SVG writer prints it with Python's `str`.
     pub letter_spacing: Number,
+    /// Width in px.
     pub width: Option<f64>,
 }
 
+/// A straight line.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Line {
+    /// Id of the item.
     pub id: String,
+    /// Start x in px.
     pub x1: f64,
+    /// Start y in px.
     pub y1: f64,
+    /// End x in px.
     pub x2: f64,
+    /// End y in px.
     pub y2: f64,
+    /// Colour as CSS text.
     pub color: String,
+    /// Width in px.
     pub width: f64,
 }
 
+/// An image file drawn in a box.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Image {
+    /// Id of the item.
     pub id: String,
+    /// Path of the file.
     pub path: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Width in px.
     pub w: f64,
+    /// Height in px.
     pub h: f64,
 }
 
+/// One cell of a table.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Cell {
+    /// The text to draw.
     pub block: TextBlock,
+    /// Fill colour; `None` is no fill.
     pub fill: Option<String>,
+    /// The icon drawn in it, if any.
     pub icon: Option<Icon>,
+    /// Space left of the text, in px.
     pub pad_left: f64,
+    /// Whether the cell text is bold.
     pub bold: bool,
 }
 
+/// A grid of cells.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Table {
+    /// Id of the item.
     pub id: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Width of each column.
     pub col_widths: Vec<f64>,
+    /// Height of each row.
     pub row_heights: Vec<f64>,
+    /// Rows of cells; row 0 is the header.
     pub cells: Vec<Vec<Cell>>,
+    /// Colour of the row separators.
     pub border: String,
+    /// Corner radius of the header row.
     pub header_radius: f64,
 }
 
+/// Anything a scene draws.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
-#[expect(clippy::large_enum_variant, reason = "items live in a Vec and are matched by reference")]
 pub enum Item {
+/// A shape.
     Shape(Shape),
+/// A connector.
     Connector(Connector),
+/// Free text.
     Text(Text),
+/// A line.
     Line(Line),
+/// An image.
     Image(Image),
+/// A table.
     Table(Table),
 }
 
+/// A finished diagram: what the SVG writer draws.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Scene {
+    /// Scene format version.
     pub version: u32,
+    /// Id of the item.
     pub id: String,
+    /// Title of the diagram.
     pub title: String,
+    /// File-name form of the title.
     pub slug: String,
+    /// Width in px.
     pub width: f64,
+    /// Height in px.
     pub height: f64,
+    /// Page background colour.
     pub background: String,
+    /// Everything to draw, back to front.
     pub items: Vec<Item>,
+    /// Fact ids shown as the tooltip of each item.
     pub item_facts: BTreeMap<String, Vec<String>>,
+    /// Source references, kept as written.
     pub sources: Vec<Value>,
+    /// Tooltip text of each fact id.
     pub meta_tooltips: BTreeMap<String, String>,
+    /// Zones with the ids the spec declares. Written only when there are zones.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub zones: Vec<ZoneInfo>,
+    /// Row and column containers. Written only when there are some.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub containers: Vec<ContainerInfo>,
+}
+
+/// A zone: the id the edit operations use, the id of its shape in `items`, and its declared children.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ZoneInfo {
+    /// Id of the item.
+    pub id: String,
+    /// Id of the bound shape.
+    pub shape_id: String,
+    /// Ids of the elements the zone holds.
+    pub children: Vec<String>,
+}
+
+/// A `rows`/`columns` container (`row0`, `column1`, ...): axis, member node ids in order, and the box
+/// `[x, y, w, h]` enclosing the members.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ContainerInfo {
+    /// Id of the item.
+    pub id: String,
+    /// Whether the members run along a row or a column.
+    pub axis: Axis,
+    /// Ids of the member nodes, in order.
+    pub members: Vec<String>,
+    #[serde(rename = "box")]
+    /// The box `[x, y, w, h]` the label is laid out in.
+    pub bbox: [f64; 4],
 }
 
 #[derive(Deserialize)]
@@ -210,45 +549,99 @@ struct Header {
     version: Option<Value>,
 }
 
+/// Why scene JSON was refused.
+#[derive(Debug, Error)]
+pub enum SceneError {
+    /// The text is not JSON of the scene's shape.
+    #[error("invalid scene JSON: {0}")]
+    Json(#[from] serde_json::Error),
+    /// The `version` is missing or not [`VERSION`].
+    #[error("scene version {found} is not supported (expected {VERSION})")]
+    Version {
+        /// The version as written, or `missing`.
+        found: String,
+    },
+}
+
 /// Parse scene JSON. A `version` other than 1 is an error naming the found and the supported version.
 ///
 /// # Errors
 ///
-/// When the JSON is invalid, or its `version` is not 1.
-pub fn parse(json: &str) -> Result<Scene, String> {
-    let header: Header = serde_json::from_str(json).map_err(|e| format!("invalid scene JSON: {e}"))?;
+/// [`SceneError`] when the JSON is invalid, or its `version` is not 1.
+pub fn parse(json: &str) -> Result<Scene, SceneError> {
+    let header: Header = serde_json::from_str(json)?;
     match header.version.as_ref().and_then(Value::as_u64) {
         Some(v) if v == u64::from(VERSION) => {}
-        Some(v) => return Err(format!("scene version {v} is not supported (expected {VERSION})")),
-        None => return Err(format!("scene version {} is not supported (expected {VERSION})", header.version.map_or("missing".into(), |v| v.to_string()))),
+        Some(v) => return Err(SceneError::Version { found: v.to_string() }),
+        None => return Err(SceneError::Version { found: header.version.map_or("missing".into(), |v| v.to_string()) }),
     }
-    serde_json::from_str(json).map_err(|e| format!("invalid scene JSON: {e}"))
+    Ok(serde_json::from_str(json)?)
 }
 
 /// The JSON Schema of the scene format, as committed in `rust/schema/scene.schema.json`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Never: a derived schema always serializes.
-#[must_use]
-pub fn schema_json() -> String {
-    let mut out = serde_json::to_string_pretty(&schemars::schema_for!(Scene)).expect("a schema serializes");
+/// Never in practice: a derived schema always serializes.
+pub fn schema_json() -> Result<String, serde_json::Error> {
+    let mut out = serde_json::to_string_pretty(&schemars::schema_for!(Scene))?;
     out.push('\n');
-    out
+    Ok(out)
 }
 
-/// # Panics
+/// The scene as JSON text.
 ///
-/// Never: a scene always serializes.
-#[must_use]
-pub fn to_json(scene: &Scene) -> String {
-    serde_json::to_string(scene).expect("a scene always serializes")
+/// # Errors
+///
+/// When a number in the scene is not finite (JSON has no `NaN`).
+pub fn to_json(scene: &Scene) -> Result<String, serde_json::Error> {
+    serde_json::to_string(scene)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    use strum::VariantArray;
+
+    /// Every variant serialises to the string the Python writer uses, reads back from it, and parses with strum.
+    fn round_trips<T>(expected: &[&str])
+    where
+        T: VariantArray + Serialize + serde::de::DeserializeOwned + std::str::FromStr + PartialEq + std::fmt::Debug + Copy + Into<&'static str>,
+    {
+        let got: Vec<&str> = T::VARIANTS.iter().map(|v| (*v).into()).collect();
+        assert_eq!(got, expected);
+        for (v, text) in T::VARIANTS.iter().zip(expected) {
+            assert_eq!(serde_json::to_string(v).unwrap(), format!("\"{text}\""));
+            assert_eq!(serde_json::from_str::<T>(&format!("\"{text}\"")).unwrap(), *v);
+            assert_eq!(text.parse::<T>().ok(), Some(*v));
+        }
+        assert!(serde_json::from_str::<T>("\"no-such-value\"").is_err());
+    }
+
+    #[test]
+    fn closed_string_sets_keep_the_strings_the_python_scene_writes() {
+        round_trips::<Align>(&["left", "center"]);
+        round_trips::<VAlign>(&["top", "middle"]);
+        round_trips::<TextAnchor>(&["start", "middle", "end"]);
+        round_trips::<Paint>(&["shape", "solid", "stroke"]);
+        round_trips::<Role>(&["node", "zone", "pill", "swatch", "chrome", "panel", "node-part", "callout"]);
+        round_trips::<ConnectorRoute>(&["straight", "poly", "curve"]);
+        round_trips::<MarkerKind>(&["arrow", "open-arrow", "diamond", "open-diamond", "circle", "bar", "none"]);
+        round_trips::<LineCap>(&["butt", "round", "square"]);
+        round_trips::<Side>(&["top", "bottom", "left", "right"]);
+        round_trips::<Axis>(&["row", "column"]);
+        round_trips::<EndpointTarget>(&["node", "zone"]);
+    }
+
+    #[test]
+    fn a_shape_kind_keeps_unknown_kinds_and_knows_the_midpoint_ones() {
+        for (text, midpoint) in [("diamond", true), ("decision", true), ("flow_final", true), ("deep_history", true), ("rect", false), ("pill", false), ("action", false)] {
+            let kind: ShapeKind = serde_json::from_str(&format!("\"{text}\"")).unwrap();
+            assert_eq!(kind.midpoint_anchor(), midpoint, "{text}");
+            assert_eq!(serde_json::to_string(&kind).unwrap(), format!("\"{text}\""));
+        }
+    }
 
     #[expect(clippy::needless_pass_by_value, reason = "test fixture builders take JSON literals by value")]
     fn font(file: Value) -> Value {
@@ -285,7 +678,7 @@ mod tests {
                    shape("s1"),
                    {"type": "connector", "id": "c1", "points": [[0.0, 0.0], [5.0, 5.0], [9.0, 0.0]], "route": "curve",
                     "color": "#abcdef", "width": 1.5, "dashed": false, "arrow_start": true, "arrow_end": false,
-                    "src": {"shape_id": "s1", "side": "right", "frac": 0.25, "target": "zone"}, "dst": null,
+                    "src": {"shape_id": "s1", "side": "right", "frac": 0.25, "target": "zone", "explicit": true}, "dst": null,
                     "label": shape("lab"), "dash": [3.0], "marker_start": "open-diamond", "marker_end": "bar",
                     "opacity": 0.5},
                    {"type": "text", "id": "t1", "x": 5.0, "y": 6.0, "block": block(json!(null)), "anchor": "middle",
@@ -304,7 +697,7 @@ mod tests {
     /// `UPDATE_SCHEMA=1 cargo test -p spinagram-core schema` rewrites the committed file.
     #[test]
     fn committed_schema_is_fresh() {
-        let fresh = schema_json();
+        let fresh = schema_json().unwrap();
         if std::env::var("UPDATE_SCHEMA").is_ok_and(|v| v == "1") {
             std::fs::create_dir_all(std::path::Path::new(SCHEMA_FILE).parent().unwrap()).unwrap();
             std::fs::write(SCHEMA_FILE, &fresh).unwrap();
@@ -318,7 +711,7 @@ mod tests {
         let input = fixture();
         let scene = parse(&input.to_string()).unwrap();
         assert_eq!(scene.items.len(), 6);
-        let output: Value = serde_json::from_str(&to_json(&scene)).unwrap();
+        let output: Value = serde_json::from_str(&to_json(&scene).unwrap()).unwrap();
         assert_eq!(output, input);
     }
 
@@ -326,7 +719,7 @@ mod tests {
     fn integer_letter_spacing_stays_an_integer() {
         let mut v = fixture();
         v["items"][2]["letter_spacing"] = json!(1);
-        let output: Value = serde_json::from_str(&to_json(&parse(&v.to_string()).unwrap())).unwrap();
+        let output: Value = serde_json::from_str(&to_json(&parse(&v.to_string()).unwrap()).unwrap()).unwrap();
         assert_eq!(output["items"][2]["letter_spacing"], json!(1));
     }
 
@@ -334,6 +727,6 @@ mod tests {
     fn other_versions_are_rejected_naming_both() {
         let mut v = fixture();
         v["version"] = json!(2);
-        assert_eq!(parse(&v.to_string()).unwrap_err(), "scene version 2 is not supported (expected 1)");
+        assert_eq!(parse(&v.to_string()).unwrap_err().to_string(), "scene version 2 is not supported (expected 1)");
     }
 }

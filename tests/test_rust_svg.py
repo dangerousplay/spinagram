@@ -123,3 +123,45 @@ def test_writer_sends_the_flag_to_the_core(core, monkeypatch):  # SVG-01
     monkeypatch.setattr(svg, "_CORE", spy)
     svg.to_svg(font_scene())
     assert spy.svg_draw.call_args.args[1] is svg.COMPENSATED_SUM
+
+
+def _decision_scene() -> Scene:
+    from spinagram import api, cli
+    from spinagram.theme import Theme
+    return api.scenes(cli._collect([str(ROOT / "examples" / "decision.yaml")], None), Theme.load(None))[0]
+
+
+def _item_ids(scene: Scene) -> set[str]:
+    ids = set()
+    for it in scene.items:
+        ids.add(it.id)
+        if isinstance(it, Connector) and it.label:
+            ids.add(it.label.id)
+    return ids
+
+
+@pytest.mark.parametrize("writer", ["python_writer", "rust_writer"])
+def test_every_item_group_carries_its_scene_id(writer, request):  # CTR-01
+    import re
+    request.getfixturevalue(writer)
+    scene = _decision_scene()
+    svg_text = svg.to_svg(scene, "link")
+    data_ids = re.findall(r'<g data-id="([^"]*)"', svg_text)
+    assert len(data_ids) == len(set(data_ids)), "a data-id repeats"
+    ids = _item_ids(scene)
+    assert any(isinstance(i, Connector) for i in scene.items) and any(isinstance(i, Shape) for i in scene.items)
+    for item_id in ids:
+        assert item_id in data_ids, f"{item_id} has no group"
+    assert set(data_ids) - ids == {f"{i}@{layer}" for i in ids for layer in ("mid", "front")} & set(data_ids)
+
+
+@pytest.mark.parametrize("writer", ["python_writer", "rust_writer"])
+def test_node_group_holds_its_shape_icon_and_title(writer, request):  # CTR-01
+    request.getfixturevalue(writer)
+    scene = _decision_scene()
+    svg_text = svg.to_svg(scene, "link")
+    node = next(i for i in scene.items if isinstance(i, Shape) and i.role == "node" and i.label)
+    start = svg_text.index(f'<g data-id="{node.id}">')
+    assert svg_text.index("<rect", start) < svg_text.index("</g>", start)
+    front = svg_text.index(f'<g data-id="{node.id}@front">')
+    assert node.label.blocks[0].lines[0] in svg_text[front:svg_text.index("</g>", front)]

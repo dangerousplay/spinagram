@@ -94,6 +94,18 @@ def theme_sheet(ref: str, active_ref: str | Path | None) -> dict:
     }
 
 
+def zone_styles(active_ref: str | Path | None) -> list[dict]:
+    """Every zone style of the session's theme, for the canvas palette and its style picker: its name, the corner
+    icon (a pack ref or null) and the resolved fill, outline and label colours (hex or null)."""
+    theme = Theme.load(active_ref or "default")
+    out = []
+    for name in (theme.get("styles", "zone") or {}):
+        st = theme.zone_style(name)
+        out.append({"name": name, "icon": st["icon"], "fill": st["fill"], "stroke": st["stroke"], "label": st["label"],
+                    "dashed": bool(st["dashed"])})
+    return out
+
+
 def font_file(ref: str, active_ref: str | Path | None, role: str, key: str) -> Path:
     """A font file the theme declares (never an arbitrary path)."""
     theme = Theme.load(resolve_ref(ref, active_ref))

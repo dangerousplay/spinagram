@@ -1,24 +1,29 @@
 //! Text measurement and wrapping, a port of `spinagram/text.py` and the wrapping half of
 //! `spinagram/engine/textfit.py`. Same rules, same results: the Python tests are the spec.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, LazyLock};
 
 use regex::Regex;
 
 use crate::font::Face;
 use crate::verified;
 
+/// The characters after which a long token may be broken.
 pub const BREAK_ON: &str = "-./:·";
 
 /// A font at a size. Without a face the width is estimated from an average advance per character.
 #[derive(Clone, Debug)]
 pub struct Font {
+    /// The face the metrics come from; `None` measures without one.
     pub face: Option<Arc<Face>>,
+    /// Size in px.
     pub size: f64,
+    /// Font weight.
     pub weight: u16,
 }
 
 impl Font {
+    /// The same font at another size.
     #[must_use]
     pub fn with_size(&self, size: f64) -> Font {
         Font { size, ..self.clone() }
@@ -55,6 +60,7 @@ fn blank(text: &str) -> bool {
 /// Measures text with a font and the fallback faces for characters it lacks.
 #[derive(Clone, Debug, Default)]
 pub struct Measurer {
+    /// Faces tried, in order, for characters the main face lacks.
     pub fallbacks: Vec<Arc<Face>>,
 }
 
@@ -165,8 +171,8 @@ impl Measurer {
 /// `token` cut after each break character that is not inside an IPv4/CIDR run. The cut points and the piece
 /// bounds come from the verified kernel in `verified::segments`.
 fn segments<'a>(token: &'a str, break_on: &str) -> Vec<&'a str> {
-    static ATOMIC: OnceLock<Regex> = OnceLock::new();
-    let atomic = ATOMIC.get_or_init(|| Regex::new(r"\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?").unwrap());
+    static ATOMIC: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?").expect("the pattern is a constant"));
+    let atomic = &*ATOMIC;
     let protected: Vec<(usize, usize)> = atomic.find_iter(token).map(|m| (m.start(), m.end())).collect();
     let mut can_cut = vec![false; token.len() + 1];
     for (i, ch) in token.char_indices() {
