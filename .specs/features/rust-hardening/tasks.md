@@ -116,6 +116,8 @@ regenerate `rust/schema/` (only enum constraints may be added).
 **Tests**: nested fallback; path with relative commands and exponents; CSS parity; wasm goldens.
 **Gate**: full
 **Commit**: `refactor(core): cssparser tokenizer for var() and svgtypes for paths`
+**Status**: Done
+**Notes**: SPEC_DEVIATION (LEX-06, partial): cssparser splits the var() name from the fallback at the first top-level comma (nested fallbacks tested against Python), but the extent of a var( stays the proved parenthesis scanner. Python counts parentheses per character, strings and comments included, so a tokenizer would change var(--a, ")") and the unclosed var(--oops cases and break byte parity with the reference. Text with a string, comment or escape is cut at the first comma as Python does. Recorded in rust/DEPENDENCIES.md. LEX-07 as specified (svgtypes::PathParser; relative commands, exponents, H V S Q T A).
 
 ### T7: Errors, FFI and API surface
 

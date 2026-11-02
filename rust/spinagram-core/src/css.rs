@@ -10,7 +10,7 @@
 //! identifier (`[w=100px]`). Parsing those fails here and the caller falls back to the Python path, so results
 //! stay identical. No crate reproduces spinagram's looser grammar.
 
-use cssparser::{CowRcStr, ParseError, Parser as CssParser, ToCss};
+use cssparser::{CowRcStr, ParseError, Parser as CssParser, ToCss, Token};
 use precomputed_hash::PrecomputedHash;
 use selectors::attr::{AttrSelectorOperation, CaseSensitivity, NamespaceConstraint};
 use selectors::context::{
@@ -402,35 +402,53 @@ type Custom = std::rc::Rc<std::collections::HashMap<String, String>>;
 const MAX_VAR_PASSES: usize = 8;
 
 /// `var(--x[, fallback])` replacement, as `css._substitute`: up to 8 passes; an unknown `--x` without a fallback
-/// becomes `x` (the theme token). Fallbacks may contain functions.
+/// becomes `x` (the theme token). Fallbacks may contain functions, including nested `var()`.
+///
+/// The extent of a `var(` is Python's parenthesis count (the proved scanner), so an unclosed `var(--oops` and a
+/// parenthesis inside a string behave as they do there. The `cssparser` tokenizer splits the name from the
+/// fallback at the first comma that is not inside a nested function or block.
 #[must_use]
 pub fn substitute<S: std::hash::BuildHasher>(value: &str, custom: &std::collections::HashMap<String, String, S>) -> String {
-    let mut chars: Vec<char> = value.chars().collect();
+    let mut value = value.to_owned();
     for _ in 0..MAX_VAR_PASSES {
-        let Some(start) = find_var(&chars) else { break };
-        let end = verified::brackets::scan_close(&chars, start + 4);
+        let Some(start) = value.find("var(") else { break };
+        let from = start + "var(".len();
+        let tail: Vec<char> = value[from..].chars().collect();
+        let close = verified::brackets::scan_close(&tail, 0);
+        let byte = |chars: usize| from + value[from..].char_indices().nth(chars).map_or(value.len() - from, |(i, _)| i);
         // Python slices `value[i + 4:j - 1]`, which is empty when nothing follows `var(`
-        let inner: String = chars[start + 4..end.saturating_sub(1).max(start + 4)].iter().collect();
-        let (name, fallback) = match inner.split_once(',') {
-            Some((n, f)) => (n, f),
-            None => (inner.as_str(), ""),
-        };
+        let inner = &value[from..byte(close.saturating_sub(1))];
+        let (name, fallback) = split_var(inner);
         let name = name.trim();
         let replacement: String = match custom.get(name) {
             Some(r) => r.clone(),
             None if !fallback.trim().is_empty() => fallback.trim().to_string(),
             None => name.chars().skip(2).collect(),
         };
-        let mut next: Vec<char> = chars[..start].to_vec();
-        next.extend(replacement.chars());
-        next.extend_from_slice(&chars[end..]);
-        chars = next;
+        value.replace_range(start..byte(close), &replacement);
     }
-    chars.into_iter().collect()
+    value
 }
 
-fn find_var(v: &[char]) -> Option<usize> {
-    v.windows(4).position(|w| w == ['v', 'a', 'r', '('])
+/// The text of a `var()` cut into the name and the fallback at the first top-level comma. The tokenizer skips
+/// nested functions and blocks; text with strings, comments or escapes is cut at the first comma as Python does.
+fn split_var(inner: &str) -> (&str, &str) {
+    let first_comma = || inner.split_once(',').unwrap_or((inner, ""));
+    if inner.contains(['"', '\\', '\'']) || inner.contains("/*") {
+        return first_comma();
+    }
+    let mut parser = CssParser::new(inner);
+    loop {
+        match parser.next_including_whitespace_and_comments() {
+            // a block that is not entered is skipped whole by the next call; a comma is one byte
+            Ok(Token::Comma) => {
+                let after = parser.position().byte_index();
+                return (&inner[..after - 1], &inner[after..]);
+            }
+            Ok(_) => {}
+            Err(_) => return (inner, ""),
+        }
+    }
 }
 
 fn level(important: bool, inline: bool) -> u8 {
@@ -1624,5 +1642,41 @@ mod tests {
         ] {
             assert_eq!(substitute(value, &custom), want, "_substitute({value:?})");
         }
+    }
+
+    // Expected strings come from Python's _substitute(value, {"--a": "Z", "--b": "B C"}).
+    #[test]
+    fn substitute_resolves_nested_fallbacks_like_python() {
+        let custom: HashMap<String, String> = HashMap::from([("--a".to_string(), "Z".to_string()), ("--b".to_string(), "B C".to_string())]);
+        for (value, want) in [
+            ("var(--a, var(--b, red))", "Z"),
+            ("var(--x, var(--b, red))", "B C"),
+            ("var(--x, var(--y, red))", "red"),
+            ("var(--x, var(--y, rgb(1, 2, 3)))", "rgb(1, 2, 3)"),
+            ("var(--x, rgb(1, 2, 3)) solid", "rgb(1, 2, 3) solid"),
+            ("var( --a , x )", "Z"),
+            ("1px var(--a) var(--b) 2px", "1px Z B C 2px"),
+            ("var(--x,)", "x"),
+            ("var()", ""),
+            ("var(--\u{e9}, \u{fc}n\u{ef})", "\u{fc}n\u{ef}"),
+            ("var(--x, \")\") tail", "\"\") tail"),
+            ("var(--x, /* ) */ y)", "/* */ y)"),
+            ("a var(--x, var(--y, var(--z, var(--w, var(--v, var(--u, var(--t, var(--s, deep)))))))) b", "a deep b"),
+            ("var(--x, var(--a))", "Z"),
+        ] {
+            assert_eq!(substitute(value, &custom), want, "_substitute({value:?})");
+        }
+    }
+
+    #[test]
+    fn split_var_cuts_at_the_first_top_level_comma() {
+        assert_eq!(split_var("--a, red"), ("--a", " red"));
+        assert_eq!(split_var("--a"), ("--a", ""));
+        assert_eq!(split_var("--a,"), ("--a", ""));
+        // a comma inside a nested function is part of the fallback (no comma at the top level of the name)
+        assert_eq!(split_var("--a, rgb(1, 2, 3)"), ("--a", " rgb(1, 2, 3)"));
+        assert_eq!(split_var("rgb(1, 2), x"), ("rgb(1, 2)", " x"));
+        // strings and comments keep Python's first-comma cut
+        assert_eq!(split_var("--a, \",\""), ("--a", " \",\""));
     }
 }

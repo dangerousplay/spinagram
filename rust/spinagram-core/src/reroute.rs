@@ -12,6 +12,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use regex::Regex;
+use svgtypes::{PathParser, PathSegment};
 
 use crate::pyfmt::g;
 use crate::route::{self, round2, Crossings, Options, Pt, Rect, Side, MARGIN};
@@ -135,25 +136,69 @@ fn side_of(p: Pt, q: Pt) -> Side {
     Side::of_step(sign(dx), sign(dy))
 }
 
-/// Transform the numbers of an absolute `M`/`L`/`C`/`Z` path (what `shapes.py` writes) with `f(x, y)`.
-fn map_path(d: &str, f: &dyn Fn(f64, f64) -> Pt) -> String {
-    let tokens: Vec<&str> = d.split(|c: char| c.is_whitespace() || c == ',').filter(|t| !t.is_empty()).collect();
+/// How a path moves with its shape: the `ox`/`oy` corner scales by `sx`/`sy` and lands at `x`/`y`.
+struct PathMap {
+    sx: f64,
+    sy: f64,
+    ox: f64,
+    oy: f64,
+    x: f64,
+    y: f64,
+}
+
+impl PathMap {
+    fn abs(&self, px: f64, py: f64) -> (f64, f64) {
+        (self.x + (px - self.ox) * self.sx, self.y + (py - self.oy) * self.sy)
+    }
+
+    /// Offsets scale only: the translation cancels between two points.
+    fn rel(&self, dx: f64, dy: f64) -> (f64, f64) {
+        (dx * self.sx, dy * self.sy)
+    }
+
+    fn point(&self, abs: bool, px: f64, py: f64) -> (f64, f64) {
+        if abs { self.abs(px, py) } else { self.rel(px, py) }
+    }
+}
+
+/// Map the coordinates of an SVG path (`M L H V C S Q T A Z`, absolute or relative, any number syntax) with `m`.
+/// A path that does not parse is returned as it is.
+fn map_path(d: &str, m: &PathMap) -> String {
     let mut out: Vec<String> = Vec::new();
-    let mut i = 0;
-    while i < tokens.len() {
-        let t = tokens[i];
-        if matches!(t, "M" | "L" | "C" | "Z") {
-            out.push(t.to_owned());
-            i += 1;
-        } else if let (Ok(x), Some(Ok(y))) = (t.parse::<f64>(), tokens.get(i + 1).map(|s| s.parse::<f64>())) {
-            let (nx, ny) = f(x, y);
-            out.push(g(round2(nx)));
-            out.push(g(round2(ny)));
-            i += 2;
-        } else {
-            out.push(t.to_owned());
-            i += 1;
-        }
+    let num = |v: f64| g(round2(v));
+    for (i, seg) in PathParser::from(d).enumerate() {
+        let Ok(seg) = seg else { return d.to_owned() };
+        let cmd = char::from(seg.command()).to_string();
+        let nums: Vec<f64> = match seg {
+            PathSegment::MoveTo { abs, x, y } | PathSegment::LineTo { abs, x, y } | PathSegment::SmoothQuadratic { abs, x, y } => {
+                // the first `m` of a path is absolute whatever its case
+                let first_move = i == 0 && matches!(seg, PathSegment::MoveTo { .. });
+                let (x, y) = m.point(abs || first_move, x, y);
+                vec![x, y]
+            }
+            PathSegment::HorizontalLineTo { abs, x } => vec![if abs { m.abs(x, m.oy).0 } else { m.rel(x, 0.0).0 }],
+            PathSegment::VerticalLineTo { abs, y } => vec![if abs { m.abs(m.ox, y).1 } else { m.rel(0.0, y).1 }],
+            PathSegment::CurveTo { abs, x1, y1, x2, y2, x, y } => {
+                let ((x1, y1), (x2, y2), (x, y)) = (m.point(abs, x1, y1), m.point(abs, x2, y2), m.point(abs, x, y));
+                vec![x1, y1, x2, y2, x, y]
+            }
+            PathSegment::SmoothCurveTo { abs, x2, y2, x, y } => {
+                let ((x2, y2), (x, y)) = (m.point(abs, x2, y2), m.point(abs, x, y));
+                vec![x2, y2, x, y]
+            }
+            PathSegment::Quadratic { abs, x1, y1, x, y } => {
+                let ((x1, y1), (x, y)) = (m.point(abs, x1, y1), m.point(abs, x, y));
+                vec![x1, y1, x, y]
+            }
+            PathSegment::EllipticalArc { abs, rx, ry, x_axis_rotation, large_arc, sweep, x, y } => {
+                let (x, y) = m.point(abs, x, y);
+                let flag = |b: bool| if b { 1.0 } else { 0.0 };
+                vec![rx * m.sx, ry * m.sy, x_axis_rotation, flag(large_arc), flag(sweep), x, y]
+            }
+            PathSegment::ClosePath { .. } => Vec::new(),
+        };
+        out.push(cmd);
+        out.extend(nums.into_iter().map(num));
     }
     out.join(" ")
 }
@@ -173,7 +218,7 @@ fn place(s: &mut Shape, x: f64, y: f64, w: f64, h: f64) {
     }
     if let Some(parts) = s.parts.as_mut() {
         for p in parts {
-            p.d = map_path(&p.d, &|px, py| (x + (px - ox) * sx, y + (py - oy) * sy));
+            p.d = map_path(&p.d, &PathMap { sx, sy, ox, oy, x, y });
         }
     }
     (s.x, s.y, s.w, s.h) = (x, y, w, h);
@@ -313,6 +358,27 @@ pub fn reroute(scene_json: &str, moves_json: &str) -> Result<String, String> {
 mod tests {
     use super::*;
     use serde_json::Value;
+
+    #[test]
+    fn map_path_moves_absolute_coordinates() {
+        let m = PathMap { sx: 2.0, sy: 3.0, ox: 10.0, oy: 20.0, x: 100.0, y: 50.0 };
+        assert_eq!(map_path("M 10 20 L 30 40 C 1 2 3 4 5 6 Z", &m), "M 100 50 L 140 110 C 82 -4 86 2 90 8 Z");
+        assert_eq!(map_path("M10,20L30,40Z", &m), "M 100 50 L 140 110 Z");
+    }
+
+    #[test]
+    fn map_path_scales_relative_offsets_and_reads_exponents() {
+        let m = PathMap { sx: 2.0, sy: 3.0, ox: 0.0, oy: 0.0, x: 5.0, y: 7.0 };
+        // the first `m` is absolute; `l`, `h`, `v` are offsets that only scale; `1e1` and `2.5e1` are numbers
+        assert_eq!(map_path("m 1e1 2.5e1 l 1 1 h 2 v -3 z", &m), "m 25 82 l 2 3 h 4 v -9 z");
+        assert_eq!(map_path("M 0 0 H 10 V 10", &m), "M 5 7 H 25 V 37");
+    }
+
+    #[test]
+    fn map_path_leaves_an_unreadable_path_alone() {
+        let m = PathMap { sx: 1.0, sy: 1.0, ox: 0.0, oy: 0.0, x: 1.0, y: 1.0 };
+        assert_eq!(map_path("M 1 2 L nope", &m), "M 1 2 L nope");
+    }
 
     const DATA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/reroute");
     const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
