@@ -58,7 +58,7 @@ function ZonePicker({ style, styles, onPick }: { style: string; styles: ZoneStyl
 }
 
 export default function CanvasBar({ canvas, zoneStyles }: { canvas: Canvas; zoneStyles: ZoneStyle[] }) {
-  if (!canvas.active) return null;
+  if (!canvas.shown) return null;
   const nodes = canvas.selected.filter((s) => s.kind === "node").length;
   const p = canvas.containerProps;
   const zp = canvas.zoneProps;

@@ -124,4 +124,49 @@ describe("patchSvg", () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(n).toBe(0);
   });
+
+  // Rendered item groups (CTR-01): <g data-id="n0"> holds the box, <g data-id="n0@front"> its icon and title.
+  const node = (id: string, x: number, icon: string) =>
+    `<g data-id="${id}"><rect x="${x}" width="9"/></g><g data-id="${id}@front"><image x="${x}" href="data:image/png;base64,${icon}"/><text x="${x}">${id}</text></g>`;
+
+  test("inserting an item group before the others never detaches an existing image", async () => {
+    const h = host();
+    patchSvg(h, svg(node("a", 10, "AAA") + node("b", 60, "BBB") + node("c", 110, "AAA")));
+    const before = Array.from(h.querySelectorAll("image")).slice(1);
+    const removed: string[] = [];
+    const added: string[] = [];
+    const mo = new win.MutationObserver((ms) => {
+      for (const m of ms) {
+        const images = (n: Element) => (n.localName === "image" ? [n] : Array.from(n.querySelectorAll?.("image") ?? []));
+        for (const n of Array.from(m.removedNodes) as Element[]) removed.push(...images(n).map((i) => i.getAttribute("x") ?? ""));
+        for (const n of Array.from(m.addedNodes) as Element[]) added.push(...images(n).map((i) => i.getAttribute("x") ?? ""));
+      }
+    });
+    mo.observe(h as unknown as Node, { childList: true, subtree: true });
+    // a new item is drawn before every other one (its own id and its own image)
+    patchSvg(h, svg(node("new", 5, "NEW") + node("a", 10, "AAA") + node("b", 60, "BBB") + node("c", 110, "AAA")));
+    await new Promise((r) => setTimeout(r, 10));
+    const after = Array.from(h.querySelectorAll("image")).slice(1);
+    expect(after.length).toBe(4);
+    for (const img of before) expect(after.includes(img)).toBe(true);
+    expect(removed).toEqual([]); // no existing image was taken out of the tree
+    expect(added).toEqual(["5"]); // only the inserted item's image is new
+  });
+
+  test("deleting an item group removes only that item", () => {
+    const h = host();
+    patchSvg(h, svg(node("a", 10, "AAA") + node("b", 60, "BBB")));
+    const b = h.querySelector('[data-id="b@front"] image');
+    patchSvg(h, svg(node("b", 60, "BBB")));
+    expect(h.querySelector('[data-id="a"]')).toBeNull();
+    expect(h.querySelector('[data-id="b@front"] image')).toBe(b);
+  });
+
+  test("a group moved in the order keeps its elements (keyed by data-id, not position)", () => {
+    const h = host();
+    patchSvg(h, svg(node("a", 10, "AAA") + node("b", 60, "BBB")));
+    const a = h.querySelector('[data-id="a@front"] image');
+    patchSvg(h, svg(node("b", 60, "BBB") + node("a", 10, "AAA")));
+    expect(h.querySelector('[data-id="a@front"] image')).toBe(a);
+  });
 });

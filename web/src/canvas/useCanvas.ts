@@ -11,7 +11,7 @@ import { History } from "./history";
 import { dropOps, ghostOf, type Ghost, type PaletteItem } from "./palette";
 import { cursorFor, EMPTY_BURST, nudgeMoves, nudgeOps, pressNudge, TOAST_MS, type Burst, type Cursor } from "./interaction";
 import { entryField, yamlRange, type SrcMap } from "./srcmap";
-import { connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
+import { canvasUi, connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
 
 export const CHANGED_ON_DISK = "File changed on disk; edit not applied";
 
@@ -81,7 +81,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const committing = useRef(false);
   sceneRef.current = scene;
 
-  const active = enabled && editable === true && ready;
+  const { shown, active } = canvasUi(enabled, editable, ready);
 
   // the scene, whenever the canvas is on and the diagram renders again
   useEffect(() => {
@@ -695,6 +695,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const selection: Selection | null = last ? { ...last, nonce } : null;
 
   return {
+    shown,
     active,
     editable,
     selection,

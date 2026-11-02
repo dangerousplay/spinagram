@@ -1,7 +1,7 @@
 // The element that shows the diagram's SVG. A new render (the WASM preview, then the server render) is patched into
 // the SVG that is already on screen instead of replacing it: elements that did not change stay the same DOM
 // objects, so embedded fonts and images are not parsed and decoded again, and the host is never empty. The
-// patching library is morphdom (small, no dependencies); elements are matched by `id`.
+// patching library is morphdom (small, no dependencies); elements are matched by `id` or, for a rendered item group, by `data-id`.
 import { useLayoutEffect, useRef } from "react";
 import morphdom from "morphdom";
 
@@ -26,17 +26,61 @@ function signature(el: Element): string {
   return `${el.localName}|${attrs}|${text}`;
 }
 
-/** Rendered SVG elements mostly have no `id`, so adding one box would shift every later element by position and
- * re-create all of them (the images with their decoded pixels included). Matching by signature, with the place among
- * elements sharing it, keeps every element that did not change and re-creates only those that did. */
+/** Rendered item groups carry `data-id` (their diagram id), and that keys them: the key does not depend on what else
+ * is in the diagram. Inside a group, and for the few elements outside any group (background, metadata), an element
+ * is keyed by signature and by its place among elements sharing it *within that scope*, so adding one item adds one
+ * group and never re-keys an element of another item (the images with their decoded pixels included). */
 function keyElements(root: Element, into: Map<Element, string>): void {
-  const seen = new Map<string, number>();
-  for (const el of Array.from(root.querySelectorAll("*"))) {
-    if (el.getAttribute("id")) continue; // ids key themselves
-    const sig = signature(el);
-    const n = seen.get(sig) ?? 0;
-    seen.set(sig, n + 1);
-    into.set(el, `${n}#${sig}`);
+  const walk = (parent: Element, scope: string, seen: Map<string, number>) => {
+    for (const el of Array.from(parent.children)) {
+      const group = el.getAttribute("data-id");
+      const id = el.getAttribute("id");
+      if (id) {
+        walk(el, scope, seen); // ids key themselves
+      } else if (group !== null) {
+        const key = `g:${group}`;
+        into.set(el, key);
+        walk(el, key, new Map());
+      } else {
+        const sig = signature(el);
+        const n = seen.get(sig) ?? 0;
+        seen.set(sig, n + 1);
+        into.set(el, `${scope}|${n}#${sig}`);
+        walk(el, scope, seen);
+      }
+    }
+  };
+  walk(root, "", new Map());
+}
+
+function copyKeys(from: Element, to: Element, keys: Map<Element, string>): void {
+  const k = keys.get(from);
+  if (k !== undefined) keys.set(to, k);
+  Array.from(from.children).forEach((c, i) => copyKeys(c, to.children[i], keys));
+}
+
+/** Put a copy of every element that is new (no counterpart in `cur`) at its place among `cur`'s children before
+ * morphdom runs. Left to morphdom, a new element in front of the others makes it move (take out and put back) every
+ * element in between, which an `<image>` answers by decoding again; with the new ones already in place the
+ * children line up and morphdom only patches. Elements that merely changed order are still moved by morphdom. */
+function insertNew(cur: Element, next: Element, keys: Map<Element, string>): void {
+  const keyOf = (el: Element) => el.getAttribute("id") || keys.get(el);
+  const kids = Array.from(cur.children);
+  const at = new Map(kids.map((el, i) => [keyOf(el), i] as const));
+  const taken = new Set<number>();
+  let i = 0;
+  for (const want of Array.from(next.children)) {
+    while (i < kids.length && taken.has(i)) i++;
+    const key = keyOf(want);
+    const found = at.get(key);
+    if (found === undefined) {
+      const copy = want.cloneNode(true) as Element;
+      copyKeys(want, copy, keys);
+      cur.insertBefore(copy, i < kids.length ? kids[i] : null);
+      continue;
+    }
+    taken.add(found);
+    insertNew(kids[found], want, keys);
   }
 }
 
@@ -60,6 +104,7 @@ export function patchSvg(host: Element, markup: string): void {
   const keyOf = (el: Element) => el.getAttribute("id") || keys.get(el);
   const wanted = new Set(Array.from(next.querySelectorAll("*"), keyOf));
   for (const el of Array.from(cur.querySelectorAll("*"))) if (!wanted.has(keyOf(el))) el.remove();
+  insertNew(cur, next, keys);
   morphdom(cur, next, {
     getNodeKey: (n) => (n.nodeType === 1 ? keyOf(n as Element) || undefined : undefined),
     onBeforeElUpdated: (from, to) => !from.isEqualNode(to),

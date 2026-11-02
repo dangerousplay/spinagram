@@ -1128,14 +1128,22 @@ tests that pin SVG bytes. Exports to PPTX, Figma and Excalidraw are unaffected; 
 
 **Done when**:
 
-- [ ] svgHost test (happy-dom): inserting a new `data-id` group before others keeps every existing `<image>` as the same object, never detached (a MutationObserver in the test sees no removal of an `<image>` that is in both versions)
-- [ ] Test: the toolbar root stays mounted across a save cycle (`ready` false then true)
-- [ ] Browser check on the AWS showcase, reproducing the orchestrator's measurement: a Box tool insert and a palette insert each give 0 toolbar remounts and 0 `<image>` removals or additions, apart from images of the inserted item
-- [ ] Web gate passes
+- [x] svgHost test (happy-dom): inserting a new `data-id` group before others keeps every existing `<image>` as the same object, never detached (a MutationObserver in the test sees no removal of an `<image>` that is in both versions)
+- [x] Test: the toolbar root stays mounted across a save cycle (`ready` false then true)
+- [x] Browser check on the AWS showcase, reproducing the orchestrator's measurement: a Box tool insert and a palette insert each give 0 toolbar remounts and 0 `<image>` removals or additions, apart from images of the inserted item
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `fix(web): keep icons and toolbar in place when an item is inserted`
+
+**Notes**: `patchSvg` keys an element by `data-id` (group key `g:<id>`), and everything inside a group (or outside any group: background, metadata) by signature and by its place among elements with the same signature within that scope, so a new item never re-keys another item's elements. morphdom alone still took every existing `<image>` out of the tree and put it back when a new group landed in front of them (the new test caught it: 3 removals), so a new `insertNew` step first puts a copy of every element with no counterpart at its place among the old siblings; morphdom then only patches, and only elements that really changed order are moved. `useCanvas` gained `shown` (canvas on and diagram editable) next to `active` (also scene loaded): `canUi` is the pure `canvasUi` in `tools.ts`. Toolbar, CanvasBar and the palette are gated on `shown`; while `ready` is false the tool, group, ungroup, delete, undo and redo buttons are disabled (palette and help stay usable). New tests: svgHost +3 (insert before others: existing images are the same objects, MutationObserver sees no image removed and one added; delete; reorder), `toolbar.test.ts` +2 (`canvasUi` states; the toolbar root and its buttons are the same elements through ready true, false, true, with no removed node, and tools disabled meanwhile). Mutation check: without `insertNew` the insert test fails (3 images removed).
+Browser (Chrome, port 8799, scratch copy of `examples/showcase/`, `editable_platform`, observer on `document.body`: toolbar subtree removals and additions, `svg image` removals and additions):
+| Insert | Before (orchestrator's measurement) | After |
+| --- | --- | --- |
+| Box tool click | 2 toolbar remounts, 16 images detached and re-inserted | 0 remounts, 0 image removals, 0 additions (the box has no icon) |
+| Palette drop of Amazon Athena (dispatched DragEvents, 3 dragovers) | same cause | 0 remounts, 0 image removals, 1 image added (the new item's), 17 images in all |
+YAML: `+ - {id: new-box, kind: box, title: New box, x: 220, y: 920, w: 220, h: 96}` and `children: [account]` became `[account, new-box]` on the AWS Cloud zone. Gate: bun test 180 pass (was 175), `bun run build` ok (the rebuilt bundle is not committed here, T37).
 
 ---
 

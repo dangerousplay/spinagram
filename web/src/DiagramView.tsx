@@ -321,7 +321,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const fileError = file?.error && !diagram;
   return (
     <div className="flex h-full">
-    {canvas.active && paletteOpen && (
+    {canvas.shown && paletteOpen && (
       <PalettePanel
         rev={rev}
         focusRef={paletteFocus}

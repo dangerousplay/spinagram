@@ -14,11 +14,12 @@ const on = "bg-blue-600 text-white hover:bg-blue-700 dark:text-white";
 const off = "cursor-not-allowed opacity-35";
 
 export default function Toolbar({ canvas, paletteOpen, sheetOpen, onPalette, onHelp }: Props) {
-  if (!canvas.active) return null;
+  if (!canvas.shown) return null; // stays mounted while a save re-fetches the scene (`active` false): buttons just disable
+  const live = canvas.active;
   const nodes = canvas.selected.filter((s) => s.kind === "node").length;
   const hasContainer = canvas.selected.some((s) => s.kind === "container");
   const removable = canvas.selected.some((s) => s.kind !== "container");
-  const enabled: Partial<Record<ActionId, boolean>> = { "group-row": nodes >= 2, "group-column": nodes >= 2, ungroup: hasContainer, delete: removable };
+  const enabled: Partial<Record<ActionId, boolean>> = { "group-row": live && nodes >= 2, "group-column": live && nodes >= 2, ungroup: live && hasContainer, delete: live && removable, undo: live, redo: live };
   const run: Record<ActionId, () => void> = {
     "group-row": () => canvas.group("row"),
     "group-column": () => canvas.group("column"),
@@ -43,7 +44,8 @@ export default function Toolbar({ canvas, paletteOpen, sheetOpen, onPalette, onH
         <button
           key={t.id}
           type="button"
-          className={`${base} ${canvas.tool === t.id ? on : idle}`}
+          disabled={!live}
+          className={`${base} ${!live ? off : canvas.tool === t.id ? on : idle}`}
           aria-pressed={canvas.tool === t.id}
           aria-label={t.label}
           title={`${t.label} (${t.key.toUpperCase()})`}

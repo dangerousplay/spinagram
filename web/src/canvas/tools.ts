@@ -87,3 +87,12 @@ export const toolAfterUse = (tool: ToolId, keep: boolean): ToolId => (keep ? too
  * scene (it renders as plain text), so the box it was placed with is used; null while the scene lacks the item. */
 export const editBoxOf = (scene: SceneJson, pending: { id: string; box: Box }): Box | null =>
   scene.items.some((i) => i.id === pending.id) ? pending.box : null;
+
+/** What the canvas UI does with the three facts it has. `shown`: the canvas is on for an editable diagram, so its
+ * toolbar, bar and palette are mounted. `active`: the scene is also loaded in the worker, so they work. While a save
+ * is re-fetching the scene `ready` goes false: the controls stay mounted (disabled) instead of being torn down and
+ * rebuilt, which is a visible flash. */
+export function canvasUi(enabled: boolean, editable: boolean | null, ready: boolean): { shown: boolean; active: boolean } {
+  const shown = enabled && editable === true;
+  return { shown, active: shown && ready };
+}
