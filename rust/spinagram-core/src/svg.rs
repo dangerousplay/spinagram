@@ -4,13 +4,33 @@
 //! the document around them (font faces, head, metadata, hash), so subsetting stays in fontTools.
 
 use crate::pyfmt::{attr, esc, f1, g, py_sum, repr_f64};
-use crate::scene::{Cell, Connector, Font, Icon, Item, Label, Scene, Shape, Table, Text, TextBlock};
+use crate::scene::{Align, Cell, Connector, ConnectorRoute, Font, Icon, Item, Label, MarkerKind, Paint, Role, Scene, Shape, ShapeKind, Table, Text, TextAnchor, TextBlock, VAlign};
 use base64::Engine;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex, OnceLock};
 
+/// The dash pattern of a dashed shape or connector without an explicit pattern.
 const DASH: &str = " stroke-dasharray=\"10 7\"";
+/// The view box every marker is drawn in.
+const MARKER_VIEW_BOX: &str = "0 0 10 10";
+/// Marker anchor and size, in marker units, of the filled arrow head (its tip sits near the line end).
+const ARROW_REF_X: u8 = 9;
+const ARROW_SIZE: u8 = 7;
+/// Marker anchor and size of every other head, which is centred on the line end.
+const HEAD_REF_X: u8 = 5;
+const HEAD_SIZE: u8 = 8;
+/// Marker anchor on the line, shared by all heads.
+const MARKER_REF_Y: u8 = 5;
+/// The filter region of a drop shadow: offset and size as a share of the shape's box.
+const SHADOW_OFFSET: &str = "-20%";
+const SHADOW_SIZE: &str = "140%";
+/// Where the baseline sits below the top of a line, as a share of the font size (Python's `0.8`).
+const ASCENT: f64 = 0.8;
+/// Space, in px, left of an icon in a table cell.
+const CELL_ICON_PAD: f64 = 14.0;
+/// Text items whose id starts with this are zone captions and draw behind the shapes (`backends/svg.py`).
+const ZONE_TEXT_PREFIX: char = 'z';
 
 /// `(family, weight, italic)` -> characters drawn in that face
 pub type Chars = BTreeMap<(String, u32, bool), BTreeSet<char>>;
@@ -50,14 +70,15 @@ enum Layer {
     Front,
 }
 
-fn marker_body(kind: &str, c: &str) -> Option<String> {
+/// The body of a marker other than the default arrow, in the marker's 10 x 10 view box.
+fn marker_body(kind: MarkerKind, c: &str) -> Option<String> {
     Some(match kind {
-        "open-arrow" => format!("<path d=\"M1,1 L9,5 L1,9\" fill=\"none\" stroke=\"{c}\" stroke-width=\"1.5\"/>"),
-        "diamond" => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"{c}\"/>"),
-        "open-diamond" => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"#FFFFFF\" stroke=\"{c}\" stroke-width=\"1.2\"/>"),
-        "circle" => format!("<circle cx=\"5\" cy=\"5\" r=\"4\" fill=\"{c}\"/>"),
-        "bar" => format!("<path d=\"M8,0 L8,10\" stroke=\"{c}\" stroke-width=\"2\"/>"),
-        _ => return None,
+        MarkerKind::OpenArrow => format!("<path d=\"M1,1 L9,5 L1,9\" fill=\"none\" stroke=\"{c}\" stroke-width=\"1.5\"/>"),
+        MarkerKind::Diamond => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"{c}\"/>"),
+        MarkerKind::OpenDiamond => format!("<path d=\"M0,5 L5,0 L10,5 L5,10 z\" fill=\"#FFFFFF\" stroke=\"{c}\" stroke-width=\"1.2\"/>"),
+        MarkerKind::Circle => format!("<circle cx=\"5\" cy=\"5\" r=\"4\" fill=\"{c}\"/>"),
+        MarkerKind::Bar => format!("<path d=\"M8,0 L8,10\" stroke=\"{c}\" stroke-width=\"2\"/>"),
+        MarkerKind::Arrow | MarkerKind::None => return None,
     })
 }
 
@@ -97,17 +118,45 @@ fn read_disk(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
     Err(DrawError::NotFound(path.to_string()))
 }
 
-fn mime(path: &str) -> &'static str {
-    let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    match ext.as_str() {
-        "svg" => "image/svg+xml",
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "otf" => "font/otf",
-        "ttf" => "font/ttf",
-        "woff2" => "font/woff2",
-        "woff" => "font/woff",
-        _ => "application/octet-stream",
+/// The media types of the files a scene embeds (images, icons and fonts).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MimeType {
+    Svg,
+    Png,
+    Jpeg,
+    Otf,
+    Ttf,
+    Woff2,
+    Woff,
+    Binary,
+}
+
+impl MimeType {
+    fn of(path: &str) -> MimeType {
+        let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+        match ext.as_str() {
+            "svg" => MimeType::Svg,
+            "png" => MimeType::Png,
+            "jpg" | "jpeg" => MimeType::Jpeg,
+            "otf" => MimeType::Otf,
+            "ttf" => MimeType::Ttf,
+            "woff2" => MimeType::Woff2,
+            "woff" => MimeType::Woff,
+            _ => MimeType::Binary,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            MimeType::Svg => "image/svg+xml",
+            MimeType::Png => "image/png",
+            MimeType::Jpeg => "image/jpeg",
+            MimeType::Otf => "font/otf",
+            MimeType::Ttf => "font/ttf",
+            MimeType::Woff2 => "font/woff2",
+            MimeType::Woff => "font/woff",
+            MimeType::Binary => "application/octet-stream",
+        }
     }
 }
 
@@ -140,7 +189,7 @@ fn block_height(b: &TextBlock) -> f64 {
 }
 
 fn baseline_offset(b: &TextBlock) -> f64 {
-    (b.leading - b.font.size) / 2.0 + b.font.size * 0.8
+    (b.leading - b.font.size) / 2.0 + b.font.size * ASCENT
 }
 
 struct Writer<'a> {
@@ -198,7 +247,7 @@ impl<'a> Writer<'a> {
         self.chars.entry((font.family.clone(), font.weight, font.italic)).or_default().extend(text.chars());
     }
 
-    fn text_lines(&mut self, out: Layer, block: &TextBlock, x: f64, baseline: f64, anchor: &str, letter_spacing: &str) {
+    fn text_lines(&mut self, out: Layer, block: &TextBlock, x: f64, baseline: f64, anchor: TextAnchor, letter_spacing: &str) {
         let f = &block.font;
         let runs = block.runs.as_ref().filter(|r| !r.is_empty());
         let mut spans = String::new();
@@ -240,20 +289,20 @@ impl<'a> Writer<'a> {
         let ls = if letter_spacing.is_empty() { String::new() } else { format!(" letter-spacing=\"{letter_spacing}\"") };
         let style = if f.italic { " font-style=\"italic\"" } else { "" };
         let el = format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"{}\"{style} fill=\"{}\" text-anchor=\"{anchor}\"{ls}>{spans}</text>",
-            f1(x), f1(baseline), family(f), g(f.size), f.weight, block.color);
+            "<text x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" font-weight=\"{}\"{style} fill=\"{}\" text-anchor=\"{}\"{ls}>{spans}</text>",
+            f1(x), f1(baseline), family(f), g(f.size), f.weight, block.color, anchor.as_str());
         self.layer(out).push(el);
     }
 
     #[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
     fn label(&mut self, out: Layer, label: &Label) {
-        let anchor = if label.align == "center" { "middle" } else { "start" };
+        let anchor = if label.align == Align::Center { TextAnchor::Middle } else { TextAnchor::Start };
         let [x, y, w, h] = label.bbox;
         let heights: Vec<f64> = label.blocks.iter().map(block_height).collect();
         let total = py_sum(&heights, self.compensated_sum) + label.gap * label.blocks.len().saturating_sub(1) as f64;
-        let mut top = if label.valign == "middle" { y + (h - total) / 2.0 } else { y };
+        let mut top = if label.valign == VAlign::Middle { y + (h - total) / 2.0 } else { y };
         for (b, height) in label.blocks.iter().zip(heights) {
-            let bx = if label.align == "center" { x + w / 2.0 } else { x };
+            let bx = if label.align == Align::Center { x + w / 2.0 } else { x };
             self.text_lines(out, b, bx, top + baseline_offset(b), anchor, "");
             top += height + label.gap;
         }
@@ -272,7 +321,7 @@ impl<'a> Writer<'a> {
     fn image(&mut self, out: Layer, path: &str, x: f64, y: f64, w: f64, h: f64) -> Result<(), DrawError> {
         let data = self.b64(path)?;
         let el = format!("<image x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" href=\"data:{};base64,{data}\"/>",
-                         f1(x), f1(y), g(w), g(h), mime(path));
+                         f1(x), f1(y), g(w), g(h), MimeType::of(path).as_str());
         self.layer(out).push(el);
         Ok(())
     }
@@ -287,7 +336,7 @@ impl<'a> Writer<'a> {
             let id = format!("sh{}", self.filters.len());
             let (dx, dy, blur, color, alpha) = sh;
             self.defs.push(format!(
-                "<filter id=\"{id}\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"{}\" dy=\"{}\" stdDeviation=\"{}\" flood-color=\"{color}\" flood-opacity=\"{}\"/></filter>",
+                "<filter id=\"{id}\" x=\"{SHADOW_OFFSET}\" y=\"{SHADOW_OFFSET}\" width=\"{SHADOW_SIZE}\" height=\"{SHADOW_SIZE}\"><feDropShadow dx=\"{}\" dy=\"{}\" stdDeviation=\"{}\" flood-color=\"{color}\" flood-opacity=\"{}\"/></filter>",
                 g(*dx), g(*dy), g(blur / 2.0), g(*alpha)));
             self.filters.push((sh.clone(), id.clone()));
             id
@@ -295,20 +344,20 @@ impl<'a> Writer<'a> {
         format!(" filter=\"url(#{id})\"")
     }
 
-    fn marker(&mut self, color: &str, kind: &str) -> String {
+    fn marker(&mut self, color: &str, kind: MarkerKind) -> String {
         let bare = color.trim_matches('#');
-        if kind != "arrow" {
+        if kind != MarkerKind::Arrow {
             if let Some(body) = marker_body(kind, color) {
                 let id = format!("m{kind}-{bare}");
                 if self.markers.insert(id.clone()) {
-                    self.defs.push(format!("<marker id=\"{id}\" viewBox=\"0 0 10 10\" refX=\"5\" refY=\"5\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto-start-reverse\">{body}</marker>"));
+                    self.defs.push(format!("<marker id=\"{id}\" viewBox=\"{MARKER_VIEW_BOX}\" refX=\"{HEAD_REF_X}\" refY=\"{MARKER_REF_Y}\" markerWidth=\"{HEAD_SIZE}\" markerHeight=\"{HEAD_SIZE}\" orient=\"auto-start-reverse\">{body}</marker>"));
                 }
                 return id;
             }
         }
         let id = format!("m{bare}");
         if self.markers.insert(id.clone()) {
-            self.defs.push(format!("<marker id=\"{id}\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto-start-reverse\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"{color}\"/></marker>"));
+            self.defs.push(format!("<marker id=\"{id}\" viewBox=\"{MARKER_VIEW_BOX}\" refX=\"{ARROW_REF_X}\" refY=\"{MARKER_REF_Y}\" markerWidth=\"{ARROW_SIZE}\" markerHeight=\"{ARROW_SIZE}\" orient=\"auto-start-reverse\"><path d=\"M0,0 L10,5 L0,10 z\" fill=\"{color}\"/></marker>"));
         }
         id
     }
@@ -338,9 +387,9 @@ impl<'a> Writer<'a> {
     }
 
     fn shape_body(&mut self, s: &Shape) -> Result<(), DrawError> {
-        let layer = match s.role.as_str() {
-            "zone" | "chrome" => Layer::Back,
-            "pill" | "swatch" => Layer::Front,
+        let layer = match s.role {
+            Role::Zone | Role::Chrome => Layer::Back,
+            Role::Pill | Role::Swatch => Layer::Front,
             _ => Layer::Mid,
         };
         let stroke = if truthy(s.stroke.as_ref()) && s.stroke_width != 0.0 {
@@ -349,7 +398,7 @@ impl<'a> Writer<'a> {
             String::new()
         };
         let cap = match &s.cap {
-            Some(c) if !c.is_empty() && truthy(s.stroke.as_ref()) => format!(" stroke-linecap=\"{c}\""),
+            Some(c) if truthy(s.stroke.as_ref()) => format!(" stroke-linecap=\"{}\"", c.as_str()),
             _ => String::new(),
         };
         let dash = dash(s.dashed, s.dash.as_deref()) + &cap;
@@ -361,17 +410,17 @@ impl<'a> Writer<'a> {
         match s.parts.as_ref().filter(|p| !p.is_empty()) {
             Some(parts) => {
                 for (i, part) in parts.iter().enumerate() {
-                    let paint = match part.paint.as_str() {
-                        "solid" => format!("fill=\"{}\"", if truthy(s.stroke.as_ref()) { opt(s.stroke.as_ref()) } else { fill }),
-                        "stroke" => format!("fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"", opt(s.stroke.as_ref()), g(s.stroke_width)),
-                        _ => format!("fill=\"{fill}\"{fop}{stroke}"),
+                    let paint = match part.paint {
+                        Paint::Solid => format!("fill=\"{}\"", if truthy(s.stroke.as_ref()) { opt(s.stroke.as_ref()) } else { fill }),
+                        Paint::Stroke => format!("fill=\"none\" stroke=\"{}\" stroke-width=\"{}\"", opt(s.stroke.as_ref()), g(s.stroke_width)),
+                        Paint::Shape => format!("fill=\"{fill}\"{fop}{stroke}"),
                     };
                     let el = format!("<path d=\"{}\" {paint}{dash}{op}/>", part.d);
                     let el = if i == 0 { Self::with_tip(el, "path", &tip) } else { el };
                     self.layer(layer).push(el);
                 }
             }
-            None if s.kind == "diamond" => {
+            None if s.kind == ShapeKind::Diamond => {
                 let (cx, cy) = (s.x + s.w / 2.0, s.y + s.h / 2.0);
                 let pts = format!("{},{} {},{} {},{} {},{}", f1(cx), f1(s.y), f1(s.x + s.w), f1(cy), f1(cx), f1(s.y + s.h), f1(s.x), f1(cy));
                 let el = format!("<polygon points=\"{pts}\" fill=\"{fill}\"{fop}{stroke}{dash}{op}/>");
@@ -383,7 +432,7 @@ impl<'a> Writer<'a> {
                 self.layer(layer).push(Self::with_tip(el, "rect", &tip));
             }
         }
-        let text_layer = if s.role == "zone" { Layer::Back } else { Layer::Front };
+        let text_layer = if s.role == Role::Zone { Layer::Back } else { Layer::Front };
         if let Some(icon) = &s.icon {
             self.icon(Layer::Front, icon)?;
         }
@@ -394,7 +443,7 @@ impl<'a> Writer<'a> {
     }
 
     fn connector(&mut self, c: &Connector) -> Result<(), DrawError> {
-        let d = if c.route == "curve" {
+        let d = if c.route == ConnectorRoute::Curve {
             let [p1, p2, p3] = c.points[..] else {
                 return Err(DrawError::Scene(format!("connector {}: a curve needs 3 points", c.id)));
             };
@@ -405,10 +454,10 @@ impl<'a> Writer<'a> {
         };
         let mut ends = String::new();
         if c.arrow_end {
-            let _ = write!(ends, " marker-end=\"url(#{})\"", self.marker(&c.color, &c.marker_end));
+            let _ = write!(ends, " marker-end=\"url(#{})\"", self.marker(&c.color, c.marker_end));
         }
         if c.arrow_start {
-            let _ = write!(ends, " marker-start=\"url(#{})\"", self.marker(&c.color, &c.marker_start));
+            let _ = write!(ends, " marker-start=\"url(#{})\"", self.marker(&c.color, c.marker_start));
         }
         let op = if c.opacity < 1.0 { format!(" opacity=\"{}\"", g(c.opacity)) } else { String::new() };
         let mark = self.mark();
@@ -460,11 +509,11 @@ impl<'a> Writer<'a> {
 
     fn cell(&mut self, cell: &Cell, x: f64, y: f64, h: f64) -> Result<(), DrawError> {
         if let Some(icon) = &cell.icon {
-            self.image(Layer::Front, &icon.path, x + 14.0, y + (h - icon.size) / 2.0, icon.size, icon.size)?;
+            self.image(Layer::Front, &icon.path, x + CELL_ICON_PAD, y + (h - icon.size) / 2.0, icon.size, icon.size)?;
         }
         let b = &cell.block;
         let top = y + (h - block_height(b)) / 2.0;
-        self.text_lines(Layer::Front, b, x + cell.pad_left, top + baseline_offset(b), "start", "");
+        self.text_lines(Layer::Front, b, x + cell.pad_left, top + baseline_offset(b), TextAnchor::Start, "");
         Ok(())
     }
 
@@ -475,7 +524,7 @@ impl<'a> Writer<'a> {
     }
 
     fn text_item_body(&mut self, it: &Text) {
-        let layer = if it.id.starts_with('z') { Layer::Back } else { Layer::Front };
+        let layer = if it.id.starts_with(ZONE_TEXT_PREFIX) { Layer::Back } else { Layer::Front };
         let ls = match it.letter_spacing.as_f64() {
             Some(v) if v != 0.0 => match it.letter_spacing.as_i64() {
                 Some(i) => i.to_string(),
@@ -483,7 +532,7 @@ impl<'a> Writer<'a> {
             },
             _ => String::new(),
         };
-        self.text_lines(layer, &it.block, it.x, it.y, &it.anchor, &ls);
+        self.text_lines(layer, &it.block, it.x, it.y, it.anchor, &ls);
         let tip = self.tip(&it.id);
         if !tip.is_empty() {
             if let Some(last) = self.layer(layer).last_mut() {

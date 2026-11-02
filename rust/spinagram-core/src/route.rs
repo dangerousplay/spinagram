@@ -7,6 +7,10 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::BinaryHeap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
+
 use crate::verified::bisect::{lower_bound, order_key};
 use crate::verified::grid::neighbour;
 
@@ -18,38 +22,42 @@ pub const MARGIN: f64 = 14.0;
 pub const BEND: f64 = 60.0;
 pub const BUSY: f64 = 400.0;
 pub const CLOSE: f64 = 4.0;
+/// Slack, in px, inside a box's edge before a point counts as inside it.
+const INSIDE_PAD: f64 = 0.5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A side of a box. The declaration order is the order of `ports` and Python's dict order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Display, EnumString, AsRefStr, IntoStaticStr, VariantArray)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum Side {
+    /// The upper edge.
     Top,
+    /// The lower edge.
     Bottom,
+    /// The left edge.
     Left,
+    /// The right edge.
     Right,
 }
 
 impl Side {
-    /// Python's dict order: top, bottom, left, right.
+    /// All sides in Python's dict order: top, bottom, left, right.
     pub const ALL: [Side; 4] = [Side::Top, Side::Bottom, Side::Left, Side::Right];
-
-    #[must_use]
-    pub fn from_name(s: &str) -> Option<Side> {
-        match s {
-            "top" => Some(Side::Top),
-            "bottom" => Some(Side::Bottom),
-            "left" => Some(Side::Left),
-            "right" => Some(Side::Right),
-            _ => None,
-        }
-    }
 
     /// The side as the loader names it.
     #[must_use]
     pub fn as_str(self) -> &'static str {
-        match self {
-            Side::Top => "top",
-            Side::Bottom => "bottom",
-            Side::Left => "left",
-            Side::Right => "right",
+        self.into()
+    }
+
+    /// The side a polyline leaves a box from when its first step goes `(dx, dy)`; right for a zero step.
+    #[must_use]
+    pub fn of_step(dx: i8, dy: i8) -> Side {
+        match (dx, dy) {
+            (-1, 0) => Side::Left,
+            (0, 1) => Side::Bottom,
+            (0, -1) => Side::Top,
+            _ => Side::Right,
         }
     }
 }
@@ -98,7 +106,7 @@ fn port(p: &[(Pt, Dir); 4], s: Side) -> (Pt, Dir) {
 #[expect(clippy::many_single_char_names, reason = "geometry names (x, y, w, h, a, b) mirror the Python port")]
 fn inside(px: f64, py: f64, b: Rect) -> bool {
     let (x, y, w, h) = b;
-    let pad = 0.5;
+    let pad = INSIDE_PAD;
     x + pad < px && px < x + w - pad && y + pad < py && py < y + h - pad
 }
 

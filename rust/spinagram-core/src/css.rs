@@ -17,11 +17,12 @@ use selectors::context::{
     MatchingContext, MatchingForInvalidation, MatchingMode, NeedsSelectorFlags, QuirksMode, SelectorCaches,
 };
 use selectors::matching::{matches_selector, ElementSelectorFlags};
-use selectors::parser::{NonTSPseudoClass, Parser, PseudoElement, SelectorImpl, SelectorParseErrorKind};
+use selectors::parser::{NonTSPseudoClass, Parser, SelectorImpl, SelectorParseErrorKind};
 use selectors::{Element, OpaqueElement};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt;
+use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 
 use crate::verified;
 
@@ -60,30 +61,43 @@ impl PrecomputedHash for Str {
 }
 
 /// The pseudo-elements spinagram styles.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Pe {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString, AsRefStr, IntoStaticStr, VariantArray)]
+#[strum(serialize_all = "lowercase")]
+pub enum PseudoElement {
+    /// `::title`
     Title,
+    /// `::body`
     Body,
+    /// `::label`
     Label,
 }
 
-impl Pe {
+/// Cascade slots: the element itself, then each [`PseudoElement`] in declaration order.
+pub const SLOTS: usize = 1 + PseudoElement::VARIANTS.len();
+
+impl PseudoElement {
     fn name(self) -> &'static str {
+        self.into()
+    }
+
+    /// Position in a cascade result: 0 is the element itself, so the first pseudo-element is 1.
+    #[must_use]
+    pub fn slot(self) -> usize {
         match self {
-            Pe::Title => "title",
-            Pe::Body => "body",
-            Pe::Label => "label",
+            PseudoElement::Title => 1,
+            PseudoElement::Body => 2,
+            PseudoElement::Label => 3,
         }
     }
 }
 
-impl ToCss for Pe {
+impl ToCss for PseudoElement {
     fn to_css<W: fmt::Write>(&self, dest: &mut W) -> fmt::Result {
         write!(dest, "::{}", self.name())
     }
 }
 
-impl PseudoElement for Pe {}
+impl selectors::parser::PseudoElement for PseudoElement {}
 
 /// Spinagram has no pseudo-classes beyond the built-in `:first-child`, `:last-child`, `:root` and `:not()`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -118,7 +132,7 @@ impl SelectorImpl for Impl {
     type BorrowedNamespaceUrl = str;
     type BorrowedLocalName = str;
     type NonTSPseudoClass = NoPseudoClass;
-    type PseudoElement = Pe;
+    type PseudoElement = PseudoElement;
 }
 
 struct SelectorParser;
@@ -127,13 +141,8 @@ impl<'i> Parser<'i> for SelectorParser {
     type Impl = Impl;
     type Error = SelectorParseErrorKind;
 
-    fn parse_pseudo_element(&self, name: CowRcStr<'i>) -> Result<Pe, ParseError<Self::Error>> {
-        match &*name {
-            "title" => Ok(Pe::Title),
-            "body" => Ok(Pe::Body),
-            "label" => Ok(Pe::Label),
-            _ => Err(ParseError::custom(SelectorParseErrorKind::UnsupportedPseudoClassOrElement)),
-        }
+    fn parse_pseudo_element(&self, name: CowRcStr<'i>) -> Result<PseudoElement, ParseError<Self::Error>> {
+        name.parse().map_err(|_| ParseError::custom(SelectorParseErrorKind::UnsupportedPseudoClassOrElement))
     }
 }
 
@@ -142,7 +151,7 @@ impl<'i> Parser<'i> for SelectorParser {
 pub struct Selector {
     pub text: String,
     inner: selectors::parser::Selector<Impl>,
-    pub pseudo_element: Option<Pe>,
+    pub pseudo_element: Option<PseudoElement>,
 }
 
 impl Selector {
@@ -304,7 +313,7 @@ impl Element for El<'_> {
         match *pc {}
     }
 
-    fn match_pseudo_element(&self, _pe: &Pe, _: &mut MatchingContext<Impl>) -> bool {
+    fn match_pseudo_element(&self, _pe: &PseudoElement, _: &mut MatchingContext<Impl>) -> bool {
         true // the pseudo-element is the caller's concern: the originating element matches
     }
 
@@ -386,17 +395,18 @@ pub struct Entry {
     pub resolved: Option<String>,
 }
 
-/// Pseudo-elements in the order of the result: the element itself, then `title`, `body`, `label`.
-pub const PSEUDOS: [&str; 4] = ["", "title", "body", "label"];
-
 type Custom = std::rc::Rc<std::collections::HashMap<String, String>>;
+
+/// How many times `substitute` rescans for `var(` after a replacement (Python's limit): nested references resolve
+/// to this depth, deeper ones stay as text.
+const MAX_VAR_PASSES: usize = 8;
 
 /// `var(--x[, fallback])` replacement, as `css._substitute`: up to 8 passes; an unknown `--x` without a fallback
 /// becomes `x` (the theme token). Fallbacks may contain functions.
 #[must_use]
 pub fn substitute<S: std::hash::BuildHasher>(value: &str, custom: &std::collections::HashMap<String, String, S>) -> String {
     let mut chars: Vec<char> = value.chars().collect();
-    for _ in 0..8 {
+    for _ in 0..MAX_VAR_PASSES {
         let Some(start) = find_var(&chars) else { break };
         let end = verified::brackets::scan_close(&chars, start + 4);
         // Python slices `value[i + 4:j - 1]`, which is empty when nothing follows `var(`
@@ -455,27 +465,20 @@ fn sorted_by_cascade(found: Vec<(SortKey, Entry)>) -> Vec<(SortKey, Entry)> {
         .collect()
 }
 
-/// For every element (index order) and pseudo-element (`PSEUDOS`): the declarations that apply, in cascade order
+/// For every element (index order) and pseudo-element (`SLOTS`): the declarations that apply, in cascade order
 /// (the winner of a property last): by `(important, specificity, rule order, declaration index)`, with inline
 /// declarations at levels 1 (normal) and 3 (important). Custom properties inherit from the parent element; a
 /// pseudo-element sees its element's custom properties plus its own.
-///
-/// # Panics
-///
-/// Never for a tree built by `Tree::link`: every selector's pseudo-element is one of `PSEUDOS`.
-pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
+pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; SLOTS]> {
     let specs: Vec<Vec<(u32, u32, u32)>> = rules.iter().map(|r| r.selectors.iter().map(Selector::specificity).collect()).collect();
     let mut matcher = Matcher::default();
-    let mut out: Vec<[Vec<Entry>; 4]> = Vec::with_capacity(tree.nodes.len());
+    let mut out: Vec<[Vec<Entry>; SLOTS]> = Vec::with_capacity(tree.nodes.len());
     let mut customs: Vec<Custom> = Vec::with_capacity(tree.nodes.len());
     for (el, node) in tree.nodes.iter().enumerate() {
-        let mut found: [Vec<(SortKey, Entry)>; 4] = Default::default();
+        let mut found: [Vec<(SortKey, Entry)>; SLOTS] = Default::default();
         for (ri, r) in rules.iter().enumerate() {
             for (si, sel) in r.selectors.iter().enumerate() {
-                let slot = match sel.pseudo_element {
-                    None => 0,
-                    Some(p) => PSEUDOS.iter().position(|x| *x == p.name()).expect("a known pseudo-element"),
-                };
+                let slot = sel.pseudo_element.map_or(0, PseudoElement::slot);
                 if matcher.matches(sel, tree, el) {
                     for (di, d) in r.decls.iter().enumerate() {
                         let key = (level(d.important, false), specs[ri][si], r.order, di);
@@ -495,8 +498,8 @@ pub fn cascade(tree: &Tree, rules: &[Rule]) -> Vec<[Vec<Entry>; 4]> {
         };
         let parent_custom: Custom = node.parent.map_or_else(Default::default, |p| customs[p].clone());
         let mut element_custom = parent_custom;
-        let mut result: [Vec<Entry>; 4] = Default::default();
-        for slot in 0..4 {
+        let mut result: [Vec<Entry>; SLOTS] = Default::default();
+        for slot in 0..SLOTS {
             let mut list = std::mem::take(&mut found[slot]);
             list = sorted_by_cascade(list);
             let own: Vec<(&str, &str)> = list
@@ -605,7 +608,7 @@ pub fn tree_from_json(json: &str) -> Result<Tree, String> {
 /// One cascade entry on the JSON boundary: rule index or -1 for inline, selector, declaration, resolved value.
 type Row = (i64, usize, usize, Option<String>);
 
-/// The cascade as JSON: per element, per pseudo-element (`PSEUDOS` order), a list of
+/// The cascade as JSON: per element, per pseudo-element (`PseudoElement` order), a list of
 /// `[rule index or -1, selector index, declaration index, resolved value or null]`.
 /// `rules_json` is `[{"selectors": [text], "decls": [{name, value, important}], "order": n}]`.
 ///
@@ -659,7 +662,7 @@ mod tests {
     // the tree in fixture().
     fn canon(sel: &Selector) -> String {
         let (a, b, c) = sel.specificity();
-        format!("{}~{}~({a},{b},{c})", sel.text, sel.pseudo_element.map_or("-", Pe::name))
+        format!("{}~{}~({a},{b},{c})", sel.text, sel.pseudo_element.map_or("-", PseudoElement::name))
     }
 
     fn node(parent: Option<usize>, typ: &str, kinds: &[&str], id: Option<&str>, classes: &[&str], attrs: &[(&str, &str)]) -> Node {

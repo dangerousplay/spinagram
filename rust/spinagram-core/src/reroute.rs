@@ -15,7 +15,8 @@ use regex::Regex;
 
 use crate::pyfmt::g;
 use crate::route::{self, round2, Crossings, Options, Pt, Rect, Side, MARGIN};
-use crate::scene::{self, Binding, Connector, Item, Scene, Shape, TaggedShape};
+use crate::edge_syntax::EndpointTarget;
+use crate::scene::{self, Binding, Connector, ConnectorRoute, Item, Role, Scene, Shape, ShapeKind, TaggedShape};
 
 /// Shape id to `[dx, dy]` (move) or `[x, y, w, h]` (new box).
 pub type Moves = BTreeMap<String, Vec<f64>>;
@@ -24,7 +25,6 @@ pub type Moves = BTreeMap<String, Vec<f64>>;
 const CROSSING: f64 = 120.0;
 /// Zone endpoints stay this far from the corners (`engine.endpoints.CORNER`).
 const CORNER: f64 = 24.0;
-const MIDPOINT_KINDS: [&str; 10] = ["diamond", "decision", "merge", "choice", "connector", "initial", "final", "flow_final", "history", "deep_history"];
 
 #[derive(Clone)]
 struct Geo {
@@ -32,7 +32,7 @@ struct Geo {
     y: f64,
     w: f64,
     h: f64,
-    kind: String,
+    kind: ShapeKind,
 }
 
 impl Geo {
@@ -49,44 +49,43 @@ impl Geo {
     }
 
     /// `Shape.anchor`: outlines that touch the box only at side midpoints ignore the fraction.
-    fn anchor(&self, side: &str, frac: f64) -> Pt {
+    fn anchor(&self, side: Side, frac: f64) -> Pt {
         let (x, y, w, h) = self.rect();
-        let f = if self.kind == "diamond" || MIDPOINT_KINDS.contains(&self.kind.as_str()) { 0.5 } else { frac };
+        let f = if self.kind.midpoint_anchor() { 0.5 } else { frac };
         match side {
-            "top" => (x + w * f, y),
-            "bottom" => (x + w * f, y + h),
-            "left" => (x, y + h * f),
-            "right" => (x + w, y + h * f),
-            _ => self.center(),
+            Side::Top => (x + w * f, y),
+            Side::Bottom => (x + w * f, y + h),
+            Side::Left => (x, y + h * f),
+            Side::Right => (x + w, y + h * f),
         }
     }
 
     /// `endpoints._facing`: the side facing a point.
-    fn facing(&self, o: Pt) -> &'static str {
+    fn facing(&self, o: Pt) -> Side {
         let (cx, cy) = self.center();
         let (dx, dy) = (o.0 - cx, o.1 - cy);
         if dx.abs() * self.h >= dy.abs() * self.w {
-            if dx > 0.0 { "right" } else { "left" }
+            if dx > 0.0 { Side::Right } else { Side::Left }
         } else if dy > 0.0 {
-            "bottom"
+            Side::Bottom
         } else {
-            "top"
+            Side::Top
         }
     }
 
     /// `endpoints._zone_side`: facing a point outside, the nearest side for a point inside.
-    fn zone_side(&self, o: Pt) -> &'static str {
+    fn zone_side(&self, o: Pt) -> Side {
         let (x, y, w, h) = self.rect();
         if x < o.0 && o.0 < x + w && y < o.1 && o.1 < y + h {
-            let d = [("top", o.1 - y), ("bottom", y + h - o.1), ("left", o.0 - x), ("right", x + w - o.0)];
+            let d = [(Side::Top, o.1 - y), (Side::Bottom, y + h - o.1), (Side::Left, o.0 - x), (Side::Right, x + w - o.0)];
             return d.iter().fold(d[0], |best, &c| if c.1 < best.1 { c } else { best }).0;
         }
         self.facing(o)
     }
 
     /// `endpoints._clamped_frac`.
-    fn clamped_frac(&self, side: &str, o: Pt) -> f64 {
-        let (lo, hi, v, span, start) = if side == "top" || side == "bottom" {
+    fn clamped_frac(&self, side: Side, o: Pt) -> f64 {
+        let (lo, hi, v, span, start) = if matches!(side, Side::Top | Side::Bottom) {
             (self.x + CORNER, self.x + self.w - CORNER, o.0, self.w, self.x)
         } else {
             (self.y + CORNER, self.y + self.h - CORNER, o.1, self.h, self.y)
@@ -98,25 +97,25 @@ impl Geo {
 
 /// The point an end aims at: the anchor when the author fixed a side, else the shape centre.
 fn aim(b: &Binding, s: &Geo) -> Pt {
-    if b.explicit { s.anchor(&b.side, b.frac) } else { s.center() }
+    if b.explicit { s.anchor(b.side, b.frac) } else { s.center() }
 }
 
 /// `endpoints.resolve` for a bound end: the point and the binding it gets.
 fn resolve(b: &Binding, s: &Geo, other: Pt) -> (Pt, Binding) {
     let (side, frac) = if b.explicit {
-        (b.side.clone(), b.frac)
-    } else if b.target == "zone" {
+        (b.side, b.frac)
+    } else if b.target == EndpointTarget::Zone {
         let side = s.zone_side(other);
-        (side.to_owned(), s.clamped_frac(side, other))
+        (side, s.clamped_frac(side, other))
     } else {
-        (s.facing(other).to_owned(), 0.5)
+        (s.facing(other), 0.5)
     };
-    (s.anchor(&side, frac), Binding { side, frac, ..b.clone() })
+    (s.anchor(side, frac), Binding { side, frac, ..b.clone() })
 }
 
 fn polyline(c: &Connector) -> Vec<Pt> {
     let pts: Vec<Pt> = c.points.iter().map(|p| (p[0], p[1])).collect();
-    if c.route != "curve" || pts.len() != 3 {
+    if c.route != ConnectorRoute::Curve || pts.len() != 3 {
         return pts;
     }
     let ((x0, y0), (qx, qy), (x2, y2)) = (pts[0], pts[1], pts[2]);
@@ -130,15 +129,10 @@ fn polyline(c: &Connector) -> Vec<Pt> {
 }
 
 /// `engine.route._side`: the side of a box a segment leaves from.
-fn side_of(p: Pt, q: Pt) -> &'static str {
+fn side_of(p: Pt, q: Pt) -> Side {
     let (dx, dy) = (q.0 - p.0, q.1 - p.1);
     let sign = |v: f64| i8::from(v > 0.0) - i8::from(v < 0.0);
-    match (sign(dx), sign(dy)) {
-        (-1, 0) => "left",
-        (0, 1) => "bottom",
-        (0, -1) => "top",
-        _ => "right",
-    }
+    Side::of_step(sign(dx), sign(dy))
 }
 
 /// Transform the numbers of an absolute `M`/`L`/`C`/`Z` path (what `shapes.py` writes) with `f(x, y)`.
@@ -217,8 +211,8 @@ pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), String> {
         for it in &mut scene.items {
             match it {
                 Item::Shape(p) if p.id == *id => place(p, x, y, w, h),
-                Item::Shape(p) if p.role == "node-part" && own.is_match(&p.id) => shift_shape(p, dx, dy),
-                Item::Shape(p) if p.role == "zone" && zone_own.is_match(&p.id) => shift_shape(p, dx, dy), // header icons, accent strip
+                Item::Shape(p) if p.role == Role::NodePart && own.is_match(&p.id) => shift_shape(p, dx, dy),
+                Item::Shape(p) if p.role == Role::Zone && zone_own.is_match(&p.id) => shift_shape(p, dx, dy), // header icons, accent strip
                 Item::Text(t) if t.id == mark || t.id == label => {
                     t.x += dx;
                     t.y += dy;
@@ -233,7 +227,7 @@ pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), String> {
     for it in &scene.items {
         if let Item::Shape(s) = it {
             geo.entry(s.id.clone()).or_insert_with(|| Geo::of(s));
-            if s.role == "node" {
+            if s.role == Role::Node {
                 obstacles.push((s.x, s.y, s.w, s.h));
             }
         }
@@ -263,26 +257,26 @@ pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), String> {
         let (Some(sb), Some(db)) = (c.src.clone(), c.dst.clone()) else { continue };
         let (a, b) = (geo[&sb.shape_id].clone(), geo[&db.shape_id].clone());
         let old_mid = mid(c);
-        match c.route.as_str() {
-            "poly" => {
+        match c.route {
+            ConnectorRoute::Poly => {
                 let drawn: Vec<(Pt, Pt)> = placed.iter().flatten().copied().collect();
                 let guides: Vec<Pt> = drawn.iter().flat_map(|&(p, q)| [p, q]).flat_map(|(x, y)| [(x - MARGIN, y - MARGIN), (x + MARGIN, y + MARGIN)]).collect();
                 let crossing = Crossings { cost: CROSSING, drawn };
                 let keep = |bd: &Binding| bd.explicit; // a side the author chose, on a node or a zone
-                let sides = (keep(&sb).then(|| Side::from_name(&sb.side)).flatten(), keep(&db).then(|| Side::from_name(&db.side)).flatten());
-                let zone_frac = |bd: &Binding| (bd.target == "zone" && bd.explicit).then_some(bd.frac);
+                let sides = (keep(&sb).then_some(sb.side), keep(&db).then_some(db.side));
+                let zone_frac = |bd: &Binding| (bd.target == EndpointTarget::Zone && bd.explicit).then_some(bd.frac);
                 let fracs = (zone_frac(&sb), zone_frac(&db));
                 let opts = Options { margin: MARGIN, sides, busy_src: &[], busy_dst: &[], crossing: Some(&crossing), guides: &guides, fracs };
                 let pts = route::route(a.rect(), b.rect(), &obstacles, &opts);
-                let fin = |bd: &Binding, p: Pt, q: Pt, f: Option<f64>| Binding { side: side_of(p, q).to_owned(), frac: f.unwrap_or(0.5), explicit: false, ..bd.clone() };
+                let fin = |bd: &Binding, p: Pt, q: Pt, f: Option<f64>| Binding { side: side_of(p, q), frac: f.unwrap_or(0.5), explicit: false, ..bd.clone() };
                 c.src = Some(fin(&sb, pts[0], pts[1], fracs.0));
                 c.dst = Some(fin(&db, pts[pts.len() - 1], pts[pts.len() - 2], fracs.1));
                 c.points = pts.iter().map(|p| [p.0, p.1]).collect();
             }
-            route_kind => {
+            route_kind @ (ConnectorRoute::Straight | ConnectorRoute::Curve) => {
                 let (p1, nb1) = resolve(&sb, &a, aim(&db, &b));
                 let (p2, nb2) = resolve(&db, &b, aim(&sb, &a));
-                c.points = if route_kind == "curve" && c.points.len() == 3 { vec![[p1.0, p1.1], c.points[1], [p2.0, p2.1]] } else { vec![[p1.0, p1.1], [p2.0, p2.1]] };
+                c.points = if route_kind == ConnectorRoute::Curve && c.points.len() == 3 { vec![[p1.0, p1.1], c.points[1], [p2.0, p2.1]] } else { vec![[p1.0, p1.1], [p2.0, p2.1]] };
                 (c.src, c.dst) = (Some(nb1), Some(nb2));
             }
         }
@@ -405,7 +399,7 @@ mod tests {
                 if touched.contains(&g.id.as_str()) {
                     for (a, b) in [(&g.src, &w.src), (&g.dst, &w.dst)] {
                         let (a, b) = (a.as_ref().unwrap(), b.as_ref().unwrap());
-                        assert_eq!((&a.shape_id, &a.side, a.target.as_str(), a.explicit), (&b.shape_id, &b.side, b.target.as_str(), b.explicit), "{expected} {}", g.id);
+                        assert_eq!((&a.shape_id, &a.side, a.target, a.explicit), (&b.shape_id, &b.side, b.target, b.explicit), "{expected} {}", g.id);
                     }
                 }
             }

@@ -6,7 +6,7 @@
 use pyo3::exceptions::{PyFileNotFoundError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use spinagram_core::fit::{self, BlockSpec};
+use spinagram_core::fit::{self, BlockSpec, FitMode};
 use spinagram_core::font;
 use spinagram_core::css;
 use spinagram_core::edit;
@@ -71,17 +71,16 @@ fn fit_blocks(
         .into_iter()
         .map(|(paragraphs, f, leading)| Ok(BlockSpec { paragraphs, font: to_font(f)?, leading }))
         .collect::<PyResult<Vec<_>>>()?;
-    let r = py
-        .detach(|| fit::fit_blocks(&m, &specs, width, height, mode, min_scale, break_on, gap))
-        .map_err(PyValueError::new_err)?;
+    let mode = FitMode::parse(mode).map_err(PyValueError::new_err)?;
+    let r = py.detach(|| fit::fit_blocks(&m, &specs, width, height, mode, min_scale, break_on, gap));
     let blocks = r.blocks.into_iter().map(|b| (b.lines, b.font.size, b.leading)).collect();
-    Ok((blocks, r.height, r.strategy, r.ok, r.size))
+    Ok((blocks, r.height, r.strategy.as_str(), r.ok, r.size))
 }
 
 type Segments = Vec<(Pt, Pt)>;
 
 fn side(name: &str) -> PyResult<Side> {
-    Side::from_name(name).ok_or_else(|| PyValueError::new_err(format!("unknown side {name:?}")))
+    name.parse().map_err(|_| PyValueError::new_err(format!("unknown side {name:?}")))
 }
 
 fn sides(names: Vec<String>) -> PyResult<Vec<Side>> {

@@ -3,11 +3,13 @@
 
 use std::str::FromStr;
 
-use serde::{Deserialize, Deserializer};
-use strum::{Display, EnumString, VariantNames};
+use schemars::JsonSchema;
+use serde::{Deserialize, Deserializer, Serialize};
+use strum::{Display, EnumString, IntoStaticStr, VariantArray, VariantNames};
 
 /// The direction of a container.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString, VariantNames)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Display, EnumString, IntoStaticStr, VariantArray, VariantNames)]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum Axis {
     /// Members side by side (`rows:`).
@@ -242,7 +244,7 @@ mod tests {
         assert_eq!("row".parse(), Ok(Axis::Row));
         assert_eq!(Axis::Column.to_string(), "column");
         assert_eq!(Axis::Column.key(), "columns");
-        assert_eq!(Axis::VARIANTS, ["row", "column"]);
+        assert_eq!(<Axis as VariantNames>::VARIANTS, ["row", "column"]);
         assert!("diagonal".parse::<Axis>().is_err());
         assert_eq!(Align::VARIANTS, ["center", "start", "end"]);
         assert_eq!(Arrow::VARIANTS, ["end", "start", "both", "none"]);

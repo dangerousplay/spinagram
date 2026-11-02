@@ -82,6 +82,36 @@
     "meta_tooltips"
   ],
   "$defs": {
+    "Align": {
+      "description": "Horizontal alignment of a label.",
+      "oneOf": [
+        {
+          "description": "Text starts at the box's left edge.",
+          "type": "string",
+          "const": "left"
+        },
+        {
+          "description": "Text is centred in the box.",
+          "type": "string",
+          "const": "center"
+        }
+      ]
+    },
+    "Axis": {
+      "description": "The direction of a container.",
+      "oneOf": [
+        {
+          "description": "Members side by side (`rows:`).",
+          "type": "string",
+          "const": "row"
+        },
+        {
+          "description": "Members stacked (`columns:`).",
+          "type": "string",
+          "const": "column"
+        }
+      ]
+    },
     "Binding": {
       "type": "object",
       "properties": {
@@ -97,10 +127,10 @@
           "type": "string"
         },
         "side": {
-          "type": "string"
+          "$ref": "#/$defs/Side"
         },
         "target": {
-          "type": "string"
+          "$ref": "#/$defs/EndpointTarget"
         }
       },
       "required": [
@@ -195,10 +225,10 @@
           ]
         },
         "marker_end": {
-          "type": "string"
+          "$ref": "#/$defs/MarkerKind"
         },
         "marker_start": {
-          "type": "string"
+          "$ref": "#/$defs/MarkerKind"
         },
         "opacity": {
           "type": "number",
@@ -217,7 +247,7 @@
           }
         },
         "route": {
-          "type": "string"
+          "$ref": "#/$defs/ConnectorRoute"
         },
         "src": {
           "anyOf": [
@@ -248,12 +278,32 @@
         "opacity"
       ]
     },
+    "ConnectorRoute": {
+      "description": "How a connector's points are joined.",
+      "oneOf": [
+        {
+          "description": "One straight segment.",
+          "type": "string",
+          "const": "straight"
+        },
+        {
+          "description": "A polyline.",
+          "type": "string",
+          "const": "poly"
+        },
+        {
+          "description": "A quadratic curve through three points.",
+          "type": "string",
+          "const": "curve"
+        }
+      ]
+    },
     "ContainerInfo": {
       "description": "A `rows`/`columns` container (`row0`, `column1`, ...): axis, member node ids in order, and the box\n`[x, y, w, h]` enclosing the members.",
       "type": "object",
       "properties": {
         "axis": {
-          "type": "string"
+          "$ref": "#/$defs/Axis"
         },
         "box": {
           "type": "array",
@@ -279,6 +329,21 @@
         "axis",
         "members",
         "box"
+      ]
+    },
+    "EndpointTarget": {
+      "description": "What an edge end points at.",
+      "oneOf": [
+        {
+          "description": "A node.",
+          "type": "string",
+          "const": "node"
+        },
+        {
+          "description": "A zone (`zone:` prefix).",
+          "type": "string",
+          "const": "zone"
+        }
       ]
     },
     "Font": {
@@ -475,7 +540,7 @@
       "type": "object",
       "properties": {
         "align": {
-          "type": "string"
+          "$ref": "#/$defs/Align"
         },
         "blocks": {
           "type": "array",
@@ -497,7 +562,7 @@
           "format": "double"
         },
         "valign": {
-          "type": "string"
+          "$ref": "#/$defs/VAlign"
         }
       },
       "required": [
@@ -548,6 +613,86 @@
         "width"
       ]
     },
+    "LineCap": {
+      "description": "The stroke line cap of a shape.",
+      "oneOf": [
+        {
+          "description": "Flat ends.",
+          "type": "string",
+          "const": "butt"
+        },
+        {
+          "description": "Rounded ends.",
+          "type": "string",
+          "const": "round"
+        },
+        {
+          "description": "Square ends.",
+          "type": "string",
+          "const": "square"
+        }
+      ]
+    },
+    "MarkerKind": {
+      "description": "The head drawn at a connector end.",
+      "oneOf": [
+        {
+          "description": "A filled triangle.",
+          "type": "string",
+          "const": "arrow"
+        },
+        {
+          "description": "An outlined chevron.",
+          "type": "string",
+          "const": "open-arrow"
+        },
+        {
+          "description": "A filled diamond.",
+          "type": "string",
+          "const": "diamond"
+        },
+        {
+          "description": "An outlined diamond.",
+          "type": "string",
+          "const": "open-diamond"
+        },
+        {
+          "description": "A filled circle.",
+          "type": "string",
+          "const": "circle"
+        },
+        {
+          "description": "A bar across the line.",
+          "type": "string",
+          "const": "bar"
+        },
+        {
+          "description": "No head.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "Paint": {
+      "description": "How a symbol part is painted.",
+      "oneOf": [
+        {
+          "description": "Fill with the shape's fill and stroke with its stroke.",
+          "type": "string",
+          "const": "shape"
+        },
+        {
+          "description": "Fill with the stroke colour.",
+          "type": "string",
+          "const": "solid"
+        },
+        {
+          "description": "Outline only.",
+          "type": "string",
+          "const": "stroke"
+        }
+      ]
+    },
     "Part": {
       "type": "object",
       "properties": {
@@ -555,12 +700,57 @@
           "type": "string"
         },
         "paint": {
-          "type": "string"
+          "$ref": "#/$defs/Paint"
         }
       },
       "required": [
         "d",
         "paint"
+      ]
+    },
+    "Role": {
+      "description": "What a shape is for; it picks the layer it is drawn in.",
+      "oneOf": [
+        {
+          "description": "A diagram node.",
+          "type": "string",
+          "const": "node"
+        },
+        {
+          "description": "A zone background.",
+          "type": "string",
+          "const": "zone"
+        },
+        {
+          "description": "A pill.",
+          "type": "string",
+          "const": "pill"
+        },
+        {
+          "description": "A legend swatch.",
+          "type": "string",
+          "const": "swatch"
+        },
+        {
+          "description": "Frame and title furniture.",
+          "type": "string",
+          "const": "chrome"
+        },
+        {
+          "description": "A panel.",
+          "type": "string",
+          "const": "panel"
+        },
+        {
+          "description": "A badge or accent that belongs to a node.",
+          "type": "string",
+          "const": "node-part"
+        },
+        {
+          "description": "A callout.",
+          "type": "string",
+          "const": "callout"
+        }
       ]
     },
     "Run": {
@@ -587,9 +777,13 @@
       "type": "object",
       "properties": {
         "cap": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineCap"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "dash": {
@@ -633,7 +827,7 @@
           "type": "string"
         },
         "kind": {
-          "type": "string"
+          "$ref": "#/$defs/ShapeKind"
         },
         "label": {
           "anyOf": [
@@ -663,7 +857,7 @@
           "format": "double"
         },
         "role": {
-          "type": "string"
+          "$ref": "#/$defs/Role"
         },
         "shadow": {
           "description": "`(dx, dy, blur, colour, alpha)`",
@@ -731,6 +925,35 @@
         "opacity",
         "role",
         "fill_opacity"
+      ]
+    },
+    "ShapeKind": {
+      "description": "The kind of a shape: the node kind or `rect`, `pill` and the like. The kinds whose outline touches the box\nonly at side midpoints are named; any other kind is kept as written.",
+      "type": "string"
+    },
+    "Side": {
+      "description": "A side of a box. The declaration order is the order of `ports` and Python's dict order.",
+      "oneOf": [
+        {
+          "description": "The upper edge.",
+          "type": "string",
+          "const": "top"
+        },
+        {
+          "description": "The lower edge.",
+          "type": "string",
+          "const": "bottom"
+        },
+        {
+          "description": "The left edge.",
+          "type": "string",
+          "const": "left"
+        },
+        {
+          "description": "The right edge.",
+          "type": "string",
+          "const": "right"
+        }
       ]
     },
     "Table": {
@@ -811,7 +1034,7 @@
       "type": "object",
       "properties": {
         "anchor": {
-          "type": "string"
+          "$ref": "#/$defs/TextAnchor"
         },
         "block": {
           "$ref": "#/$defs/TextBlock"
@@ -846,6 +1069,26 @@
         "block",
         "anchor",
         "letter_spacing"
+      ]
+    },
+    "TextAnchor": {
+      "description": "SVG `text-anchor` of a text item.",
+      "oneOf": [
+        {
+          "description": "Text starts at x.",
+          "type": "string",
+          "const": "start"
+        },
+        {
+          "description": "Text is centred on x.",
+          "type": "string",
+          "const": "middle"
+        },
+        {
+          "description": "Text ends at x.",
+          "type": "string",
+          "const": "end"
+        }
       ]
     },
     "TextBlock": {
@@ -892,6 +1135,21 @@
         "font",
         "color",
         "leading"
+      ]
+    },
+    "VAlign": {
+      "description": "Vertical alignment of a label.",
+      "oneOf": [
+        {
+          "description": "Blocks start at the box's top edge.",
+          "type": "string",
+          "const": "top"
+        },
+        {
+          "description": "Blocks are centred in the box.",
+          "type": "string",
+          "const": "middle"
+        }
       ]
     },
     "ZoneInfo": {

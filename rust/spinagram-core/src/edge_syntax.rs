@@ -12,6 +12,9 @@
 
 use std::str::FromStr;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 use thiserror::Error;
 use winnow::combinator::{opt, preceded};
 use winnow::prelude::*;
@@ -23,15 +26,19 @@ use crate::route::Side;
 pub const ZONE_PREFIX: &str = "zone:";
 
 /// An edge operator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr)]
 pub enum EdgeOp {
     /// `<->`: arrows at both ends.
+    #[strum(serialize = "<->")]
     Both,
     /// `->`: arrow at the destination.
+    #[strum(serialize = "->")]
     Forward,
     /// `<-`: arrow at the source; the loader swaps the ends.
+    #[strum(serialize = "<-")]
     Backward,
     /// `--`: no arrow.
+    #[strum(serialize = "--")]
     Line,
 }
 
@@ -42,12 +49,7 @@ impl EdgeOp {
     /// The operator as written.
     #[must_use]
     pub fn as_str(self) -> &'static str {
-        match self {
-            EdgeOp::Both => "<->",
-            EdgeOp::Forward => "->",
-            EdgeOp::Backward => "<-",
-            EdgeOp::Line => "--",
-        }
+        self.into()
     }
 
     /// The edge's `arrow` value.
@@ -62,7 +64,9 @@ impl EdgeOp {
 }
 
 /// What an edge end points at.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, Display, EnumString, AsRefStr, IntoStaticStr, VariantArray)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum EndpointTarget {
     /// A node.
     Node,
@@ -139,7 +143,7 @@ impl FromStr for Endpoint {
         }
         let side = match raw.side {
             "" => None,
-            name => Some(Side::from_name(name).ok_or_else(|| EndpointError::Side(name.to_owned()))?),
+            name => Some(name.parse::<Side>().map_err(|_| EndpointError::Side(name.to_owned()))?),
         };
         let frac = match raw.frac {
             "" => None,

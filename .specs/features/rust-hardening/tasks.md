@@ -104,6 +104,8 @@ regenerate `rust/schema/` (only enum constraints may be added).
 **Tests**: round-trip every enum through serde; parity scripts.
 **Gate**: full
 **Commit**: `refactor(core): enums and named constants for scene, svg, routing and fitting`
+**Status**: Done
+**Notes**: Schema diff is only enum refs replacing string types. Role holds the eight roles Python writes (node, zone, pill, swatch, chrome, panel, node-part, callout); ShapeKind keeps unknown kinds as Other(String) because node kinds are an open set; scene enums reject unknown strings, as the scene writer only emits these. fit_blocks no longer returns Result (the mode is typed; FitMode::parse keeps the error text). The ::title/::body/::label order is unchanged.
 
 ### T6: Tokenizers for CSS var() and SVG paths
 
