@@ -7,12 +7,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use std::collections::BTreeMap;
+use thiserror::Error;
 use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 
 use crate::edge_syntax::EndpointTarget;
 use crate::edit_values::Axis;
 use crate::route::Side;
 
+/// The scene format version this crate reads.
 pub const VERSION: u32 = 1;
 
 /// Derive set of a closed string enum on the scene's wire: serde, JSON Schema and the strum conversions.
@@ -182,90 +184,148 @@ impl From<ShapeKind> for String {
     }
 }
 
+/// A font as the scene names it.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Font {
+    /// Font family name.
     pub family: String,
+    /// Font weight.
     pub weight: u32,
+    /// Whether the face is italic.
     pub italic: bool,
+    /// Size in px.
     pub size: f64,
+    /// Path of the font file, if any.
     pub file: Option<String>,
+    /// CSS generic family appended after `family`.
     pub fallback: String,
+    /// Figma font style name.
     pub figma_style: String,
 }
 
 /// A piece of a line drawn with one font. `base`: it uses the block's own font (no fallback span).
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Run {
+    /// The text.
     pub text: String,
+    /// The font.
     pub font: Font,
+    /// The run uses the block's own font (no fallback span).
     pub base: bool,
 }
 
+/// Lines of text drawn in one font and colour.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TextBlock {
+    /// The wrapped lines.
     pub lines: Vec<String>,
+    /// The source paragraphs.
     pub paragraphs: Vec<String>,
+    /// The font.
     pub font: Font,
+    /// Colour as CSS text.
     pub color: String,
+    /// Line height in px.
     pub leading: f64,
+    /// The text as runs per line, each in its own font.
     pub runs: Option<Vec<Vec<Run>>>,
 }
 
+/// Text blocks laid out in a box.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Label {
+    /// The text blocks, top to bottom.
     pub blocks: Vec<TextBlock>,
     #[serde(rename = "box")]
+    /// The box `[x, y, w, h]` the label is laid out in.
     pub bbox: [f64; 4],
+    /// Horizontal alignment.
     pub align: Align,
+    /// Space between blocks, in px.
     pub gap: f64,
+    /// Vertical alignment.
     pub valign: VAlign,
 }
 
+/// An icon or image drawn at a position.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Icon {
+    /// Path of the file.
     pub path: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Size in px.
     pub size: f64,
+    /// Width in px.
     pub w: Option<f64>,
 }
 
+/// One path of a symbol shape.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Part {
+    /// SVG path data.
     pub d: String,
+    /// How the part is painted.
     pub paint: Paint,
 }
 
+/// A box, diamond or symbol with its label and icon.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Shape {
+    /// Id of the item.
     pub id: String,
+    /// The kind of shape.
     pub kind: ShapeKind,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Width in px.
     pub w: f64,
+    /// Height in px.
     pub h: f64,
+    /// Fill colour; `None` is no fill.
     pub fill: Option<String>,
+    /// Stroke colour; `None` is no stroke.
     pub stroke: Option<String>,
+    /// Stroke width in px.
     pub stroke_width: f64,
+    /// Corner radius in px.
     pub radius: f64,
+    /// Whether the stroke is dashed.
     pub dashed: bool,
+    /// Opacity of the whole item.
     pub opacity: f64,
+    /// Label of the item.
     pub label: Option<Label>,
+    /// The icon drawn in it, if any.
     pub icon: Option<Icon>,
+    /// What the shape is for.
     pub role: Role,
+    /// Symbol geometry, if the shape has one.
     pub parts: Option<Vec<Part>>,
+    /// Explicit dash pattern; `None` uses the default dash when `dashed`.
     pub dash: Option<Vec<f64>>,
     /// `(dx, dy, blur, colour, alpha)`
     pub shadow: Option<(f64, f64, f64, String, f64)>,
+    /// Opacity of the fill only.
     pub fill_opacity: f64,
+    /// Stroke line cap; `None` is a butt cap.
     pub cap: Option<LineCap>,
 }
 
+/// Where a connector end attaches.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Binding {
+    /// Id of the bound shape.
     pub shape_id: String,
+    /// The side of the box.
     pub side: Side,
+    /// Position along the side, 0 to 1.
     pub frac: f64,
+    /// Whether the end is a node or a zone.
     pub target: EndpointTarget,
     /// The author fixed the side (`node.side`): routers keep it. Written only when true; absent means false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -276,106 +336,179 @@ pub struct Binding {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]
 pub enum TaggedShape {
+    /// A shape.
     #[serde(rename = "shape")]
     Shape(Shape),
 }
 
+/// A line between two points or shapes, with heads.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Connector {
+    /// Id of the item.
     pub id: String,
+    /// The polyline; for a curve `[start, control, end]`.
     pub points: Vec<[f64; 2]>,
+    /// How the points are joined.
     pub route: ConnectorRoute,
+    /// Colour as CSS text.
     pub color: String,
+    /// Width in px.
     pub width: f64,
+    /// Whether the stroke is dashed.
     pub dashed: bool,
+    /// Whether a head is drawn at the source.
     pub arrow_start: bool,
+    /// Whether a head is drawn at the destination.
     pub arrow_end: bool,
+    /// Binding of the source end.
     pub src: Option<Binding>,
+    /// Binding of the destination end.
     pub dst: Option<Binding>,
+    /// Label of the item.
     pub label: Option<TaggedShape>,
+    /// Explicit dash pattern; `None` uses the default dash when `dashed`.
     pub dash: Option<Vec<f64>>,
+    /// Head at the source.
     pub marker_start: MarkerKind,
+    /// Head at the destination.
     pub marker_end: MarkerKind,
+    /// Opacity of the whole item.
     pub opacity: f64,
 }
 
+/// Free text at a position.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Text {
+    /// Id of the item.
     pub id: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// The text to draw.
     pub block: TextBlock,
+    /// Which end of the text sits at `x`.
     pub anchor: TextAnchor,
     /// Kept as written (int or float): the SVG writer prints it with Python's `str`.
     pub letter_spacing: Number,
+    /// Width in px.
     pub width: Option<f64>,
 }
 
+/// A straight line.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Line {
+    /// Id of the item.
     pub id: String,
+    /// Start x in px.
     pub x1: f64,
+    /// Start y in px.
     pub y1: f64,
+    /// End x in px.
     pub x2: f64,
+    /// End y in px.
     pub y2: f64,
+    /// Colour as CSS text.
     pub color: String,
+    /// Width in px.
     pub width: f64,
 }
 
+/// An image file drawn in a box.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Image {
+    /// Id of the item.
     pub id: String,
+    /// Path of the file.
     pub path: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Width in px.
     pub w: f64,
+    /// Height in px.
     pub h: f64,
 }
 
+/// One cell of a table.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Cell {
+    /// The text to draw.
     pub block: TextBlock,
+    /// Fill colour; `None` is no fill.
     pub fill: Option<String>,
+    /// The icon drawn in it, if any.
     pub icon: Option<Icon>,
+    /// Space left of the text, in px.
     pub pad_left: f64,
+    /// Whether the cell text is bold.
     pub bold: bool,
 }
 
+/// A grid of cells.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Table {
+    /// Id of the item.
     pub id: String,
+    /// Left edge (or anchor) in px.
     pub x: f64,
+    /// Top edge (or first baseline) in px.
     pub y: f64,
+    /// Width of each column.
     pub col_widths: Vec<f64>,
+    /// Height of each row.
     pub row_heights: Vec<f64>,
+    /// Rows of cells; row 0 is the header.
     pub cells: Vec<Vec<Cell>>,
+    /// Colour of the row separators.
     pub border: String,
+    /// Corner radius of the header row.
     pub header_radius: f64,
 }
 
+/// Anything a scene draws.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Item {
+/// A shape.
     Shape(Shape),
+/// A connector.
     Connector(Connector),
+/// Free text.
     Text(Text),
+/// A line.
     Line(Line),
+/// An image.
     Image(Image),
+/// A table.
     Table(Table),
 }
 
+/// A finished diagram: what the SVG writer draws.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Scene {
+    /// Scene format version.
     pub version: u32,
+    /// Id of the item.
     pub id: String,
+    /// Title of the diagram.
     pub title: String,
+    /// File-name form of the title.
     pub slug: String,
+    /// Width in px.
     pub width: f64,
+    /// Height in px.
     pub height: f64,
+    /// Page background colour.
     pub background: String,
+    /// Everything to draw, back to front.
     pub items: Vec<Item>,
+    /// Fact ids shown as the tooltip of each item.
     pub item_facts: BTreeMap<String, Vec<String>>,
+    /// Source references, kept as written.
     pub sources: Vec<Value>,
+    /// Tooltip text of each fact id.
     pub meta_tooltips: BTreeMap<String, String>,
     /// Zones with the ids the spec declares. Written only when there are zones.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -388,8 +521,11 @@ pub struct Scene {
 /// A zone: the id the edit operations use, the id of its shape in `items`, and its declared children.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ZoneInfo {
+    /// Id of the item.
     pub id: String,
+    /// Id of the bound shape.
     pub shape_id: String,
+    /// Ids of the elements the zone holds.
     pub children: Vec<String>,
 }
 
@@ -397,10 +533,14 @@ pub struct ZoneInfo {
 /// `[x, y, w, h]` enclosing the members.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ContainerInfo {
+    /// Id of the item.
     pub id: String,
+    /// Whether the members run along a row or a column.
     pub axis: Axis,
+    /// Ids of the member nodes, in order.
     pub members: Vec<String>,
     #[serde(rename = "box")]
+    /// The box `[x, y, w, h]` the label is laid out in.
     pub bbox: [f64; 4],
 }
 
@@ -409,39 +549,53 @@ struct Header {
     version: Option<Value>,
 }
 
+/// Why scene JSON was refused.
+#[derive(Debug, Error)]
+pub enum SceneError {
+    /// The text is not JSON of the scene's shape.
+    #[error("invalid scene JSON: {0}")]
+    Json(#[from] serde_json::Error),
+    /// The `version` is missing or not [`VERSION`].
+    #[error("scene version {found} is not supported (expected {VERSION})")]
+    Version {
+        /// The version as written, or `missing`.
+        found: String,
+    },
+}
+
 /// Parse scene JSON. A `version` other than 1 is an error naming the found and the supported version.
 ///
 /// # Errors
 ///
-/// When the JSON is invalid, or its `version` is not 1.
-pub fn parse(json: &str) -> Result<Scene, String> {
-    let header: Header = serde_json::from_str(json).map_err(|e| format!("invalid scene JSON: {e}"))?;
+/// [`SceneError`] when the JSON is invalid, or its `version` is not 1.
+pub fn parse(json: &str) -> Result<Scene, SceneError> {
+    let header: Header = serde_json::from_str(json)?;
     match header.version.as_ref().and_then(Value::as_u64) {
         Some(v) if v == u64::from(VERSION) => {}
-        Some(v) => return Err(format!("scene version {v} is not supported (expected {VERSION})")),
-        None => return Err(format!("scene version {} is not supported (expected {VERSION})", header.version.map_or("missing".into(), |v| v.to_string()))),
+        Some(v) => return Err(SceneError::Version { found: v.to_string() }),
+        None => return Err(SceneError::Version { found: header.version.map_or("missing".into(), |v| v.to_string()) }),
     }
-    serde_json::from_str(json).map_err(|e| format!("invalid scene JSON: {e}"))
+    Ok(serde_json::from_str(json)?)
 }
 
 /// The JSON Schema of the scene format, as committed in `rust/schema/scene.schema.json`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Never: a derived schema always serializes.
-#[must_use]
-pub fn schema_json() -> String {
-    let mut out = serde_json::to_string_pretty(&schemars::schema_for!(Scene)).expect("a schema serializes");
+/// Never in practice: a derived schema always serializes.
+pub fn schema_json() -> Result<String, serde_json::Error> {
+    let mut out = serde_json::to_string_pretty(&schemars::schema_for!(Scene))?;
     out.push('\n');
-    out
+    Ok(out)
 }
 
-/// # Panics
+/// The scene as JSON text.
 ///
-/// Never: a scene always serializes.
-#[must_use]
-pub fn to_json(scene: &Scene) -> String {
-    serde_json::to_string(scene).expect("a scene always serializes")
+/// # Errors
+///
+/// When a number in the scene is not finite (JSON has no `NaN`).
+pub fn to_json(scene: &Scene) -> Result<String, serde_json::Error> {
+    serde_json::to_string(scene)
 }
 
 #[cfg(test)]
@@ -543,7 +697,7 @@ mod tests {
     /// `UPDATE_SCHEMA=1 cargo test -p spinagram-core schema` rewrites the committed file.
     #[test]
     fn committed_schema_is_fresh() {
-        let fresh = schema_json();
+        let fresh = schema_json().unwrap();
         if std::env::var("UPDATE_SCHEMA").is_ok_and(|v| v == "1") {
             std::fs::create_dir_all(std::path::Path::new(SCHEMA_FILE).parent().unwrap()).unwrap();
             std::fs::write(SCHEMA_FILE, &fresh).unwrap();
@@ -557,7 +711,7 @@ mod tests {
         let input = fixture();
         let scene = parse(&input.to_string()).unwrap();
         assert_eq!(scene.items.len(), 6);
-        let output: Value = serde_json::from_str(&to_json(&scene)).unwrap();
+        let output: Value = serde_json::from_str(&to_json(&scene).unwrap()).unwrap();
         assert_eq!(output, input);
     }
 
@@ -565,7 +719,7 @@ mod tests {
     fn integer_letter_spacing_stays_an_integer() {
         let mut v = fixture();
         v["items"][2]["letter_spacing"] = json!(1);
-        let output: Value = serde_json::from_str(&to_json(&parse(&v.to_string()).unwrap())).unwrap();
+        let output: Value = serde_json::from_str(&to_json(&parse(&v.to_string()).unwrap()).unwrap()).unwrap();
         assert_eq!(output["items"][2]["letter_spacing"], json!(1));
     }
 
@@ -573,6 +727,6 @@ mod tests {
     fn other_versions_are_rejected_naming_both() {
         let mut v = fixture();
         v["version"] = json!(2);
-        assert_eq!(parse(&v.to_string()).unwrap_err(), "scene version 2 is not supported (expected 1)");
+        assert_eq!(parse(&v.to_string()).unwrap_err().to_string(), "scene version 2 is not supported (expected 1)");
     }
 }

@@ -9,7 +9,7 @@ use pyo3::types::PyBytes;
 use spinagram_core::fit::{self, BlockSpec, FitMode};
 use spinagram_core::font;
 use spinagram_core::css;
-use spinagram_core::edit;
+use spinagram_core::edit::{self, EditError};
 use spinagram_core::png;
 use spinagram_core::reroute as core_reroute;
 use spinagram_core::scene;
@@ -19,19 +19,33 @@ use spinagram_core::text::{Font, Measurer};
 
 type FontArgs = (Option<String>, f64, u16);
 
+/// A `ValueError` with the error's message.
+fn value_error(e: impl std::fmt::Display) -> PyErr {
+    PyValueError::new_err(e.to_string())
+}
+
+/// A `ValueError` for a rejected edit batch: the message, and `index` (the position of the operation to blame, or
+/// `None`) as an attribute that `spinagram.edit.EditError` reads.
+fn edit_error(py: Python<'_>, e: &EditError) -> PyErr {
+    let err = PyValueError::new_err(e.to_string());
+    // an exception instance always takes attributes; if it did not, the message still carries the index
+    let _ = err.value(py).setattr("index", e.index);
+    err
+}
+
 fn to_font((file, size, weight): FontArgs) -> PyResult<Font> {
-    let face = file.map(|p| font::load(&p)).transpose().map_err(PyValueError::new_err)?;
+    let face = file.map(|p| font::load(&p)).transpose().map_err(value_error)?;
     Ok(Font { face, size, weight })
 }
 
 fn measurer(fallbacks: Vec<String>) -> PyResult<Measurer> {
-    let fallbacks = fallbacks.iter().map(|p| font::load(p)).collect::<Result<_, _>>().map_err(PyValueError::new_err)?;
+    let fallbacks = fallbacks.iter().map(|p| font::load(p)).collect::<Result<_, _>>().map_err(value_error)?;
     Ok(Measurer { fallbacks })
 }
 
 #[pyfunction]
 fn covers(file: &str, ch: char) -> PyResult<bool> {
-    Ok(font::load(file).map_err(PyValueError::new_err)?.covers(ch))
+    Ok(font::load(file).map_err(value_error)?.covers(ch))
 }
 
 #[pyfunction]
@@ -71,7 +85,7 @@ fn fit_blocks(
         .into_iter()
         .map(|(paragraphs, f, leading)| Ok(BlockSpec { paragraphs, font: to_font(f)?, leading }))
         .collect::<PyResult<Vec<_>>>()?;
-    let mode = FitMode::parse(mode).map_err(PyValueError::new_err)?;
+    let mode = FitMode::parse(mode).map_err(value_error)?;
     let r = py.detach(|| fit::fit_blocks(&m, &specs, width, height, mode, min_scale, break_on, gap));
     let blocks = r.blocks.into_iter().map(|b| (b.lines, b.font.size, b.leading)).collect();
     Ok((blocks, r.height, r.strategy.as_str(), r.ok, r.size))
@@ -117,8 +131,8 @@ fn route(
 /// Parse scene JSON and write it back (the schema and round-trip check). Raises `ValueError` on a bad scene.
 #[pyfunction]
 fn scene_roundtrip(json: &str) -> PyResult<String> {
-    let parsed = scene::parse(json).map_err(PyValueError::new_err)?;
-    Ok(scene::to_json(&parsed))
+    let parsed = scene::parse(json).map_err(value_error)?;
+    scene::to_json(&parsed).map_err(value_error)
 }
 
 type Chars = Vec<(String, u32, bool, String)>;
@@ -129,7 +143,7 @@ type Chars = Vec<(String, u32, bool, String)>;
 #[pyfunction]
 fn svg_draw(py: Python<'_>, json: &str, compensated_sum: bool) -> PyResult<(String, String, String, String, Chars)> {
     let drawn = py
-        .detach(|| scene::parse(json).map_err(DrawError::Scene).and_then(|s| svg::draw(&s, compensated_sum)))
+        .detach(|| scene::parse(json).map_err(DrawError::from).and_then(|s| svg::draw(&s, compensated_sum)))
         .map_err(|e| match e {
             DrawError::NotFound(p) => PyFileNotFoundError::new_err(format!("[Errno 2] No such file or directory: '{p}'")),
             other => PyValueError::new_err(other.to_string()),
@@ -142,7 +156,7 @@ fn svg_draw(py: Python<'_>, json: &str, compensated_sum: bool) -> PyResult<(Stri
 /// loaded before the system fonts.
 #[pyfunction]
 fn render_png<'py>(py: Python<'py>, svg: &str, width: f64, height: f64, scale: f64, font_files: Vec<String>) -> PyResult<Bound<'py, PyBytes>> {
-    let bytes = py.detach(|| png::render_png(svg, width, height, scale, &font_files)).map_err(PyValueError::new_err)?;
+    let bytes = py.detach(|| png::render_png(svg, width, height, scale, &font_files)).map_err(value_error)?;
     Ok(PyBytes::new(py, &bytes))
 }
 
@@ -150,26 +164,27 @@ fn render_png<'py>(py: Python<'py>, svg: &str, width: f64, height: f64, scale: f
 /// declarations in cascade order, as JSON. `ValueError` when a selector cannot be parsed.
 #[pyfunction]
 fn css_cascade(py: Python<'_>, tree: &str, rules: &str) -> PyResult<String> {
-    py.detach(|| css::cascade_json(tree, rules)).map_err(PyValueError::new_err)
+    py.detach(|| css::cascade_json(tree, rules)).map_err(value_error)
 }
 
 /// For each selector text, the indices of the elements of a style tree (JSON) it matches, as JSON.
 #[pyfunction]
 fn css_select(py: Python<'_>, tree: &str, selectors: Vec<String>) -> PyResult<String> {
-    py.detach(|| css::select_json(tree, &selectors)).map_err(PyValueError::new_err)
+    py.detach(|| css::select_json(tree, &selectors)).map_err(value_error)
 }
 
 /// Apply a JSON list of edit operations to YAML text as one batch; returns the patched text. `ValueError` with the
-/// reason (the operation that failed and why) when the batch is rejected.
+/// reason (the operation that failed and why) when the batch is rejected; the exception's `index` is that
+/// operation's position, or `None` when no operation is to blame.
 #[pyfunction]
 fn apply_ops(py: Python<'_>, yaml: &str, ops_json: &str) -> PyResult<String> {
-    py.detach(|| edit::apply_ops_json(yaml, ops_json)).map_err(PyValueError::new_err)
+    py.detach(|| edit::apply_ops_json(yaml, ops_json)).map_err(|e| edit_error(py, &e))
 }
 
 /// `{id: (start, end)}`: the UTF-8 byte range of the YAML entry of every node, zone and edge (`e0`, `e1`, ...).
 #[pyfunction]
 fn yaml_srcmap(py: Python<'_>, yaml: &str) -> PyResult<std::collections::BTreeMap<String, (usize, usize)>> {
-    let map = py.detach(|| edit::srcmap(yaml)).map_err(PyValueError::new_err)?;
+    let map = py.detach(|| edit::srcmap(yaml)).map_err(value_error)?;
     Ok(map.into_iter().map(|(k, [a, b])| (k, (a, b))).collect())
 }
 
@@ -177,7 +192,7 @@ fn yaml_srcmap(py: Python<'_>, yaml: &str) -> PyResult<std::collections::BTreeMa
 /// `[dx, dy]` or `[x, y, w, h]`. Returns the new scene JSON.
 #[pyfunction]
 fn reroute(py: Python<'_>, scene_json: &str, moves_json: &str) -> PyResult<String> {
-    py.detach(|| core_reroute::reroute(scene_json, moves_json)).map_err(PyValueError::new_err)
+    py.detach(|| core_reroute::reroute(scene_json, moves_json)).map_err(value_error)
 }
 
 #[pymodule]

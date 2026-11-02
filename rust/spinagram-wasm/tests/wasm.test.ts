@@ -68,6 +68,27 @@ describe("applyOps and srcmap", () => {
     expect(() => wasm.applyOps(yaml, "nonsense")).toThrow(/invalid operations/);
     expect(() => wasm.srcmap("a: [1")).toThrow(/invalid YAML/);
   });
+
+  test("a rejected batch throws an Error that carries the index of the failing operation", () => {
+    const yaml = read("decision.yaml");
+    const fail = (ops: string): Error & { index?: number } => {
+      try {
+        wasm.applyOps(yaml, ops);
+      } catch (e) {
+        return e as Error & { index?: number };
+      }
+      throw new Error("applyOps did not throw");
+    };
+    const second = fail('[{"op":"move","id":"start","x":1,"y":2},{"op":"add_node","id":"start"}]');
+    expect(second).toBeInstanceOf(Error);
+    expect(second.message).toBe("operation 1: add_node: duplicate id `start`");
+    expect(second.index).toBe(1);
+    expect(fail('[{"op":"move","id":"nope","x":1,"y":2}]').index).toBe(0);
+    const batch = fail("nonsense");
+    expect(batch.message).toMatch(/^invalid operations/);
+    expect(batch.index).toBeUndefined();
+    expect(() => wasm.srcmap("a: [1")).toThrow(Error);
+  });
 });
 
 describe("reroute", () => {

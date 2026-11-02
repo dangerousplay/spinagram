@@ -14,13 +14,18 @@ use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 use crate::verified::bisect::{lower_bound, order_key};
 use crate::verified::grid::neighbour;
 
+/// A point `(x, y)` in px.
 pub type Pt = (f64, f64);
 /// `(x, y, w, h)`
 pub type Rect = (f64, f64, f64, f64);
 
+/// Distance, in px, a route keeps from the boxes it goes around.
 pub const MARGIN: f64 = 14.0;
+/// Cost, in px of length, of a bend in a route.
 pub const BEND: f64 = 60.0;
+/// Cost, in px of length, of leaving from a side that other edges use.
 pub const BUSY: f64 = 400.0;
+/// Distance, in px, under which two parallel route segments count as close.
 pub const CLOSE: f64 = 4.0;
 /// Slack, in px, inside a box's edge before a point counts as inside it.
 const INSIDE_PAD: f64 = 0.5;
@@ -65,7 +70,9 @@ impl Side {
 /// A fixed cost per strict crossing with already drawn segments (`engine.route.Crossings`).
 #[derive(Clone, Debug)]
 pub struct Crossings {
+    /// Cost of one crossing, in px of length.
     pub cost: f64,
+    /// Segments of the connectors drawn so far.
     pub drawn: Vec<(Pt, Pt)>,
 }
 
@@ -127,10 +134,10 @@ fn simplify(pts: &[Pt]) -> Vec<Pt> {
         if out.last() == Some(&p) {
             continue;
         }
-        if out.len() >= 2 {
-            let (a, b) = (out[out.len() - 2], out[out.len() - 1]);
+        if let [.., a, b] = out[..] {
             if (a.0 == b.0 && b.0 == p.0) || (a.1 == b.1 && b.1 == p.1) {
-                *out.last_mut().unwrap() = p;
+                out.pop();
+                out.push(p);
                 continue;
             }
         }
@@ -212,7 +219,8 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
         let (mx, my) = (f64::midpoint(xs[i1], xs[i2]), f64::midpoint(ys[j1], ys[j2]));
         !obs.iter().any(|&b| inside(mx, my, b))
     };
-    let grown: Vec<Rect> = obs[..obs.len() - 2].iter().map(|&(x, y, w, h)| (x - margin, y - margin, w + 2.0 * margin, h + 2.0 * margin)).collect();
+    // `route` appends the source and destination boxes last; they are not grown
+    let grown: Vec<Rect> = obs[..obs.len().saturating_sub(2)].iter().map(|&(x, y, w, h)| (x - margin, y - margin, w + 2.0 * margin, h + 2.0 * margin)).collect();
     let seg_close = |i1: usize, j1: usize, i2: usize, j2: usize| {
         let (mx, my) = (f64::midpoint(xs[i1], xs[i2]), f64::midpoint(ys[j1], ys[j2]));
         grown.iter().any(|&b| inside(mx, my, b))
@@ -280,12 +288,19 @@ fn search(sport: (Pt, Dir), dport: (Pt, Dir), obs: &[Rect], margin: f64, penalty
 /// already attach to, `crossing` is the per-crossing cost, `guides` add grid lines, `fracs` move the ports.
 #[derive(Clone, Debug)]
 pub struct Options<'a> {
+    /// Distance, in px, the route keeps from boxes.
     pub margin: f64,
+    /// Fixed sides of the source and destination, if any.
     pub sides: (Option<Side>, Option<Side>),
+    /// Sides of the source that other edges already use.
     pub busy_src: &'a [Side],
+    /// Sides of the destination that other edges already use.
     pub busy_dst: &'a [Side],
+    /// The per-crossing cost and the segments already drawn.
     pub crossing: Option<&'a Crossings>,
+    /// Extra grid lines the router may use.
     pub guides: &'a [Pt],
+    /// Fixed positions along the source and destination sides.
     pub fracs: (Option<f64>, Option<f64>),
 }
 

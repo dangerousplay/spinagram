@@ -4,11 +4,13 @@
 //! the document around them (font faces, head, metadata, hash), so subsetting stays in fontTools.
 
 use crate::pyfmt::{attr, esc, f1, g, py_sum, repr_f64};
-use crate::scene::{Align, Cell, Connector, ConnectorRoute, Font, Icon, Item, Label, MarkerKind, Paint, Role, Scene, Shape, ShapeKind, Table, Text, TextAnchor, TextBlock, VAlign};
+use crate::scene::{SceneError, Align, Cell, Connector, ConnectorRoute, Font, Icon, Item, Label, MarkerKind, Paint, Role, Scene, Shape, ShapeKind, Table, Text, TextAnchor, TextBlock, VAlign};
 use base64::Engine;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+
+use thiserror::Error;
 
 /// The dash pattern of a dashed shape or connector without an explicit pattern.
 const DASH: &str = " stroke-dasharray=\"10 7\"";
@@ -35,30 +37,36 @@ const ZONE_TEXT_PREFIX: char = 'z';
 /// `(family, weight, italic)` -> characters drawn in that face
 pub type Chars = BTreeMap<(String, u32, bool), BTreeSet<char>>;
 
+/// The layers of a drawn scene and the characters used per font face.
 #[derive(Debug, Default)]
 pub struct Drawn {
+    /// Markup for the `<defs>` block (markers, filters).
     pub defs: String,
+    /// Markup drawn behind the shapes.
     pub back: String,
+    /// Markup drawn between the back and the front.
     pub mid: String,
+    /// Markup drawn in front of the shapes.
     pub front: String,
+    /// Characters drawn, per font face.
     pub chars: Chars,
 }
 
-#[derive(Debug)]
+/// Why a scene could not be drawn.
+#[derive(Debug, Error)]
 pub enum DrawError {
     /// An image or icon file does not exist.
+    #[error("[Errno 2] No such file or directory: '{0}'")]
     NotFound(String),
+    /// A file could not be read.
+    #[error("{0}")]
     Io(String),
-    Scene(String),
-}
-
-impl std::fmt::Display for DrawError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DrawError::NotFound(p) => write!(f, "[Errno 2] No such file or directory: '{p}'"),
-            DrawError::Io(m) | DrawError::Scene(m) => write!(f, "{m}"),
-        }
-    }
+    /// The scene JSON is not a scene.
+    #[error(transparent)]
+    Scene(#[from] SceneError),
+    /// A curve connector without exactly three points.
+    #[error("connector {0}: a curve needs 3 points")]
+    Curve(String),
 }
 
 type Shadow = (f64, f64, f64, String, f64);
@@ -89,16 +97,12 @@ fn files() -> &'static Mutex<HashMap<String, Arc<Vec<u8>>>> {
 
 /// Make the bytes of an image or icon available under `path`, so a scene that names that path draws without a
 /// file system. This is how the browser supplies icons; registered files win over files on disk.
-///
-/// # Panics
-///
-/// Only when another thread panicked while holding the registry lock.
 pub fn register_file(path: &str, bytes: &[u8]) {
-    files().lock().unwrap().insert(path.to_owned(), Arc::new(bytes.to_vec()));
+    files().lock().unwrap_or_else(PoisonError::into_inner).insert(path.to_owned(), Arc::new(bytes.to_vec()));
 }
 
 fn read_file(path: &str) -> Result<Arc<Vec<u8>>, DrawError> {
-    if let Some(b) = files().lock().unwrap().get(path) {
+    if let Some(b) = files().lock().unwrap_or_else(PoisonError::into_inner).get(path) {
         return Ok(b.clone());
     }
     read_disk(path)
@@ -445,7 +449,7 @@ impl<'a> Writer<'a> {
     fn connector(&mut self, c: &Connector) -> Result<(), DrawError> {
         let d = if c.route == ConnectorRoute::Curve {
             let [p1, p2, p3] = c.points[..] else {
-                return Err(DrawError::Scene(format!("connector {}: a curve needs 3 points", c.id)));
+                return Err(DrawError::Curve(c.id.clone()));
             };
             format!("M{},{} Q{},{} {},{}", f1(p1[0]), f1(p1[1]), f1(p2[0]), f1(p2[1]), f1(p3[0]), f1(p3[1]))
         } else {
@@ -632,6 +636,18 @@ pub fn document(scene: &Scene, drawn: &Drawn, font_base: &str) -> String {
 mod tests {
     use super::*;
     use crate::scene;
+
+    #[test]
+    fn the_file_registry_recovers_from_a_poisoned_lock() {
+        let poisoner = std::thread::spawn(|| {
+            let _guard = files().lock().unwrap();
+            panic!("poison the registry on purpose");
+        });
+        assert!(poisoner.join().is_err());
+        assert!(files().is_poisoned());
+        register_file("/poison/test.png", b"bytes");
+        assert_eq!(read_file("/poison/test.png").unwrap().as_slice(), b"bytes");
+    }
 
     const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 

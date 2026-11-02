@@ -22,6 +22,7 @@ use selectors::{Element, OpaqueElement};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt;
+use thiserror::Error;
 use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantArray};
 
 use crate::verified;
@@ -119,6 +120,7 @@ impl NonTSPseudoClass for NoPseudoClass {
     }
 }
 
+/// The `selectors` crate's type family for spinagram elements.
 #[derive(Clone, Debug)]
 pub struct Impl;
 
@@ -149,8 +151,10 @@ impl<'i> Parser<'i> for SelectorParser {
 /// A parsed selector with the text it came from.
 #[derive(Clone, Debug)]
 pub struct Selector {
+    /// The text.
     pub text: String,
     inner: selectors::parser::Selector<Impl>,
+    /// The pseudo-element the selector styles, if any.
     pub pseudo_element: Option<PseudoElement>,
 }
 
@@ -164,12 +168,40 @@ impl Selector {
     }
 }
 
+/// Why CSS input was refused.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum CssError {
+    /// A selector is outside the grammar the `selectors` crate accepts.
+    #[error("cannot parse selector {text:?}: {kind}")]
+    Selector {
+        /// The selector text.
+        text: String,
+        /// The parser's reason.
+        kind: String,
+    },
+    /// The selector list is empty.
+    #[error("empty selector {0:?}")]
+    Empty(String),
+    /// A rule holds a selector list where one selector is required.
+    #[error("expected one selector in {0:?}")]
+    NotOne(String),
+    /// The style tree JSON is not a style tree.
+    #[error("invalid style tree: {0}")]
+    Tree(String),
+    /// The rules JSON is not a list of rules.
+    #[error("invalid rules: {0}")]
+    Rules(String),
+    /// A result did not serialise.
+    #[error("{0}")]
+    Write(String),
+}
+
 /// A comma list of selectors, each with its own source text.
 ///
 /// # Errors
 ///
-/// When the text is empty or a selector is outside the grammar the `selectors` crate accepts.
-pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, String> {
+/// [`CssError`] when the text is empty or a selector is outside the grammar the `selectors` crate accepts.
+pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, CssError> {
     let mut parser = CssParser::new(text);
     let list = parser
         .parse_comma_separated(|p| {
@@ -179,9 +211,9 @@ pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, String> {
             let pseudo_element = inner.pseudo_element().copied();
             Ok(Selector { text: src, inner, pseudo_element })
         })
-        .map_err(|e| format!("cannot parse selector {text:?}: {:?}", e.kind))?;
+        .map_err(|e| CssError::Selector { text: text.to_owned(), kind: format!("{:?}", e.kind) })?;
     if list.is_empty() {
-        return Err(format!("empty selector {text:?}"));
+        return Err(CssError::Empty(text.to_owned()));
     }
     Ok(list)
 }
@@ -191,30 +223,41 @@ pub fn parse_selectors(text: &str) -> Result<Vec<Selector>, String> {
 /// A declaration as the stylesheet or an inline `css=` gave it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Decl {
+    /// Name of the property.
     pub name: String,
+    /// The value as written.
     pub value: String,
+    /// Whether the declaration is `!important`.
     pub important: bool,
 }
 
 /// One element of the style tree: the diagram, a group, a node, an edge...
 #[derive(Clone, Debug, Default)]
 pub struct Node {
+    /// Index of the parent element.
     pub parent: Option<usize>,
+    /// Ids of the elements the zone holds.
     pub children: Vec<usize>,
     /// Position among the parent's children (set by `Tree::link`).
     pub pos: usize,
+    /// Element type (node kind or `zone`).
     pub typ: String,
     /// Extra type names it answers to (node kind).
     pub kinds: Vec<String>,
+    /// Id of the item.
     pub id: Option<String>,
+    /// CSS classes.
     pub classes: Vec<String>,
+    /// Attributes, by name, as text.
     pub attrs: HashMap<String, String>,
+    /// The element's own declarations (a `css:` value).
     pub inline: Vec<Decl>,
 }
 
 /// Elements in pre-order; index 0 is the root. Children are listed in document order.
 #[derive(Clone, Debug, Default)]
 pub struct Tree {
+    /// The elements, in pre-order.
     pub nodes: Vec<Node>,
 }
 
@@ -380,8 +423,11 @@ impl Matcher {
 /// A style rule: selectors sharing one declaration block. `order` is its position over all sheets.
 #[derive(Clone, Debug)]
 pub struct Rule {
+    /// The rule's selectors.
     pub selectors: Vec<Selector>,
+    /// Declarations, in source order.
     pub decls: Vec<Decl>,
+    /// Position of the rule in the stylesheet.
     pub order: i64,
 }
 
@@ -389,9 +435,13 @@ pub struct Rule {
 /// selector that matched; `decl` the declaration index; `resolved` the value after `var()` (None for `--custom`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Entry {
+    /// Index of the rule, or `None` for inline declarations.
     pub rule: Option<usize>,
+    /// Index of the selector that matched.
     pub sel: usize,
+    /// Index of the declaration in its rule.
     pub decl: usize,
+    /// The value after `var()` substitution.
     pub resolved: Option<String>,
 }
 
@@ -479,7 +529,7 @@ fn sorted_by_cascade(found: Vec<(SortKey, Entry)>) -> Vec<(SortKey, Entry)> {
     let mut slots: Vec<Option<(SortKey, Entry)>> = found.into_iter().map(Some).collect();
     verified::cascade::stable_order(&keys)
         .into_iter()
-        .map(|p| slots[p].take().expect("a permutation visits each position once"))
+        .filter_map(|p| slots.get_mut(p).and_then(Option::take))
         .collect()
 }
 
@@ -598,12 +648,12 @@ impl From<DeclIn> for Decl {
 /// # Errors
 ///
 /// When the JSON does not describe a style tree.
-pub fn tree_from_json(json: &str) -> Result<Tree, String> {
+pub fn tree_from_json(json: &str) -> Result<Tree, CssError> {
     #[derive(serde::Deserialize)]
     struct In {
         nodes: Vec<NodeIn>,
     }
-    let parsed: In = serde_json::from_str(json).map_err(|e| format!("invalid style tree: {e}"))?;
+    let parsed: In = serde_json::from_str(json).map_err(|e| CssError::Tree(e.to_string()))?;
     let nodes = parsed
         .nodes
         .into_iter()
@@ -632,17 +682,17 @@ type Row = (i64, usize, usize, Option<String>);
 ///
 /// # Errors
 ///
-/// When the tree or rules JSON is invalid or a selector cannot be parsed.
-pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, String> {
+/// [`CssError`] when the tree or rules JSON is invalid or a selector cannot be parsed.
+pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, CssError> {
     let tree = tree_from_json(tree_json)?;
-    let raw: Vec<RuleIn> = serde_json::from_str(rules_json).map_err(|e| format!("invalid rules: {e}"))?;
+    let raw: Vec<RuleIn> = serde_json::from_str(rules_json).map_err(|e| CssError::Rules(e.to_string()))?;
     let mut rules = Vec::with_capacity(raw.len());
     for r in raw {
         let mut selectors = Vec::new();
         for text in &r.selectors {
             let mut parsed = parse_selectors(text)?;
             if parsed.len() != 1 {
-                return Err(format!("expected one selector in {text:?}"));
+                return Err(CssError::NotOne(text.clone()));
             }
             selectors.append(&mut parsed);
         }
@@ -653,15 +703,15 @@ pub fn cascade_json(tree_json: &str, rules_json: &str) -> Result<String, String>
         .into_iter()
         .map(|el| el.into_iter().map(|list| list.into_iter().map(|e| (e.rule.map_or(-1, |r| i64::try_from(r).unwrap_or(i64::MAX)), e.sel, e.decl, e.resolved)).collect()).collect())
         .collect();
-    serde_json::to_string(&json).map_err(|e| e.to_string())
+    serde_json::to_string(&json).map_err(|e| CssError::Write(e.to_string()))
 }
 
 /// For each selector text, the indices of the elements it matches (pseudo-elements ignored), as JSON.
 ///
 /// # Errors
 ///
-/// When the tree JSON is invalid or a selector cannot be parsed.
-pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, String> {
+/// [`CssError`] when the tree JSON is invalid or a selector cannot be parsed.
+pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, CssError> {
     let tree = tree_from_json(tree_json)?;
     let mut matcher = Matcher::default();
     let mut out: Vec<Vec<usize>> = Vec::with_capacity(texts.len());
@@ -669,7 +719,7 @@ pub fn select_json(tree_json: &str, texts: &[String]) -> Result<String, String> 
         let sels = parse_selectors(t)?;
         out.push((0..tree.nodes.len()).filter(|&i| sels.iter().any(|s| matcher.matches(s, &tree, i))).collect());
     }
-    serde_json::to_string(&out).map_err(|e| e.to_string())
+    serde_json::to_string(&out).map_err(|e| CssError::Write(e.to_string()))
 }
 
 #[cfg(test)]

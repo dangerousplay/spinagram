@@ -10,14 +10,16 @@ use std::fmt;
 use saphyr_parser::ScalarStyle;
 use strum::VariantNames;
 use serde::Deserialize;
+use thiserror::Error;
 
 use crate::edit_values::{align, axis, prop_kind, Align, Arrow, Axis, Owner, PropKind, RouteKind};
 use crate::edge_syntax::{split_endpoint, EdgeOp, EdgeText, EndpointTarget};
-use crate::yaml_span::{edited_lists_have_no_anchors, parse_diagram, Node, Val};
+use crate::yaml_span::{edited_lists_have_no_anchors, parse_diagram, Node, Val, YamlError};
 
 /// One edit. JSON form: `{"op": "move", "id": "a", "x": 10, "y": 20}`, `"from"`/`"to"` for edges.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+#[expect(missing_docs, reason = "the doc of each variant says what its fields are")]
 pub enum Op {
     /// Set the position of a node (`at` list or `x`/`y` keys) or a zone (`x`/`y` keys).
     Move { id: String, x: f64, y: f64 },
@@ -117,9 +119,11 @@ impl Op {
 }
 
 /// Why a batch was rejected: the index of the operation (when one is to blame) and the reason.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub struct EditError {
+    /// The position in the batch of the operation to blame; `None` when the batch as a whole is at fault.
     pub index: Option<usize>,
+    /// What is wrong, prefixed with the operation's name.
     pub reason: String,
 }
 
@@ -132,10 +136,35 @@ impl fmt::Display for EditError {
     }
 }
 
-impl std::error::Error for EditError {}
 
-fn fail<T>(reason: impl Into<String>) -> Result<T, String> {
-    Err(reason.into())
+/// Why an operation could not be turned into patches.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum OpError {
+    /// The YAML does not parse, or holds something the patches cannot keep consistent.
+    #[error(transparent)]
+    Yaml(#[from] YamlError),
+    /// An operation names an id that no node, zone or edge has.
+    #[error("unknown id `{0}`")]
+    UnknownId(String),
+    /// Anything else the operation refuses, with the reason.
+    #[error("{0}")]
+    Invalid(String),
+}
+
+impl From<String> for OpError {
+    fn from(reason: String) -> Self {
+        OpError::Invalid(reason)
+    }
+}
+
+impl From<&str> for OpError {
+    fn from(reason: &str) -> Self {
+        OpError::Invalid(reason.to_owned())
+    }
+}
+
+fn fail<T>(reason: impl Into<String>) -> Result<T, OpError> {
+    Err(OpError::Invalid(reason.into()))
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -182,8 +211,8 @@ fn entries(root: &Node) -> Vec<Entry<'_>> {
 ///
 /// # Errors
 ///
-/// When the text is not a YAML mapping.
-pub fn srcmap(yaml: &str) -> Result<BTreeMap<String, [usize; 2]>, String> {
+/// [`YamlError`] when the text is not a YAML mapping.
+pub fn srcmap(yaml: &str) -> Result<BTreeMap<String, [usize; 2]>, YamlError> {
     let root = parse_diagram(yaml)?;
     let mut map: BTreeMap<String, [usize; 2]> = entries(&root).into_iter().map(|e| (e.id.to_owned(), [e.node.start, e.node.end])).collect();
     for c in containers(&root) {
@@ -205,7 +234,7 @@ struct Patch {
     text: String,
 }
 
-fn apply_patches(src: &str, mut patches: Vec<Patch>) -> Result<String, String> {
+fn apply_patches(src: &str, mut patches: Vec<Patch>) -> Result<String, OpError> {
     patches.sort_by_key(|p| (p.start, p.end));
     for w in patches.windows(2) {
         if w[0].end > w[1].start {
@@ -240,7 +269,7 @@ const DEFAULT_GAP: f64 = 20.0;
 /// Whole numbers below this are written without a fraction; above it `f64` cannot hold every integer.
 const MAX_EXACT_INT: f64 = 1e15;
 
-fn num(v: f64) -> Result<String, String> {
+fn num(v: f64) -> Result<String, OpError> {
     if !v.is_finite() {
         return fail(format!("{v} is not a finite number"));
     }
@@ -293,7 +322,7 @@ fn plain_safe(s: &str, flow: bool) -> bool {
 }
 
 /// The text that replaces the scalar `old` with the string `new`: plain stays plain when it can.
-fn replacement(old: &Node, new: &str, flow: bool) -> Result<String, String> {
+fn replacement(old: &Node, new: &str, flow: bool) -> Result<String, OpError> {
     match &old.val {
         Val::Scalar { style: ScalarStyle::Literal | ScalarStyle::Folded, .. } => fail("block scalars (| and >) are not supported"),
         Val::Scalar { style: ScalarStyle::Plain, .. } => Ok(text_scalar(new, flow)),
@@ -302,7 +331,7 @@ fn replacement(old: &Node, new: &str, flow: bool) -> Result<String, String> {
 }
 
 /// Set the keys of mapping `map` (replace a value or append the pair), as patches.
-fn set_keys(src: &str, map: &Node, pairs: &[(&str, String)]) -> Result<Vec<Patch>, String> {
+fn set_keys(src: &str, map: &Node, pairs: &[(&str, String)]) -> Result<Vec<Patch>, OpError> {
     let Val::Map { pairs: existing, flow } = &map.val else { return fail("entry is not a mapping") };
     let mut patches = Vec::new();
     let mut missing: Vec<&(&str, String)> = Vec::new();
@@ -347,7 +376,7 @@ fn remove_items(src: &str, seq: &Node, idxs: &[usize]) -> Vec<Patch> {
 }
 
 /// Append `item` (one line of YAML) to the sequence under `key` of the root mapping, creating the key if needed.
-fn append_item(src: &str, root: &Node, key: &str, item: &str) -> Result<Vec<Patch>, String> {
+fn append_item(src: &str, root: &Node, key: &str, item: &str) -> Result<Vec<Patch>, OpError> {
     let Val::Map { pairs, .. } = &root.val else { return fail("the diagram must be a YAML mapping") };
     let Some((k, seq)) = pairs.iter().find(|(k, _)| k.text() == Some(key)) else {
         let Some((_, last)) = pairs.last() else { return fail("the diagram mapping is empty") };
@@ -359,7 +388,7 @@ fn append_item(src: &str, root: &Node, key: &str, item: &str) -> Result<Vec<Patc
 }
 
 /// Append `item` to the sequence `seq` held under key node `k` (flow or block; an empty value becomes a block list).
-fn append_to_seq(src: &str, k: &Node, seq: &Node, key: &str, item: &str) -> Result<Vec<Patch>, String> {
+fn append_to_seq(src: &str, k: &Node, seq: &Node, key: &str, item: &str) -> Result<Vec<Patch>, OpError> {
     match &seq.val {
         Val::Seq { items, flow: true } => Ok(vec![match items.last() {
             Some(last) => Patch { start: last.end, end: last.end, text: format!(", {item}") },
@@ -446,8 +475,8 @@ impl std::ops::Deref for Index<'_> {
     }
 }
 
-fn find<'a>(ix: &Index<'a>, id: &str) -> Result<Entry<'a>, String> {
-    ix.by_id.get(id).map(|&i| ix.entries[i]).ok_or_else(|| format!("unknown id `{id}`"))
+fn find<'a>(ix: &Index<'a>, id: &str) -> Result<Entry<'a>, OpError> {
+    ix.by_id.get(id).map(|&i| ix.entries[i]).ok_or_else(|| OpError::UnknownId(id.to_owned()))
 }
 
 fn exists(ix: &Index<'_>, id: &str) -> bool {
@@ -455,7 +484,7 @@ fn exists(ix: &Index<'_>, id: &str) -> bool {
 }
 
 /// `at: [x, y, w, h]` of an entry, when it uses that form: the flow list's scalar items.
-fn at_items(entry: &Node) -> Result<Option<&Node>, String> {
+fn at_items(entry: &Node) -> Result<Option<&Node>, OpError> {
     match entry.get("at") {
         None => Ok(None),
         Some(at @ Node { val: Val::Seq { flow: true, .. }, .. }) => Ok(Some(at)),
@@ -463,7 +492,7 @@ fn at_items(entry: &Node) -> Result<Option<&Node>, String> {
     }
 }
 
-fn patch_at(src: &str, at: &Node, first: usize, vals: [f64; 2]) -> Result<Vec<Patch>, String> {
+fn patch_at(src: &str, at: &Node, first: usize, vals: [f64; 2]) -> Result<Vec<Patch>, OpError> {
     let items = at.items();
     let new = [num(vals[0])?, num(vals[1])?];
     if items.len() >= first + 2 {
@@ -476,7 +505,7 @@ fn patch_at(src: &str, at: &Node, first: usize, vals: [f64; 2]) -> Result<Vec<Pa
     Ok(vec![Patch { start: at.start, end: at.end, text: format!("[{}]", cur.join(", ")) }])
 }
 
-fn op_patches(src: &str, ix: &Index<'_>, op: &Op) -> Result<Vec<Patch>, String> {
+fn op_patches(src: &str, ix: &Index<'_>, op: &Op) -> Result<Vec<Patch>, OpError> {
     match op {
         Op::Move { id, x, y } => {
             let e = find(ix, id)?;
@@ -574,7 +603,7 @@ fn position(e: &Node) -> Option<(f64, f64)> {
 }
 
 /// Patches that set an entry's position, in whichever form it uses.
-fn move_to(src: &str, e: &Entry, x: f64, y: f64) -> Result<Vec<Patch>, String> {
+fn move_to(src: &str, e: &Entry, x: f64, y: f64) -> Result<Vec<Patch>, OpError> {
     match at_items(e.node)? {
         Some(at) if !e.zone => patch_at(src, at, 0, [x, y]),
         _ => set_keys(src, e.node, &[("x", num(x)?), ("y", num(y)?)]),
@@ -582,7 +611,7 @@ fn move_to(src: &str, e: &Entry, x: f64, y: f64) -> Result<Vec<Patch>, String> {
 }
 
 /// Patches that set an entry's whole box.
-fn box_patches(src: &str, e: &Entry, b: [f64; 4]) -> Result<Vec<Patch>, String> {
+fn box_patches(src: &str, e: &Entry, b: [f64; 4]) -> Result<Vec<Patch>, OpError> {
     let v = [num(b[0])?, num(b[1])?, num(b[2])?, num(b[3])?];
     match at_items(e.node)? {
         Some(at) if !e.zone => {
@@ -620,7 +649,7 @@ fn descendants<'a>(ix: &Index<'a>, id: &str) -> Vec<&'a str> {
     out
 }
 
-fn reparent(src: &str, ix: &Index<'_>, id: &str, parent: Option<&str>) -> Result<Vec<Patch>, String> {
+fn reparent(src: &str, ix: &Index<'_>, id: &str, parent: Option<&str>) -> Result<Vec<Patch>, OpError> {
     let e = find(ix, id)?;
     if !e.zone && e.node.get("in").is_some() {
         return fail(format!("`{id}` is placed by a group (`in:`); ungroup it first"));
@@ -659,7 +688,7 @@ fn reparent(src: &str, ix: &Index<'_>, id: &str, parent: Option<&str>) -> Result
 }
 
 /// Append `item` to the list under `key` of `map`; the key is created (a flow list) when missing.
-fn push_to(src: &str, map: &Node, key: &str, item: &str) -> Result<Vec<Patch>, String> {
+fn push_to(src: &str, map: &Node, key: &str, item: &str) -> Result<Vec<Patch>, OpError> {
     let Val::Map { pairs, .. } = &map.val else { return fail("entry is not a mapping") };
     match pairs.iter().find(|(k, _)| k.text() == Some(key)) {
         Some((k, seq)) => append_to_seq(src, k, seq, key, item),
@@ -667,7 +696,7 @@ fn push_to(src: &str, map: &Node, key: &str, item: &str) -> Result<Vec<Patch>, S
     }
 }
 
-fn move_zone(src: &str, ix: &Index<'_>, id: &str, x: f64, y: f64) -> Result<Vec<Patch>, String> {
+fn move_zone(src: &str, ix: &Index<'_>, id: &str, x: f64, y: f64) -> Result<Vec<Patch>, OpError> {
     let z = find(ix, id)?;
     if !z.zone {
         return fail(format!("`{id}` is not a zone"));
@@ -698,7 +727,7 @@ fn move_zone(src: &str, ix: &Index<'_>, id: &str, x: f64, y: f64) -> Result<Vec<
 }
 
 /// The zone and container operations of [`op_patches`].
-fn zone_patches(src: &str, ix: &Index<'_>, op: &Op) -> Result<Vec<Patch>, String> {
+fn zone_patches(src: &str, ix: &Index<'_>, op: &Op) -> Result<Vec<Patch>, OpError> {
     match op {
         Op::AddZone { id, label, style, x, y, w, h } => {
             if exists(ix, id) {
@@ -790,8 +819,8 @@ fn containers(root: &Node) -> Vec<Container<'_>> {
     out
 }
 
-fn container<'i, 'a>(ix: &'i Index<'a>, id: &str) -> Result<&'i Container<'a>, String> {
-    ix.containers.iter().find(|c| c.id == id).ok_or_else(|| format!("unknown container `{id}`"))
+fn container<'i, 'a>(ix: &'i Index<'a>, id: &str) -> Result<&'i Container<'a>, OpError> {
+    ix.containers.iter().find(|c| c.id == id).ok_or_else(|| OpError::Invalid(format!("unknown container `{id}`")))
 }
 
 /// Member ids of a container, in order (a string entry, or the `id` of an inline mapping).
@@ -799,7 +828,7 @@ fn member_ids(c: &Container) -> Vec<String> {
     c.node.get("nodes").map_or(&[][..], Node::items).iter().filter_map(|n| n.text().or_else(|| n.get("id").and_then(Node::text))).map(str::to_owned).collect()
 }
 
-fn group(src: &str, ix: &Index<'_>, axis: Axis, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, String> {
+fn group(src: &str, ix: &Index<'_>, axis: Axis, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, OpError> {
     if ids.len() < 2 {
         return fail("a group needs at least 2 nodes");
     }
@@ -830,7 +859,7 @@ fn group(src: &str, ix: &Index<'_>, axis: Axis, ids: &[String], gap: Option<f64>
     append_item(src, ix, axis.key(), &item)
 }
 
-fn add_to_container(src: &str, ix: &Index<'_>, id: &str, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
+fn add_to_container(src: &str, ix: &Index<'_>, id: &str, node: &str, index: Option<usize>) -> Result<Vec<Patch>, OpError> {
     let c = container(ix, id)?;
     let e = find(ix, node)?;
     if e.zone {
@@ -861,7 +890,7 @@ fn add_to_container(src: &str, ix: &Index<'_>, id: &str, node: &str, index: Opti
 }
 
 /// Move member `node` of container `c` so that it sits at `index` among the other members (the end when absent).
-fn reorder(src: &str, c: &Container, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
+fn reorder(src: &str, c: &Container, node: &str, index: Option<usize>) -> Result<Vec<Patch>, OpError> {
     let list = c.node.get("nodes").ok_or("container has no members")?;
     let Val::Seq { items, flow } = &list.val else { return fail("`nodes` is not a list") };
     let from = items.iter().position(|m| m.text() == Some(node)).ok_or_else(|| format!("`{node}` is written inline; reorder it in the code"))?;
@@ -897,7 +926,7 @@ fn reorder(src: &str, c: &Container, node: &str, index: Option<usize>) -> Result
 
 /// A flow-style copy of an inline container member (a mapping under the container's `nodes`) with its box set,
 /// for a member that leaves the container and becomes a top-level node.
-fn inline_entry(src: &str, m: &Node, b: [f64; 4]) -> Result<String, String> {
+fn inline_entry(src: &str, m: &Node, b: [f64; 4]) -> Result<String, OpError> {
     let Val::Map { pairs, .. } = &m.val else { return fail("container member is not a mapping") };
     let mut parts = Vec::new();
     for (k, v) in pairs {
@@ -917,7 +946,7 @@ fn inline_entry(src: &str, m: &Node, b: [f64; 4]) -> Result<String, String> {
 
 /// Take `released` members out of container `c`, writing each one's box. With `dissolve` the whole container
 /// entry goes. Members declared inline in the container are copied to the top-level `nodes` list.
-fn release(src: &str, ix: &Index<'_>, c: &Container, released: &[String], boxes: &BTreeMap<String, [f64; 4]>, dissolve: bool) -> Result<Vec<Patch>, String> {
+fn release(src: &str, ix: &Index<'_>, c: &Container, released: &[String], boxes: &BTreeMap<String, [f64; 4]>, dissolve: bool) -> Result<Vec<Patch>, OpError> {
     let list = c.node.get("nodes").ok_or("container has no members")?;
     let mut patches = Vec::new();
     let mut idxs = Vec::new();
@@ -963,7 +992,7 @@ fn release(src: &str, ix: &Index<'_>, c: &Container, released: &[String], boxes:
     Ok(patches)
 }
 
-fn delete(src: &str, ix: &Index<'_>, id: &str) -> Result<Vec<Patch>, String> {
+fn delete(src: &str, ix: &Index<'_>, id: &str) -> Result<Vec<Patch>, OpError> {
     if !exists(ix, id) {
         // `e<i>` is the edge at that position in `edges`
         if let (Some(i), Some(edges)) = (edge_index(ix, id), ix.get("edges")) {
@@ -1021,17 +1050,17 @@ pub fn apply_ops(yaml: &str, ops: &[Op]) -> Result<String, EditError> {
 /// test passes a function whose patches break the YAML, because no real operation does (every inserted scalar is
 /// quoted and every removal takes whole entries), so the re-parse guard below is defence in depth that only a seam
 /// can reach.
-fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Index<'_>, &Op) -> Result<Vec<Patch>, String>) -> Result<String, EditError> {
+fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Index<'_>, &Op) -> Result<Vec<Patch>, OpError>) -> Result<String, EditError> {
     let mut text = yaml.to_owned();
     // the tree of `text`: the check of one operation's result is the next operation's input
     let mut parsed: Option<Node> = None;
     for (i, op) in ops.iter().enumerate() {
-        let wrap = |reason: String| EditError { index: Some(i), reason: format!("{}: {reason}", op.name()) };
+        let wrap = |reason: OpError| EditError { index: Some(i), reason: format!("{}: {reason}", op.name()) };
         let root = match parsed.take() {
             Some(root) => root,
-            None => parse_diagram(&text).map_err(|e| wrap(e.to_string()))?,
+            None => parse_diagram(&text).map_err(|e| wrap(e.into()))?,
         };
-        edited_lists_have_no_anchors(&root).map_err(|e| wrap(e.to_string()))?;
+        edited_lists_have_no_anchors(&root).map_err(|e| wrap(e.into()))?;
         let patches = make(&text, &Index::new(&root), op).map_err(wrap)?;
         let next = apply_patches(&text, patches).map_err(wrap)?;
         parsed = Some(checked(&next).map_err(wrap)?);
@@ -1044,27 +1073,27 @@ fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Index<'_>, &Op) -> Re
 ///
 /// # Errors
 ///
-/// The reason as text: bad JSON, or the [`EditError`].
-pub fn apply_ops_json(yaml: &str, ops_json: &str) -> Result<String, String> {
-    let values: Vec<serde_json::Value> = serde_json::from_str(ops_json).map_err(|e| format!("invalid operations: {e}"))?;
+/// [`EditError`]: bad JSON (no operation to blame), an operation that does not read, or one that is refused.
+pub fn apply_ops_json(yaml: &str, ops_json: &str) -> Result<String, EditError> {
+    let values: Vec<serde_json::Value> =
+        serde_json::from_str(ops_json).map_err(|e| EditError { index: None, reason: format!("invalid operations: {e}") })?;
     let ops = values
         .into_iter()
         .enumerate()
         .map(|(i, v)| serde_json::from_value::<Op>(v).map_err(|e| EditError { index: Some(i), reason: format!("invalid operations: {e}") }))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-    apply_ops(yaml, &ops).map_err(|e| e.to_string())
+        .collect::<Result<Vec<_>, _>>()?;
+    apply_ops(yaml, &ops)
 }
 
 /// A patched text is kept only when it still parses as a diagram mapping; the tree is returned.
-fn checked(text: &str) -> Result<Node, String> {
-    parse_diagram(text).map_err(|e| format!("the patch would produce invalid YAML ({e})"))
+fn checked(text: &str) -> Result<Node, OpError> {
+    parse_diagram(text).map_err(|e| OpError::Invalid(format!("the patch would produce invalid YAML ({e})")))
 }
 
 // ---------------------------------------------------------------------------------------------------------
 // Properties, duplicate, reconnect and reverse
 
-fn check_prop(key: &str, kind: PropKind, v: &serde_json::Value) -> Result<(), String> {
+fn check_prop(key: &str, kind: PropKind, v: &serde_json::Value) -> Result<(), OpError> {
     use serde_json::Value;
     let ok = match (kind, v) {
         (PropKind::Str, Value::String(_)) | (PropKind::Num, Value::Number(_)) | (PropKind::Bool, Value::Bool(_)) => true,
@@ -1077,7 +1106,7 @@ fn check_prop(key: &str, kind: PropKind, v: &serde_json::Value) -> Result<(), St
 }
 
 /// `true` when `s` names a variant of `T`; otherwise the error lists the accepted values.
-fn one_of<T: std::str::FromStr>(key: &str, s: &str, accepted: &[&str]) -> Result<bool, String> {
+fn one_of<T: std::str::FromStr>(key: &str, s: &str, accepted: &[&str]) -> Result<bool, OpError> {
     if s.parse::<T>().is_err() {
         return fail(format!("`{key}` must be one of {}", accepted.join(", ")));
     }
@@ -1085,12 +1114,12 @@ fn one_of<T: std::str::FromStr>(key: &str, s: &str, accepted: &[&str]) -> Result
 }
 
 /// A JSON value as YAML text (`flow`: inside braces or brackets).
-fn yaml_value(v: &serde_json::Value, flow: bool) -> Result<String, String> {
+fn yaml_value(v: &serde_json::Value, flow: bool) -> Result<String, OpError> {
     use serde_json::Value;
     Ok(match v {
         Value::String(s) => text_scalar(s, flow),
         Value::Bool(b) => b.to_string(),
-        Value::Number(n) => n.as_f64().map_or_else(|| Err("a number out of range".to_owned()), num)?,
+        Value::Number(n) => n.as_f64().map_or_else(|| fail("a number out of range"), num)?,
         Value::Array(items) => format!("[{}]", items.iter().map(|i| yaml_value(i, true)).collect::<Result<Vec<_>, _>>()?.join(", ")),
         Value::Object(map) => {
             let mut pairs = Vec::new();
@@ -1131,7 +1160,7 @@ fn flow_ranges(spans: &[(usize, usize)], idxs: &[usize]) -> Vec<(usize, usize)> 
 
 /// Set keys (replace the value or append the pair) and remove keys of mapping `map`, as patches. An appended pair
 /// goes after the last pair that stays.
-fn edit_map(src: &str, map: &Node, sets: &[(String, String)], removes: &[String]) -> Result<Vec<Patch>, String> {
+fn edit_map(src: &str, map: &Node, sets: &[(String, String)], removes: &[String]) -> Result<Vec<Patch>, OpError> {
     let Val::Map { pairs, flow } = &map.val else { return fail("entry is not a mapping") };
     let gone: Vec<usize> = pairs.iter().enumerate().filter(|(_, (k, _))| removes.iter().any(|r| k.text() == Some(r.as_str()))).map(|(i, _)| i).collect();
     let Some(first_kept) = (0..pairs.len()).find(|i| !gone.contains(i)) else { return fail("that would leave the entry empty") };
@@ -1177,7 +1206,7 @@ fn edge_index(root: &Node, id: &str) -> Option<usize> {
     (i < root.get("edges")?.items().len() && format!("e{i}") == id).then_some(i)
 }
 
-fn edge_at<'a>(root: &'a Node, id: &str) -> Result<(&'a Node, &'a Node), String> {
+fn edge_at<'a>(root: &'a Node, id: &str) -> Result<(&'a Node, &'a Node), OpError> {
     let i = edge_index(root, id).ok_or_else(|| format!("unknown edge `{id}` (edges are e0, e1, ... by position in `edges`)"))?;
     let list = root.get("edges").ok_or_else(|| format!("unknown edge `{id}`"))?;
     Ok((list, &list.items()[i]))
@@ -1187,7 +1216,7 @@ fn edges_flow(list: &Node) -> bool {
     matches!(list.val, Val::Seq { flow: true, .. })
 }
 
-fn set_props(src: &str, ix: &Index<'_>, id: &str, props: &BTreeMap<String, serde_json::Value>) -> Result<Vec<Patch>, String> {
+fn set_props(src: &str, ix: &Index<'_>, id: &str, props: &BTreeMap<String, serde_json::Value>) -> Result<Vec<Patch>, OpError> {
     if props.is_empty() {
         return fail("set_props needs at least one key");
     }
@@ -1266,7 +1295,7 @@ fn set_props(src: &str, ix: &Index<'_>, id: &str, props: &BTreeMap<String, serde
 /// The keys to set (with their YAML text) and the keys to remove (`null`).
 type Split = (Vec<(String, String)>, Vec<String>);
 
-fn split_props(props: &BTreeMap<String, serde_json::Value>, flow: bool) -> Result<Split, String> {
+fn split_props(props: &BTreeMap<String, serde_json::Value>, flow: bool) -> Result<Split, OpError> {
     let mut sets = Vec::new();
     let mut removes = Vec::new();
     for (k, v) in props {
@@ -1313,7 +1342,7 @@ fn fresh_id(id: &str, taken: &[&str]) -> String {
     }
 }
 
-fn duplicate(src: &str, ix: &Index<'_>, id: &str, dx: f64, dy: f64) -> Result<Vec<Patch>, String> {
+fn duplicate(src: &str, ix: &Index<'_>, id: &str, dx: f64, dy: f64) -> Result<Vec<Patch>, OpError> {
     let e = find(ix, id)?;
     let taken: Vec<&str> = ix.entries.iter().map(|x| x.id).collect();
     let new_id = fresh_id(id, &taken);
@@ -1361,7 +1390,7 @@ fn new_end(current: &str, wanted: Option<&str>) -> String {
 }
 
 /// An edge end that names a real node or zone: `zone:x` needs a zone `x`, any other end an element with that id.
-fn check_end(ix: &Index<'_>, end: &str) -> Result<(), String> {
+fn check_end(ix: &Index<'_>, end: &str) -> Result<(), OpError> {
     let id = endpoint(end);
     match split_endpoint(end.trim()).target {
         EndpointTarget::Zone => {
@@ -1379,14 +1408,14 @@ fn check_end(ix: &Index<'_>, end: &str) -> Result<(), String> {
 }
 
 /// The edge `text` reads back, through the loader's grammar, with exactly the ends `from` and `to`.
-fn check_round_trip(text: &str, from: &str, to: &str) -> Result<(), String> {
+fn check_round_trip(text: &str, from: &str, to: &str) -> Result<(), OpError> {
     match EdgeText::parse(text) {
         Some(p) if p.ends() == (from, to) => Ok(()),
         _ => fail(format!("the ends `{from}` and `{to}` do not read back from the edge `{text}` (ids cannot contain `->`, `<-`, `--` or `:`)")),
     }
 }
 
-fn reconnect(ix: &Index<'_>, id: &str, from: Option<&str>, to: Option<&str>) -> Result<Vec<Patch>, String> {
+fn reconnect(ix: &Index<'_>, id: &str, from: Option<&str>, to: Option<&str>) -> Result<Vec<Patch>, OpError> {
     if from.is_none() && to.is_none() {
         return fail("reconnect needs `from` or `to`");
     }
@@ -1415,7 +1444,7 @@ fn reconnect(ix: &Index<'_>, id: &str, from: Option<&str>, to: Option<&str>) -> 
     Ok(patches)
 }
 
-fn reverse(src: &str, ix: &Index<'_>, id: &str) -> Result<Vec<Patch>, String> {
+fn reverse(src: &str, ix: &Index<'_>, id: &str) -> Result<Vec<Patch>, OpError> {
     let (list, edge) = edge_at(ix, id)?;
     if let Some(t) = edge.text() {
         let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
@@ -1518,7 +1547,7 @@ mod tests {
     }
 
     fn reject(yaml: &str, json: &str, needle: &str) {
-        let err = apply_ops_json(yaml, json).unwrap_err();
+        let err = apply_ops_json(yaml, json).unwrap_err().to_string();
         assert!(err.contains(needle), "{err:?} should mention {needle:?}");
     }
 
@@ -1548,13 +1577,15 @@ mod tests {
     #[test]
     fn an_unknown_enum_value_names_the_operation_and_the_accepted_values() {
         let y = "id: t\nnodes: [{id: a}, {id: b}]\n";
-        let err = apply_ops_json(y, r#"[{"op":"move","id":"a","x":1,"y":2},{"op":"group","axis":"diagonal","ids":["a","b"]}]"#).unwrap_err();
+        let failure = apply_ops_json(y, r#"[{"op":"move","id":"a","x":1,"y":2},{"op":"group","axis":"diagonal","ids":["a","b"]}]"#).unwrap_err();
+        assert_eq!(failure.index, Some(1));
+        let err = failure.to_string();
         assert!(err.starts_with("operation 1: "), "{err}");
         assert!(err.contains("`axis` must be one of row, column"), "{err}");
         assert!(err.contains("diagonal"), "{err}");
-        let err = apply_ops_json(y, r#"[{"op":"set_container","id":"row0","align":"middle"}]"#).unwrap_err();
+        let err = apply_ops_json(y, r#"[{"op":"set_container","id":"row0","align":"middle"}]"#).unwrap_err().to_string();
         assert!(err.starts_with("operation 0: ") && err.contains("center, start, end"), "{err}");
-        let err = apply_ops_json(y, r#"[{"op":"set_props","id":"e0","props":{"arrow":"sideways"}}]"#).unwrap_err();
+        let err = apply_ops_json(y, r#"[{"op":"set_props","id":"e0","props":{"arrow":"sideways"}}]"#).unwrap_err().to_string();
         assert!(err.contains("`arrow` must be one of end, start, both, none"), "{err}");
     }
 

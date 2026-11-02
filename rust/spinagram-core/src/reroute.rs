@@ -13,11 +13,38 @@ use std::collections::{BTreeMap, HashMap};
 
 use regex::Regex;
 use svgtypes::{PathParser, PathSegment};
+use thiserror::Error;
 
 use crate::pyfmt::g;
 use crate::route::{self, round2, Crossings, Options, Pt, Rect, Side, MARGIN};
 use crate::edge_syntax::EndpointTarget;
-use crate::scene::{self, Binding, Connector, ConnectorRoute, Item, Role, Scene, Shape, ShapeKind, TaggedShape};
+use crate::scene::{self, Binding, SceneError, Connector, ConnectorRoute, Item, Role, Scene, Shape, ShapeKind, TaggedShape};
+
+/// Why a move was refused.
+#[derive(Debug, Error)]
+pub enum RerouteError {
+    /// The scene JSON is not a scene.
+    #[error(transparent)]
+    Scene(#[from] SceneError),
+    /// The scene did not serialise again.
+    #[error("cannot write the scene: {0}")]
+    Write(#[from] serde_json::Error),
+    /// The moves JSON is not a map of ids to numbers.
+    #[error("invalid moves: {0}")]
+    Moves(String),
+    /// A move names a shape the scene does not have.
+    #[error("unknown shape `{0}`")]
+    UnknownShape(String),
+    /// A move is neither `[dx, dy]` nor `[x, y, w, h]`.
+    #[error("move of `{0}` must be [dx, dy] or [x, y, w, h]")]
+    MoveShape(String),
+    /// A move gives a box that is not finite and non-negative.
+    #[error("move of `{0}` is not a finite, non-negative box")]
+    MoveBox(String),
+    /// The pattern for a shape's own parts did not compile.
+    #[error("{0}")]
+    Pattern(#[from] regex::Error),
+}
 
 /// Shape id to `[dx, dy]` (move) or `[x, y, w, h]` (new box).
 pub type Moves = BTreeMap<String, Vec<f64>>;
@@ -232,26 +259,27 @@ fn shift_shape(s: &mut Shape, dx: f64, dy: f64) {
 ///
 /// # Errors
 ///
-/// When a move names an unknown shape or is not `[dx, dy]` or `[x, y, w, h]`.
-pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), String> {
+/// [`RerouteError`] when a move names an unknown shape or is not `[dx, dy]` or `[x, y, w, h]`.
+pub fn reroute_scene(scene: &mut Scene, moves: &Moves) -> Result<(), RerouteError> {
     if moves.is_empty() {
         return Ok(());
     }
     // 1. move the shapes and their own parts (accent bar, quote mark, badges; a zone's label, icons and strip)
     for (id, m) in moves {
-        let at = scene.items.iter().position(|it| matches!(it, Item::Shape(s) if &s.id == id)).ok_or_else(|| format!("unknown shape `{id}`"))?;
-        let Item::Shape(s) = &scene.items[at] else { unreachable!("matched a shape above") };
+        let Some(Item::Shape(s)) = scene.items.iter().find(|it| matches!(it, Item::Shape(s) if &s.id == id)) else {
+            return Err(RerouteError::UnknownShape(id.clone()));
+        };
         let (x, y, w, h) = match m.as_slice() {
             [dx, dy] => (s.x + dx, s.y + dy, s.w, s.h),
             [x, y, w, h] => (*x, *y, *w, *h),
-            _ => return Err(format!("move of `{id}` must be [dx, dy] or [x, y, w, h]")),
+            _ => return Err(RerouteError::MoveShape(id.clone())),
         };
         if ![x, y, w, h].iter().all(|v| v.is_finite()) || w < 0.0 || h < 0.0 {
-            return Err(format!("move of `{id}` is not a finite, non-negative box"));
+            return Err(RerouteError::MoveBox(id.clone()));
         }
         let (dx, dy) = (x - s.x, y - s.y);
-        let own = Regex::new(&format!("^{}-(accent|badge[0-9]+(-halo)?)$", regex::escape(id))).map_err(|e| e.to_string())?;
-        let zone_own = Regex::new(&format!("^{}-(icon[0-9]*|strip)$", regex::escape(id))).map_err(|e| e.to_string())?;
+        let own = Regex::new(&format!("^{}-(accent|badge[0-9]+(-halo)?)$", regex::escape(id)))?;
+        let zone_own = Regex::new(&format!("^{}-(icon[0-9]*|strip)$", regex::escape(id)))?;
         let (mark, label) = (format!("{id}-mark"), format!("{id}-label"));
         for it in &mut scene.items {
             match it {
@@ -346,12 +374,12 @@ fn mid(c: &Connector) -> Pt {
 ///
 /// # Errors
 ///
-/// Bad JSON or an invalid move.
-pub fn reroute(scene_json: &str, moves_json: &str) -> Result<String, String> {
+/// [`RerouteError`] for bad JSON or an invalid move.
+pub fn reroute(scene_json: &str, moves_json: &str) -> Result<String, RerouteError> {
     let mut scene = scene::parse(scene_json)?;
-    let moves: Moves = serde_json::from_str(moves_json).map_err(|e| format!("invalid moves: {e}"))?;
+    let moves: Moves = serde_json::from_str(moves_json).map_err(|e| RerouteError::Moves(e.to_string()))?;
     reroute_scene(&mut scene, &moves)?;
-    Ok(scene::to_json(&scene))
+    Ok(scene::to_json(&scene)?)
 }
 
 #[cfg(test)]
@@ -539,10 +567,10 @@ mod tests {
     #[test]
     fn invalid_moves_are_errors() {
         let s = fixture("decision");
-        assert!(reroute(&s, r#"{"nope": [1, 2]}"#).unwrap_err().contains("unknown shape `nope`"));
-        assert!(reroute(&s, r#"{"std": [1]}"#).unwrap_err().contains("[dx, dy]"));
-        assert!(reroute(&s, r#"{"std": [1, 2, -3, 4]}"#).unwrap_err().contains("non-negative"));
-        assert!(reroute(&s, "[1]").unwrap_err().contains("invalid moves"));
+        assert!(reroute(&s, r#"{"nope": [1, 2]}"#).unwrap_err().to_string().contains("unknown shape `nope`"));
+        assert!(reroute(&s, r#"{"std": [1]}"#).unwrap_err().to_string().contains("[dx, dy]"));
+        assert!(reroute(&s, r#"{"std": [1, 2, -3, 4]}"#).unwrap_err().to_string().contains("non-negative"));
+        assert!(reroute(&s, "[1]").unwrap_err().to_string().contains("invalid moves"));
         assert!(reroute("{}", "{}").is_err());
     }
 

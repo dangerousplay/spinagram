@@ -129,6 +129,8 @@ Internal modules `pub(crate)`, `#![warn(missing_docs)]`.
 **Tests**: pytest `EditError.index`; bun test reads `err.index` and `err.message`; message text unchanged.
 **Gate**: full
 **Commit**: `refactor(core): typed errors across the FFI and a smaller public API`
+**Status**: Done
+**Notes**: Per-module thiserror enums (YamlError, SceneError, FontError, DrawError, PngError, CssError, RerouteError, OpError, FitModeError, EditError); OpError keeps the free-form reason text of an operation as OpError::Invalid, with UnknownId and Yaml split out. apply_ops_json now returns EditError (index + reason), so bad JSON has index None and a bad operation its position. PyO3 sets .index on the ValueError and spinagram.edit.EditError reads it; wasm throws js_sys::Error with an index property, and the web worker sends error.message instead of String(error). Modules edge_syntax, edit_values, fit, css, route, ... stay public (documented grammar and types); pyfmt, verified and yaml_span are pub(crate). Op's variant fields are covered by one expect(missing_docs) since each variant doc names its fields. The scene schema gains field descriptions from the new doc comments (additions only).
 
 ### T8: SVG writer security
 

@@ -128,6 +128,29 @@ def test_invalid_op_raises_edit_error_with_the_rust_reason():
         edit.srcmap("a: [1")
 
 
+def test_edit_error_carries_the_index_of_the_failing_operation():
+    text = _hand_placed("software_architecture.yaml")
+    first = next(i for i in edit.srcmap(text) if not i.startswith("e"))
+    ok = {"op": "move", "id": first, "x": 1, "y": 1}
+    with pytest.raises(EditError) as exc:
+        edit.apply_ops(text, [ok, ok, {"op": "move", "id": "nope", "x": 1, "y": 1}])
+    assert exc.value.index == 2
+    assert str(exc.value).startswith("operation 2: move: unknown id `nope`")
+    with pytest.raises(EditError) as exc:
+        edit.apply_ops(text, [ok, {"op": "group", "axis": "diagonal", "ids": [first, first]}])
+    assert exc.value.index == 1
+    assert "`axis` must be one of row, column" in str(exc.value)
+    with pytest.raises(EditError) as exc:
+        edit.apply_ops("a: [1", [ok])
+    assert exc.value.index == 0 and "invalid YAML" in str(exc.value)
+    with pytest.raises(EditError) as exc:
+        edit.srcmap("a: [1")
+    assert exc.value.index is None
+    with pytest.raises(EditError) as exc:
+        edit.apply_ops(text, [{"op": "frobnicate"}])
+    assert exc.value.index == 0
+
+
 def _is_container(key: str) -> bool:
     import re
 

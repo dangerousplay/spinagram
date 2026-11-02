@@ -59,7 +59,14 @@ from . import rust
 
 
 class EditError(ValueError):
-    """An operation was rejected; the message is the Rust reason, naming the operation that failed."""
+    """An operation was rejected; the message is the Rust reason, naming the operation that failed.
+
+    ``index`` is the position of that operation in the batch, or ``None`` when no single operation is to blame
+    (the YAML does not parse, the batch is not a JSON list)."""
+
+    def __init__(self, message: str, index: int | None = None) -> None:
+        super().__init__(message)
+        self.index = index
 
 
 def _core():
@@ -74,7 +81,7 @@ def apply_ops(yaml_text: str, ops: Iterable[Mapping[str, Any]]) -> str:
     try:
         return _core().apply_ops(yaml_text, json.dumps(list(ops)))
     except ValueError as exc:
-        raise EditError(str(exc)) from None
+        raise EditError(str(exc), getattr(exc, "index", None)) from None
 
 
 def srcmap(yaml_text: str) -> dict[str, tuple[int, int]]:

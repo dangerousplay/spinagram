@@ -9,7 +9,16 @@ use thiserror::Error;
 pub enum YamlError {
     /// The parser rejected the text. `byte` is the UTF-8 offset, `line` and `column` count from 1.
     #[error("invalid YAML: {info} at byte {byte} line {line} column {column}")]
-    Syntax { info: String, byte: usize, line: usize, column: usize },
+    Syntax {
+        /// What the parser objected to.
+        info: String,
+        /// UTF-8 offset of the error.
+        byte: usize,
+        /// Line of the error.
+        line: usize,
+        /// Column of the error.
+        column: usize,
+    },
     /// The file holds more than one document.
     #[error("several YAML documents in one file are not supported")]
     MultipleDocuments,

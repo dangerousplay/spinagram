@@ -3,6 +3,7 @@
 use std::sync::{Arc, OnceLock};
 
 use resvg::{tiny_skia, usvg};
+use thiserror::Error;
 
 static SYSTEM_FONTS: OnceLock<usvg::fontdb::Database> = OnceLock::new();
 
@@ -20,26 +21,53 @@ fn pixels(size: f64, scale: f64) -> u32 {
     (size * scale).round_ties_even().max(1.0) as u32
 }
 
+/// Why a PNG could not be rendered.
+#[derive(Debug, Error)]
+pub enum PngError {
+    /// A theme font file could not be loaded.
+    #[error("font file {file}: {reason}")]
+    Font {
+        /// The file that failed.
+        file: String,
+        /// The loader's reason.
+        reason: String,
+    },
+    /// The SVG did not parse.
+    #[error("invalid SVG: {0}")]
+    Svg(String),
+    /// The image size is not allocatable.
+    #[error("cannot allocate a {w}x{h} image")]
+    Allocate {
+        /// Width in px.
+        w: u32,
+        /// Height in px.
+        h: u32,
+    },
+    /// The pixmap did not encode.
+    #[error("cannot encode PNG: {0}")]
+    Encode(String),
+}
+
 #[expect(clippy::cast_precision_loss, reason = "pixel, glyph and count arithmetic on small non-negative values that f64, i64 and usize hold exactly")]
 /// Render `svg` (a `width` x `height` document) at `scale` to PNG bytes of `round(width*scale)` x `round(height*scale)`.
 /// `font_files` are loaded before the system fonts, so a theme's own font wins over a system font of the same name.
 ///
 /// # Errors
 ///
-/// When a font file cannot be loaded, the SVG is invalid, or the image cannot be allocated or encoded.
-pub fn render_png(svg: &str, width: f64, height: f64, scale: f64, font_files: &[String]) -> Result<Vec<u8>, String> {
+/// [`PngError`] when a font file cannot be loaded, the SVG is invalid, or the image cannot be allocated or encoded.
+pub fn render_png(svg: &str, width: f64, height: f64, scale: f64, font_files: &[String]) -> Result<Vec<u8>, PngError> {
     let mut db = system_fonts().clone();
     for file in font_files {
-        db.load_font_file(file).map_err(|e| format!("font file {file}: {e}"))?;
+        db.load_font_file(file).map_err(|e| PngError::Font { file: file.clone(), reason: e.to_string() })?;
     }
     let opt = usvg::Options { fontdb: Arc::new(db), ..usvg::Options::default() };
-    let tree = usvg::Tree::from_str(svg, &opt).map_err(|e| format!("invalid SVG: {e}"))?;
+    let tree = usvg::Tree::from_str(svg, &opt).map_err(|e| PngError::Svg(e.to_string()))?;
     let (w, h) = (pixels(width, scale), pixels(height, scale));
-    let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or_else(|| format!("cannot allocate a {w}x{h} image"))?;
+    let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or(PngError::Allocate { w, h })?;
     let size = tree.size();
     let transform = tiny_skia::Transform::from_scale(w as f32 / size.width(), h as f32 / size.height());
     resvg::render(&tree, transform, &mut pixmap.as_mut());
-    pixmap.encode_png().map_err(|e| format!("cannot encode PNG: {e}"))
+    pixmap.encode_png().map_err(|e| PngError::Encode(e.to_string()))
 }
 
 #[cfg(test)]

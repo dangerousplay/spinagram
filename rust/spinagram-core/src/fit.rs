@@ -1,10 +1,12 @@
 //! Fit text blocks to a box: wrap, break long tokens, shrink in 1 px steps, then grow. A port of
 //! `fit_blocks` in `spinagram/engine/textfit.py`.
 
+use thiserror::Error;
 use strum::{AsRefStr, Display, EnumString, IntoStaticStr, VariantNames};
 
 use crate::text::{Font, Measurer};
 
+/// How far `fit_blocks` may shrink a font by default, as a share of its size.
 pub const MIN_SCALE: f64 = 0.85;
 /// Slack, in px, that a line or a block may exceed its box by and still count as fitting.
 const FIT_SLACK: f64 = 0.5;
@@ -42,11 +44,16 @@ impl FitMode {
     ///
     /// # Errors
     ///
-    /// The reason, listing the accepted names, when `name` is not one of them.
-    pub fn parse(name: &str) -> Result<FitMode, String> {
-        name.parse().map_err(|_| format!("fit '{name}'; use one of {}", FitMode::VARIANTS.join(", ")))
+    /// [`UnknownFitMode`], listing the accepted names, when `name` is not one of them.
+    pub fn parse(name: &str) -> Result<FitMode, UnknownFitMode> {
+        name.parse().map_err(|_| UnknownFitMode(name.to_owned()))
     }
 }
+
+/// A fit mode name that is not one of the accepted ones.
+#[derive(Debug, Error, PartialEq, Eq)]
+#[error("fit '{0}'; use one of {accepted}", accepted = FitMode::VARIANTS.join(", "))]
+pub struct UnknownFitMode(pub String);
 
 /// How a fit was reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString, AsRefStr, IntoStaticStr)]
@@ -75,25 +82,37 @@ impl FitStrategy {
 /// One text block to fit: source paragraphs, font at its base size, line height factor.
 #[derive(Clone, Debug)]
 pub struct BlockSpec {
+    /// The source paragraphs.
     pub paragraphs: Vec<String>,
+    /// The font.
     pub font: Font,
+    /// Line height in px.
     pub leading: f64,
 }
 
 /// A fitted block: its wrapped lines, final font and line height in px.
 #[derive(Clone, Debug)]
 pub struct Block {
+    /// The wrapped lines.
     pub lines: Vec<String>,
+    /// The font.
     pub font: Font,
+    /// Line height in px.
     pub leading: f64,
 }
 
+/// The outcome of `fit_blocks`.
 #[derive(Clone, Debug)]
 pub struct FitResult {
+    /// The text blocks, top to bottom.
     pub blocks: Vec<Block>,
+    /// Height in px.
     pub height: f64,
+    /// How the fit was reached.
     pub strategy: FitStrategy,
+    /// Whether the text fits the box.
     pub ok: bool,
+    /// Size in px.
     pub size: f64,
 }
 

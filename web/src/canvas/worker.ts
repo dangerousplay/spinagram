@@ -35,6 +35,6 @@ self.addEventListener("message", (e: MessageEvent<Request & { id: number }>) => 
   const { id, ...req } = e.data;
   handle(req as Request).then(
     (value) => (self as unknown as Worker).postMessage({ id, ok: true, value } satisfies Response),
-    (err: unknown) => (self as unknown as Worker).postMessage({ id, ok: false, error: String(err) } satisfies Response),
+    (err: unknown) => (self as unknown as Worker).postMessage({ id, ok: false, error: err instanceof Error ? err.message : String(err) } satisfies Response),
   );
 });
