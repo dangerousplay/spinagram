@@ -98,12 +98,20 @@ enum Frame {
     Map { start: usize, anchored: bool, items: Vec<Node> },
 }
 
+#[cfg(test)]
+thread_local! {
+    /// How many times this thread has parsed, for the tests that count parses per operation.
+    pub(crate) static PARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 /// Parse `src` (one document) into a span tree.
 ///
 /// # Errors
 ///
 /// [`YamlError`] when the text is not valid YAML, is empty, or holds several documents.
 pub(crate) fn parse(src: &str) -> Result<Node, YamlError> {
+    #[cfg(test)]
+    PARSES.with(|n| n.set(n.get() + 1));
     // saphyr marks count characters; the table turns them into byte offsets
     let offsets: Option<Vec<usize>> = if src.is_ascii() {
         None

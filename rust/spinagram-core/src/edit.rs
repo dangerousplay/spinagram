@@ -4,7 +4,7 @@
 //! the patched ranges (comments, blank lines, key order, flow/block style) are never touched. A batch applies
 //! all operations or none: the text is re-parsed after each one and the first failure returns the input unchanged.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
 use saphyr_parser::ScalarStyle;
@@ -142,6 +142,7 @@ fn fail<T>(reason: impl Into<String>) -> Result<T, String> {
 // Entries and the source map
 
 /// Where an element lives: its mapping node, the sequence that holds it, and its position there.
+#[derive(Clone, Copy)]
 struct Entry<'a> {
     id: &'a str,
     zone: bool,
@@ -406,12 +407,51 @@ fn edge_ends(edge: &Node) -> Option<(String, String)> {
 // ---------------------------------------------------------------------------------------------------------
 // Operations
 
-fn find<'a>(root: &'a Node, id: &str) -> Result<Entry<'a>, String> {
-    entries(root).into_iter().find(|e| e.id == id).ok_or_else(|| format!("unknown id `{id}`"))
+/// Lookups over one parsed diagram, built once per operation: the entries by id, the zones by id, the containers
+/// and the ids they hold. It derefs to the root mapping.
+struct Index<'a> {
+    root: &'a Node,
+    entries: Vec<Entry<'a>>,
+    /// position in `entries` of the first entry with each id
+    by_id: HashMap<&'a str, usize>,
+    /// positions in `entries` of the zones with each id
+    zones: HashMap<&'a str, Vec<usize>>,
+    containers: Vec<Container<'a>>,
+    /// every id that some container lists as a member
+    held: HashSet<String>,
 }
 
-fn exists(root: &Node, id: &str) -> bool {
-    entries(root).iter().any(|e| e.id == id)
+impl<'a> Index<'a> {
+    fn new(root: &'a Node) -> Self {
+        let entries = entries(root);
+        let mut by_id = HashMap::new();
+        let mut zones: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (i, e) in entries.iter().enumerate() {
+            by_id.entry(e.id).or_insert(i);
+            if e.zone {
+                zones.entry(e.id).or_default().push(i);
+            }
+        }
+        let containers = containers(root);
+        let held = containers.iter().flat_map(member_ids).collect();
+        Index { root, entries, by_id, zones, containers, held }
+    }
+}
+
+impl std::ops::Deref for Index<'_> {
+    type Target = Node;
+
+    fn deref(&self) -> &Node {
+        self.root
+    }
+}
+
+fn find<'a>(ix: &Index<'a>, id: &str) -> Result<Entry<'a>, String> {
+    ix.by_id.get(id).map(|&i| ix.entries[i]).ok_or_else(|| format!("unknown id `{id}`"))
+}
+
+fn exists(ix: &Index<'_>, id: &str) -> bool {
+    ix.by_id.contains_key(id)
 }
 
 /// `at: [x, y, w, h]` of an entry, when it uses that form: the flow list's scalar items.
@@ -436,17 +476,17 @@ fn patch_at(src: &str, at: &Node, first: usize, vals: [f64; 2]) -> Result<Vec<Pa
     Ok(vec![Patch { start: at.start, end: at.end, text: format!("[{}]", cur.join(", ")) }])
 }
 
-fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
+fn op_patches(src: &str, ix: &Index<'_>, op: &Op) -> Result<Vec<Patch>, String> {
     match op {
         Op::Move { id, x, y } => {
-            let e = find(root, id)?;
+            let e = find(ix, id)?;
             match at_items(e.node)? {
                 Some(at) if !e.zone => patch_at(src, at, 0, [*x, *y]),
                 _ => set_keys(src, e.node, &[("x", num(*x)?), ("y", num(*y)?)]),
             }
         }
         Op::Resize { id, w, h } => {
-            let e = find(root, id)?;
+            let e = find(ix, id)?;
             match at_items(e.node)? {
                 Some(at) if !e.zone => {
                     if at.items().len() < 2 {
@@ -458,7 +498,7 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             }
         }
         Op::Rename { id, title } => {
-            let e = find(root, id)?;
+            let e = find(ix, id)?;
             let key = if e.zone { "label" } else { "title" };
             let flow = matches!(e.node.val, Val::Map { flow: true, .. });
             let text = match e.node.get(key) {
@@ -467,9 +507,9 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             };
             set_keys(src, e.node, &[(key, text)])
         }
-        Op::Delete { id } => delete(src, root, id),
+        Op::Delete { id } => delete(src, ix, id),
         Op::AddNode { id, title, kind, icon, x, y, w, h } => {
-            if exists(root, id) {
+            if exists(ix, id) {
                 return fail(format!("duplicate id `{id}`"));
             }
             let mut fields = vec![format!("id: {}", scalar(id))];
@@ -487,21 +527,21 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                     fields.push(format!("{k}: {}", num(*v)?));
                 }
             }
-            append_item(src, root, "nodes", &format!("{{{}}}", fields.join(", ")))
+            append_item(src, ix, "nodes", &format!("{{{}}}", fields.join(", ")))
         }
         Op::Connect { from, to, label } => {
             for end in [from, to] {
-                check_end(root, end)?;
+                check_end(ix, end)?;
             }
             let text = match label {
                 Some(l) => format!("{from} -> {to}: {l}"),
                 None => format!("{from} -> {to}"),
             };
             check_round_trip(&text, from, to)?;
-            append_item(src, root, "edges", &text_scalar(&text, true))
+            append_item(src, ix, "edges", &text_scalar(&text, true))
         }
         Op::Disconnect { from, to } => {
-            let edges = root.get("edges").ok_or_else(|| format!("no edge from `{from}` to `{to}`"))?;
+            let edges = ix.get("edges").ok_or_else(|| format!("no edge from `{from}` to `{to}`"))?;
             let (f, t) = (endpoint(from), endpoint(to));
             let idx = edges.items().iter().position(|e| edge_ends(e).is_some_and(|(a, b)| a == f && b == t));
             match idx {
@@ -509,11 +549,11 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                 None => fail(format!("no edge from `{from}` to `{to}`")),
             }
         }
-        Op::SetProps { id, props } => set_props(src, root, id, props),
-        Op::Duplicate { id, dx, dy } => duplicate(src, root, id, *dx, *dy),
-        Op::Reconnect { id, from, to } => reconnect(root, id, from.as_deref(), to.as_deref()),
-        Op::Reverse { id } => reverse(src, root, id),
-        _ => zone_patches(src, root, op),
+        Op::SetProps { id, props } => set_props(src, ix, id, props),
+        Op::Duplicate { id, dx, dy } => duplicate(src, ix, id, *dx, *dy),
+        Op::Reconnect { id, from, to } => reconnect(ix, id, from.as_deref(), to.as_deref()),
+        Op::Reverse { id } => reverse(src, ix, id),
+        _ => zone_patches(src, ix, op),
     }
 }
 
@@ -563,16 +603,16 @@ fn zone_kids(z: &Node) -> Vec<&str> {
 }
 
 /// Every id below zone `id` (children, their children, ...).
-fn descendants<'a>(root: &'a Node, id: &str) -> Vec<&'a str> {
-    let zones: Vec<Entry<'a>> = entries(root).into_iter().filter(|e| e.zone).collect();
+fn descendants<'a>(ix: &Index<'a>, id: &str) -> Vec<&'a str> {
     let mut out: Vec<&'a str> = Vec::new();
-    let mut todo = vec![id.to_owned()];
+    let mut seen: HashSet<&'a str> = HashSet::new();
+    let mut todo = vec![id];
     while let Some(cur) = todo.pop() {
-        for z in zones.iter().filter(|z| z.id == cur) {
-            for kid in zone_kids(z.node) {
-                if !out.contains(&kid) {
+        for &z in ix.zones.get(cur).map_or(&[][..], Vec::as_slice) {
+            for kid in zone_kids(ix.entries[z].node) {
+                if seen.insert(kid) {
                     out.push(kid);
-                    todo.push(kid.to_owned());
+                    todo.push(kid);
                 }
             }
         }
@@ -580,18 +620,18 @@ fn descendants<'a>(root: &'a Node, id: &str) -> Vec<&'a str> {
     out
 }
 
-fn reparent(src: &str, root: &Node, id: &str, parent: Option<&str>) -> Result<Vec<Patch>, String> {
-    let e = find(root, id)?;
+fn reparent(src: &str, ix: &Index<'_>, id: &str, parent: Option<&str>) -> Result<Vec<Patch>, String> {
+    let e = find(ix, id)?;
     if !e.zone && e.node.get("in").is_some() {
         return fail(format!("`{id}` is placed by a group (`in:`); ungroup it first"));
     }
     let target = match parent {
         Some(p) => {
-            let t = find(root, p)?;
+            let t = find(ix, p)?;
             if !t.zone {
                 return fail(format!("`{p}` is not a zone"));
             }
-            if p == id || descendants(root, id).contains(&p) {
+            if p == id || descendants(ix, id).contains(&p) {
                 return fail("A zone cannot contain itself");
             }
             Some(t)
@@ -600,7 +640,7 @@ fn reparent(src: &str, root: &Node, id: &str, parent: Option<&str>) -> Result<Ve
     };
     let mut patches = Vec::new();
     let mut already = false;
-    for z in entries(root).into_iter().filter(|z| z.zone) {
+    for z in ix.entries.iter().filter(|z| z.zone) {
         let Some(list) = z.node.get("children") else { continue };
         let hits: Vec<usize> = list.items().iter().enumerate().filter(|(_, n)| n.text() == Some(id)).map(|(i, _)| i).collect();
         if hits.is_empty() {
@@ -627,28 +667,27 @@ fn push_to(src: &str, map: &Node, key: &str, item: &str) -> Result<Vec<Patch>, S
     }
 }
 
-fn move_zone(src: &str, root: &Node, id: &str, x: f64, y: f64) -> Result<Vec<Patch>, String> {
-    let z = find(root, id)?;
+fn move_zone(src: &str, ix: &Index<'_>, id: &str, x: f64, y: f64) -> Result<Vec<Patch>, String> {
+    let z = find(ix, id)?;
     if !z.zone {
         return fail(format!("`{id}` is not a zone"));
     }
     let (cx, cy) = position(z.node).ok_or_else(|| format!("zone `{id}` has no x and y"))?;
     let (dx, dy) = (x - cx, y - cy);
     let mut patches = move_to(src, &z, x, y)?;
-    let kids = descendants(root, id);
-    let conts = containers(root);
-    let in_container = |kid: &str| conts.iter().any(|c| member_ids(c).iter().any(|m| m == kid));
+    let kids = descendants(ix, id);
+    let kid_set: HashSet<&str> = kids.iter().copied().collect();
     for kid in &kids {
-        if in_container(kid) {
+        if ix.held.contains(*kid) {
             continue; // placed by its container, which moves below
         }
-        let e = find(root, kid)?;
+        let e = find(ix, kid)?;
         if let Some((kx, ky)) = position(e.node) {
             patches.extend(move_to(src, &e, kx + dx, ky + dy)?);
         }
     }
-    for c in conts.iter().filter(|c| c.node.get("zone").is_none()) {
-        if !member_ids(c).iter().any(|m| kids.contains(&m.as_str())) {
+    for c in ix.containers.iter().filter(|c| c.node.get("zone").is_none()) {
+        if !member_ids(c).iter().any(|m| kid_set.contains(m.as_str())) {
             continue;
         }
         if let (Some(px), Some(py)) = (c.node.get("x").and_then(num_of), c.node.get("y").and_then(num_of)) {
@@ -659,10 +698,10 @@ fn move_zone(src: &str, root: &Node, id: &str, x: f64, y: f64) -> Result<Vec<Pat
 }
 
 /// The zone and container operations of [`op_patches`].
-fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
+fn zone_patches(src: &str, ix: &Index<'_>, op: &Op) -> Result<Vec<Patch>, String> {
     match op {
         Op::AddZone { id, label, style, x, y, w, h } => {
-            if exists(root, id) {
+            if exists(ix, id) {
                 return fail(format!("duplicate id `{id}`"));
             }
             let mut fields = vec![format!("id: {}", scalar(id))];
@@ -678,10 +717,10 @@ fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             for (k, v) in [("x", x), ("y", y), ("w", w), ("h", h)] {
                 fields.push(format!("{k}: {}", num(*v)?));
             }
-            append_item(src, root, "zones", &format!("{{{}}}", fields.join(", ")))
+            append_item(src, ix, "zones", &format!("{{{}}}", fields.join(", ")))
         }
         Op::SetZoneStyle { id, style } => {
-            let z = find(root, id)?;
+            let z = find(ix, id)?;
             if !z.zone {
                 return fail(format!("`{id}` is not a zone"));
             }
@@ -690,28 +729,28 @@ fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
             }
             set_keys(src, z.node, &[("color", text_scalar(style, true))])
         }
-        Op::Reparent { id, parent } => reparent(src, root, id, parent.as_deref()),
-        Op::MoveZone { id, x, y } => move_zone(src, root, id, *x, *y),
-        Op::Group { axis, ids, gap, x, y } => group(src, root, *axis, ids, *gap, *x, *y),
+        Op::Reparent { id, parent } => reparent(src, ix, id, parent.as_deref()),
+        Op::MoveZone { id, x, y } => move_zone(src, ix, id, *x, *y),
+        Op::Group { axis, ids, gap, x, y } => group(src, ix, *axis, ids, *gap, *x, *y),
         Op::Ungroup { id, boxes } => {
-            let c = container(root, id)?;
-            release(src, root, &c, &member_ids(&c), boxes, true)
+            let c = container(ix, id)?;
+            release(src, ix, c, &member_ids(c), boxes, true)
         }
-        Op::AddToContainer { id, node, index } => add_to_container(src, root, id, node, *index),
+        Op::AddToContainer { id, node, index } => add_to_container(src, ix, id, node, *index),
         Op::RemoveFromContainer { id, node, boxes } => {
-            let c = container(root, id)?;
-            let members = member_ids(&c);
+            let c = container(ix, id)?;
+            let members = member_ids(c);
             if !members.iter().any(|m| m == node) {
                 return fail(format!("`{node}` is not in container `{id}`"));
             }
             if members.len() <= 2 {
-                release(src, root, &c, &members, boxes, true)
+                release(src, ix, c, &members, boxes, true)
             } else {
-                release(src, root, &c, std::slice::from_ref(node), boxes, false)
+                release(src, ix, c, std::slice::from_ref(node), boxes, false)
             }
         }
         Op::SetContainer { id, gap, align } => {
-            let c = container(root, id)?;
+            let c = container(ix, id)?;
             let mut pairs = Vec::new();
             if let Some(g) = gap {
                 pairs.push(("gap", num(*g)?));
@@ -751,8 +790,8 @@ fn containers(root: &Node) -> Vec<Container<'_>> {
     out
 }
 
-fn container<'a>(root: &'a Node, id: &str) -> Result<Container<'a>, String> {
-    containers(root).into_iter().find(|c| c.id == id).ok_or_else(|| format!("unknown container `{id}`"))
+fn container<'i, 'a>(ix: &'i Index<'a>, id: &str) -> Result<&'i Container<'a>, String> {
+    ix.containers.iter().find(|c| c.id == id).ok_or_else(|| format!("unknown container `{id}`"))
 }
 
 /// Member ids of a container, in order (a string entry, or the `id` of an inline mapping).
@@ -760,18 +799,17 @@ fn member_ids(c: &Container) -> Vec<String> {
     c.node.get("nodes").map_or(&[][..], Node::items).iter().filter_map(|n| n.text().or_else(|| n.get("id").and_then(Node::text))).map(str::to_owned).collect()
 }
 
-fn group(src: &str, root: &Node, axis: Axis, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, String> {
+fn group(src: &str, ix: &Index<'_>, axis: Axis, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, String> {
     if ids.len() < 2 {
         return fail("a group needs at least 2 nodes");
     }
-    let conts = containers(root);
     let mut members: Vec<(&String, f64, f64)> = Vec::new();
     for id in ids {
-        let e = find(root, id)?;
+        let e = find(ix, id)?;
         if e.zone {
             return fail(format!("`{id}` is a zone; only nodes can be grouped"));
         }
-        if conts.iter().any(|c| member_ids(c).contains(id)) {
+        if ix.held.contains(id.as_str()) {
             return fail(format!("`{id}` is already in a container"));
         }
         if members.iter().any(|m| m.0 == id) {
@@ -789,20 +827,20 @@ fn group(src: &str, root: &Node, axis: Axis, ids: &[String], gap: Option<f64>, x
     }
     let names: Vec<String> = members.iter().map(|m| scalar(m.0)).collect();
     let item = format!("{{x: {}, y: {}, gap: {}, nodes: [{}]}}", num(x.unwrap_or(left))?, num(y.unwrap_or(top))?, num(gap.unwrap_or(DEFAULT_GAP))?, names.join(", "));
-    append_item(src, root, axis.key(), &item)
+    append_item(src, ix, axis.key(), &item)
 }
 
-fn add_to_container(src: &str, root: &Node, id: &str, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
-    let c = container(root, id)?;
-    let e = find(root, node)?;
+fn add_to_container(src: &str, ix: &Index<'_>, id: &str, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
+    let c = container(ix, id)?;
+    let e = find(ix, node)?;
     if e.zone {
         return fail(format!("`{node}` is a zone; only nodes can join a container"));
     }
-    if containers(root).iter().any(|o| o.id != id && member_ids(o).iter().any(|m| m == node)) {
+    if ix.containers.iter().any(|o| o.id != id && member_ids(o).iter().any(|m| m == node)) {
         return fail(format!("`{node}` is already in a container"));
     }
-    if member_ids(&c).iter().any(|m| m == node) {
-        return reorder(src, &c, node, index);
+    if member_ids(c).iter().any(|m| m == node) {
+        return reorder(src, c, node, index);
     }
     let item = scalar(node);
     let Val::Map { pairs, .. } = &c.node.val else { return fail("container is not a mapping") };
@@ -879,7 +917,7 @@ fn inline_entry(src: &str, m: &Node, b: [f64; 4]) -> Result<String, String> {
 
 /// Take `released` members out of container `c`, writing each one's box. With `dissolve` the whole container
 /// entry goes. Members declared inline in the container are copied to the top-level `nodes` list.
-fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &BTreeMap<String, [f64; 4]>, dissolve: bool) -> Result<Vec<Patch>, String> {
+fn release(src: &str, ix: &Index<'_>, c: &Container, released: &[String], boxes: &BTreeMap<String, [f64; 4]>, dissolve: bool) -> Result<Vec<Patch>, String> {
     let list = c.node.get("nodes").ok_or("container has no members")?;
     let mut patches = Vec::new();
     let mut idxs = Vec::new();
@@ -892,7 +930,7 @@ fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &B
         let b = *boxes.get(mid).ok_or_else(|| format!("missing box for `{mid}`"))?;
         idxs.push(i);
         if m.text().is_some() {
-            patches.extend(box_patches(src, &find(root, mid)?, b)?);
+            patches.extend(box_patches(src, &find(ix, mid)?, b)?);
         } else {
             inline.push(inline_entry(src, m, b)?);
         }
@@ -903,9 +941,9 @@ fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &B
         patches.extend(remove_items(src, list, &idxs));
     }
     if !inline.is_empty() {
-        match root.get("nodes") {
+        match ix.get("nodes") {
             Some(nodes) if matches!(nodes.val, Val::Seq { .. }) => {
-                let Val::Map { pairs, .. } = &root.val else { return fail("the diagram must be a YAML mapping") };
+                let Val::Map { pairs, .. } = &ix.val else { return fail("the diagram must be a YAML mapping") };
                 let k = pairs.iter().find(|(k, _)| k.text() == Some("nodes")).map(|(k, _)| k).ok_or("no nodes key")?;
                 for item in &inline {
                     patches.extend(append_to_seq(src, k, nodes, "nodes", item)?);
@@ -913,10 +951,10 @@ fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &B
             }
             Some(_) => return fail("`nodes` is not a list"),
             None => {
-                let Val::Map { pairs, .. } = &root.val else { return fail("the diagram must be a YAML mapping") };
+                let Val::Map { pairs, .. } = &ix.val else { return fail("the diagram must be a YAML mapping") };
                 let key = pairs.iter().find(|(_, v)| std::ptr::eq(v, c.list)).map(|(k, _)| k).ok_or("container list key not found")?;
                 let at = line_start(src, key.start);
-                let pad = " ".repeat(column(src, root.start));
+                let pad = " ".repeat(column(src, ix.start));
                 let lines = inline.iter().fold(String::new(), |acc, i| acc + &format!("{pad}  - {i}\n"));
                 patches.push(Patch { start: at, end: at, text: format!("{pad}nodes:\n{lines}") });
             }
@@ -925,16 +963,16 @@ fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &B
     Ok(patches)
 }
 
-fn delete(src: &str, root: &Node, id: &str) -> Result<Vec<Patch>, String> {
-    if !exists(root, id) {
+fn delete(src: &str, ix: &Index<'_>, id: &str) -> Result<Vec<Patch>, String> {
+    if !exists(ix, id) {
         // `e<i>` is the edge at that position in `edges`
-        if let (Some(i), Some(edges)) = (edge_index(root, id), root.get("edges")) {
+        if let (Some(i), Some(edges)) = (edge_index(ix, id), ix.get("edges")) {
             return Ok(remove_items(src, edges, &[i]));
         }
     }
-    let entry = find(root, id)?;
+    let entry = find(ix, id)?;
     let mut by_list: Vec<(&Node, Vec<usize>)> = vec![(entry.list, vec![entry.index])];
-    if let Some(edges) = root.get("edges") {
+    if let Some(edges) = ix.get("edges") {
         let hits: Vec<usize> = edges.items().iter().enumerate().filter(|(_, e)| edge_ends(e).is_some_and(|(a, b)| a == id || b == id)).map(|(i, _)| i).collect();
         if !hits.is_empty() {
             by_list.push((edges, hits));
@@ -942,7 +980,7 @@ fn delete(src: &str, root: &Node, id: &str) -> Result<Vec<Patch>, String> {
     }
     // the id inside `children` lists (groups, zones, nested groups) and `nodes` lists of rows and columns
     let mut refs: Vec<&Node> = Vec::new();
-    collect_lists(root, &mut refs);
+    collect_lists(ix, &mut refs);
     for list in refs {
         let hits: Vec<usize> = list.items().iter().enumerate().filter(|(_, n)| n.text() == Some(id)).map(|(i, _)| i).collect();
         if !hits.is_empty() {
@@ -983,15 +1021,21 @@ pub fn apply_ops(yaml: &str, ops: &[Op]) -> Result<String, EditError> {
 /// test passes a function whose patches break the YAML, because no real operation does (every inserted scalar is
 /// quoted and every removal takes whole entries), so the re-parse guard below is defence in depth that only a seam
 /// can reach.
-fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Node, &Op) -> Result<Vec<Patch>, String>) -> Result<String, EditError> {
+fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Index<'_>, &Op) -> Result<Vec<Patch>, String>) -> Result<String, EditError> {
     let mut text = yaml.to_owned();
+    // the tree of `text`: the check of one operation's result is the next operation's input
+    let mut parsed: Option<Node> = None;
     for (i, op) in ops.iter().enumerate() {
         let wrap = |reason: String| EditError { index: Some(i), reason: format!("{}: {reason}", op.name()) };
-        let root = parse_diagram(&text).map_err(|e| wrap(e.to_string()))?;
+        let root = match parsed.take() {
+            Some(root) => root,
+            None => parse_diagram(&text).map_err(|e| wrap(e.to_string()))?,
+        };
         edited_lists_have_no_anchors(&root).map_err(|e| wrap(e.to_string()))?;
-        let patches = make(&text, &root, op).map_err(wrap)?;
+        let patches = make(&text, &Index::new(&root), op).map_err(wrap)?;
         let next = apply_patches(&text, patches).map_err(wrap)?;
-        text = checked(next).map_err(wrap)?;
+        parsed = Some(checked(&next).map_err(wrap)?);
+        text = next;
     }
     Ok(text)
 }
@@ -1012,12 +1056,10 @@ pub fn apply_ops_json(yaml: &str, ops_json: &str) -> Result<String, String> {
     apply_ops(yaml, &ops).map_err(|e| e.to_string())
 }
 
-/// A patched text is kept only when it still parses as a diagram mapping.
-fn checked(text: String) -> Result<String, String> {
-    parse_diagram(&text).map_err(|e| format!("the patch would produce invalid YAML ({e})"))?;
-    Ok(text)
+/// A patched text is kept only when it still parses as a diagram mapping; the tree is returned.
+fn checked(text: &str) -> Result<Node, String> {
+    parse_diagram(text).map_err(|e| format!("the patch would produce invalid YAML ({e})"))
 }
-
 
 // ---------------------------------------------------------------------------------------------------------
 // Properties, duplicate, reconnect and reverse
@@ -1145,11 +1187,11 @@ fn edges_flow(list: &Node) -> bool {
     matches!(list.val, Val::Seq { flow: true, .. })
 }
 
-fn set_props(src: &str, root: &Node, id: &str, props: &BTreeMap<String, serde_json::Value>) -> Result<Vec<Patch>, String> {
+fn set_props(src: &str, ix: &Index<'_>, id: &str, props: &BTreeMap<String, serde_json::Value>) -> Result<Vec<Patch>, String> {
     if props.is_empty() {
         return fail("set_props needs at least one key");
     }
-    let entry = entries(root).into_iter().find(|e| e.id == id);
+    let entry = ix.by_id.get(id).map(|&i| ix.entries[i]);
     let owner = match &entry {
         Some(e) if e.zone => Owner::Zone,
         Some(_) => Owner::Node,
@@ -1178,7 +1220,7 @@ fn set_props(src: &str, root: &Node, id: &str, props: &BTreeMap<String, serde_js
         let (sets, removes) = split_props(props, flow)?;
         return edit_map(src, e.node, &sets, &removes);
     }
-    let (list, edge) = edge_at(root, id)?;
+    let (list, edge) = edge_at(ix, id)?;
     let list_flow = edges_flow(list);
     if let Some(t) = edge.text() {
         let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
@@ -1271,10 +1313,9 @@ fn fresh_id(id: &str, taken: &[&str]) -> String {
     }
 }
 
-fn duplicate(src: &str, root: &Node, id: &str, dx: f64, dy: f64) -> Result<Vec<Patch>, String> {
-    let e = find(root, id)?;
-    let all = entries(root);
-    let taken: Vec<&str> = all.iter().map(|x| x.id).collect();
+fn duplicate(src: &str, ix: &Index<'_>, id: &str, dx: f64, dy: f64) -> Result<Vec<Patch>, String> {
+    let e = find(ix, id)?;
+    let taken: Vec<&str> = ix.entries.iter().map(|x| x.id).collect();
     let new_id = fresh_id(id, &taken);
     let Some(id_node) = e.node.get("id") else { return fail("entry has no id") };
     let mut inner = vec![Patch { start: id_node.start, end: id_node.end, text: scalar(&new_id) }];
@@ -1300,7 +1341,7 @@ fn duplicate(src: &str, root: &Node, id: &str, dx: f64, dy: f64) -> Result<Vec<P
     if !e.zone {
         // every zone `children` and container `nodes` list that names the original names the copy after it
         let mut lists: Vec<&Node> = Vec::new();
-        collect_lists(root, &mut lists);
+        collect_lists(ix, &mut lists);
         for list in lists {
             if let Some(i) = list.items().iter().position(|n| n.text() == Some(id)) {
                 patches.push(insert_after(src, list, i, &scalar(&new_id)));
@@ -1320,19 +1361,19 @@ fn new_end(current: &str, wanted: Option<&str>) -> String {
 }
 
 /// An edge end that names a real node or zone: `zone:x` needs a zone `x`, any other end an element with that id.
-fn check_end(root: &Node, end: &str) -> Result<(), String> {
+fn check_end(ix: &Index<'_>, end: &str) -> Result<(), String> {
     let id = endpoint(end);
     match split_endpoint(end.trim()).target {
         EndpointTarget::Zone => {
-            if entries(root).iter().any(|e| e.zone && e.id == id) {
+            if ix.zones.contains_key(id) {
                 Ok(())
-            } else if exists(root, id) {
+            } else if exists(ix, id) {
                 fail(format!("`{id}` is not a zone"))
             } else {
                 fail(format!("unknown id `{id}`"))
             }
         }
-        EndpointTarget::Node if exists(root, id) => Ok(()),
+        EndpointTarget::Node if exists(ix, id) => Ok(()),
         EndpointTarget::Node => fail(format!("unknown id `{id}`")),
     }
 }
@@ -1345,14 +1386,14 @@ fn check_round_trip(text: &str, from: &str, to: &str) -> Result<(), String> {
     }
 }
 
-fn reconnect(root: &Node, id: &str, from: Option<&str>, to: Option<&str>) -> Result<Vec<Patch>, String> {
+fn reconnect(ix: &Index<'_>, id: &str, from: Option<&str>, to: Option<&str>) -> Result<Vec<Patch>, String> {
     if from.is_none() && to.is_none() {
         return fail("reconnect needs `from` or `to`");
     }
     for end in [from, to].into_iter().flatten() {
-        check_end(root, end)?;
+        check_end(ix, end)?;
     }
-    let (list, edge) = edge_at(root, id)?;
+    let (list, edge) = edge_at(ix, id)?;
     if let Some(t) = edge.text() {
         let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
         let (cur_from, cur_to) = p.ends();
@@ -1374,8 +1415,8 @@ fn reconnect(root: &Node, id: &str, from: Option<&str>, to: Option<&str>) -> Res
     Ok(patches)
 }
 
-fn reverse(src: &str, root: &Node, id: &str) -> Result<Vec<Patch>, String> {
-    let (list, edge) = edge_at(root, id)?;
+fn reverse(src: &str, ix: &Index<'_>, id: &str) -> Result<Vec<Patch>, String> {
+    let (list, edge) = edge_at(ix, id)?;
     if let Some(t) = edge.text() {
         let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
         let (from, to) = p.ends();
@@ -1482,6 +1523,29 @@ mod tests {
     }
 
     #[test]
+    fn a_batch_parses_once_before_and_once_after_each_operation() {
+        let y = read("block");
+        let ops = ops(r#"[{"op":"move","id":"a","x":1,"y":2},{"op":"move","id":"a","x":3,"y":4},{"op":"rename","id":"a","title":"A"}]"#);
+        let before = crate::yaml_span::PARSES.with(std::cell::Cell::get);
+        apply_ops(&y, &ops).unwrap();
+        let parses = crate::yaml_span::PARSES.with(std::cell::Cell::get) - before;
+        assert_eq!(parses, ops.len() + 1);
+    }
+
+    #[test]
+    fn move_zone_over_thousands_of_nodes_stays_fast() {
+        const N: usize = 2000;
+        let mut y = String::from("id: big\nzones:\n  - {id: z, x: 0, y: 0, w: 99, h: 99, children: [");
+        y.push_str(&(0..N).map(|i| format!("n{i}")).collect::<Vec<_>>().join(", "));
+        y.push_str("]}\nnodes:\n");
+        y.extend((0..N).map(|i| format!("  - {{id: n{i}, at: [{i}, 5, 10, 10]}}\n")));
+        let started = std::time::Instant::now();
+        let out = apply_ops_json(&y, r#"[{"op":"move_zone","id":"z","x":100,"y":50}]"#).unwrap();
+        assert!(started.elapsed() < std::time::Duration::from_secs(2), "took {:?}", started.elapsed());
+        assert!(out.contains("{id: n1999, at: [2099, 55, 10, 10]}"), "children moved with the zone");
+    }
+
+    #[test]
     fn an_unknown_enum_value_names_the_operation_and_the_accepted_values() {
         let y = "id: t\nnodes: [{id: a}, {id: b}]\n";
         let err = apply_ops_json(y, r#"[{"op":"move","id":"a","x":1,"y":2},{"op":"group","axis":"diagonal","ids":["a","b"]}]"#).unwrap_err();
@@ -1559,21 +1623,21 @@ mod tests {
 
     #[test]
     fn a_patch_that_does_not_reparse_is_rejected() {
-        assert!(checked("id: x\nnodes: [unclosed\n".to_owned()).is_err());
-        assert!(checked("- a\n- b\n".to_owned()).is_err());
-        assert_eq!(checked("id: x\n".to_owned()).unwrap(), "id: x\n");
+        assert!(checked("id: x\nnodes: [unclosed\n").is_err());
+        assert!(checked("- a\n- b\n").is_err());
+        assert!(checked("id: x\n").is_ok());
     }
 
     #[test]
     fn apply_ops_rejects_a_patch_whose_result_does_not_reparse() {
         // a patcher that opens a flow list and never closes it: the batch must fail, naming the operation
-        let broken = |_: &str, root: &Node, _: &Op| Ok(vec![Patch { start: root.start, end: root.start, text: "x: [unclosed\n".to_owned() }]);
+        let broken = |_: &str, root: &Index<'_>, _: &Op| Ok(vec![Patch { start: root.start, end: root.start, text: "x: [unclosed\n".to_owned() }]);
         let y = read("block");
         let err = apply_with(&y, &ops(r#"[{"op":"move","id":"a","x":1,"y":2}]"#), broken).unwrap_err();
         assert_eq!(err.index, Some(0));
         assert!(err.reason.contains("would produce invalid YAML"), "{}", err.reason);
         // a patch that turns the mapping into a list is rejected too
-        let to_list = |src: &str, _: &Node, _: &Op| Ok(vec![Patch { start: 0, end: src.len(), text: "- a\n- b\n".to_owned() }]);
+        let to_list = |src: &str, _: &Index<'_>, _: &Op| Ok(vec![Patch { start: 0, end: src.len(), text: "- a\n- b\n".to_owned() }]);
         let err = apply_with(&y, &ops(r#"[{"op":"delete","id":"a"}]"#), to_list).unwrap_err();
         assert!(err.reason.contains("would produce invalid YAML"), "{}", err.reason);
     }

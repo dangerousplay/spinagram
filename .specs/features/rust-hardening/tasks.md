@@ -90,6 +90,8 @@ post-op check as the next op's input tree.
 **Tests**: existing edit tests; a 2,000-node `move_zone` test under a time bound generous enough for debug CI (e.g. < 2 s).
 **Gate**: rust
 **Commit**: `perf(core): one index and one parse per edit operation`
+**Status**: Done
+**Notes**: 2,000-node move_zone runs in 0.07 s in a debug build. Parses per batch: operations + 1.
 
 ### T5: Scene, SVG, route and fit enums and constants
 
