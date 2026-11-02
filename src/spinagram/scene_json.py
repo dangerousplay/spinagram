@@ -136,5 +136,26 @@ def to_dict(scene: Scene) -> dict[str, Any]:
     return doc
 
 
+def file_paths(scene: Scene) -> list[str]:
+    """The image and icon files on disk the scene draws, as ``dumps`` writes them: the only files the Rust writer
+    may read for it (a scene read from elsewhere names paths that nobody vouched for)."""
+    paths: list[str] = []
+
+    def shape(s: Shape) -> None:
+        if s.icon is not None:
+            paths.append(_path(s.icon.path))
+
+    for it in scene.items:
+        if isinstance(it, Shape):
+            shape(it)
+        elif isinstance(it, Connector) and it.label is not None:
+            shape(it.label)
+        elif isinstance(it, Image):
+            paths.append(_path(it.path))
+        elif isinstance(it, TableGrid):
+            paths.extend(_path(c.icon.path) for row in it.cells for c in row if c.icon is not None)
+    return list(dict.fromkeys(paths))
+
+
 def dumps(scene: Scene) -> str:
     return json.dumps(to_dict(scene), ensure_ascii=False)

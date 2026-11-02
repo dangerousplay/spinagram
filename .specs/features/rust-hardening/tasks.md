@@ -143,6 +143,8 @@ reads arbitrary paths).
 **Tests**: colour `x" onload="y` escaped in both engines with identical output; `rgb(1,2,3)` marker id valid; scene icon path outside the roots not read.
 **Gate**: full
 **Commit**: `fix(svg): escape colours and restrict embedded file reads`
+**Status**: Done
+**Notes**: Python engine: it reads every Path of the scene it built (trusted, in-process), so its rule is no restriction; the restriction is on the Rust side, which takes scene JSON. svg::draw reads registered files only; svg::draw_with takes a FileAccess (listed files and canonicalised roots); the PyO3 svg_draw takes the file list from scene_json.file_paths(scene), so ordinary icons render byte-identically in both modes. An unlisted path is skipped (nothing read, nothing drawn). SPEC_DEVIATION: on wasm32 an unregistered path stays a NotFound error, because nothing can be read there and the editor wants a loud failure for an icon the host forgot to register. Marker ids: a colour made of letters, digits, _ and - (hex digits, names) keeps m<colour>; any other colour (rgb(), var(), quotes) becomes m x<64-bit FNV-1a hash>, the same function in svg.py and svg.rs. Escaping also covers part path data and the page background in both engines.
 
 ### T9: Stop committing the web bundle
 

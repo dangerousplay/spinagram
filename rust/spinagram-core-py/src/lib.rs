@@ -139,11 +139,15 @@ type Chars = Vec<(String, u32, bool, String)>;
 
 /// Draw the items of a scene JSON as SVG fragments: `(defs, back, mid, front, chars)` where `chars` lists
 /// `(family, weight, italic, characters)` for each face drawn. `compensated_sum` is `sys.version_info >= (3, 12)`:
-/// whether Python's `sum()` is compensated. A missing image raises `FileNotFoundError`.
+/// whether Python's `sum()` is compensated. `files` lists the image and icon files on disk the scene may embed (the
+/// host knows them: they are the paths of the scene it built); any other path is skipped, never read. A missing
+/// listed file raises `FileNotFoundError`.
 #[pyfunction]
-fn svg_draw(py: Python<'_>, json: &str, compensated_sum: bool) -> PyResult<(String, String, String, String, Chars)> {
+#[pyo3(signature = (json, compensated_sum, files=None))]
+fn svg_draw(py: Python<'_>, json: &str, compensated_sum: bool, files: Option<Vec<String>>) -> PyResult<(String, String, String, String, Chars)> {
+    let access = files.unwrap_or_default().into_iter().fold(svg::FileAccess::none(), svg::FileAccess::with_file);
     let drawn = py
-        .detach(|| scene::parse(json).map_err(DrawError::from).and_then(|s| svg::draw(&s, compensated_sum)))
+        .detach(|| scene::parse(json).map_err(DrawError::from).and_then(|s| svg::draw_with(&s, compensated_sum, &access)))
         .map_err(|e| match e {
             DrawError::NotFound(p) => PyFileNotFoundError::new_err(format!("[Errno 2] No such file or directory: '{p}'")),
             other => PyValueError::new_err(other.to_string()),
