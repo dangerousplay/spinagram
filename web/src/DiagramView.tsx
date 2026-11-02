@@ -10,6 +10,7 @@ import SvgHost from "./canvas/svgHost";
 import { escapeStep, matchKey, selectionFrame } from "./canvas/interaction";
 import { afterSelection, readDock, readElements, readPaletteOpen, writeDock, writeElements, writePaletteOpen, type Dock, type ElementsPref } from "./canvas/paletteState";
 import ElementTree from "./canvas/ElementTree";
+import Properties from "./canvas/Properties";
 import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
 import type { PaletteItem } from "./canvas/palette";
 import { useCanvas } from "./canvas/useCanvas";
@@ -632,7 +633,9 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
         onSelect={canvas.select}
         onPin={() => setElements({ ...elements, pinned: !elements.pinned })}
         onClose={() => setElements({ ...elements, open: false })}
-      />
+      >
+        <Properties canvas={canvas} zoneStyles={zoneStyles} />
+      </ElementTree>
     )}
     {codeMounted && (
       <div className={code ? "flex w-[44%] min-w-[420px] shrink-0" : "hidden"}>

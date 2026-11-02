@@ -37,6 +37,7 @@ import {
   type KeyLike,
 } from "./interaction";
 import { CONTAINER_ICON_NAMES, hasIcon, iconNameOf, ICON_NAMES } from "./icons";
+import { QUICK_ACTIONS } from "./props";
 import { ACTIONS, CLICK_SLOP, TOOLS, connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse } from "./tools";
 import { BUILTINS, SHAPE_KINDS, ZONE_TITLES, buildCorpus, zoneStyleItems, categorize, categoryOf, defaultCollapsed, paletteRows, displayName, dropOps, ghostOf, newId, noMatch, search, type IconEntry } from "./palette";
 
@@ -874,10 +875,10 @@ describe("drop ghost (T24)", () => {
 
 describe("editor icons (T25)", () => {
   test("every shape kind, container, tool and toolbar action has an icon", () => {
-    for (const name of [...SHAPE_KINDS, ...CONTAINER_ICON_NAMES, ...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id)]) expect(hasIcon(name)).toBe(true);
+    for (const name of [...SHAPE_KINDS, ...CONTAINER_ICON_NAMES, ...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id), ...QUICK_ACTIONS.map((q) => q.id)]) expect(hasIcon(name)).toBe(true);
   });
   test("ICON_NAMES lists exactly those names", () => {
-    expect(new Set(ICON_NAMES)).toEqual(new Set([...SHAPE_KINDS, ...CONTAINER_ICON_NAMES, ...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id)]));
+    expect(new Set(ICON_NAMES)).toEqual(new Set([...SHAPE_KINDS, ...CONTAINER_ICON_NAMES, ...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id), ...QUICK_ACTIONS.map((q) => q.id)]));
   });
   test("a palette item maps to an icon name; an icon-pack item to none", () => {
     expect(iconNameOf({ type: "zone", title: "Zone" })).toBe("zone");

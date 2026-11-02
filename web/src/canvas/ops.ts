@@ -18,6 +18,7 @@ import {
 
 export type Op =
   | { op: "move"; id: string; x: number; y: number }
+  | { op: "resize"; id: string; w: number; h: number }
   | { op: "delete"; id: string }
   | { op: "move_zone"; id: string; x: number; y: number }
   | { op: "reparent"; id: string; parent: string | null }

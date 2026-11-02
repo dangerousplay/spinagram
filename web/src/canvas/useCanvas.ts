@@ -755,6 +755,29 @@ export function useCanvas({ diagramKey, layout, enabled, rev, scale, tick, reloa
   const last = selected[selected.length - 1];
   const selection: Selection | null = last ? { ...last, nonce } : null;
 
+  /** The YAML entry text of each element id (from the source map), for the properties panel. */
+  const entries = useCallback(
+    async (ids: string[]): Promise<Record<string, string>> => {
+      const src = (await api.source(diagramKey)).files[0];
+      const map = await srcmap(src.text);
+      const out: Record<string, string> = {};
+      for (const id of ids) {
+        const r = yamlRange(src.text, map, id);
+        if (r) out[id] = src.text.slice(r.from, r.to);
+      }
+      return out;
+    },
+    [diagramKey, srcmap],
+  );
+
+  /** Send a batch from outside the canvas (the properties panel): one save, one undo step; a rejection shows as a toast. */
+  const run = useCallback(
+    (ops: Op[]) => {
+      if (active && ops.length) void commit(ops);
+    },
+    [active, commit],
+  );
+
   /** Select elements from outside the canvas (a row of the element tree). */
   const select = useCallback((sel: Sel[]) => active && pick(sel), [active, pick]);
 
@@ -764,6 +787,9 @@ export function useCanvas({ diagramKey, layout, enabled, rev, scale, tick, reloa
     scene,
     files,
     select,
+    entries: active ? entries : null,
+    run,
+    notify: showToast,
     editable,
     selection,
     selected,

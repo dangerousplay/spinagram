@@ -21,7 +21,7 @@ type Props = {
 
 const iconCache = new Map<string, IconEntry[]>();
 
-async function loadIcons(packs: Pack[]): Promise<IconEntry[]> {
+export async function loadIcons(packs: Pack[]): Promise<IconEntry[]> {
   const out: IconEntry[] = [];
   await Promise.all(
     packs

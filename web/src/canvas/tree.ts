@@ -149,3 +149,9 @@ export function selectFromRow(row: TreeNode, current: Sel[], additive: boolean):
 
 /** The keys of the rows that show as selected for a canvas selection. */
 export const selectedKeys = (sel: Sel[]): Set<string> => new Set(sel.map(keyOf));
+
+/** Every row of one kind, in tree order: the nodes (or zones) a dropdown offers, with their titles. */
+export function optionsOf(scene: SceneJson, kind: "node" | "zone"): { id: string; title: string }[] {
+  const all = (l: TreeNode[]): TreeNode[] => l.flatMap((n) => [n, ...all(n.children)]);
+  return all(buildTree(scene)).filter((n) => n.kind === kind).map((n) => ({ id: n.id, title: n.title }));
+}

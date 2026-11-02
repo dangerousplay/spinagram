@@ -1,18 +1,23 @@
 // One place that maps every canvas tool, toolbar action and palette item to an icon (lucide-react, ISC licence;
 // each icon is imported by name so the bundle holds only these).
 import {
+  ArrowLeftRight,
   ArrowRightLeft,
   Box,
   Circle,
   CircleHelp,
   Columns2,
+  Copy,
   Database,
   Diamond,
+  Equal,
   FileText,
+  FolderInput,
   Group,
   Hand,
   ListTree,
   MousePointer2,
+  Palette,
   PanelBottom,
   PanelLeftRightDashed,
   Pill,
@@ -32,6 +37,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SHAPE_KINDS, type PaletteItem } from "./palette";
+import { QUICK_ACTIONS } from "./props";
 import { ACTIONS, TOOLS } from "./tools";
 
 /** Palette basics that are not shape kinds. */
@@ -53,6 +59,12 @@ const ICONS: Record<string, LucideIcon> = {
   elements: ListTree,
   help: CircleHelp,
   dock: PanelBottom,
+  // quick actions of the properties panel (the ones that are also tools or actions share those icons)
+  duplicate: Copy,
+  "move-to-zone": FolderInput,
+  style: Palette,
+  reverse: ArrowLeftRight,
+  parallel: Equal,
   // containers
   zone: SquareDashed,
   row: Columns2, // boxes side by side
@@ -75,8 +87,8 @@ const ICONS: Record<string, LucideIcon> = {
   object: Box,
 };
 
-/** Every name `EditorIcon` draws: the tools, the actions, the containers and the shape kinds. */
-export const ICON_NAMES: string[] = [...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id), ...CONTAINER_ICON_NAMES, ...SHAPE_KINDS];
+/** Every name `EditorIcon` draws: the tools, the actions, the quick actions, the containers and the shape kinds. */
+export const ICON_NAMES: string[] = [...new Set([...TOOLS.map((t) => t.id), ...ACTIONS.map((a) => a.id), ...QUICK_ACTIONS.map((q) => q.id), ...CONTAINER_ICON_NAMES, ...SHAPE_KINDS])];
 
 export const hasIcon = (name: string): boolean => name in ICONS;
 

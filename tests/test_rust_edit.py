@@ -370,3 +370,34 @@ def test_reconnect_and_reverse_change_the_ends_in_the_model(tmp_path):
 def test_delete_by_edge_id_removes_that_edge(tmp_path):
     d = _load(tmp_path, edit.apply_ops(_fixture("props_block"), [{"op": "delete", "id": "e1"}]))
     assert [(e.src, e.dst) for e in d.edges] == [("api", "db"), ("db", "cache"), ("cache", "api"), ("db.left", "api.right@0.3"), ("cache", "db")]
+
+
+def test_set_props_accepts_exactly_the_keys_the_loader_accepts():
+    """Removing (null) a key is valid only for a key the loader reads: the Rust allow-lists track yaml_io and the model."""
+    import dataclasses
+
+    from spinagram import model, yaml_io
+
+    text = _fixture("props_block")
+    geometry = {"id", "x", "y", "w", "h"}
+
+    def accepted(target: str, key: str) -> bool:
+        try:
+            edit.apply_ops(text, [{"op": "set_props", "id": target, "props": {key: None}}])
+            return True
+        except EditError as exc:
+            assert "not a property" in str(exc), exc
+            return False
+
+    node_keys = (yaml_io._NODE_KEYS | yaml_io._NODE_EXTRA) - geometry
+    assert all(accepted("api", k) for k in node_keys)
+    assert not accepted("api", "no_such_key") and not accepted("api", "at") and accepted("api", "x-owner")
+
+    fields = lambda cls: {("class" if f.name == "cls" else f.name) for f in dataclasses.fields(cls)}  # noqa: E731
+    zone_keys = fields(model.Zone) - geometry - {"children", "gid"}
+    assert all(accepted("vpc", k) for k in zone_keys)
+    assert not accepted("vpc", "children") and not accepted("vpc", "icon_size")
+
+    edge_keys = fields(model.Edge) - {"src", "dst"}
+    assert all(accepted("e0", k) for k in edge_keys)
+    assert not accepted("e0", "from") and not accepted("e0", "src")

@@ -57,3 +57,12 @@ export function edgeLabelOf(entry: string): string {
   rest = rest.slice(colon + 1).trim();
   return rest;
 }
+
+/** Whether an edge entry is a mapping (`{from, to, ...}` or block keys) and not the string form `"a -> b: label"`. */
+export const edgeIsMapping = (entry: string): boolean => {
+  const t = entry.trim();
+  return t.startsWith("{") || /(^|\n)\s*(- )?(from|to):/.test(t);
+};
+
+/** A key of an edge entry (`route`, `dashed`, `color`, ...), or null: a string edge has none of them. */
+export const edgeField = (entry: string, key: string): string | null => (edgeIsMapping(entry) ? entryField(entry, key) : null);

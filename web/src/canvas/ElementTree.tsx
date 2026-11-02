@@ -15,6 +15,8 @@ type Props = {
   onSelect: (sel: Sel[]) => void;
   onPin: () => void;
   onClose: () => void;
+  /** the properties of the selection, shown under the tree */
+  children?: React.ReactNode;
 };
 
 const MIME: Record<string, string> = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
@@ -34,7 +36,7 @@ function RowIcon({ node, files }: { node: TreeNode; files: Record<string, string
   );
 }
 
-export default function ElementTree({ scene, files, selected, pinned, onSelect, onPin, onClose }: Props) {
+export default function ElementTree({ scene, files, selected, pinned, onSelect, onPin, onClose, children }: Props) {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const list = useRef<HTMLDivElement>(null);
@@ -59,7 +61,7 @@ export default function ElementTree({ scene, files, selected, pinned, onSelect, 
     });
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-slate-200 bg-white text-sm dark:border-slate-800 dark:bg-slate-950" aria-label="Elements">
+    <aside className="flex w-80 shrink-0 flex-col border-l border-slate-200 bg-white text-sm dark:border-slate-800 dark:bg-slate-950" aria-label="Elements">
       <div className="flex items-center gap-1 border-b border-slate-200 px-2 py-1.5 dark:border-slate-800">
         <h2 className="flex-1 px-1 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300">Elements</h2>
         <button
@@ -87,7 +89,7 @@ export default function ElementTree({ scene, files, selected, pinned, onSelect, 
           className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
         />
       </div>
-      <div ref={list} role="tree" className="min-h-0 flex-1 overflow-y-auto py-1">
+      <div ref={list} role="tree" className={`min-h-24 overflow-y-auto py-1 ${children ? "max-h-[45%] shrink-0" : "flex-1"}`}>
         {rows.map(({ node, depth }) => {
           const open = !collapsed.has(node.key) || query.trim() !== "";
           const on = keys.has(node.key);
@@ -124,6 +126,7 @@ export default function ElementTree({ scene, files, selected, pinned, onSelect, 
         })}
         {rows.length === 0 && <p className="px-3 py-3 text-slate-500">{query.trim() ? `No element matches "${query.trim()}"` : "Nothing in this diagram yet"}</p>}
       </div>
+      {children && <div className="relative min-h-0 flex-1 overflow-y-auto border-t border-slate-200 dark:border-slate-800">{children}</div>}
     </aside>
   );
 }
