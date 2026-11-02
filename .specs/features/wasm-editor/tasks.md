@@ -1354,8 +1354,26 @@ Document them in `src/spinagram/edit.py` and `rust/README.md`.
 
 **Done when**:
 
-- [ ] Each step recorded with its diff; full, Rust, WASM and web gates pass
+- [x] Each step recorded with its diff; full, Rust, WASM and web gates pass
 
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: element tree, properties and edge editing guide`
+
+**Notes**: Bundle rebuilt (`bash rust/spinagram-wasm/build.sh`, then `bunx bun@1.4.2 run build`; a second build gives the same file names; wasm 677 KB gzipped). `live-ui.mdx` documents edge selection, relabelling, reconnecting and deleting, the Elements panel (tree, filter, pin) and the properties panel with its quick actions. Gates: cargo 227, clippy and deny clean; wasm bun 23; web bun 245 and build; pytest 2870 passed, 3 skipped per mode (`test_web_unit` included); ruff clean; SVG parity 49 of 49 identical in subset, embed and link.
+
+Browser pass (Chrome, `spinagram serve` on a git-initialised scratch copy of the whole `examples/showcase/`, port 8799, `editable_platform`; observer on `document.body` counting removals of the `Canvas tools` toolbar and removals and additions of `svg image` elements, reset before each step; 16 icon images at the start; the YAML diff is cumulative from `git diff`):
+| Step | Toolbar remounts | Image removals | Image additions | YAML change |
+| --- | --- | --- | --- | --- |
+| Click Users: the tree and properties open | 0 | 0 | 0 | none |
+| Properties, Title: "Visitors" + Enter | 0 | 0 | 0 | `title: Users` -> `title: Visitors` |
+| Properties, Class: "plain" + Enter | 0 | 0 | 0 | `class: external` -> `class: plain` |
+| Click the `forward` edge; Label: "pass" + Enter | 0 | 0 | 0 | `label: forward` -> `label: pass` |
+| To: Billing worker (the select) | 0 | 0 | 0 | `to: api` -> `to: worker` |
+| Reverse | 0 | 0 | 0 | `{from: alb, to: api, label: forward, route: ortho}` ended as `{from: worker, to: alb, label: pass, route: ortho}` |
+| Add a parallel edge | 0 | 0 | 0 | `+ - worker -> alb` |
+| Delete (the edge) | 0 | 0 | 0 | the edge's entry removed (the parallel one stays) |
+| Select Visitors, Duplicate | 0 | 0 | 1 (the copy's own icon) | `+ - {id: users-2, title: Visitors, ... at: [110, 590, 220, 96], icon: "network:internet", class: plain}` |
+| Move to zone: Public subnet | 0 | 0 | 0 | `children: [alb]` -> `children: [alb, users]`, and Visitors' `at` -> `[490, 610, 220, 96]` |
+The edge steps were also checked earlier with direct pointer actions (T39): clicking an edge, double-click to relabel, dragging an end handle onto another node, Delete. Nothing in the pass touched port 8798 or 8791.
+

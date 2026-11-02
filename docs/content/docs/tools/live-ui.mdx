@@ -59,7 +59,9 @@ it on `examples/showcase/editable_platform.yaml`.
 | Drop a node on a row or column, drag a member out | Inserts it at the gap its centre falls in, or removes it |
 | Select a row or column | **Ungroup**, and its **Gap** (and **Align**, for containers inside a zone) |
 | Select one zone | The bar gets a **style** picker: every provider zone style with its icon, and **Generic zone** |
-| Double-click | Renames a node or a zone label |
+| Click an edge (its line or its label) | Selects the arrow: it is highlighted with a handle at each end. Shift+click adds more; **Delete** removes it; double-click edits its label |
+| Drag an end handle of a selected edge | Reconnects that end to the node you release on; a release on empty canvas, a zone, or the edge's own other end changes nothing |
+| Double-click | Renames a node or a zone label, or edits an edge label |
 | `/` or Ctrl/Cmd+K | Opens the palette (it starts collapsed, next to the diagram, and remembers its state) and focuses the search; arrows move, Enter adds at the centre of the canvas; Esc closes it |
 | Drag a palette item onto the canvas | Adds an icon node (`220 × 96`, centred on the drop point), a shape, or a zone |
 | Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z | Undoes and redoes the last 50 canvas edits of this page |
@@ -83,6 +85,24 @@ the provider's pack (**Fetch** it from the palette). A dropped item first shows 
 point, and each save is patched into the diagram in place, so fonts and images do not reload. A zone cannot be dropped inside itself: the reason appears next to the pointer for three seconds. New titles and labels are written as plain YAML text unless they need quotes (a colon and space, a leading symbol, `yes`/`no`/`null`, a number, or a comma inside a one-line entry).
 If the file changes on disk while you edit, the edit is dropped with "File changed on disk; edit not applied" and
 the undo history is cleared.
+
+### Elements and properties
+
+The **Elements** button of the toolbar shows a panel on the right: the diagram as a tree (zones nested by what they
+hold, rows and columns with their members, free nodes, and an **Edges** group listing `from → to (label)`), each row
+with its icon. Click a row to select the element on the canvas (and highlight its YAML when the code panel is open);
+selecting on the canvas highlights and reveals the row. A filter box narrows the tree. Selecting an element opens the
+panel; the **pin** button keeps it open or closed as you left it, and the browser remembers that.
+
+Under the tree the **properties** of the selection: a node has title, text, icon (**Change…** opens a search over the
+downloaded packs), kind, class and position and size; a zone has label, style (the provider zone styles), class and
+position and size; an edge has from and to (node dropdowns), label, route, dashed, color, class and arrow ends. Press
+Enter or leave the field to apply it; a select or checkbox applies at once. Each change is one save and one undo step,
+only the keys the YAML loader accepts are written, and a refused value shows as a message at the pointer. With several
+elements selected the panel shows the fields they share and changes all of them in one step. Above the fields, quick
+actions: **Duplicate** (a copy offset by 30 px, in the same zone and row or column), **Add connection** (Connect from
+that node), **Group as a row or column**, **Ungroup**, **Move to zone** (a list of zones, or the top level), **Change
+style**, and for an edge **Reverse**, **Add a parallel edge** and **Delete**.
 
 ## Open another folder
 
