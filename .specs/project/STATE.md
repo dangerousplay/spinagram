@@ -105,6 +105,14 @@
   operations. RustPython and Pyodide dropped (no user Python in the browser). See
   `research/web-editor-wasm-runtime.md` §8.
 
+- 2026-11-02 · Rust hardening (user directive, `features/rust-hardening/`): YAML spans stay on `saphyr-parser`
+  events in a `yaml_span` module (the `saphyr` loader gives char spans, flow ends before the bracket, no flow flag and
+  no scalar style, so it needs the same fix-ups and loses information); the edge DSL and endpoints move to one
+  `winnow` grammar checked against Python `parse_edge` through shared vectors (`logos` cannot express its
+  backtracking); closed string sets become `strum` enums with today's serialised strings; `thiserror` errors keep the
+  op index across PyO3 and wasm. The built UI bundle is no longer committed: CI builds it and ships it in wheels and
+  the sdist.
+
 ## Deferred ideas
 - UI: QA panel, export buttons, re-theme current spec, extends diff, icon copy-ref /
   tone / vector badges, theme alias map, LAN sharing (from live-ui discussion).
