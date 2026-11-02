@@ -1,0 +1,61 @@
+---
+title: What's new in 0.6
+description: A Rust engine in every wheel, a canvas editor for YAML diagrams, provider zone styles, and an edit API.
+---
+
+These notes describe the next release, 0.6, which is not published yet. Install spinagram from the repository to
+try it.
+
+In spinagram 0.6 you can build a diagram with the mouse. The engine behind it is now written in Rust, ships in the
+wheel, and runs the same way on the server, in the CLI and in the browser.
+
+![The editable platform showcase: an AWS Cloud with an account, a region, a VPC and public and private subnets](/assets/gallery/edit01.svg)
+
+The source is `examples/showcase/editable_platform.yaml`. It is laid out by hand on a grid, so the canvas can edit
+every node, zone and group.
+
+## A canvas editor for YAML diagrams
+
+In `spinagram serve`, press **Canvas** on a hand-placed YAML diagram:
+
+- **Toolbar:** select, pan, box, text, zone and connect tools, plus group, ungroup, delete, undo and redo. It docks
+  on the left or at the bottom.
+- **Palette:** icons from every downloaded pack, with typo-tolerant search. Items are grouped into Basics, Zones,
+  Shapes and one category per pack.
+- **Drag and drop:** move nodes and zones, drop nodes into zones, rows and columns, and nudge with the arrow keys.
+  Edges follow while you drag.
+- **Arrows:** select one, relabel it, drag an end onto another node to reconnect it, or delete it.
+- **Elements panel:** the diagram as a tree, with a properties form for the selection and quick actions: duplicate,
+  add connection, group, move to zone, reverse.
+
+Every edit is a minimal patch of the YAML file, so comments and untouched entries stay as they were. Undo covers 50
+steps. Edits update the picture in place, so icons and fonts never reload. See
+[Canvas editor](/docs/tools/canvas-editor).
+
+## Provider zone styles
+
+Zones can follow each cloud provider's diagramming style: its outline colour, dashed or solid, and its group icon in
+the corner. There are 25 styles:
+- **AWS:** Cloud, Account, Region, VPC, Availability Zone, public and private subnets, Auto Scaling group and more.
+- **Azure:** management group, subscription, resource group, VNet, subnet.
+- **Google Cloud:** cloud, project, region, zone, VPC, subnet.
+- **Kubernetes:** cluster, namespace.
+
+Write `color: aws-vpc` on a zone, or drop it from the palette. See
+[Provider zone styles](/docs/customize/themes#provider-zone-styles).
+
+## The Rust engine
+
+- **Text and routing** (text measuring and fitting, edge routing), **SVG and PNG writing** and the **CSS cascade**
+  now run in Rust. The output is byte-identical to the Python engine on every example. `SPINAGRAM_RUST=0` selects the
+  pure-Python engine.
+- **The wheels** for Linux (glibc and musl), macOS and Windows, on x86_64 and arm64, include the engine. Elsewhere
+  pip builds it from source with a Rust toolchain.
+- **PNG** renders through resvg, so it no longer needs Playwright and Chromium.
+
+## An edit API
+
+`spinagram.edit.apply_ops` applies the canvas's edit operations to YAML text from Python: move, resize, rename,
+delete, add, connect, reparent, group, set properties, duplicate, reconnect, reverse. Batches apply completely or not
+at all, and only the edited bytes change. Scripts and AI agents can now change a diagram without rewriting it. See
+[Edit API](/docs/reference/edit-api).

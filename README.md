@@ -35,6 +35,8 @@
 - **Brand once, render anywhere.** A theme directory holds colours, fonts, styles, icons and page chrome.
 - **Thousands of icons.** AWS, GCP, Azure, Kubernetes, CNCF, OCI, OpenStack, Terrastruct, Devicon,
   SVG Logos, self-hosted and network packs download on first use. Add your own from a folder, npm or GitHub.
+- **Edit with the mouse.** `spinagram serve` has a canvas editor for YAML diagrams: drop icons and provider
+  zones from a palette, drag, group and connect, and edit properties, while the YAML file stays the source of truth.
 - **Built for reviews.** `spinagram check` catches text overflow, `spinagram serve` previews live, and
   numbers can come from a facts file with their provenance in every render.
 
@@ -156,7 +158,8 @@ The [documentation](https://dangerousplay.github.io/spinagram/docs/) (searchable
 - [Annotations](https://dangerousplay.github.io/spinagram/docs/customize/annotations/): legends, numbered steps, callouts and designed notes
 - [Facts](https://dangerousplay.github.io/spinagram/docs/customize/facts/): numbers with traceable sources
 - [Figma and FigJam](https://dangerousplay.github.io/spinagram/docs/share/figma/) hand-off, and [Excalidraw](https://dangerousplay.github.io/spinagram/docs/share/excalidraw/) scenes
-- [CLI](https://dangerousplay.github.io/spinagram/docs/tools/cli/) and the [live UI](https://dangerousplay.github.io/spinagram/docs/tools/live-ui/)
+- [CLI](https://dangerousplay.github.io/spinagram/docs/tools/cli/), the [live UI](https://dangerousplay.github.io/spinagram/docs/tools/live-ui/) and its [canvas editor](https://dangerousplay.github.io/spinagram/docs/tools/canvas-editor/)
+- [Edit API](https://dangerousplay.github.io/spinagram/docs/reference/edit-api/): patch a diagram's YAML from Python with the canvas's edit operations
 - [AI agent skills](https://dangerousplay.github.io/spinagram/docs/tools/ai-skills/): `spinagram skills install --agent claude|codex|cursor|gemini|copilot|…` teaches your coding agent to write and style diagrams
 - [MCP server](https://dangerousplay.github.io/spinagram/docs/tools/mcp/): `spinagram mcp install -a claude|codex|cursor|gemini|copilot|opencode` lets any MCP agent render, check and preview diagrams without a shell
 - [Release notes](https://dangerousplay.github.io/spinagram/docs/release-notes/): what's new in each version

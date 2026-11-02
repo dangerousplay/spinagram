@@ -22,8 +22,9 @@ and draws each group as a zone with its label and corner icon.
 In Python, nodes and groups created inside `with d.group(...)` become its children. In YAML, a group
 lists `children` (node ids or nested groups), or a node names its group with `in: <group-id>`.
 
-Any zone style works: `soft`, `warning`, `alert`, `neutral`, and the AWS Architecture styles
-`aws-cloud`, `aws-account`, `aws-region`, `aws-vpc`, `aws-az` and `aws-subnet`. A group without a
+Any zone style works: `soft`, `warning`, `alert`, `neutral`, and the
+[provider zone styles](/docs/customize/themes#provider-zone-styles) of AWS, Azure, Google Cloud and Kubernetes
+(`aws-region`, `aws-vpc`, `azure-vnet`, `gcp-project`, …). A group without a
 style is drawn as a light `soft` zone, like the database and cache column above.
 
 With the `flex` engine, a group takes `direction` (`right` or `down`), `columns` (grid), `gap`,

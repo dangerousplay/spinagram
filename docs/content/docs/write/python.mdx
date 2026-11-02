@@ -125,7 +125,7 @@ d.edge(api, vpc.at_top(0.3))             # a point on a zone's outline
 ## Groups
 
 Everything created inside `with d.group(...)` belongs to that group. Groups nest, and each one is
-drawn as a zone with its label and, for AWS styles, its corner icon:
+drawn as a zone with its label and, for provider styles, its corner icon:
 
 ```python
 with d.group("us-east-1", style="aws-region"):
@@ -137,7 +137,7 @@ with d.group("us-east-1", style="aws-region"):
 
 | Option | Meaning |
 |---|---|
-| `style` | `soft`, `warning`, `alert`, `neutral`, `aws-cloud`, `aws-account`, `aws-region`, `aws-vpc`, `aws-az`, `aws-subnet`; `soft` when left out |
+| `style` | `soft`, `warning`, `alert`, `neutral`, or a [provider zone style](/docs/customize/themes#provider-zone-styles) such as `aws-region`, `aws-vpc`, `azure-vnet`, `gcp-project` or `k8s-namespace`; `soft` when left out |
 | `direction` | `right` (a row) or `down` (a column) |
 | `columns` | Lay children out as a grid |
 | `gap`, `padding`, `align` | Spacing and cross-axis alignment |

@@ -1,0 +1,109 @@
+---
+title: Edit API
+description: Patch a diagram's YAML from Python with the same operations the canvas editor uses.
+---
+
+`spinagram.edit` applies edit operations to a diagram's YAML text, from Python. These are the same operations the
+[canvas editor](/docs/tools/canvas-editor) sends from the browser, run by the same Rust code. Use them in scripts,
+code generators and AI agents that change a diagram without rewriting the file.
+
+- **Minimal patches:** bytes outside the edited ranges are unchanged, so comments, blank lines, key order and
+  one-line or block style survive.
+- **All or nothing:** a batch applies completely or not at all, and an invalid operation raises `EditError` naming
+  the operation and the reason.
+- **Checked output:** the result is re-parsed after every operation, so a batch never produces YAML that does not
+  load.
+
+The operations need the Rust core (`spinagram._core`), which the wheels include. They have no pure-Python version,
+so `SPINAGRAM_RUST=0` does not turn them off.
+
+## Example
+
+```python
+from spinagram import edit
+
+text = """\
+id: DEMO
+title: Demo
+nodes:
+  # the web tier
+  - {id: web, title: Web, at: [100, 200, 220, 96]}
+  - {id: api, title: API, at: [400, 200, 220, 96]}
+edges:
+  - web -> api
+"""
+
+text = edit.apply_ops(text, [
+    {"op": "move", "id": "api", "x": 460, "y": 200},
+    {"op": "add_node", "id": "db", "title": "Orders DB", "icon": "aws:rds", "x": 760, "y": 200, "w": 220, "h": 96},
+    {"op": "connect", "from": "api", "to": "db", "label": "SQL"},
+    {"op": "set_props", "id": "e0", "props": {"label": "HTTPS"}},
+])
+```
+
+The comment and the untouched entry stay as they were:
+
+```yaml
+id: DEMO
+title: Demo
+nodes:
+  # the web tier
+  - {id: web, title: Web, at: [100, 200, 220, 96]}
+  - {id: api, title: API, at: [460, 200, 220, 96]}
+  - {id: db, title: Orders DB, icon: aws:rds, x: 760, y: 200, w: 220, h: 96}
+edges:
+  - "web -> api: HTTPS"
+  - "api -> db: SQL"
+```
+
+## Functions
+
+| Function | Returns |
+|---|---|
+| `apply_ops(yaml_text, ops)` | The patched text. Raises `EditError` and changes nothing when an operation is invalid |
+| `srcmap(yaml_text)` | `{id: (start, end)}`: the UTF-8 byte range of each node, zone and edge entry. Edges are `e0`, `e1`, … |
+| `EditError` | A `ValueError` whose message names the failing operation, such as ``operation 0: reparent: unknown id `nowhere` `` |
+
+## Operations
+
+Each operation is a dict whose `"op"` key names it.
+
+### Nodes and edges
+
+| Operation | Fields | Notes |
+|---|---|---|
+| `move` | `id`, `x`, `y` | Writes the entry's `at` list or `x`/`y` keys, whichever it uses |
+| `resize` | `id`, `w`, `h` | Same rule as `move` |
+| `rename` | `id`, `title` | A zone's label for a zone |
+| `delete` | `id` | Removes a node with the edges that touch it and its id in zones, rows and columns. Also takes an edge id `e<i>` |
+| `add_node` | `id`, `title`; optional `kind`, `icon` (`pack:name`), `x`, `y`, `w`, `h` | Appended to `nodes` in the list's style |
+| `connect` | `from`, `to`; optional `label` | Appended as `"from -> to"` (`: label`). Parallel edges are allowed |
+| `disconnect` | `from`, `to` | Removes the first matching edge |
+| `set_props` | `id`, `props` | Sets, replaces or removes (`null`) keys of a node, zone or edge. Only keys the YAML loader accepts are allowed. A string edge stays a string when only `label` changes, and becomes a `{from, to, ...}` mapping when another key is set |
+| `duplicate` | `id`, `dx`, `dy` | Copies a node or zone as `id-2` (`id-3`, …), offset and snapped. A node copy joins the zones, rows and columns of the original |
+| `reconnect` | `id` (`e<i>`); optional `from`, `to` | Changes an edge's ends. An unchanged end keeps its side suffix, such as `a.right@0.3` |
+| `reverse` | `id` (`e<i>`) | Swaps the ends. A mapping's `via` runs the other way |
+
+### Zones, rows and columns
+
+A container's id is `row0`, `row1`, … then `column0`, … counting `rows:` and then `columns:` entries in file
+order. Several operations take `boxes`, which maps a member id to its rendered `[x, y, w, h]`. That box is written to
+the node when it leaves a container.
+
+| Operation | Fields | Notes |
+|---|---|---|
+| `add_zone` | `id`, `label`, `x`, `y`, `w`, `h`; optional `style` | `style` is a zone style of the theme, written as the zone's `color:`, such as `aws-vpc` |
+| `set_zone_style` | `id`, `style` | Sets or replaces the zone's `color:`. Nothing else changes |
+| `reparent` | `id`, `parent` | Moves a node or zone into zone `parent`, or out to the top level with `null`. A zone cannot go inside itself or a descendant |
+| `move_zone` | `id`, `x`, `y` | Moves the zone, its child nodes and zones, and their containers by the same offset |
+| `group` | `axis` (`row` or `column`), `ids`; optional `gap`, `x`, `y` | Adds a container with the members in that order |
+| `ungroup` | `id`, `boxes` | Removes the container and writes each member's box |
+| `add_to_container` | `id`, `node`; optional `index` | Inserts at `index` among the other members, or appends. A member of the same container is reordered |
+| `remove_from_container` | `id`, `node`, `boxes` | A container left with fewer than two members dissolves, as with `ungroup` |
+| `set_container` | `id`; optional `gap`, `align` | `align` only for a container placed in a zone |
+
+## From the browser and other languages
+
+The canvas calls the same operations through the `spinagram-wasm` package (`applyOps`, `srcmap`). They take and
+return JSON, so any language with a WebAssembly runtime can call them. See `rust/README.md` in the repository for the
+crate layout.

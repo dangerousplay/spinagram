@@ -38,71 +38,10 @@ page with unsaved edits asks for confirmation.
 
 ## Edit on the canvas
 
-Press **Canvas** (or `c`) on a diagram that is a hand-placed YAML spec: one diagram per file, with coordinates
-(`x`/`y` or `at:`) and no `layout:` engine. Rows and columns are fine. Python specs, engine layouts and snakes keep
-the read-only view, and the page says so. An edit updates the picture in place: icons and the toolbar are never torn down and redrawn, only the items that changed. Every canvas edit is a minimal patch of the YAML file, written through the
-same version-checked save as the code panel, so comments, key order and untouched entries stay as they were. Try
-it on `examples/showcase/editable_platform.yaml`.
-
-| Do this | Result |
-|---|---|
-| Toolbar on the left edge of the canvas | Icon buttons for the tools and actions below; hover one for its name and key. The dock button at its end moves it to the bottom of the canvas (above the zoom controls) and back; the choice is remembered in the browser |
-| `V` Select, `H` Pan | Select is the default. Pan drags the view; holding Space pans in any tool |
-| `B` Box, `T` Text, `Z` Zone | A click places the default size centred on the point; a drag draws the rectangle (snapped to the grid). Text opens the title editor at once. The tool returns to Select after one use; hold Shift to keep it |
-| `C` Connect | Drag from one node to another to add an edge (`from -> to`; parallel edges are fine). Releasing on empty canvas, the same node or a zone adds nothing. With the canvas off, `c` still turns it on |
-| Click a node, zone header or row/column | Selects it; with the code panel open, its YAML entry is highlighted |
-| Shift+click, or drag on empty canvas | Adds to the selection, or draws a selection box (Alt+drag pans) |
-| Drag | Moves the selection, snapped to a 10 px grid; edges follow while you drag |
-| Drag onto a zone, or out of one | Puts the node or zone in the zone under its centre, or takes it out |
-| Drag a zone by its header | Moves the zone and everything inside it |
-| Ctrl/Cmd+G, **Group as row**, **Group as column** | Groups the selected nodes into a row or column (gap 20) |
-| Drop a node on a row or column, drag a member out | Inserts it at the gap its centre falls in, or removes it |
-| Select a row or column | **Ungroup**, and its **Gap** (and **Align**, for containers inside a zone) |
-| Select one zone | The bar gets a **style** picker: every provider zone style with its icon, and **Generic zone** |
-| Click an edge (its line or its label) | Selects the arrow: it is highlighted with a handle at each end. Shift+click adds more; **Delete** removes it; double-click edits its label |
-| Drag an end handle of a selected edge | Reconnects that end to the node you release on; a release on empty canvas, a zone, or the edge's own other end changes nothing |
-| Double-click | Renames a node or a zone label, or edits an edge label |
-| `/` or Ctrl/Cmd+K | Opens the palette (it starts collapsed, next to the diagram, and remembers its state) and focuses the search; arrows move, Enter adds at the centre of the canvas; Esc closes it |
-| Drag a palette item onto the canvas | Adds an icon node (`220 × 96`, centred on the drop point), a shape, or a zone |
-| Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z | Undoes and redoes the last 50 canvas edits of this page |
-| Delete / Backspace | Removes the selection with the edges that touch it |
-| Arrow keys, Shift+arrow | Nudges the selection 1 px, or 10 px; keys pressed in one burst are one save and one undo step |
-| Esc | Cancels a drag in progress, then clears the selection, then returns to Select, then closes the palette |
-| `?` | Opens the list of every canvas shortcut |
-
-The palette searches the icons of every pack you have downloaded (names, aliases and pack names, with one typo
-tolerated), plus the node shapes, **Zone**, **Row** and **Column**. With the search box empty it groups them into
-collapsible categories, each with a count and an icon on every item: **Basics** (Box, Text, Zone, Row, Column,
-Note), **Zones**, **Shapes**, and one category per icon pack (packs start collapsed; the state is remembered). A search gives one
-ranked list with each row tagged by its category. Packs not downloaded yet are listed under **Not downloaded** with a
-**Fetch** button; nothing is fetched until you press it. **Zones** holds the generic Zone and then the provider groups, each with its real header icon and a swatch of its
-outline: AWS (Cloud, Account, Region, VPC, Availability Zone, public and private subnets, Auto Scaling group,
-corporate data center, Spot Fleet, server and EC2 contents), Azure (management group, subscription, resource group,
-virtual network, subnet), Google Cloud (cloud, project, region, zone, VPC network, subnet) and Kubernetes (cluster,
-namespace). Dropping one adds a zone with that style (`color: aws-vpc` in the YAML), and search finds them by name
-("vpc", "subscription", "project"). The styles come from the active theme, so a theme can add its own; the icons need
-the provider's pack (**Fetch** it from the palette). A dropped item first shows a dashed placeholder at the drop
-point, and each save is patched into the diagram in place, so fonts and images do not reload. A zone cannot be dropped inside itself: the reason appears next to the pointer for three seconds. New titles and labels are written as plain YAML text unless they need quotes (a colon and space, a leading symbol, `yes`/`no`/`null`, a number, or a comma inside a one-line entry).
-If the file changes on disk while you edit, the edit is dropped with "File changed on disk; edit not applied" and
-the undo history is cleared.
-
-### Elements and properties
-
-The **Elements** button of the toolbar shows a panel on the right: the diagram as a tree (zones nested by what they
-hold, rows and columns with their members, free nodes, and an **Edges** group listing `from → to (label)`), each row
-with its icon. Click a row to select the element on the canvas (and highlight its YAML when the code panel is open);
-selecting on the canvas highlights and reveals the row. A filter box narrows the tree. Selecting an element opens the
-panel; the **pin** button keeps it open or closed as you left it, and the browser remembers that.
-
-Under the tree the **properties** of the selection: a node has title, text, icon (**Change…** opens a search over the
-downloaded packs), kind, class and position and size; a zone has label, style (the provider zone styles), class and
-position and size; an edge has from and to (node dropdowns), label, route, dashed, color, class and arrow ends. Press
-Enter or leave the field to apply it; a select or checkbox applies at once. Each change is one save and one undo step,
-only the keys the YAML loader accepts are written, and a refused value shows as a message at the pointer. With several
-elements selected the panel shows the fields they share and changes all of them in one step. Above the fields, quick
-actions: **Duplicate** (a copy offset by 30 px, in the same zone and row or column), **Add connection** (Connect from
-that node), **Group as a row or column**, **Ungroup**, **Move to zone** (a list of zones, or the top level), **Change
-style**, and for an edge **Reverse**, **Add a parallel edge** and **Delete**.
+Press **Canvas** (or `c`) on a hand-placed YAML diagram to edit it with the mouse: a toolbar of tools, an icon
+palette with provider zones, drag and drop into zones, rows and columns, arrows you can select and reconnect, and an
+element tree with a properties panel. Every edit is a minimal patch of the YAML file. See
+[Canvas editor](/docs/tools/canvas-editor) for the full guide.
 
 ## Open another folder
 
