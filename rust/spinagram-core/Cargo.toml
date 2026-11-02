@@ -25,6 +25,7 @@ precomputed-hash = "0.1"
 saphyr-parser = "0.3"
 thiserror = "2"
 winnow = "1"
+strum = { version = "0.28", features = ["derive"] }
 html-escape = "0.2"
 compensated-summation = "0.3"
 vstd = "=0.0.0-2026-10-25-0158"

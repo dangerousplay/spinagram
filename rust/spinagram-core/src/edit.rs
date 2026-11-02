@@ -8,9 +8,11 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use saphyr_parser::ScalarStyle;
+use strum::VariantNames;
 use serde::Deserialize;
 
-use crate::edge_syntax::{split_endpoint, EdgeOp, EdgeText};
+use crate::edit_values::{align, axis, prop_kind, Align, Arrow, Axis, Owner, PropKind, RouteKind};
+use crate::edge_syntax::{split_endpoint, EdgeOp, EdgeText, EndpointTarget};
 use crate::yaml_span::{edited_lists_have_no_anchors, parse_diagram, Node, Val};
 
 /// One edit. JSON form: `{"op": "move", "id": "a", "x": 10, "y": 20}`, `"from"`/`"to"` for edges.
@@ -50,7 +52,14 @@ pub enum Op {
     /// Move zone `id` to `x`/`y`, and every child node and child zone by the same offset.
     MoveZone { id: String, x: f64, y: f64 },
     /// Add a `row` or `column` container (`rows:`/`columns:`) holding `ids`, ordered by x (row) or y (column).
-    Group { axis: String, ids: Vec<String>, gap: Option<f64>, x: Option<f64>, y: Option<f64> },
+    Group {
+        #[serde(deserialize_with = "axis")]
+        axis: Axis, 
+        ids: Vec<String>,
+        gap: Option<f64>,
+        x: Option<f64>,
+        y: Option<f64>,
+    },
     /// Remove container `id` (`row0`, `column1`, ...); `boxes` gives each member's rendered `[x, y, w, h]`.
     Ungroup { id: String, boxes: BTreeMap<String, [f64; 4]> },
     /// Insert node `node` into container `id` before member `index` (the end when absent or past the end).
@@ -59,7 +68,12 @@ pub enum Op {
     /// members is removed as in `Ungroup`, so `boxes` then holds every member.
     RemoveFromContainer { id: String, node: String, boxes: BTreeMap<String, [f64; 4]> },
     /// Set the `gap` and/or `align` of container `id` (`align` only for a container placed in a zone, as the loader requires).
-    SetContainer { id: String, gap: Option<f64>, align: Option<String> },
+    SetContainer {
+        id: String,
+        gap: Option<f64>,
+        #[serde(default, deserialize_with = "align")]
+        align: Option<Align>,
+    },
     /// Set (a value), replace or remove (`null`) keys of a node, zone or edge (`e<i>`, the index in `edges`). Keys
     /// are checked against what the loader accepts for that kind; geometry (`x`, `y`, `w`, `h`, `at`), `id` and
     /// `children` have their own operations. A string edge stays a string when only its `label` changes and becomes
@@ -152,8 +166,8 @@ fn entries(root: &Node) -> Vec<Entry<'_>> {
     if let Some(l) = root.get("zones") {
         push(&mut out, l, true);
     }
-    for axis in ["rows", "columns"] {
-        for container in root.get(axis).map_or(&[][..], Node::items) {
+    for axis in [Axis::Row, Axis::Column] {
+        for container in root.get(axis.key()).map_or(&[][..], Node::items) {
             if let Some(l) = container.get("nodes") {
                 push(&mut out, l, false);
             }
@@ -218,12 +232,19 @@ fn column(src: &str, at: usize) -> usize {
     src[line_start(src, at)..at].chars().count()
 }
 
+/// Grid step, in px, that a duplicate's offset snaps to.
+const SNAP: f64 = 10.0;
+/// Gap, in px, of a container created by `group` without one (the loader's default).
+const DEFAULT_GAP: f64 = 20.0;
+/// Whole numbers below this are written without a fraction; above it `f64` cannot hold every integer.
+const MAX_EXACT_INT: f64 = 1e15;
+
 fn num(v: f64) -> Result<String, String> {
     if !v.is_finite() {
         return fail(format!("{v} is not a finite number"));
     }
     #[expect(clippy::cast_possible_truncation, reason = "guarded by the fract and magnitude checks")]
-    Ok(if v.fract() == 0.0 && v.abs() < 1e15 { format!("{}", v as i64) } else { format!("{v}") })
+    Ok(if v.fract() == 0.0 && v.abs() < MAX_EXACT_INT { format!("{}", v as i64) } else { format!("{v}") })
 }
 
 /// A YAML double-quoted scalar (JSON strings are valid YAML double-quoted scalars).
@@ -231,12 +252,14 @@ fn quoted(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| format!("\"{s}\""))
 }
 
+/// Words YAML 1.1 reads as a boolean, null or special number (compared in lower case), which a plain string must avoid.
+const YAML_RESERVED: [&str; 13] = ["true", "false", "yes", "no", "on", "off", "y", "n", "null", "~", "=", "nan", "inf"];
+
 /// Plain when that reads back as the same string, double-quoted otherwise.
 fn scalar(s: &str) -> String {
-    const RESERVED: [&str; 12] = ["true", "false", "yes", "no", "on", "off", "y", "n", "null", "~", "nan", "inf"];
     let plain = s.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
         && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
-        && !RESERVED.contains(&s.to_ascii_lowercase().as_str());
+        && !YAML_RESERVED.contains(&s.to_ascii_lowercase().as_str());
     if plain { s.to_owned() } else { quoted(s) }
 }
 
@@ -247,7 +270,6 @@ fn text_scalar(s: &str, flow: bool) -> String {
 }
 
 fn plain_safe(s: &str, flow: bool) -> bool {
-    const RESERVED: [&str; 11] = ["true", "false", "yes", "no", "on", "off", "y", "n", "null", "~", "="];
     const INDICATORS: &str = "-?:,[]{}#&*!|>'\"%@`";
     let (Some(first), Some(last)) = (s.chars().next(), s.chars().last()) else { return false };
     if first.is_whitespace() || last.is_whitespace() || INDICATORS.contains(first) || last == ':' {
@@ -262,7 +284,7 @@ fn plain_safe(s: &str, flow: bool) -> bool {
     // YAML 1.1 booleans and nulls (any case), and anything that could read as a number (including 0x, 0o, 1_000,
     // 1e5 and sexagesimal 1:30)
     let lower = s.to_ascii_lowercase();
-    if RESERVED.contains(&lower.as_str()) || matches!(lower.trim_start_matches(['+', '-', '.']), "nan" | "inf" | "infinity") || s.parse::<f64>().is_ok() {
+    if YAML_RESERVED.contains(&lower.as_str()) || matches!(lower.trim_start_matches(['+', '-', '.']), "nan" | "inf" | "infinity") || s.parse::<f64>().is_ok() {
         return false;
     }
     let numeric = |c: char| c.is_ascii_hexdigit() || matches!(c, 'x' | 'X' | 'o' | 'O' | '_' | '.' | ':' | '+' | '-');
@@ -469,14 +491,13 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
         }
         Op::Connect { from, to, label } => {
             for end in [from, to] {
-                if !exists(root, endpoint(end)) {
-                    return fail(format!("unknown id `{}`", endpoint(end)));
-                }
+                check_end(root, end)?;
             }
             let text = match label {
                 Some(l) => format!("{from} -> {to}: {l}"),
                 None => format!("{from} -> {to}"),
             };
+            check_round_trip(&text, from, to)?;
             append_item(src, root, "edges", &text_scalar(&text, true))
         }
         Op::Disconnect { from, to } => {
@@ -671,7 +692,7 @@ fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
         }
         Op::Reparent { id, parent } => reparent(src, root, id, parent.as_deref()),
         Op::MoveZone { id, x, y } => move_zone(src, root, id, *x, *y),
-        Op::Group { axis, ids, gap, x, y } => group(src, root, axis, ids, *gap, *x, *y),
+        Op::Group { axis, ids, gap, x, y } => group(src, root, *axis, ids, *gap, *x, *y),
         Op::Ungroup { id, boxes } => {
             let c = container(root, id)?;
             release(src, root, &c, &member_ids(&c), boxes, true)
@@ -699,7 +720,7 @@ fn zone_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                 if c.node.get("zone").is_none() {
                     return fail("`align` applies to containers placed in a zone (`zone:`)");
                 }
-                pairs.push(("align", scalar(a)));
+                pairs.push(("align", scalar(&a.to_string())));
             }
             if pairs.is_empty() {
                 return fail("set_container needs `gap` or `align`");
@@ -721,8 +742,8 @@ struct Container<'a> {
 
 fn containers(root: &Node) -> Vec<Container<'_>> {
     let mut out = Vec::new();
-    for axis in ["row", "column"] {
-        let Some(list) = root.get(if axis == "row" { "rows" } else { "columns" }) else { continue };
+    for axis in [Axis::Row, Axis::Column] {
+        let Some(list) = root.get(axis.key()) else { continue };
         for (index, node) in list.items().iter().enumerate() {
             out.push(Container { id: format!("{axis}{}", out.len()), node, list, index });
         }
@@ -739,10 +760,7 @@ fn member_ids(c: &Container) -> Vec<String> {
     c.node.get("nodes").map_or(&[][..], Node::items).iter().filter_map(|n| n.text().or_else(|| n.get("id").and_then(Node::text))).map(str::to_owned).collect()
 }
 
-fn group(src: &str, root: &Node, axis: &str, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, String> {
-    if axis != "row" && axis != "column" {
-        return fail(format!("axis must be `row` or `column`, not `{axis}`"));
-    }
+fn group(src: &str, root: &Node, axis: Axis, ids: &[String], gap: Option<f64>, x: Option<f64>, y: Option<f64>) -> Result<Vec<Patch>, String> {
     if ids.len() < 2 {
         return fail("a group needs at least 2 nodes");
     }
@@ -764,14 +782,14 @@ fn group(src: &str, root: &Node, axis: &str, ids: &[String], gap: Option<f64>, x
     }
     let left = members.iter().map(|m| m.1).fold(f64::INFINITY, f64::min);
     let top = members.iter().map(|m| m.2).fold(f64::INFINITY, f64::min);
-    if axis == "row" {
+    if axis == Axis::Row {
         members.sort_by(|a, b| a.1.total_cmp(&b.1));
     } else {
         members.sort_by(|a, b| a.2.total_cmp(&b.2));
     }
     let names: Vec<String> = members.iter().map(|m| scalar(m.0)).collect();
-    let item = format!("{{x: {}, y: {}, gap: {}, nodes: [{}]}}", num(x.unwrap_or(left))?, num(y.unwrap_or(top))?, num(gap.unwrap_or(20.0))?, names.join(", "));
-    append_item(src, root, if axis == "row" { "rows" } else { "columns" }, &item)
+    let item = format!("{{x: {}, y: {}, gap: {}, nodes: [{}]}}", num(x.unwrap_or(left))?, num(y.unwrap_or(top))?, num(gap.unwrap_or(DEFAULT_GAP))?, names.join(", "));
+    append_item(src, root, axis.key(), &item)
 }
 
 fn add_to_container(src: &str, root: &Node, id: &str, node: &str, index: Option<usize>) -> Result<Vec<Patch>, String> {
@@ -984,7 +1002,13 @@ fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Node, &Op) -> Result<
 ///
 /// The reason as text: bad JSON, or the [`EditError`].
 pub fn apply_ops_json(yaml: &str, ops_json: &str) -> Result<String, String> {
-    let ops: Vec<Op> = serde_json::from_str(ops_json).map_err(|e| format!("invalid operations: {e}"))?;
+    let values: Vec<serde_json::Value> = serde_json::from_str(ops_json).map_err(|e| format!("invalid operations: {e}"))?;
+    let ops = values
+        .into_iter()
+        .enumerate()
+        .map(|(i, v)| serde_json::from_value::<Op>(v).map_err(|e| EditError { index: Some(i), reason: format!("invalid operations: {e}") }))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
     apply_ops(yaml, &ops).map_err(|e| e.to_string())
 }
 
@@ -998,60 +1022,24 @@ fn checked(text: String) -> Result<String, String> {
 // ---------------------------------------------------------------------------------------------------------
 // Properties, duplicate, reconnect and reverse
 
-/// What a property's JSON value must be.
-#[derive(Clone, Copy)]
-enum Kind {
-    Str,
-    Num,
-    Bool,
-    /// a string, number, boolean, list or mapping (the loader checks the rest)
-    Any,
-    OneOf(&'static [&'static str]),
-}
-
-use Kind::{Any, Bool, Num, OneOf, Str};
-
-/// The keys `set_props` accepts for a node: the loader's `_NODE_KEYS` and `_NODE_EXTRA` (`src/spinagram/yaml_io.py`)
-/// without the geometry (`x`, `y`, `w`, `h`, `at`: move and resize) and `id`.
-const NODE_PROPS: &[(&str, Kind)] = &[
-    ("kind", Str), ("title", Str), ("text", Str), ("lines", Any), ("style", Str), ("icon", Any), ("icon_size", Num), ("align", Str),
-    ("title_size", Num), ("body_size", Num), ("radius", Num), ("dashed", Bool), ("color", Str), ("in", Str), ("class", Str), ("css", Str),
-    ("cell", Any), ("weight", Any), ("font", Str), ("variant", Str), ("fit", Str), ("min_scale", Num), ("break_on", Any), ("badges", Any),
-    ("size", Num), ("role", Str), ("max_width", Num),
-];
-
-/// The keys for a zone: the fields of the model's `Zone` the loader passes through, without the geometry, `id`,
-/// `children` (reparent) and `gid` (set by the layout).
-const ZONE_PROPS: &[(&str, Kind)] = &[
-    ("label", Str), ("color", Str), ("icon", Any), ("dash", Any), ("stroke", Str), ("stroke_width", Num), ("fill", Str), ("header", Any),
-    ("fit", Str), ("padding", Num), ("equalize", Str), ("band", Any), ("meaning", Str), ("class", Str),
-];
-
-/// The keys for an edge mapping: the fields of the model's `Edge`, without the ends (reconnect).
-const EDGE_PROPS: &[(&str, Kind)] = &[
-    ("label", Str), ("label_at", Any), ("color", Str), ("dashed", Bool), ("width", Num), ("via", Any), ("curve", Any),
-    ("arrow", OneOf(&["end", "start", "both", "none"])), ("label_size", Num), ("class", Str), ("css", Str), ("fan", Str),
-    ("route", OneOf(&["ortho", "elbow"])), ("fan_in", Bool), ("meaning", Str), ("straight", Bool), ("mid", Num),
-];
-
-fn prop_kind(table: &[(&str, Kind)], key: &str, extension_keys: bool) -> Option<Kind> {
-    table.iter().find(|(k, _)| *k == key).map(|(_, kind)| *kind).or_else(|| (extension_keys && key.starts_with("x-")).then_some(Any))
-}
-
-fn check_prop(key: &str, kind: Kind, v: &serde_json::Value) -> Result<(), String> {
+fn check_prop(key: &str, kind: PropKind, v: &serde_json::Value) -> Result<(), String> {
     use serde_json::Value;
     let ok = match (kind, v) {
-        (Str, Value::String(_)) | (Num, Value::Number(_)) | (Bool, Value::Bool(_)) => true,
-        (OneOf(allowed), Value::String(s)) => {
-            if !allowed.contains(&s.as_str()) {
-                return fail(format!("`{key}` must be one of {}", allowed.join(", ")));
-            }
-            true
-        }
-        (Any, v) => !v.is_null(),
+        (PropKind::Str, Value::String(_)) | (PropKind::Num, Value::Number(_)) | (PropKind::Bool, Value::Bool(_)) => true,
+        (PropKind::Arrow, Value::String(s)) => one_of::<Arrow>(key, s, Arrow::VARIANTS)?,
+        (PropKind::Route, Value::String(s)) => one_of::<RouteKind>(key, s, RouteKind::VARIANTS)?,
+        (PropKind::Any, v) => !v.is_null(),
         _ => false,
     };
     if ok { Ok(()) } else { fail(format!("`{key}` has the wrong type of value")) }
+}
+
+/// `true` when `s` names a variant of `T`; otherwise the error lists the accepted values.
+fn one_of<T: std::str::FromStr>(key: &str, s: &str, accepted: &[&str]) -> Result<bool, String> {
+    if s.parse::<T>().is_err() {
+        return fail(format!("`{key}` must be one of {}", accepted.join(", ")));
+    }
+    Ok(true)
 }
 
 /// A JSON value as YAML text (`flow`: inside braces or brackets).
@@ -1162,10 +1150,10 @@ fn set_props(src: &str, root: &Node, id: &str, props: &BTreeMap<String, serde_js
         return fail("set_props needs at least one key");
     }
     let entry = entries(root).into_iter().find(|e| e.id == id);
-    let (table, ext) = match &entry {
-        Some(e) if e.zone => (ZONE_PROPS, false),
-        Some(_) => (NODE_PROPS, true),
-        None => (EDGE_PROPS, false),
+    let owner = match &entry {
+        Some(e) if e.zone => Owner::Zone,
+        Some(_) => Owner::Node,
+        None => Owner::Edge,
     };
     let what = match &entry {
         Some(e) if e.zone => "a zone",
@@ -1173,7 +1161,7 @@ fn set_props(src: &str, root: &Node, id: &str, props: &BTreeMap<String, serde_js
         None => "an edge",
     };
     for (key, v) in props {
-        let Some(kind) = prop_kind(table, key, ext) else {
+        let Some(kind) = prop_kind(owner, key) else {
             let hint = if matches!(key.as_str(), "id" | "x" | "y" | "w" | "h" | "at" | "children" | "from" | "to") {
                 " (it has its own operation: move, resize, reparent, reconnect)"
             } else {
@@ -1264,7 +1252,7 @@ fn insert_after(src: &str, seq: &Node, idx: usize, text: &str) -> Patch {
 }
 
 fn snap10(v: f64) -> f64 {
-    (v / 10.0).round() * 10.0
+    (v / SNAP).round() * SNAP
 }
 
 /// `name-2`, `name-3`, ...: the first id not in `taken`, counting from the name without its own numeric suffix.
@@ -1331,20 +1319,46 @@ fn new_end(current: &str, wanted: Option<&str>) -> String {
     }
 }
 
+/// An edge end that names a real node or zone: `zone:x` needs a zone `x`, any other end an element with that id.
+fn check_end(root: &Node, end: &str) -> Result<(), String> {
+    let id = endpoint(end);
+    match split_endpoint(end.trim()).target {
+        EndpointTarget::Zone => {
+            if entries(root).iter().any(|e| e.zone && e.id == id) {
+                Ok(())
+            } else if exists(root, id) {
+                fail(format!("`{id}` is not a zone"))
+            } else {
+                fail(format!("unknown id `{id}`"))
+            }
+        }
+        EndpointTarget::Node if exists(root, id) => Ok(()),
+        EndpointTarget::Node => fail(format!("unknown id `{id}`")),
+    }
+}
+
+/// The edge `text` reads back, through the loader's grammar, with exactly the ends `from` and `to`.
+fn check_round_trip(text: &str, from: &str, to: &str) -> Result<(), String> {
+    match EdgeText::parse(text) {
+        Some(p) if p.ends() == (from, to) => Ok(()),
+        _ => fail(format!("the ends `{from}` and `{to}` do not read back from the edge `{text}` (ids cannot contain `->`, `<-`, `--` or `:`)")),
+    }
+}
+
 fn reconnect(root: &Node, id: &str, from: Option<&str>, to: Option<&str>) -> Result<Vec<Patch>, String> {
     if from.is_none() && to.is_none() {
         return fail("reconnect needs `from` or `to`");
     }
     for end in [from, to].into_iter().flatten() {
-        if !exists(root, endpoint(end)) {
-            return fail(format!("unknown id `{}`", endpoint(end)));
-        }
+        check_end(root, end)?;
     }
     let (list, edge) = edge_at(root, id)?;
     if let Some(t) = edge.text() {
         let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
         let (cur_from, cur_to) = p.ends();
-        let text = p.with_ends(&new_end(cur_from, from), &new_end(cur_to, to));
+        let (new_from, new_to) = (new_end(cur_from, from), new_end(cur_to, to));
+        let text = p.with_ends(&new_from, &new_to);
+        check_round_trip(&text, &new_from, &new_to)?;
         return Ok(vec![Patch { start: edge.start, end: edge.end, text: replacement(edge, &text, edges_flow(list))? }]);
     }
     let flow = matches!(edge.val, Val::Map { flow: true, .. });
@@ -1465,6 +1479,34 @@ mod tests {
     fn reject(yaml: &str, json: &str, needle: &str) {
         let err = apply_ops_json(yaml, json).unwrap_err();
         assert!(err.contains(needle), "{err:?} should mention {needle:?}");
+    }
+
+    #[test]
+    fn an_unknown_enum_value_names_the_operation_and_the_accepted_values() {
+        let y = "id: t\nnodes: [{id: a}, {id: b}]\n";
+        let err = apply_ops_json(y, r#"[{"op":"move","id":"a","x":1,"y":2},{"op":"group","axis":"diagonal","ids":["a","b"]}]"#).unwrap_err();
+        assert!(err.starts_with("operation 1: "), "{err}");
+        assert!(err.contains("`axis` must be one of row, column"), "{err}");
+        assert!(err.contains("diagonal"), "{err}");
+        let err = apply_ops_json(y, r#"[{"op":"set_container","id":"row0","align":"middle"}]"#).unwrap_err();
+        assert!(err.starts_with("operation 0: ") && err.contains("center, start, end"), "{err}");
+        let err = apply_ops_json(y, r#"[{"op":"set_props","id":"e0","props":{"arrow":"sideways"}}]"#).unwrap_err();
+        assert!(err.contains("`arrow` must be one of end, start, both, none"), "{err}");
+    }
+
+    #[test]
+    fn connect_and_reconnect_validate_their_ends() {
+        let y = "id: t\nnodes: [{id: a}, {id: b}, {id: \"x->y\"}]\nzones: [{id: z, x: 0, y: 0, w: 9, h: 9}]\nedges: [\"a -> b\"]\n";
+        // `zone:` needs a zone
+        reject(y, r#"[{"op":"connect","from":"a","to":"zone:b"}]"#, "`b` is not a zone");
+        reject(y, r#"[{"op":"reconnect","id":"e0","to":"zone:a"}]"#, "`a` is not a zone");
+        reject(y, r#"[{"op":"connect","from":"a","to":"zone:nope"}]"#, "unknown id `nope`");
+        // an id that the edge syntax would cut apart
+        reject(y, r#"[{"op":"connect","from":"x->y","to":"b"}]"#, "do not read back");
+        reject(y, r#"[{"op":"reconnect","id":"e0","from":"x->y"}]"#, "do not read back");
+        // valid ends still connect
+        let ok = apply_ops_json(y, r#"[{"op":"connect","from":"a.right@0.3","to":"zone:z","label":"hi"}]"#).unwrap();
+        assert!(ok.contains("a.right@0.3 -> zone:z: hi"), "{ok}");
     }
 
     #[test]

@@ -78,6 +78,8 @@ extension), `Arrow`, `RouteKind` in `Op` and `set_props`; serde rejects unknown 
 **Tests**: `axis: "diagonal"` rejected naming index and values; `zone:x` with node `x` rejected; id containing `->` rejected.
 **Gate**: rust
 **Commit**: `refactor(core): enums for edit operation values and validated edge ends`
+**Status**: Done
+**Notes**: Op deserialises per operation, so a bad enum value reports its index and the accepted values; the group axis and container align errors keep the field name. Accepted values for container align are center, start, end. Axis lives in edit_values.rs (T5 reuses it for the scene).
 
 ### T4: Index per op and single re-parse
 
