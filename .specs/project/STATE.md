@@ -11,7 +11,7 @@
   user asked for all four. `build_scene` applies layout itself; laid-out copy has `layout=None`.
 
 - 2026-10-09 · Live UI (`spinagram serve`): Starlette + uvicorn + watchfiles (extra `ui`), SSE events,
-  React + TS + Vite + Tailwind v4 SPA built with bun into `src/spinagram/ui/static` (committed, ships in wheel).
+  React + TS + Vite + Tailwind v4 SPA built with bun into `src/spinagram/ui/static` (not committed: CI builds it, the wheels and sdist ship it).
   `icons.AUTO_FETCH=False` under serve: packs are fetched explicitly from the UI. See `features/live-ui/`.
 - 2026-10-12 · Diagram import (D2, PlantUML): toolchain-backed parsing — D2 via official D2.js (WASM) under
   bun/node installed into the cache like elkjs; PlantUML via own description-grammar parser over `--preproc`

@@ -42,15 +42,14 @@ jobs:
         run: bash rust/spinagram-wasm/build.sh
       - run: bun install --frozen-lockfile
         working-directory: web
-      - run: bun run build # tsc -b && vite build -> src/spinagram/ui/static
+      - run: bun run build # tsc -b && vite build -> src/spinagram/ui/static (ignored by git)
         working-directory: web
-      - name: Committed bundle matches web/ (the .wasm is built per toolchain and is not compared; its name is fixed)
-        run: |
-          if [ -n "$(git status --porcelain -- src/spinagram/ui/static ':!src/spinagram/ui/static/assets/spinagram_wasm_bg.wasm')" ]; then
-            git status --short -- src/spinagram/ui/static
-            echo "::error::src/spinagram/ui/static is stale: run 'bun run build' in web/ and commit it"
-            exit 1
-          fi
+      - name: Keep the bundle for the wheels and the sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-static
+          path: src/spinagram/ui/static
+          if-no-files-found: error
 
   wasm:
     name: spinagram-wasm (build, bun tests)
@@ -173,6 +172,7 @@ jobs:
   # cross images, macOS x86_64 from the arm64 runner, Windows arm64 from x64.
   wheels:
     name: Wheel (${{ matrix.name }})
+    needs: web # the UI bundle is built once there and not committed
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -188,6 +188,10 @@ jobs:
           - { name: windows-arm64, os: windows-latest, target: aarch64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-static
+          path: src/spinagram/ui/static
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
@@ -202,9 +206,14 @@ jobs:
 
   sdist:
     name: sdist
+    needs: web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-static
+          path: src/spinagram/ui/static
       - uses: PyO3/maturin-action@v1
         with:
           command: sdist

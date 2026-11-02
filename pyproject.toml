@@ -67,6 +67,8 @@ manifest-path = "rust/spinagram-core-py/Cargo.toml"
 python-source = "src"
 module-name = "spinagram._core"
 features = ["pyo3/extension-module"]
+# The built web UI is ignored by git (CI builds it into place before maturin runs); wheel and sdist still carry it
+include = [{ path = "src/spinagram/ui/static/**/*", format = ["sdist", "wheel"] }]
 
 [tool.uv]
 # `uv sync` rebuilds the extension when any Rust source changes

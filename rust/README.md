@@ -51,7 +51,7 @@ rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version "$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/[^0-9.]/,""); print}' rust/Cargo.lock)" --locked
 bash rust/spinagram-wasm/build.sh        # web/src/wasm (browser) and rust/spinagram-wasm/pkg-node (tests); both ignored by git
 cd rust/spinagram-wasm && bun test       # exports against golden files; also prints reroute + renderSvg ms per call
-cd ../../web && bun run build            # bundles the worker and the .wasm into src/spinagram/ui/static
+cd ../../web && bun run build            # bundles the worker and the .wasm into src/spinagram/ui/static (ignored by git)
 ```
 
 The CLI must match the `wasm-bindgen` crate version in `Cargo.lock`. `spinagram-core` builds for wasm32 without

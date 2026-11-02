@@ -634,7 +634,9 @@ def test_static_wasm_is_served_as_application_wasm(env, tmp_path, monkeypatch):
     assert r.status_code == 200 and r.headers["content-type"] == "application/wasm"
 
 
-def test_the_committed_bundle_ships_the_wasm_the_canvas_loads():
+def test_the_built_bundle_ships_the_wasm_the_canvas_loads():  # BLD-04
     from spinagram.ui.server import STATIC
 
+    if not (STATIC / "assets" / "spinagram_wasm_bg.wasm").is_file():
+        pytest.skip("the web UI is not built (bash rust/spinagram-wasm/build.sh, then bun run build in web/)")
     assert (STATIC / "assets" / "spinagram_wasm_bg.wasm").read_bytes()[:4] == b"\0asm"

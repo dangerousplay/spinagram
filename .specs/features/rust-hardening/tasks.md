@@ -159,3 +159,5 @@ Verify locally: build the bundle, `uvx maturin build` and `uvx maturin sdist`, l
 **Tests**: local wheel and sdist listing; ci.yml parses.
 **Gate**: full
 **Commit**: `build: build the UI bundle in CI instead of committing it`
+**Status**: Done
+**Notes**: Verified locally with uvx maturin sdist and uvx maturin build --release: both archives list ui/static/index.html (and the five assets); an sdist built with the bundle absent still builds. The test is renamed test_the_built_bundle_ships_the_wasm_the_canvas_loads and skips without a built bundle. No pytest failure appears with the bundle absent (tests/test_ui.py: 75 passed, 1 skipped).
