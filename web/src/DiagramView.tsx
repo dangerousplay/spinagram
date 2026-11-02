@@ -8,7 +8,7 @@ import ShortcutSheet from "./canvas/ShortcutSheet";
 import Toolbar from "./canvas/Toolbar";
 import SvgHost from "./canvas/svgHost";
 import { escapeStep, matchKey, selectionFrame } from "./canvas/interaction";
-import { readPaletteOpen, writePaletteOpen } from "./canvas/paletteState";
+import { readDock, readPaletteOpen, writeDock, writePaletteOpen, type Dock } from "./canvas/paletteState";
 import PalettePanel, { PALETTE_MIME } from "./canvas/PalettePanel";
 import type { PaletteItem } from "./canvas/palette";
 import { useCanvas } from "./canvas/useCanvas";
@@ -83,6 +83,11 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
   const [selected, setSelected] = useState<string | null>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
   const paletteFocus = useRef<(() => void) | null>(null);
+  const [dock, setDockState] = useState<Dock>(readDock); // the toolbar's edge, remembered per browser
+  const setDock = (d: Dock) => {
+    setDockState(d);
+    writeDock(d);
+  };
   const [paletteOpen, setPaletteOpenState] = useState(readPaletteOpen); // starts collapsed, remembered per browser
   const setPaletteOpen = useCallback((open: boolean) => {
     setPaletteOpenState(open);
@@ -463,12 +468,14 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
 
       <Toolbar
         canvas={canvas}
+        dock={dock}
+        onDock={setDock}
         paletteOpen={paletteOpen}
         sheetOpen={sheet}
         onPalette={() => (paletteOpen ? setPaletteOpen(false) : openPalette())}
         onHelp={() => setSheet((v) => !v)}
       />
-      <CanvasBar canvas={canvas} zoneStyles={zoneStyles} />
+      <CanvasBar canvas={canvas} zoneStyles={zoneStyles} dock={dock} />
       {canvas.active && sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
       {canvas.toast && (
         <div

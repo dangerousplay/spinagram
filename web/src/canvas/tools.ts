@@ -27,6 +27,7 @@ export const ACTIONS = [
   { id: "redo", label: "Redo" },
   { id: "palette", label: "Palette" },
   { id: "help", label: "Shortcuts" },
+  { id: "dock", label: "Dock the toolbar left or at the bottom" },
 ] as const;
 
 export type ActionId = (typeof ACTIONS)[number]["id"];
@@ -95,4 +96,24 @@ export const editBoxOf = (scene: SceneJson, pending: { id: string; box: Box }): 
 export function canvasUi(enabled: boolean, editable: boolean | null, ready: boolean): { shown: boolean; active: boolean } {
   const shown = enabled && editable === true;
   return { shown, active: shown && ready };
+}
+
+/** How the toolbar lays out in each dock. The left dock is a vertical bar centred on the left edge; the bottom dock
+ * a horizontal bar centred in the row above the status bar (the zoom and view controls sit in the status bar, so it never covers them). The tooltip opens toward the canvas in both. */
+export function dockLayout(dock: "left" | "bottom"): { orientation: "vertical" | "horizontal"; bar: string; separator: string; tip: string; /** where the selection bar sits so the toolbar does not cover it */ selectionBar: string } {
+  return dock === "left"
+    ? {
+        orientation: "vertical",
+        bar: "top-1/2 left-3 -translate-y-1/2 flex-col",
+        separator: "my-0.5 h-px w-6",
+        tip: "top-1/2 left-full ml-2 -translate-y-1/2",
+        selectionBar: "bottom-14",
+      }
+    : {
+        orientation: "horizontal",
+        bar: "bottom-14 left-1/2 -translate-x-1/2 flex-row",
+        separator: "mx-0.5 h-6 w-px",
+        tip: "bottom-full left-1/2 mb-2 -translate-x-1/2",
+        selectionBar: "bottom-28",
+      };
 }

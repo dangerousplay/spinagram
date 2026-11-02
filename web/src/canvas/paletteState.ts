@@ -51,3 +51,27 @@ export function writeCollapsed(state: CollapsedState, store: Store | null = defa
     /* storage unavailable: the state still holds for this page */
   }
 }
+
+// Remembered dock of the canvas toolbar: along the left edge (the default) or at the bottom. A storage that is
+// missing, throws or holds anything else gives the left dock.
+export const DOCK_KEY = "spinagram.toolbar.dock";
+
+export type Dock = "left" | "bottom";
+
+export function readDock(store: Store | null = defaultStore()): Dock {
+  try {
+    return store?.getItem(DOCK_KEY) === "bottom" ? "bottom" : "left";
+  } catch {
+    return "left";
+  }
+}
+
+export function writeDock(dock: Dock, store: Store | null = defaultStore()): void {
+  try {
+    store?.setItem(DOCK_KEY, dock);
+  } catch {
+    /* storage unavailable: the dock still holds for this page */
+  }
+}
+
+export const otherDock = (dock: Dock): Dock => (dock === "left" ? "bottom" : "left");

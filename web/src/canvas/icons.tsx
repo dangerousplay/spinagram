@@ -12,6 +12,7 @@ import {
   Group,
   Hand,
   MousePointer2,
+  PanelBottom,
   PanelLeftRightDashed,
   Pill,
   Play,
@@ -49,6 +50,7 @@ const ICONS: Record<string, LucideIcon> = {
   redo: Redo2,
   palette: Shapes,
   help: CircleHelp,
+  dock: PanelBottom,
   // containers
   zone: SquareDashed,
   row: Columns2, // boxes side by side

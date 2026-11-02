@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { ZoneStyle } from "../api";
 import { ZoneStyleIcon, ZoneSwatch } from "./PalettePanel";
 import { zoneStyleItems } from "./palette";
+import type { Dock } from "./paletteState";
+import { dockLayout } from "./tools";
 import type { useCanvas } from "./useCanvas";
 
 type Canvas = ReturnType<typeof useCanvas>;
@@ -57,7 +59,7 @@ function ZonePicker({ style, styles, onPick }: { style: string; styles: ZoneStyl
   );
 }
 
-export default function CanvasBar({ canvas, zoneStyles }: { canvas: Canvas; zoneStyles: ZoneStyle[] }) {
+export default function CanvasBar({ canvas, zoneStyles, dock }: { canvas: Canvas; zoneStyles: ZoneStyle[]; dock: Dock }) {
   if (!canvas.shown) return null;
   const nodes = canvas.selected.filter((s) => s.kind === "node").length;
   const p = canvas.containerProps;
@@ -71,7 +73,7 @@ export default function CanvasBar({ canvas, zoneStyles }: { canvas: Canvas; zone
     <div
       role="toolbar"
       aria-label="Canvas selection"
-      className="absolute bottom-14 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-slate-700 shadow-lg ring-1 ring-black/10 dark:bg-slate-800/95 dark:text-slate-200"
+      className={`absolute ${dockLayout(dock).selectionBar} left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-slate-700 shadow-lg ring-1 ring-black/10 dark:bg-slate-800/95 dark:text-slate-200`}
     >
       {nodes >= 2 && (
         <>
