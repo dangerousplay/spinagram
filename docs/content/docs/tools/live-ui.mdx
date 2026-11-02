@@ -40,13 +40,13 @@ page with unsaved edits asks for confirmation.
 
 Press **Canvas** (or `c`) on a diagram that is a hand-placed YAML spec: one diagram per file, with coordinates
 (`x`/`y` or `at:`) and no `layout:` engine. Rows and columns are fine. Python specs, engine layouts and snakes keep
-the read-only view, and the page says so. Every canvas edit is a minimal patch of the YAML file, written through the
+the read-only view, and the page says so. An edit updates the picture in place: icons and the toolbar are never torn down and redrawn, only the items that changed. Every canvas edit is a minimal patch of the YAML file, written through the
 same version-checked save as the code panel, so comments, key order and untouched entries stay as they were. Try
 it on `examples/showcase/editable_platform.yaml`.
 
 | Do this | Result |
 |---|---|
-| Toolbar on the left edge of the canvas | Icon buttons for the tools and actions below; hover one for its name and key |
+| Toolbar on the left edge of the canvas | Icon buttons for the tools and actions below; hover one for its name and key. The dock button at its end moves it to the bottom of the canvas (above the zoom controls) and back; the choice is remembered in the browser |
 | `V` Select, `H` Pan | Select is the default. Pan drags the view; holding Space pans in any tool |
 | `B` Box, `T` Text, `Z` Zone | A click places the default size centred on the point; a drag draws the rectangle (snapped to the grid). Text opens the title editor at once. The tool returns to Select after one use; hold Shift to keep it |
 | `C` Connect | Drag from one node to another to add an edge (`from -> to`; parallel edges are fine). Releasing on empty canvas, the same node or a zone adds nothing. With the canvas off, `c` still turns it on |

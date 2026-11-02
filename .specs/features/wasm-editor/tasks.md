@@ -1185,11 +1185,23 @@ notes.
 
 **Done when**:
 
-- [ ] Browser numbers recorded; full, Rust, WASM and web gates pass
+- [x] Browser numbers recorded; full, Rust, WASM and web gates pass
 
 **Tests**: none
 **Gate**: full
 **Commit**: `docs: toolbar dock and rebuilt ui bundle`
+
+**Notes**: Bundle rebuilt with `bash rust/spinagram-wasm/build.sh` then `bunx bun@1.4.2 run build` (a second build gives the same file names; wasm 667 KB gzipped). `live-ui.mdx` documents the dock button and the in-place update. Gates: cargo 212, clippy and deny clean (T34); wasm bun 23; web bun 185 and build; pytest 2861 passed, 3 skipped per mode; `test_web_unit` passes; ruff clean.
+Browser pass (Chrome, port 8799, git-initialised scratch copy of the whole `examples/showcase/`, `editable_platform`; observer on `document.body` counting removals of the `Canvas tools` toolbar and removals and additions of `svg image` elements; counters reset before each step; 16 icon images at the start):
+| Step | Toolbar remounts | Image removals | Image additions | YAML diff |
+| --- | --- | --- | --- | --- |
+| Palette drop of Amazon Athena (dispatched DragEvents) | 0 | 0 | 1 (the item's own) | `+ - {id: amazon-athena, title: Amazon Athena, icon: aws:amazon-athena, x: 50, y: 740, w: 220, h: 96}` |
+| Box tool click | 0 | 0 | 0 | `+ - {id: new-box, kind: box, ...}` |
+| Text tool click, type "Hello", Enter | 0 | 0 | 0 | `+ - {id: new-text, kind: text, title: Hello, x: 420, y: 690, w: 220, h: 96}`, `new-text` added to the VPC `children` |
+| Drag of Orders API (a column member) out of its column | 0 | 0 | 0 | the column container is dissolved as designed: `api` and `worker` get `x`/`y`/`w`/`h` and the `- {x: 820, y: 600, gap: 40, nodes: [api, worker]}` entry is removed |
+| Drag of Users down | 0 | 0 | 0 | `at: [80, 560, 220, 96]` -> `[80, 620, 220, 96]` |
+| Delete of the new box | 0 | 0 | 0 | the `new-box` entry removed |
+The Amazon Athena image shows as one addition (the new node); the 17 images are the 16 originals plus it, none re-inserted. Before the iteration (orchestrator's measurement, Box tool insert): 2 toolbar remounts and all 16 images detached and re-inserted.
 
 ---
 
