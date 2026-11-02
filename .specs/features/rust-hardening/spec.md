@@ -147,11 +147,11 @@ Open questions: none.
 
 | ID | Task | Status |
 |---|---|---|
-| PAR-01 | T1 | Pending |
-| PAR-02 | T1 | Pending |
-| PAR-03 | T1 | Pending |
-| PAR-04 | T1 | Pending |
-| ERR-01 | T1 | Pending |
+| PAR-01 | T1 | Done |
+| PAR-02 | T1 | Done |
+| PAR-03 | T1 | Done |
+| PAR-04 | T1 | Done |
+| ERR-01 | T1 | Done |
 | LEX-01 | T2 | Pending |
 | LEX-02 | T2 | Pending |
 | LEX-03 | T2 | Pending |

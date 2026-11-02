@@ -932,6 +932,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skrifa 0.49.0",
+ "thiserror",
  "vstd",
 ]
 

@@ -14,3 +14,4 @@ pub mod scene;
 pub mod svg;
 pub mod text;
 pub mod verified;
+pub mod yaml_span;

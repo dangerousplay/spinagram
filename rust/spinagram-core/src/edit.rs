@@ -7,8 +7,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use saphyr_parser::{Event, Parser, ScalarStyle};
+use saphyr_parser::ScalarStyle;
 use serde::Deserialize;
+
+use crate::yaml_span::{edited_lists_have_no_anchors, parse_diagram, Node, Val};
 
 /// One edit. JSON form: `{"op": "move", "id": "a", "x": 10, "y": 20}`, `"from"`/`"to"` for edges.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -119,145 +121,6 @@ impl std::error::Error for EditError {}
 
 fn fail<T>(reason: impl Into<String>) -> Result<T, String> {
     Err(reason.into())
-}
-
-// ---------------------------------------------------------------------------------------------------------
-// Parsed tree with byte spans
-
-#[derive(Debug)]
-enum Val {
-    Scalar { text: String, style: ScalarStyle },
-    Seq { items: Vec<Node>, flow: bool },
-    Map { pairs: Vec<(Node, Node)>, flow: bool },
-    Alias,
-}
-
-#[derive(Debug)]
-struct Node {
-    start: usize,
-    end: usize,
-    val: Val,
-}
-
-impl Node {
-    fn text(&self) -> Option<&str> {
-        match &self.val {
-            Val::Scalar { text, .. } => Some(text),
-            _ => None,
-        }
-    }
-
-    fn get(&self, key: &str) -> Option<&Node> {
-        match &self.val {
-            Val::Map { pairs, .. } => pairs.iter().find(|(k, _)| k.text() == Some(key)).map(|(_, v)| v),
-            _ => None,
-        }
-    }
-
-    fn items(&self) -> &[Node] {
-        match &self.val {
-            Val::Seq { items, .. } => items,
-            _ => &[],
-        }
-    }
-
-    fn is_null(&self) -> bool {
-        matches!(&self.val, Val::Scalar { text, style: ScalarStyle::Plain } if text.is_empty() || text == "~" || text == "null")
-    }
-}
-
-enum Frame {
-    Seq { start: usize, items: Vec<Node> },
-    Map { start: usize, items: Vec<Node> },
-}
-
-fn parse(src: &str) -> Result<Node, String> {
-    let offsets: Option<Vec<usize>> = if src.is_ascii() {
-        None
-    } else {
-        Some(src.char_indices().map(|(i, _)| i).chain(std::iter::once(src.len())).collect())
-    };
-    let byte = |c: usize| offsets.as_ref().map_or(c, |o| o[c.min(o.len() - 1)]);
-    let mut stack: Vec<Frame> = Vec::new();
-    let mut root: Option<Node> = None;
-    let mut docs = 0;
-    for event in Parser::new_from_str(src) {
-        let (event, span) = event.map_err(|e| format!("invalid YAML: {e}"))?;
-        let (s, e) = (byte(span.start.index()), byte(span.end.index()));
-        let done = match event {
-            Event::DocumentStart(_) => {
-                docs += 1;
-                if docs > 1 {
-                    return fail("several YAML documents in one file are not supported");
-                }
-                None
-            }
-            Event::Scalar(text, style, _, _) => Some(Node { start: s, end: e, val: Val::Scalar { text: text.into_owned(), style } }),
-            Event::Alias(_) => Some(Node { start: s, end: e, val: Val::Alias }),
-            Event::SequenceStart(..) => {
-                stack.push(Frame::Seq { start: s, items: Vec::new() });
-                None
-            }
-            Event::MappingStart(..) => {
-                stack.push(Frame::Map { start: s, items: Vec::new() });
-                None
-            }
-            Event::SequenceEnd | Event::MappingEnd => {
-                let frame = stack.pop().ok_or("unbalanced YAML events")?;
-                let (start, items, is_map) = match frame {
-                    Frame::Seq { start, items } => (start, items, false),
-                    Frame::Map { start, items } => (start, items, true),
-                };
-                let flow = matches!(src.as_bytes().get(start), Some(b'{' | b'['));
-                let last = items.last().map_or(start + 1, |n| n.end);
-                let end = if flow { closer(src, last).unwrap_or(e) } else { items.last().map_or(start, |n| n.end) };
-                let val = if is_map {
-                    let mut it = items.into_iter();
-                    let mut pairs = Vec::new();
-                    while let (Some(k), Some(v)) = (it.next(), it.next()) {
-                        pairs.push((k, v));
-                    }
-                    Val::Map { pairs, flow }
-                } else {
-                    Val::Seq { items, flow }
-                };
-                Some(Node { start, end, val })
-            }
-            _ => None,
-        };
-        if let Some(node) = done {
-            match stack.last_mut() {
-                Some(Frame::Seq { items, .. } | Frame::Map { items, .. }) => items.push(node),
-                None => root = Some(node),
-            }
-        }
-    }
-    root.ok_or_else(|| "empty YAML document".to_owned())
-}
-
-/// The end of the flow collection whose last item ends at `from`: just past its closing bracket. The parser's own
-/// end span runs on over a trailing comment.
-fn closer(src: &str, from: usize) -> Option<usize> {
-    let mut chars = src[from..].char_indices();
-    while let Some((i, c)) = chars.next() {
-        match c {
-            '}' | ']' => return Some(from + i + 1),
-            '#' => chars.by_ref().find(|&(_, c)| c == '\n')?,
-            c if c.is_whitespace() || c == ',' => continue,
-            _ => return None,
-        };
-    }
-    None
-}
-
-/// The root mapping of a diagram file.
-fn parse_diagram(src: &str) -> Result<Node, String> {
-    let root = parse(src)?;
-    match root.val {
-        Val::Map { flow: false, .. } => Ok(root),
-        Val::Map { flow: true, .. } => fail("a flow-style root mapping is not supported"),
-        _ => fail("the diagram must be a YAML mapping"),
-    }
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -1171,7 +1034,8 @@ fn apply_with(yaml: &str, ops: &[Op], make: impl Fn(&str, &Node, &Op) -> Result<
     let mut text = yaml.to_owned();
     for (i, op) in ops.iter().enumerate() {
         let wrap = |reason: String| EditError { index: Some(i), reason: format!("{}: {reason}", op.name()) };
-        let root = parse_diagram(&text).map_err(wrap)?;
+        let root = parse_diagram(&text).map_err(|e| wrap(e.to_string()))?;
+        edited_lists_have_no_anchors(&root).map_err(|e| wrap(e.to_string()))?;
         let patches = make(&text, &root, op).map_err(wrap)?;
         let next = apply_patches(&text, patches).map_err(wrap)?;
         text = checked(next).map_err(wrap)?;
@@ -1666,6 +1530,15 @@ mod tests {
     fn reject(yaml: &str, json: &str, needle: &str) {
         let err = apply_ops_json(yaml, json).unwrap_err();
         assert!(err.contains(needle), "{err:?} should mention {needle:?}");
+    }
+
+    #[test]
+    fn anchors_and_aliases_in_an_edited_list_are_rejected() {
+        let del = r#"[{"op":"delete","id":"a"}]"#;
+        reject("d: &d {w: 1}\nnodes:\n  - {id: a, k: *d}\n", del, "anchors and aliases are not supported");
+        reject("nodes:\n  - &n {id: a}\n", del, "anchors and aliases are not supported");
+        let ok = apply_ops_json("d: &d {w: 1}\nnodes:\n  - {id: a}\n", r#"[{"op":"rename","id":"a","title":"A"}]"#);
+        assert!(ok.is_ok(), "{ok:?}");
     }
 
     #[test]

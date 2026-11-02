@@ -48,6 +48,8 @@ line, column and true byte offset (map saphyr's char index through the char→by
 **Tests**: tagged flow map span; anchor/alias rejected; invalid YAML after `é` reports the byte offset; all existing edit tests unchanged.
 **Gate**: rust
 **Commit**: `refactor(core): yaml_span module with typed errors, anchors and tags`
+**Status**: Done
+**Notes**: Anchors are rejected only inside the edited top-level lists (nodes, zones, edges, rows, columns), as PAR-03 says; elsewhere they parse. Node gains an anchored flag.
 
 ### T2: `edge_syntax` grammar (winnow) with shared vectors
 
