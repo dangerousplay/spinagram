@@ -20,7 +20,8 @@ pub enum Op {
     Resize { id: String, w: f64, h: f64 },
     /// Set the `title` of a node, or the `label` of a zone.
     Rename { id: String, title: String },
-    /// Remove a node (or zone), the edges touching it, and its id from `children` and `nodes` lists.
+    /// Remove a node (or zone), the edges touching it, and its id from `children` and `nodes` lists. `e<i>`
+    /// (when no node or zone has that id) removes the edge at that position in `edges`.
     Delete { id: String },
     /// Append a node to `nodes` (`icon` is a ref like `aws:s3`).
     AddNode {
@@ -56,6 +57,19 @@ pub enum Op {
     RemoveFromContainer { id: String, node: String, boxes: BTreeMap<String, [f64; 4]> },
     /// Set the `gap` and/or `align` of container `id` (`align` only for a container placed in a zone, as the loader requires).
     SetContainer { id: String, gap: Option<f64>, align: Option<String> },
+    /// Set (a value), replace or remove (`null`) keys of a node, zone or edge (`e<i>`, the index in `edges`). Keys
+    /// are checked against what the loader accepts for that kind; geometry (`x`, `y`, `w`, `h`, `at`), `id` and
+    /// `children` have their own operations. A string edge stays a string when only its `label` changes and becomes
+    /// a `{from, to, ...}` mapping when any other key is set. Keys are written in alphabetical order.
+    SetProps { id: String, props: BTreeMap<String, serde_json::Value> },
+    /// Copy node or zone `id` under a new id (`name-2`, `name-3`, ...), offset by `dx`/`dy` and snapped to 10 px.
+    /// A node joins every zone and container list that holds the original; a zone copy has no children.
+    Duplicate { id: String, dx: f64, dy: f64 },
+    /// Change the ends of edge `id` (`e<i>`) to node (or `zone:`) ids. An end whose node is unchanged keeps its side
+    /// suffix (`a.right@0.3`).
+    Reconnect { id: String, from: Option<String>, to: Option<String> },
+    /// Swap the ends of edge `id` (`e<i>`): the arrow points the other way.
+    Reverse { id: String },
 }
 
 impl Op {
@@ -77,6 +91,10 @@ impl Op {
             Op::AddToContainer { .. } => "add_to_container",
             Op::RemoveFromContainer { .. } => "remove_from_container",
             Op::SetContainer { .. } => "set_container",
+            Op::SetProps { .. } => "set_props",
+            Op::Duplicate { .. } => "duplicate",
+            Op::Reconnect { .. } => "reconnect",
+            Op::Reverse { .. } => "reverse",
         }
     }
 }
@@ -430,24 +448,8 @@ fn remove_items(src: &str, seq: &Node, idxs: &[usize]) -> Vec<Patch> {
     let Val::Seq { items, flow } = &seq.val else { return Vec::new() };
     let mut ranges: Vec<(usize, usize)> = Vec::new();
     if *flow {
-        for &i in idxs {
-            if i + 1 < items.len() {
-                ranges.push((items[i].start, items[i + 1].start));
-            } else if let Some(prev) = (0..i).rev().find(|j| !idxs.contains(j)) {
-                ranges.push((items[prev].end, items[i].end));
-            } else {
-                ranges.push((items[0].start, items[i].end));
-            }
-        }
-        ranges.sort_unstable();
-        let mut merged: Vec<(usize, usize)> = Vec::new();
-        for r in ranges {
-            match merged.last_mut() {
-                Some(last) if r.0 <= last.1 => last.1 = last.1.max(r.1),
-                _ => merged.push(r),
-            }
-        }
-        ranges = merged;
+        let spans: Vec<(usize, usize)> = items.iter().map(|n| (n.start, n.end)).collect();
+        ranges = flow_ranges(&spans, idxs);
     } else {
         for &i in idxs {
             let end = line_end(src, items[i].end);
@@ -505,13 +507,77 @@ fn endpoint(s: &str) -> &str {
     s.strip_prefix("zone:").unwrap_or(s).split('.').next().unwrap_or(s)
 }
 
-/// `(src, dst)` of an edge entry: `"a -> b: label"` or `{from, to}`.
+/// A string edge cut where the loader's `parse_edge` cuts it, keeping the exact spacing so a rewrite changes only
+/// what it must: `{lead}{src}{gap1}{op}{gap2}{dst}{tail}`, where `tail` is empty or ` : label`.
+struct EdgeText {
+    lead: String,
+    src: String,
+    gap1: String,
+    op: &'static str,
+    gap2: String,
+    dst: String,
+    tail: String,
+}
+
+impl EdgeText {
+    fn parse(t: &str) -> Option<EdgeText> {
+        let (i, op) = ["<->", "->", "<-", "--"].iter().filter_map(|op| t.find(op).map(|i| (i, *op))).min_by_key(|(i, _)| *i)?;
+        let left = &t[..i];
+        let src = left.trim();
+        let lead = left[..left.len() - left.trim_start().len()].to_owned();
+        if src.is_empty() {
+            return None;
+        }
+        let gap1 = left[left.trim_end().len()..].to_owned();
+        let rest = &t[i + op.len()..];
+        let r = rest.trim_start();
+        let gap2 = rest[..rest.len() - r.len()].to_owned();
+        let name_from = if r.starts_with("zone:") { 5 } else { 0 };
+        let colon = r[name_from..].find(':').map(|c| c + name_from);
+        let dst_end = colon.map_or(r.trim_end().len(), |c| r[..c].trim_end().len());
+        let dst = r[..dst_end].to_owned();
+        if dst.is_empty() || dst == "zone:" {
+            return None;
+        }
+        Some(EdgeText { lead, src: src.to_owned(), gap1, op, gap2, dst, tail: r[dst_end..].to_owned() })
+    }
+
+    /// The label after the colon, or none.
+    fn label(&self) -> Option<&str> {
+        let l = self.tail.trim_start().strip_prefix(':')?.trim_start();
+        (!l.is_empty()).then_some(l)
+    }
+
+    fn with_label(&self, label: Option<&str>) -> String {
+        let ws = &self.tail[..self.tail.len() - self.tail.trim_start().len()];
+        let tail = match label {
+            Some(l) => format!("{ws}: {l}"),
+            None => String::new(),
+        };
+        self.render(&self.src, &self.dst, &tail)
+    }
+
+    fn render(&self, src: &str, dst: &str, tail: &str) -> String {
+        format!("{}{src}{}{}{}{dst}{tail}", self.lead, self.gap1, self.op, self.gap2)
+    }
+
+    /// `(from, to)` as the loader reads them: `<-` points the other way.
+    fn ends(&self) -> (&str, &str) {
+        if self.op == "<-" { (&self.dst, &self.src) } else { (&self.src, &self.dst) }
+    }
+
+    fn with_ends(&self, from: &str, to: &str) -> String {
+        let (l, r) = if self.op == "<-" { (to, from) } else { (from, to) };
+        self.render(l, r, &self.tail)
+    }
+}
+
+/// `(src, dst)` node ids of an edge entry: `"a -> b: label"` or `{from, to}`.
 fn edge_ends(edge: &Node) -> Option<(String, String)> {
     if let Some(t) = edge.text() {
-        let (lhs, op, rest) = ["<->", "->", "<-", "--"].iter().filter_map(|op| t.find(op).map(|i| (i, *op))).min_by_key(|(i, _)| *i).map(|(i, op)| (&t[..i], op, &t[i + op.len()..]))?;
-        let dst = rest.split(':').next().unwrap_or(rest);
-        let (a, b) = (endpoint(lhs).to_owned(), endpoint(dst).to_owned());
-        return Some(if op == "<-" { (b, a) } else { (a, b) });
+        let p = EdgeText::parse(t)?;
+        let (from, to) = p.ends();
+        return Some((endpoint(from).to_owned(), endpoint(to).to_owned()));
     }
     let (from, to) = (edge.get("from")?.text()?, edge.get("to")?.text()?);
     Some((endpoint(from).to_owned(), endpoint(to).to_owned()))
@@ -624,6 +690,10 @@ fn op_patches(src: &str, root: &Node, op: &Op) -> Result<Vec<Patch>, String> {
                 None => fail(format!("no edge from `{from}` to `{to}`")),
             }
         }
+        Op::SetProps { id, props } => set_props(src, root, id, props),
+        Op::Duplicate { id, dx, dy } => duplicate(src, root, id, *dx, *dy),
+        Op::Reconnect { id, from, to } => reconnect(root, id, from.as_deref(), to.as_deref()),
+        Op::Reverse { id } => reverse(src, root, id),
         _ => zone_patches(src, root, op),
     }
 }
@@ -1040,6 +1110,12 @@ fn release(src: &str, root: &Node, c: &Container, released: &[String], boxes: &B
 }
 
 fn delete(src: &str, root: &Node, id: &str) -> Result<Vec<Patch>, String> {
+    if !exists(root, id) {
+        // `e<i>` is the edge at that position in `edges`
+        if let (Some(i), Some(edges)) = (edge_index(root, id), root.get("edges")) {
+            return Ok(remove_items(src, edges, &[i]));
+        }
+    }
     let entry = find(root, id)?;
     let mut by_list: Vec<(&Node, Vec<usize>)> = vec![(entry.list, vec![entry.index])];
     if let Some(edges) = root.get("edges") {
@@ -1117,6 +1193,398 @@ pub fn apply_ops_json(yaml: &str, ops_json: &str) -> Result<String, String> {
 fn checked(text: String) -> Result<String, String> {
     parse_diagram(&text).map_err(|e| format!("the patch would produce invalid YAML ({e})"))?;
     Ok(text)
+}
+
+
+// ---------------------------------------------------------------------------------------------------------
+// Properties, duplicate, reconnect and reverse
+
+/// What a property's JSON value must be.
+#[derive(Clone, Copy)]
+enum Kind {
+    Str,
+    Num,
+    Bool,
+    /// a string, number, boolean, list or mapping (the loader checks the rest)
+    Any,
+    OneOf(&'static [&'static str]),
+}
+
+use Kind::{Any, Bool, Num, OneOf, Str};
+
+/// The keys `set_props` accepts for a node: the loader's `_NODE_KEYS` and `_NODE_EXTRA` (`src/spinagram/yaml_io.py`)
+/// without the geometry (`x`, `y`, `w`, `h`, `at`: move and resize) and `id`.
+const NODE_PROPS: &[(&str, Kind)] = &[
+    ("kind", Str), ("title", Str), ("text", Str), ("lines", Any), ("style", Str), ("icon", Any), ("icon_size", Num), ("align", Str),
+    ("title_size", Num), ("body_size", Num), ("radius", Num), ("dashed", Bool), ("color", Str), ("in", Str), ("class", Str), ("css", Str),
+    ("cell", Any), ("weight", Any), ("font", Str), ("variant", Str), ("fit", Str), ("min_scale", Num), ("break_on", Any), ("badges", Any),
+    ("size", Num), ("role", Str), ("max_width", Num),
+];
+
+/// The keys for a zone: the fields of the model's `Zone` the loader passes through, without the geometry, `id`,
+/// `children` (reparent) and `gid` (set by the layout).
+const ZONE_PROPS: &[(&str, Kind)] = &[
+    ("label", Str), ("color", Str), ("icon", Any), ("dash", Any), ("stroke", Str), ("stroke_width", Num), ("fill", Str), ("header", Any),
+    ("fit", Str), ("padding", Num), ("equalize", Str), ("band", Any), ("meaning", Str), ("class", Str),
+];
+
+/// The keys for an edge mapping: the fields of the model's `Edge`, without the ends (reconnect).
+const EDGE_PROPS: &[(&str, Kind)] = &[
+    ("label", Str), ("label_at", Any), ("color", Str), ("dashed", Bool), ("width", Num), ("via", Any), ("curve", Any),
+    ("arrow", OneOf(&["end", "start", "both", "none"])), ("label_size", Num), ("class", Str), ("css", Str), ("fan", Str),
+    ("route", OneOf(&["ortho", "elbow"])), ("fan_in", Bool), ("meaning", Str), ("straight", Bool), ("mid", Num),
+];
+
+fn prop_kind(table: &[(&str, Kind)], key: &str, extension_keys: bool) -> Option<Kind> {
+    table.iter().find(|(k, _)| *k == key).map(|(_, kind)| *kind).or_else(|| (extension_keys && key.starts_with("x-")).then_some(Any))
+}
+
+fn check_prop(key: &str, kind: Kind, v: &serde_json::Value) -> Result<(), String> {
+    use serde_json::Value;
+    let ok = match (kind, v) {
+        (Str, Value::String(_)) | (Num, Value::Number(_)) | (Bool, Value::Bool(_)) => true,
+        (OneOf(allowed), Value::String(s)) => {
+            if !allowed.contains(&s.as_str()) {
+                return fail(format!("`{key}` must be one of {}", allowed.join(", ")));
+            }
+            true
+        }
+        (Any, v) => !v.is_null(),
+        _ => false,
+    };
+    if ok { Ok(()) } else { fail(format!("`{key}` has the wrong type of value")) }
+}
+
+/// A JSON value as YAML text (`flow`: inside braces or brackets).
+fn yaml_value(v: &serde_json::Value, flow: bool) -> Result<String, String> {
+    use serde_json::Value;
+    Ok(match v {
+        Value::String(s) => text_scalar(s, flow),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.as_f64().map_or_else(|| Err("a number out of range".to_owned()), num)?,
+        Value::Array(items) => format!("[{}]", items.iter().map(|i| yaml_value(i, true)).collect::<Result<Vec<_>, _>>()?.join(", ")),
+        Value::Object(map) => {
+            let mut pairs = Vec::new();
+            for (k, val) in map {
+                if k.is_empty() || !k.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-')) {
+                    return fail(format!("`{k}` is not a plain mapping key"));
+                }
+                pairs.push(format!("{k}: {}", yaml_value(val, true)?));
+            }
+            format!("{{{}}}", pairs.join(", "))
+        }
+        Value::Null => return fail("null cannot be written as a value"),
+    })
+}
+
+/// The `[start, end)` ranges that remove the flow-style items with the spans `spans` at `idxs`, with separators.
+fn flow_ranges(spans: &[(usize, usize)], idxs: &[usize]) -> Vec<(usize, usize)> {
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    for &i in idxs {
+        if i + 1 < spans.len() {
+            ranges.push((spans[i].0, spans[i + 1].0));
+        } else if let Some(prev) = (0..i).rev().find(|j| !idxs.contains(j)) {
+            ranges.push((spans[prev].1, spans[i].1));
+        } else {
+            ranges.push((spans[0].0, spans[i].1));
+        }
+    }
+    ranges.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for r in ranges {
+        match merged.last_mut() {
+            Some(last) if r.0 <= last.1 => last.1 = last.1.max(r.1),
+            _ => merged.push(r),
+        }
+    }
+    merged
+}
+
+/// Set keys (replace the value or append the pair) and remove keys of mapping `map`, as patches. An appended pair
+/// goes after the last pair that stays.
+fn edit_map(src: &str, map: &Node, sets: &[(String, String)], removes: &[String]) -> Result<Vec<Patch>, String> {
+    let Val::Map { pairs, flow } = &map.val else { return fail("entry is not a mapping") };
+    let gone: Vec<usize> = pairs.iter().enumerate().filter(|(_, (k, _))| removes.iter().any(|r| k.text() == Some(r.as_str()))).map(|(i, _)| i).collect();
+    let Some(first_kept) = (0..pairs.len()).find(|i| !gone.contains(i)) else { return fail("that would leave the entry empty") };
+    let mut patches = Vec::new();
+    let mut missing: Vec<&(String, String)> = Vec::new();
+    for kv in sets {
+        match pairs.iter().position(|(k, _)| k.text() == Some(kv.0.as_str())) {
+            Some(i) => patches.push(Patch { start: pairs[i].1.start, end: pairs[i].1.end, text: kv.1.clone() }),
+            None => missing.push(kv),
+        }
+    }
+    if *flow {
+        let spans: Vec<(usize, usize)> = pairs.iter().map(|(k, v)| (k.start, v.end)).collect();
+        patches.extend(flow_ranges(&spans, &gone).into_iter().map(|(start, end)| Patch { start, end, text: String::new() }));
+    } else {
+        if first_kept > 0 {
+            // the leading pairs share their line with the `- ` of the list item: cut up to the first pair that stays
+            patches.push(Patch { start: pairs[0].0.start, end: pairs[first_kept].0.start, text: String::new() });
+        }
+        for &i in gone.iter().filter(|&&i| i > first_kept) {
+            let (k, v) = &pairs[i];
+            patches.push(Patch { start: line_start(src, k.start), end: (line_end(src, v.end) + 1).min(src.len()), text: String::new() });
+        }
+    }
+    if !missing.is_empty() {
+        let tail = (0..pairs.len()).rev().find(|i| !gone.contains(i)).unwrap_or(first_kept);
+        let tail_end = pairs[tail].1.end;
+        let list = |sep: &str| missing.iter().map(|(k, v)| format!("{k}: {v}")).collect::<Vec<_>>().join(sep);
+        if *flow {
+            patches.push(Patch { start: tail_end, end: tail_end, text: format!(", {}", list(", ")) });
+        } else {
+            let at = line_end(src, tail_end);
+            let pad = " ".repeat(column(src, map.start));
+            patches.push(Patch { start: at, end: at, text: format!("\n{pad}{}", list(&format!("\n{pad}"))) });
+        }
+    }
+    Ok(patches)
+}
+
+/// `e<i>` as an index into `edges`.
+fn edge_index(root: &Node, id: &str) -> Option<usize> {
+    let i: usize = id.strip_prefix('e')?.parse().ok()?;
+    (i < root.get("edges")?.items().len() && format!("e{i}") == id).then_some(i)
+}
+
+fn edge_at<'a>(root: &'a Node, id: &str) -> Result<(&'a Node, &'a Node), String> {
+    let i = edge_index(root, id).ok_or_else(|| format!("unknown edge `{id}` (edges are e0, e1, ... by position in `edges`)"))?;
+    let list = root.get("edges").ok_or_else(|| format!("unknown edge `{id}`"))?;
+    Ok((list, &list.items()[i]))
+}
+
+fn edges_flow(list: &Node) -> bool {
+    matches!(list.val, Val::Seq { flow: true, .. })
+}
+
+fn set_props(src: &str, root: &Node, id: &str, props: &BTreeMap<String, serde_json::Value>) -> Result<Vec<Patch>, String> {
+    if props.is_empty() {
+        return fail("set_props needs at least one key");
+    }
+    let entry = entries(root).into_iter().find(|e| e.id == id);
+    let (table, ext) = match &entry {
+        Some(e) if e.zone => (ZONE_PROPS, false),
+        Some(_) => (NODE_PROPS, true),
+        None => (EDGE_PROPS, false),
+    };
+    let what = match &entry {
+        Some(e) if e.zone => "a zone",
+        Some(_) => "a node",
+        None => "an edge",
+    };
+    for (key, v) in props {
+        let Some(kind) = prop_kind(table, key, ext) else {
+            let hint = if matches!(key.as_str(), "id" | "x" | "y" | "w" | "h" | "at" | "children" | "from" | "to") {
+                " (it has its own operation: move, resize, reparent, reconnect)"
+            } else {
+                ""
+            };
+            return fail(format!("`{key}` is not a property of {what}{hint}"));
+        };
+        if !v.is_null() {
+            check_prop(key, kind, v)?;
+        }
+    }
+    if let Some(e) = entry {
+        let flow = matches!(e.node.val, Val::Map { flow: true, .. });
+        let (sets, removes) = split_props(props, flow)?;
+        return edit_map(src, e.node, &sets, &removes);
+    }
+    let (list, edge) = edge_at(root, id)?;
+    let list_flow = edges_flow(list);
+    if let Some(t) = edge.text() {
+        let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
+        if props.keys().all(|k| k == "label") {
+            let label = match props.get("label") {
+                Some(serde_json::Value::String(l)) => {
+                    if l.trim().is_empty() {
+                        return fail("a label cannot be empty (use null to remove it)");
+                    }
+                    Some(l.trim().to_owned())
+                }
+                _ => None,
+            };
+            return Ok(vec![Patch { start: edge.start, end: edge.end, text: replacement(edge, &p.with_label(label.as_deref()), list_flow)? }]);
+        }
+        // another key: the edge becomes a mapping with its ends, arrow and label carried over
+        let (from, to) = p.ends();
+        let mut pairs: Vec<(String, String)> = vec![("from".into(), text_scalar(from, true)), ("to".into(), text_scalar(to, true))];
+        match p.op {
+            "--" => pairs.push(("arrow".into(), "none".into())),
+            "<->" => pairs.push(("arrow".into(), "both".into())),
+            _ => {}
+        }
+        if let Some(l) = p.label() {
+            pairs.push(("label".into(), text_scalar(l, true)));
+        }
+        let (sets, removes) = split_props(props, true)?;
+        for (k, v) in sets {
+            match pairs.iter_mut().find(|(pk, _)| *pk == k) {
+                Some(slot) => slot.1 = v,
+                None => pairs.push((k, v)),
+            }
+        }
+        pairs.retain(|(k, _)| !removes.contains(k));
+        let body = pairs.iter().map(|(k, v)| format!("{k}: {v}")).collect::<Vec<_>>().join(", ");
+        return Ok(vec![Patch { start: edge.start, end: edge.end, text: format!("{{{body}}}") }]);
+    }
+    let flow = matches!(edge.val, Val::Map { flow: true, .. });
+    let (sets, removes) = split_props(props, flow)?;
+    edit_map(src, edge, &sets, &removes)
+}
+
+/// The keys to set (with their YAML text) and the keys to remove (`null`).
+type Split = (Vec<(String, String)>, Vec<String>);
+
+fn split_props(props: &BTreeMap<String, serde_json::Value>, flow: bool) -> Result<Split, String> {
+    let mut sets = Vec::new();
+    let mut removes = Vec::new();
+    for (k, v) in props {
+        if v.is_null() {
+            removes.push(k.clone());
+        } else {
+            sets.push((k.clone(), yaml_value(v, flow)?));
+        }
+    }
+    Ok((sets, removes))
+}
+
+/// Insert `text` as a new item right after item `idx` of sequence `seq`.
+fn insert_after(src: &str, seq: &Node, idx: usize, text: &str) -> Patch {
+    let Val::Seq { items, flow } = &seq.val else { return Patch { start: 0, end: 0, text: String::new() } };
+    let last = &items[idx];
+    if *flow {
+        Patch { start: last.end, end: last.end, text: format!(", {text}") }
+    } else {
+        let at = line_end(src, last.end);
+        let from = line_start(src, last.start);
+        let lead = &src[from..from + leading_ws(&src[from..])];
+        Patch { start: at, end: at, text: format!("\n{lead}- {text}") }
+    }
+}
+
+fn snap10(v: f64) -> f64 {
+    (v / 10.0).round() * 10.0
+}
+
+/// `name-2`, `name-3`, ...: the first id not in `taken`, counting from the name without its own numeric suffix.
+fn fresh_id(id: &str, taken: &[&str]) -> String {
+    let base = match id.rsplit_once('-') {
+        Some((b, n)) if !b.is_empty() && !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()) => b,
+        _ => id,
+    };
+    let mut n = 2;
+    loop {
+        let candidate = format!("{base}-{n}");
+        if !taken.contains(&candidate.as_str()) {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
+fn duplicate(src: &str, root: &Node, id: &str, dx: f64, dy: f64) -> Result<Vec<Patch>, String> {
+    let e = find(root, id)?;
+    let all = entries(root);
+    let taken: Vec<&str> = all.iter().map(|x| x.id).collect();
+    let new_id = fresh_id(id, &taken);
+    let Some(id_node) = e.node.get("id") else { return fail("entry has no id") };
+    let mut inner = vec![Patch { start: id_node.start, end: id_node.end, text: scalar(&new_id) }];
+    let pos = position(e.node).map(|(x, y)| (snap10(x + dx), snap10(y + dy)));
+    if e.zone {
+        let mut sets = Vec::new();
+        if let Some((x, y)) = pos {
+            sets = vec![("x".to_owned(), num(x)?), ("y".to_owned(), num(y)?)];
+        }
+        inner.extend(edit_map(src, e.node, &sets, &["children".to_owned()])?.into_iter().filter(|p| p.start >= e.node.start));
+    } else if let Some((x, y)) = pos {
+        inner.extend(move_to(src, &e, x, y)?);
+    }
+    // the copy of the entry's own text with those patches inside it
+    for p in &mut inner {
+        p.end = p.end.min(e.node.end);
+        p.start = p.start.min(p.end);
+    }
+    let mut local: Vec<Patch> = inner.into_iter().map(|p| Patch { start: p.start - e.node.start, end: p.end - e.node.start, text: p.text }).collect();
+    local.sort_by_key(|p| (p.start, p.end));
+    let copy = apply_patches(&src[e.node.start..e.node.end], local)?;
+    let mut patches = vec![insert_after(src, e.list, e.index, copy.trim_end())];
+    if !e.zone {
+        // every zone `children` and container `nodes` list that names the original names the copy after it
+        let mut lists: Vec<&Node> = Vec::new();
+        collect_lists(root, &mut lists);
+        for list in lists {
+            if let Some(i) = list.items().iter().position(|n| n.text() == Some(id)) {
+                patches.push(insert_after(src, list, i, &scalar(&new_id)));
+            }
+        }
+    }
+    Ok(patches)
+}
+
+/// The text of the end (`from` or `to`) after a reconnect: the same text when the node is unchanged (a side suffix
+/// stays), the new end otherwise.
+fn new_end(current: &str, wanted: Option<&str>) -> String {
+    match wanted {
+        Some(w) if w != endpoint(current) => w.to_owned(),
+        _ => current.to_owned(),
+    }
+}
+
+fn reconnect(root: &Node, id: &str, from: Option<&str>, to: Option<&str>) -> Result<Vec<Patch>, String> {
+    if from.is_none() && to.is_none() {
+        return fail("reconnect needs `from` or `to`");
+    }
+    for end in [from, to].into_iter().flatten() {
+        if !exists(root, endpoint(end)) {
+            return fail(format!("unknown id `{}`", endpoint(end)));
+        }
+    }
+    let (list, edge) = edge_at(root, id)?;
+    if let Some(t) = edge.text() {
+        let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
+        let (cur_from, cur_to) = p.ends();
+        let text = p.with_ends(&new_end(cur_from, from), &new_end(cur_to, to));
+        return Ok(vec![Patch { start: edge.start, end: edge.end, text: replacement(edge, &text, edges_flow(list))? }]);
+    }
+    let flow = matches!(edge.val, Val::Map { flow: true, .. });
+    let mut patches = Vec::new();
+    for (key, wanted) in [("from", from), ("to", to)] {
+        let Some(v) = edge.get(key) else { return fail(format!("edge `{id}` has no `{key}`")) };
+        let cur = v.text().unwrap_or_default();
+        let next = new_end(cur, wanted);
+        if next != cur {
+            patches.push(Patch { start: v.start, end: v.end, text: replacement(v, &next, flow)? });
+        }
+    }
+    Ok(patches)
+}
+
+fn reverse(src: &str, root: &Node, id: &str) -> Result<Vec<Patch>, String> {
+    let (list, edge) = edge_at(root, id)?;
+    if let Some(t) = edge.text() {
+        let Some(p) = EdgeText::parse(t) else { return fail(format!("cannot read edge `{id}`")) };
+        let (from, to) = p.ends();
+        let text = p.with_ends(to, from);
+        return Ok(vec![Patch { start: edge.start, end: edge.end, text: replacement(edge, &text, edges_flow(list))? }]);
+    }
+    let flow = matches!(edge.val, Val::Map { flow: true, .. });
+    let (Some(f), Some(t)) = (edge.get("from"), edge.get("to")) else { return fail(format!("edge `{id}` has no `from` and `to`")) };
+    let (ft, tt) = (f.text().unwrap_or_default().to_owned(), t.text().unwrap_or_default().to_owned());
+    let mut patches = vec![
+        Patch { start: f.start, end: f.end, text: replacement(f, &tt, flow)? },
+        Patch { start: t.start, end: t.end, text: replacement(t, &ft, flow)? },
+    ];
+    // waypoints are listed from the source: they run the other way now
+    if let Some(via) = edge.get("via") {
+        let items = via.items();
+        for (i, it) in items.iter().enumerate() {
+            let mirror = &items[items.len() - 1 - i];
+            patches.push(Patch { start: it.start, end: it.end, text: src[mirror.start..mirror.end].to_owned() });
+        }
+    }
+    Ok(patches)
 }
 
 #[cfg(test)]
@@ -1790,5 +2258,223 @@ mod tests {
         assert!(out.contains("label: App tier,"), "{out}");
         assert!(out.contains("title: \"yes\""), "{out}");
         parse_diagram(&out).unwrap();
+    }
+
+    // ---- properties, duplicate, reconnect, reverse (T38) ----
+
+    #[test]
+    fn set_props_sets_replaces_and_removes_node_keys_in_block_entries() {
+        let json = r#"[{"op":"set_props","id":"api","props":{"title":"Orders API","class":null,"dashed":true}}]"#;
+        assert_eq!(
+            run("props_block", json),
+            expect(
+                "props_block",
+                &[
+                    ("title: API   # the api", "title: Orders API   # the api"),
+                    ("    class: app\n", ""),
+                    ("    at: [100, 100, 220, 96]\n", "    at: [100, 100, 220, 96]\n    dashed: true\n"),
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn removing_the_first_key_of_a_block_mapping_keeps_the_list_dash() {
+        let json = r#"[{"op":"set_props","id":"e5","props":{"label":null}}]"#;
+        assert_eq!(run("props_block", json), expect("props_block", &[("  - label: first\n    from: cache\n    to: db\n", "  - from: cache\n    to: db\n")]));
+    }
+
+    #[test]
+    fn set_props_works_on_flow_entries_and_quotes_only_where_flow_needs_it() {
+        let json = r#"[{"op":"set_props","id":"b","props":{"class":"new","dashed":true,"text":"Hello, world"}}]"#;
+        assert_eq!(run("props_flow", json), expect("props_flow", &[("class: old}", "class: new, dashed: true, text: \"Hello, world\"}")]));
+        // removing a key from the middle of a flow entry takes its separator
+        let drop = r#"[{"op":"set_props","id":"a","props":{"title":null}}]"#;
+        assert_eq!(run("props_flow", drop), expect("props_flow", &[("{id: a, title: A, at:", "{id: a, at:")]));
+    }
+
+    #[test]
+    fn set_props_removes_the_first_pairs_of_a_block_entry_and_appends_after_the_last_that_stays() {
+        // `title` and `text` follow `id`; `at` is last
+        let json = r#"[{"op":"set_props","id":"api","props":{"class":null,"text":null,"title":null,"fit":"shrink"}}]"#;
+        assert_eq!(
+            run("props_block", json),
+            expect(
+                "props_block",
+                &[("    title: API   # the api\n    text: Orders\n    class: app\n    at: [100, 100, 220, 96]\n", "    at: [100, 100, 220, 96]\n    fit: shrink\n")]
+            )
+        );
+    }
+
+    #[test]
+    fn set_props_on_a_zone_uses_the_zone_keys_and_keeps_comments() {
+        let json = r#"[{"op":"set_props","id":"vpc","props":{"label":"Prod VPC","color":null,"dash":"dashed"}}]"#;
+        assert_eq!(
+            run("props_block", json),
+            expect(
+                "props_block",
+                &[
+                    ("    label: VPC\n", "    label: Prod VPC\n"),
+                    ("    color: aws-vpc   # the style\n", ""),
+                    ("    children: [api, db]\n", "    children: [api, db]\n    dash: dashed\n"),
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn set_props_rejects_unknown_keys_wrong_values_and_keys_with_their_own_operation() {
+        let y = read("props_block");
+        reject(&y, r#"[{"op":"set_props","id":"api","props":{"bogus":1}}]"#, "`bogus` is not a property of a node");
+        reject(&y, r#"[{"op":"set_props","id":"api","props":{"x":10}}]"#, "move, resize");
+        reject(&y, r#"[{"op":"set_props","id":"api","props":{"id":"other"}}]"#, "its own operation");
+        reject(&y, r#"[{"op":"set_props","id":"api","props":{"dashed":"yes"}}]"#, "`dashed` has the wrong type");
+        reject(&y, r#"[{"op":"set_props","id":"vpc","props":{"children":["a"]}}]"#, "`children` is not a property of a zone");
+        reject(&y, r#"[{"op":"set_props","id":"vpc","props":{"icon_size":3}}]"#, "`icon_size` is not a property of a zone");
+        reject(&y, r#"[{"op":"set_props","id":"e1","props":{"route":"weird"}}]"#, "`route` must be one of ortho, elbow");
+        reject(&y, r#"[{"op":"set_props","id":"e1","props":{"from":"db"}}]"#, "reconnect");
+        reject(&y, r#"[{"op":"set_props","id":"e9","props":{"label":"x"}}]"#, "unknown edge `e9`");
+        reject(&y, r#"[{"op":"set_props","id":"api","props":{}}]"#, "at least one key");
+        // extension keys are allowed on nodes
+        assert!(run("props_block", r#"[{"op":"set_props","id":"api","props":{"x-owner":"team"}}]"#).contains("x-owner: team"));
+    }
+
+    #[test]
+    fn a_string_edge_stays_a_string_for_a_label_change_and_becomes_a_mapping_for_another_key() {
+        let relabel = r#"[{"op":"set_props","id":"e0","props":{"label":"writes"}},{"op":"set_props","id":"e1","props":{"label":"warm"}}]"#;
+        assert_eq!(
+            run("props_block", relabel),
+            expect("props_block", &[("\"api -> db: reads\"", "\"api -> db: writes\""), ("  - api -> cache\n", "  - \"api -> cache: warm\"\n")])
+        );
+        let clear = r#"[{"op":"set_props","id":"e0","props":{"label":null}}]"#;
+        assert_eq!(run("props_block", clear), expect("props_block", &[("\"api -> db: reads\"", "\"api -> db\"")]));
+        let route = r#"[{"op":"set_props","id":"e0","props":{"route":"ortho"}}]"#;
+        assert_eq!(run("props_block", route), expect("props_block", &[("\"api -> db: reads\"", "{from: api, to: db, label: reads, route: ortho}")]));
+        // `<-` keeps its direction, sides stay with their nodes
+        let back = r#"[{"op":"set_props","id":"e4","props":{"dashed":true}}]"#;
+        assert_eq!(run("props_block", back), expect("props_block", &[("\"api.right@0.3 <- db.left\"", "{from: db.left, to: api.right@0.3, dashed: true}")]));
+        // `--` becomes arrow: none, and the label is carried over
+        let plain = r##"[{"op":"set_props","id":"e2","props":{"color":"#f00"}}]"##;
+        assert_eq!(run("props_flow", plain), expect("props_flow", &[("\"a -- b: plain\"", "{from: a, to: b, arrow: none, label: plain, color: \"#f00\"}")]));
+    }
+
+    #[test]
+    fn set_props_edits_mapping_edges_in_flow_and_block_form() {
+        let flow = r#"[{"op":"set_props","id":"e2","props":{"label":null,"route":"elbow"}}]"#;
+        assert_eq!(
+            run("props_block", flow),
+            expect("props_block", &[("label: sync, route: ortho,", "route: elbow,")])
+        );
+        let block = r#"[{"op":"set_props","id":"e3","props":{"dashed":null,"width":2}}]"#;
+        assert_eq!(
+            run("props_block", block),
+            expect("props_block", &[("    dashed: true\n    color: \"#ff0000\"   # red\n", "    color: \"#ff0000\"   # red\n    width: 2\n")])
+        );
+        // list values are written as flow lists
+        let via = r#"[{"op":"set_props","id":"e3","props":{"via":[[1,2],[3,4]]}}]"#;
+        assert!(run("props_block", via).contains("via: [[1, 2], [3, 4]]"));
+    }
+
+    #[test]
+    fn duplicate_copies_a_node_with_its_props_offset_snapped_and_in_the_same_zone() {
+        let out = run("props_block", r#"[{"op":"duplicate","id":"api","dx":30,"dy":40}]"#);
+        assert_eq!(
+            out,
+            expect(
+                "props_block",
+                &[
+                    ("    at: [100, 100, 220, 96]\n", "    at: [100, 100, 220, 96]\n  - id: api-2\n    title: API   # the api\n    text: Orders\n    class: app\n    at: [130, 140, 220, 96]\n"),
+                    ("children: [api, db]", "children: [api, api-2, db]"),
+                ]
+            )
+        );
+        // the offset is snapped to 10 px, and a copy of a copy takes the next free number
+        let twice = apply_ops(&out, &ops(r#"[{"op":"duplicate","id":"api-2","dx":33,"dy":-4}]"#)).unwrap();
+        assert!(twice.contains("  - id: api-3\n    title: API   # the api\n    text: Orders\n    class: app\n    at: [160, 140, 220, 96]\n"), "{twice}");
+        // flow entries and the zone's flow children list
+        assert_eq!(
+            run("props_flow", r#"[{"op":"duplicate","id":"b","dx":10,"dy":0}]"#),
+            expect("props_flow", &[("class: old}", "class: old}, {id: b-2, title: B, x: 210, y: 10, w: 100, h: 50, class: old}"), ("children: [a, b]", "children: [a, b, b-2]")])
+        );
+    }
+
+    #[test]
+    fn duplicate_keeps_container_membership() {
+        // `cache` is listed by id in a row (and has no position): the copy joins that row after it
+        assert_eq!(
+            run("props_block", r#"[{"op":"duplicate","id":"cache","dx":10,"dy":10}]"#),
+            expect(
+                "props_block",
+                &[("    title: Cache\n", "    title: Cache\n  - id: cache-2\n    title: Cache\n"), ("nodes: [cache, {id: inline", "nodes: [cache, cache-2, {id: inline")]
+            )
+        );
+        // an inline member is copied inline, right after the original
+        assert_eq!(
+            run("props_block", r#"[{"op":"duplicate","id":"inline","dx":0,"dy":0}]"#),
+            expect("props_block", &[("{id: inline, title: Inline}]", "{id: inline, title: Inline}, {id: inline-2, title: Inline}]")])
+        );
+    }
+
+    #[test]
+    fn duplicate_of_a_zone_has_no_children() {
+        assert_eq!(
+            run("props_block", r#"[{"op":"duplicate","id":"vpc","dx":50,"dy":50}]"#),
+            expect(
+                "props_block",
+                &[("    children: [api, db]\n", "    children: [api, db]\n  - id: vpc-2\n    label: VPC\n    color: aws-vpc   # the style\n    x: 70\n    y: 70\n    w: 800\n    h: 500\n")]
+            )
+        );
+        assert_eq!(
+            run("props_flow", r#"[{"op":"duplicate","id":"z","dx":10,"dy":10}]"#),
+            expect("props_flow", &[("children: [a, b]}", "children: [a, b]}, {id: z-2, label: Z, x: 10, y: 10, w: 500, h: 400}")])
+        );
+        reject(&read("props_block"), r#"[{"op":"duplicate","id":"nope","dx":0,"dy":0}]"#, "unknown id `nope`");
+    }
+
+    #[test]
+    fn reconnect_changes_an_end_and_keeps_the_side_when_the_node_is_unchanged() {
+        assert_eq!(
+            run("props_block", r#"[{"op":"reconnect","id":"e0","to":"cache"}]"#),
+            expect("props_block", &[("\"api -> db: reads\"", "\"api -> cache: reads\"")])
+        );
+        // `<-`: the semantic `from` is db.left; naming the same node leaves the text as it was
+        assert_eq!(run("props_block", r#"[{"op":"reconnect","id":"e4","from":"db"}]"#), read("props_block"));
+        assert_eq!(
+            run("props_block", r#"[{"op":"reconnect","id":"e4","to":"cache"}]"#),
+            expect("props_block", &[("\"api.right@0.3 <- db.left\"", "\"cache <- db.left\"")])
+        );
+        assert_eq!(run("props_block", r#"[{"op":"reconnect","id":"e2","to":"api"}]"#), expect("props_block", &[("to: cache, label: sync", "to: api, label: sync")]));
+        assert_eq!(run("props_block", r#"[{"op":"reconnect","id":"e3","from":"db"}]"#), expect("props_block", &[("  - from: cache\n    to: api\n", "  - from: db\n    to: api\n")]));
+        reject(&read("props_block"), r#"[{"op":"reconnect","id":"e0","to":"ghost"}]"#, "unknown id `ghost`");
+        reject(&read("props_block"), r#"[{"op":"reconnect","id":"e0"}]"#, "needs `from` or `to`");
+        reject(&read("props_block"), r#"[{"op":"reconnect","id":"e7","to":"db"}]"#, "unknown edge `e7`");
+    }
+
+    #[test]
+    fn reverse_swaps_the_ends_of_every_edge_form() {
+        assert_eq!(run("props_block", r#"[{"op":"reverse","id":"e0"}]"#), expect("props_block", &[("\"api -> db: reads\"", "\"db -> api: reads\"")]));
+        assert_eq!(run("props_block", r#"[{"op":"reverse","id":"e4"}]"#), expect("props_block", &[("\"api.right@0.3 <- db.left\"", "\"db.left <- api.right@0.3\"")]));
+        // a mapping: ends swap and the waypoints run the other way
+        assert_eq!(
+            run("props_block", r#"[{"op":"reverse","id":"e2"}]"#),
+            expect("props_block", &[("{from: db, to: cache, label: sync, route: ortho, via: [[10, 20], [30, 40]]}", "{from: cache, to: db, label: sync, route: ortho, via: [[30, 40], [10, 20]]}")])
+        );
+        assert_eq!(run("props_block", r#"[{"op":"reverse","id":"e3"}]"#), expect("props_block", &[("  - from: cache\n    to: api\n", "  - from: api\n    to: cache\n")]));
+        // twice is the identity
+        let once = run("props_block", r#"[{"op":"reverse","id":"e2"}]"#);
+        assert_eq!(apply_ops(&once, &ops(r#"[{"op":"reverse","id":"e2"}]"#)).unwrap(), read("props_block"));
+    }
+
+    #[test]
+    fn delete_by_edge_id_removes_that_edge_only() {
+        assert_eq!(run("props_block", r#"[{"op":"delete","id":"e1"}]"#), expect("props_block", &[("  - api -> cache\n", "")]));
+        reject(&read("props_block"), r#"[{"op":"delete","id":"e9"}]"#, "unknown id `e9`");
+    }
+
+    #[test]
+    fn the_edge_text_parser_reads_the_loaders_forms() {
+        let p = EdgeText::parse("a.right@0.3 <-> zone:z : the label").unwrap();
+        assert_eq!((p.src.as_str(), p.op, p.dst.as_str(), p.label()), ("a.right@0.3", "<->", "zone:z", Some("the label")));
+        assert!(EdgeText::parse("nothing here").is_none());
     }
 }

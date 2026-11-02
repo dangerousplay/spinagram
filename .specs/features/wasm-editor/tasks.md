@@ -1238,13 +1238,15 @@ Document them in `src/spinagram/edit.py` and `rust/README.md`.
 
 **Done when**:
 
-- [ ] Rust tests per op on block and flow fixtures, with whole-output expectations: set, replace and remove a key; an unknown key rejected; a string edge kept as a string for a label change and converted to a mapping for a `route` change; duplicate keeps zone and container membership; reconnect and reverse
-- [ ] Python test: every patched fixture loads through `yaml_io` with the expected model values
-- [ ] Rust and full gates pass
+- [x] Rust tests per op on block and flow fixtures, with whole-output expectations: set, replace and remove a key; an unknown key rejected; a string edge kept as a string for a label change and converted to a mapping for a `route` change; duplicate keeps zone and container membership; reconnect and reverse
+- [x] Python test: every patched fixture loads through `yaml_io` with the expected model values
+- [x] Rust and full gates pass
 
 **Tests**: unit
 **Gate**: full
 **Commit**: `feat(rust): property, duplicate, reconnect and reverse edit operations`
+
+**Notes**: Ops JSON in `src/spinagram/edit.py` and `rust/README.md`: `set_props`, `duplicate`, `reconnect`, `reverse`. Allow-lists come from the loader (`yaml_io.py` `_NODE_KEYS` and `_NODE_EXTRA`, plus `x-*` extension keys; the model's `Zone` and `Edge` fields): node keys without `id`/`x`/`y`/`w`/`h`/`at`, zone keys without geometry, `id`, `children` and `gid`, edge keys without `from`/`to`. Rejections name the key and, for keys with their own operation, point to it ("move, resize, reparent, reconnect"). Values are checked by kind (string, number, boolean, list or mapping; `arrow` one of end/start/both/none, `route` one of ortho/elbow, as the model accepts) and written as plain scalars where safe, flow lists for lists. `null` removes a key; keys are written in alphabetical order (BTreeMap). Edge ids are `e<i>`; a node or zone with that id wins. A string edge is cut where `parse_edge` cuts it (`EdgeText`, spacing kept): a label-only change rewrites the string (an unlabelled string edge that gains a label is quoted, since it then contains `: `); any other key turns the edge into a one-line `{from, to, [arrow], [label], ...}` mapping (`--` gives `arrow: none`, `<->` `arrow: both`, `<-` swaps `from` and `to`). `edge_ends` now uses the same parser (it also fixes `a -> zone:z`, which the old split read as `zone`). `duplicate` takes the first free `name-N` (a copy of `api-2` is `api-3`), patches the copy of the entry's own text (id, position snapped to 10 px, `children` dropped for a zone) and inserts it right after the original in the same list (a container's inline members stay inline), and adds the id after the original in every `children` or `nodes` list that names it. `reconnect` keeps a side suffix only when the end's node is unchanged. `reverse` swaps ends and also reverses a mapping's `via`. Extras beyond the task: `delete` accepts an edge id `e<i>` when no node or zone has it (T39 needs to delete one specific edge; `disconnect` removes the first edge from a to b), and zone `duplicate` (T41's zone quick action). Fixtures `props_block.yaml` and `props_flow.yaml` (the expected outputs are hand-written replacements of them). Mutants checked in a scratch worktree (removed afterwards): label-only branch, side suffix kept, snap, membership copy, `via` reversal, first-pair removal, zone children dropped, id counting, `<-` swap, edge-id delete: all killed (the first-pair one needed a fixture edge whose first key is removable, `e5`). Gates: cargo 227, clippy and deny clean; wasm bun 23; pytest 2868 passed, 3 skipped per mode (+7); ruff clean. Outside `Where`: `rust/spinagram-wasm` golden unchanged (the wasm is rebuilt, not committed).
 
 ---
 

@@ -70,7 +70,9 @@ and flow/block style outside the edit are untouched, and a batch applies complet
 `connect`, `disconnect`; for zones `add_zone` (with an optional `style`, written as the zone's `color`), `set_zone_style`, `reparent` (a zone cannot go inside itself or a descendant) and
 `move_zone` (children move by the same offset); for `rows`/`columns` containers (`row0`, `column1`: the ids the
 scene uses) `group`, `ungroup`, `add_to_container` (also reorders a member), `remove_from_container` (a container
-left with fewer than two members dissolves) and `set_container`. `srcmap` gives every node, zone, container and edge
+left with fewer than two members dissolves) and `set_container`; for properties and edges (`e0`, `e1`: the position in
+`edges`) `set_props` (keys checked against the loader's, null removes; a string edge stays a string for a label change),
+`duplicate`, `reconnect` and `reverse`, and `delete` also takes an edge id. `srcmap` gives every node, zone, container and edge
 its byte range. The scene JSON lists `zones` and `containers` so the canvas knows what holds what.
 
 ## Slices

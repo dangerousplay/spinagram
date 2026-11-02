@@ -27,6 +27,23 @@ Zones and containers (a container's id is ``row0``, ``column1``, ... counting ev
     {"op": "remove_from_container", "id": "row0", "node": "c", "boxes": {"c": [0, 0, 100, 60]}}
     {"op": "set_container", "id": "row0", "gap": 30, "align": "start"}
 
+Properties and edges (an edge is addressed as ``e0``, ``e1``, ... by its position in ``edges``, the same keys as
+``srcmap``; ``delete`` also takes an edge id when no node or zone has it)::
+
+    {"op": "set_props", "id": "a", "props": {"class": "app", "text": null, "dashed": true}}
+                                  (sets, replaces or removes (null) keys of a node, zone or edge. Allowed keys are the
+                                   loader's: node keys without x/y/w/h/at/id, zone keys without x/y/w/h/id/children,
+                                   edge keys without from/to; anything else is rejected with a reason. A string edge
+                                   ``"a -> b: label"`` stays a string when only ``label`` changes and becomes a
+                                   ``{from, to, ...}`` mapping when another key is set. Keys are written in
+                                   alphabetical order)
+    {"op": "duplicate", "id": "a", "dx": 30, "dy": 30}   (copy a node or zone as ``a-2`` (``a-3``, ...), offset and
+                                   snapped to 10 px; a node joins every zone ``children`` and container ``nodes`` list
+                                   that holds the original; a zone copy has no children)
+    {"op": "reconnect", "id": "e0", "from": "x", "to": "y"}   (from, to optional; an end whose node is unchanged keeps
+                                   its side suffix, ``a.right@0.3``)
+    {"op": "reverse", "id": "e0"}                              (swap the ends; a mapping's ``via`` runs the other way)
+
 A container left with fewer than two members dissolves like ``ungroup`` (``boxes`` then holds every member).
 A zone cannot be placed inside itself or one of its descendants.
 

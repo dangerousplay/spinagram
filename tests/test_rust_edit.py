@@ -291,3 +291,82 @@ def test_add_node_with_an_icon_ref_loads_with_that_icon(tmp_path):
                                                     "x": 10, "y": 20, "w": 220, "h": 96}])
     node = next(n for n in _load(tmp_path, out).nodes if n.id == "pg")
     assert (node.icon, node.title, node.w, node.h) == ("aws:rds-postgresql", "Postgres", 220, 96)
+
+
+# ---- properties, duplicate, reconnect, reverse (wasm-editor T38) ----
+
+def _edge(d, i):
+    e = d.edges[i]
+    return (e.src, e.dst, e.label, e.arrow, e.route, e.dashed, e.color, e.width)
+
+
+@pytest.mark.parametrize("name", ["props_block", "props_flow"])
+def test_every_property_fixture_loads_before_any_edit(tmp_path, name):
+    assert _load(tmp_path, _fixture(name)).nodes
+
+
+def test_set_props_changes_the_model_values_of_a_node_zone_and_edges(tmp_path):
+    text = _fixture("props_block")
+    out = edit.apply_ops(text, [
+        {"op": "set_props", "id": "api", "props": {"title": "Orders API", "class": None, "dashed": True}},
+        {"op": "set_props", "id": "vpc", "props": {"label": "Prod VPC", "color": "aws-region"}},
+        {"op": "set_props", "id": "e0", "props": {"route": "ortho"}},            # string edge becomes a mapping
+        {"op": "set_props", "id": "e1", "props": {"label": "warm"}},             # string edge stays a string
+        {"op": "set_props", "id": "e3", "props": {"dashed": None, "width": 2}},
+    ])
+    d = _load(tmp_path, out)
+    api = next(n for n in d.nodes if n.id == "api")
+    assert (api.title, api.cls, api.dashed) == ("Orders API", None, True)
+    vpc = d.zones[0]
+    assert (vpc.label, vpc.color) == ("Prod VPC", "aws-region")
+    assert _edge(d, 0)[:5] == ("api", "db", "reads", "end", "ortho")
+    assert _edge(d, 1)[:3] == ("api", "cache", "warm")
+    assert (_edge(d, 3)[5], _edge(d, 3)[7]) == (False, 2)
+    assert "  - api -> cache: warm" not in out and '"api -> cache: warm"' in out      # a labelled string edge is quoted
+    # nothing else moved: the untouched node and the two other edges are as before
+    before = _load(tmp_path, text)
+    assert _edge(d, 2) == _edge(before, 2) and _edge(d, 4) == _edge(before, 4)
+    assert _boxes(d)["db"] == _boxes(before)["db"]
+
+
+def test_set_props_rejects_what_the_loader_would_refuse(tmp_path):
+    text = _fixture("props_block")
+    for props, reason in [({"bogus": 1}, "not a property of a node"), ({"x": 5}, "move, resize"), ({"dashed": "yes"}, "wrong type")]:
+        with pytest.raises(EditError, match=reason):
+            edit.apply_ops(text, [{"op": "set_props", "id": "api", "props": props}])
+    with pytest.raises(EditError, match="one of ortho, elbow"):
+        edit.apply_ops(text, [{"op": "set_props", "id": "e1", "props": {"route": "weird"}}])
+
+
+def test_duplicate_adds_a_node_in_the_same_zone_and_container(tmp_path):
+    text = _fixture("props_block")
+    d = _load(tmp_path, edit.apply_ops(text, [{"op": "duplicate", "id": "api", "dx": 30, "dy": 40},
+                                              {"op": "duplicate", "id": "cache", "dx": 10, "dy": 10}]))
+    boxes = _boxes(d)
+    assert boxes["api-2"][:2] == (130, 140) and boxes["api-2"][2:] == boxes["api"][2:]
+    assert next(n for n in d.nodes if n.id == "api-2").title == "API"
+    assert d.zones[0].children == ["api", "api-2", "db"]
+    assert _containers(d)[0][1] == ["cache", "cache-2", "inline"]
+    z = _load(tmp_path, edit.apply_ops(text, [{"op": "duplicate", "id": "vpc", "dx": 50, "dy": 50}]))
+    assert [(zz.x, zz.y, zz.children) for zz in z.zones] == [(20, 20, ["api", "db"]), (70, 70, [])]
+
+
+def test_reconnect_and_reverse_change_the_ends_in_the_model(tmp_path):
+    text = _fixture("props_block")
+    d = _load(tmp_path, edit.apply_ops(text, [
+        {"op": "reconnect", "id": "e0", "to": "cache"},
+        {"op": "reconnect", "id": "e4", "to": "cache"},
+        {"op": "reverse", "id": "e1"},
+        {"op": "reverse", "id": "e2"},
+    ]))
+    assert _edge(d, 0)[:3] == ("api", "cache", "reads")
+    assert _edge(d, 4)[:2] == ("db.left", "cache")          # `<-`: the end that was api.right@0.3 changed
+    assert _edge(d, 1)[:2] == ("cache", "api")
+    assert (_edge(d, 2)[:2], d.edges[2].via) == (("cache", "db"), [(30.0, 40.0), (10.0, 20.0)])
+    with pytest.raises(EditError, match="unknown id `ghost`"):
+        edit.apply_ops(text, [{"op": "reconnect", "id": "e0", "to": "ghost"}])
+
+
+def test_delete_by_edge_id_removes_that_edge(tmp_path):
+    d = _load(tmp_path, edit.apply_ops(_fixture("props_block"), [{"op": "delete", "id": "e1"}]))
+    assert [(e.src, e.dst) for e in d.edges] == [("api", "db"), ("db", "cache"), ("cache", "api"), ("db.left", "api.right@0.3"), ("cache", "db")]
