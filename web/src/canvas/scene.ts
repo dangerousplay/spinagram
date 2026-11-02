@@ -1,5 +1,23 @@
 // The slice of the scene JSON (rust/schema/scene.schema.json) the canvas reads: node boxes, for hit-testing.
-export type SceneItem = { type: string; id: string; role?: string; kind?: string; x?: number; y?: number; w?: number; h?: number };
+export type Pt = [number, number];
+/** A connector as the scene gives it: its drawn path (a quadratic curve has three control points), its label shape
+ * and the shapes at its ends (a node id for a node end). */
+export type SceneEnd = { shape_id: string; target?: string };
+export type SceneItem = {
+  type: string;
+  id: string;
+  role?: string;
+  kind?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  points?: Pt[];
+  route?: string;
+  label?: { x: number; y: number; w: number; h: number } | null;
+  src?: SceneEnd;
+  dst?: SceneEnd;
+};
 export type SceneZone = { id: string; shape_id: string; children: string[] };
 export type SceneContainer = { id: string; axis: string; members: string[]; box: [number, number, number, number] };
 export type SceneJson = { width: number; height: number; items: SceneItem[]; zones?: SceneZone[]; containers?: SceneContainer[] };
@@ -99,7 +117,7 @@ export function zoneMoveShapes(scene: SceneJson, id: string): string[] {
 
 // --- selection, containers ----------------------------------------------------------------------------------
 
-export type Kind = "node" | "zone" | "container";
+export type Kind = "node" | "zone" | "container" | "edge";
 export type Sel = { id: string; kind: Kind };
 
 /** Ids of the nodes whose box meets the rectangle spanned by two scene points (the rubber band, SEL-01). */
@@ -137,4 +155,104 @@ export function insertionIndex(scene: SceneJson, c: SceneContainer, nodeId: stri
     .map((m) => boxOf(scene, m))
     .filter((b): b is Box => b !== null)
     .filter((b) => (c.axis === "column" ? b.y + b.h / 2 : b.x + b.w / 2) < along).length;
+}
+
+// --- edges ---------------------------------------------------------------------------------------------------
+
+/** An edge of the spec is the connector `e<i>`, `i` being its place in `edges` (the key `srcmap` and the edit
+ * operations use). Other connectors (none in an editable scene) are not selectable. */
+export const EDGE_ID = /^e\d+$/;
+
+export type SceneEdge = { id: string; path: Pt[]; label: Box | null; from: string | null; to: string | null };
+
+const CURVE_STEPS = 16;
+
+/** The polyline an edge is drawn along: its points, with a curve (three control points) sampled. */
+export function edgePath(item: SceneItem): Pt[] {
+  const pts = item.points ?? [];
+  if (item.route !== "curve" || pts.length !== 3) return pts;
+  const [a, b, c] = pts;
+  return Array.from({ length: CURVE_STEPS + 1 }, (_, i): Pt => {
+    const t = i / CURVE_STEPS;
+    const u = 1 - t;
+    return [u * u * a[0] + 2 * u * t * b[0] + t * t * c[0], u * u * a[1] + 2 * u * t * b[1] + t * t * c[1]];
+  });
+}
+
+/** The edges of the scene in drawing order (later ones are drawn on top). */
+export function sceneEdges(scene: SceneJson): SceneEdge[] {
+  const out: SceneEdge[] = [];
+  for (const it of scene.items) {
+    if (it.type !== "connector" || !EDGE_ID.test(it.id)) continue;
+    const path = edgePath(it);
+    if (path.length < 2) continue;
+    const l = it.label;
+    out.push({
+      id: it.id,
+      path,
+      label: l ? { id: `${it.id}-label`, x: l.x, y: l.y, w: l.w, h: l.h } : null,
+      from: it.src?.target === "node" ? it.src.shape_id : null,
+      to: it.dst?.target === "node" ? it.dst.shape_id : null,
+    });
+  }
+  return out;
+}
+
+export const edgeById = (scene: SceneJson, id: string): SceneEdge | null => sceneEdges(scene).find((e) => e.id === id) ?? null;
+
+/** Distance from a point to a segment. */
+function segDist(px: number, py: number, a: Pt, b: Pt): number {
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / len2));
+  return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
+}
+
+/** Distance from a point to an edge: to its path, or 0 inside its label. */
+export function edgeDistance(e: SceneEdge, x: number, y: number): number {
+  const l = e.label;
+  if (l && x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h) return 0;
+  let best = Infinity;
+  for (let i = 0; i + 1 < e.path.length; i++) best = Math.min(best, segDist(x, y, e.path[i], e.path[i + 1]));
+  return best;
+}
+
+/** The edge whose line (or label) is within `tol` scene px of the point; the nearest wins, the one drawn on top
+ * when two are equally near. Callers test nodes first, so a node wins a tie. */
+export function hitEdge(scene: SceneJson, x: number, y: number, tol: number): string | null {
+  let best: { id: string; d: number } | null = null;
+  for (const e of sceneEdges(scene)) {
+    const d = edgeDistance(e, x, y);
+    if (d <= tol && (!best || d <= best.d)) best = { id: e.id, d };
+  }
+  return best?.id ?? null;
+}
+
+/** The bounding box of an edge's path and label (the box the selection and the code panel work with). */
+export function edgeBox(e: SceneEdge): Box {
+  const xs = [...e.path.map((p) => p[0]), ...(e.label ? [e.label.x, e.label.x + e.label.w] : [])];
+  const ys = [...e.path.map((p) => p[1]), ...(e.label ? [e.label.y, e.label.y + e.label.h] : [])];
+  const [x, y] = [Math.min(...xs), Math.min(...ys)];
+  return { id: e.id, x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+
+/** Which end handle of an edge the point is within `r` scene px of, or null. */
+export function endHandleAt(e: SceneEdge, x: number, y: number, r: number): "from" | "to" | null {
+  const [a, b] = [e.path[0], e.path[e.path.length - 1]];
+  const [da, db] = [Math.hypot(x - a[0], y - a[1]), Math.hypot(x - b[0], y - b[1])];
+  if (Math.min(da, db) > r) return null;
+  return da <= db ? "from" : "to";
+}
+
+/** What a press at a scene point grabs, in this order: a node, an edge (within `tol` scene px; a node wins a tie, an
+ * edge ends on its node's boundary), a row or column (its box, between members), a zone header or outline. */
+export function pickAt(scene: SceneJson, x: number, y: number, tol: number): Sel | null {
+  const node = hitTest(scene, x, y);
+  if (node && boxOf(scene, node)) return { id: node, kind: "node" };
+  const edge = hitEdge(scene, x, y, tol);
+  if (edge) return { id: edge, kind: "edge" };
+  const cont = containerAt(scene, x, y);
+  if (cont && containerBox(scene, cont.id)) return { id: cont.id, kind: "container" };
+  const zone = hitZone(scene, x, y);
+  return zone && zoneBox(scene, zone) ? { id: zone, kind: "zone" } : null;
 }

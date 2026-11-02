@@ -5,12 +5,15 @@ import {
   containerBox,
   containerOf,
   descendants,
+  edgeById,
+  hitTest,
   insertionIndex,
   snap,
   zoneBoxes,
   zoneParent,
   type Box,
   type SceneJson,
+  type Sel,
 } from "./scene";
 
 export type Op =
@@ -27,7 +30,11 @@ export type Op =
   | { op: "add_node"; id: string; title?: string; kind?: string; icon?: string; x?: number; y?: number; w?: number; h?: number }
   | { op: "add_zone"; id: string; label?: string; style?: string; x: number; y: number; w: number; h: number }
   | { op: "set_zone_style"; id: string; style: string }
-  | { op: "connect"; from: string; to: string; label?: string };
+  | { op: "connect"; from: string; to: string; label?: string }
+  | { op: "set_props"; id: string; props: Record<string, unknown> }
+  | { op: "duplicate"; id: string; dx: number; dy: number }
+  | { op: "reconnect"; id: string; from?: string; to?: string }
+  | { op: "reverse"; id: string };
 
 export type Rect = [number, number, number, number];
 
@@ -40,6 +47,31 @@ export function moveOps(box: Box, dx: number, dy: number, grid?: number): Op[] |
 }
 
 export const deleteOps = (id: string): Op[] => [{ op: "delete", id }];
+
+/** The batch that deletes a selection. An edge is addressed by its place in `edges`, so deleting one shifts the
+ * ones after it: the selected edges go first, last to first, and nodes and zones after them (deleting a node takes
+ * its edges with it, which shifts them again). Containers are not deleted. */
+export function deleteSelectionOps(sel: Sel[]): Op[] {
+  const edgeIndex = (id: string) => Number(id.slice(1));
+  const edges = sel.filter((s) => s.kind === "edge").sort((a, b) => edgeIndex(b.id) - edgeIndex(a.id));
+  const rest = sel.filter((s) => s.kind !== "edge" && s.kind !== "container");
+  return [...edges, ...rest].flatMap((s) => deleteOps(s.id));
+}
+
+/** Set an edge's label; blank text removes it. */
+export const relabelOps = (id: string, label: string): Op[] => [{ op: "set_props", id, props: { label: label.trim() === "" ? null : label.trim() } }];
+
+/** The reconnect for an end handle of edge `id` dropped at (x, y): the node under the point becomes that end. Dropped
+ * on empty canvas, on a zone, on the node the end already has, or on the node at the other end (a self-loop, which a
+ * Connect drag refuses too) it changes nothing. */
+export function reconnectOps(scene: SceneJson, id: string, end: "from" | "to", x: number, y: number): Op[] | null {
+  const edge = edgeById(scene, id);
+  const node = hitTest(scene, x, y);
+  if (!edge || !node) return null;
+  const [mine, other] = end === "from" ? [edge.from, edge.to] : [edge.to, edge.from];
+  if (node === mine || node === other) return null;
+  return [end === "from" ? { op: "reconnect", id, from: node } : { op: "reconnect", id, to: node }];
+}
 
 export const renameOps = (id: string, title: string): Op[] => [{ op: "rename", id, title }];
 

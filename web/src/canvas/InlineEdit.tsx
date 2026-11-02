@@ -24,7 +24,7 @@ export default function InlineEdit({ editing, onCommit, onCancel }: Props) {
   return (
     <input
       ref={input}
-      aria-label={editing.kind === "zone" ? "Zone label" : "Node title"}
+      aria-label={editing.kind === "zone" ? "Zone label" : editing.kind === "edge" ? "Edge label" : "Node title"}
       defaultValue={editing.text}
       className="absolute z-10 rounded border-2 border-blue-500 bg-white px-2 text-sm text-slate-900 shadow-lg outline-none"
       style={{

@@ -5,13 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { CanvasClient } from "./client";
 import { dragMoves, dragTo, startDrag, type Drag } from "./drag";
-import { deleteOps, dropTarget, groupOps, planDrop, planMultiDrop, renameOps, setContainerOps, ungroupOps, zoneStyleOps, type Item, type Op } from "./ops";
-import { boxOf, containerAt, containerBox, hitTest, hitZone, rubberBand, zoneBox, zoneMoveShapes, type Box, type Kind, type SceneJson, type Sel } from "./scene";
+import { deleteSelectionOps, dropTarget, groupOps, planDrop, planMultiDrop, reconnectOps, relabelOps, renameOps, setContainerOps, ungroupOps, zoneStyleOps, type Item, type Op } from "./ops";
+import { boxOf, containerBox, edgeBox, edgeById, endHandleAt, hitTest, pickAt, rubberBand, sceneEdges, zoneBox, zoneMoveShapes, type Box, type Kind, type Pt, type SceneJson, type Sel } from "./scene";
 import { History } from "./history";
 import { dropOps, ghostOf, type Ghost, type PaletteItem } from "./palette";
 import { cursorFor, EMPTY_BURST, nudgeMoves, nudgeOps, pressNudge, TOAST_MS, type Burst, type Cursor } from "./interaction";
-import { entryField, yamlRange, type SrcMap } from "./srcmap";
-import { canvasUi, connectOps, editBoxOf, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
+import { edgeLabelOf, entryField, yamlRange, type SrcMap } from "./srcmap";
+import { canvasUi, connectOps, connectSource, editBoxOf, isPlaceTool, placeOps, toolAfterUse, type Point, type ToolId } from "./tools";
 
 export const CHANGED_ON_DISK = "File changed on disk; edit not applied";
 
@@ -20,6 +20,7 @@ type Options = {
   layout: string | null;
   enabled: boolean; // the Canvas toggle
   rev: number; // live-reload counter of the diagram
+  scale: number; // the view's zoom: an edge is grabbed within 6 screen px, its end handles within 10
   tick: number; // bumped after an edit: the scene is read again
   reload: () => void; // render the diagram again (after a save, or a refused one)
 };
@@ -37,9 +38,13 @@ export type Toast = { message: string; x: number; y: number; nonce: number };
 /** A rectangle being drawn with Box, Text or Zone, and an edge being drawn with Connect (with the node under the end). */
 export type Drawing = { tool: "box" | "text" | "zone"; x0: number; y0: number; x1: number; y1: number };
 export type Connecting = { from: string; x0: number; y0: number; x1: number; y1: number; target: Box | null };
-export type Editing = { id: string; kind: "node" | "zone"; box: Box; text: string };
+/** An end handle of the selected edge being dragged: the fixed end, the pointer, and the node it is over. */
+export type Reconnecting = { id: string; end: "from" | "to"; x0: number; y0: number; x1: number; y1: number; target: Box | null };
+/** What the selected edges look like on the canvas: the path, and the two end points the handles sit on. */
+export type EdgeOverlay = { id: string; path: Pt[]; from: Pt; to: Pt };
+export type Editing = { id: string; kind: "node" | "zone" | "edge"; box: Box; text: string };
 
-export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Options) {
+export function useCanvas({ diagramKey, layout, enabled, rev, scale, tick, reload }: Options) {
   const [scene, setScene] = useState<SceneJson | null>(null);
   const [editable, setEditable] = useState<boolean | null>(null); // null until the scene arrived
   const [ready, setReady] = useState(false); // the worker holds the scene
@@ -58,6 +63,11 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const [tool, setToolState] = useState<ToolId>("select");
   const [drawing, setDrawing] = useState<Drawing | null>(null);
   const [connecting, setConnecting] = useState<Connecting | null>(null);
+  const [reconnecting, setReconnecting] = useState<Reconnecting | null>(null);
+  const recRef = useRef<Omit<Reconnecting, "x1" | "y1" | "target"> | null>(null);
+  const armRef = useRef<string | null>(null); // Connect starts from this node (set by "Add connection" and by C with a node selected)
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
   const toolRef = useRef<ToolId>("select");
   toolRef.current = tool;
   const drawRef = useRef<(Drawing & { keep: boolean }) | null>(null);
@@ -247,15 +257,10 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const targetAt = useCallback((x: number, y: number): { box: Box; kind: Kind } | null => {
     const sc = sceneRef.current;
     if (!sc) return null;
-    const nid = hitTest(sc, x, y);
-    const nbox = nid ? boxOf(sc, nid) : null;
-    if (nbox) return { box: nbox, kind: "node" };
-    const cont = containerAt(sc, x, y);
-    const cbox = cont ? containerBox(sc, cont.id) : null;
-    if (cbox) return { box: cbox, kind: "container" };
-    const zid = hitZone(sc, x, y);
-    const zbox = zid ? zoneBox(sc, zid) : null;
-    return zbox ? { box: zbox, kind: "zone" } : null;
+    const hit = pickAt(sc, x, y, 6 / scaleRef.current);
+    if (!hit) return null;
+    const box = hit.kind === "edge" ? edgeBox(edgeById(sc, hit.id)!) : hit.kind === "container" ? containerBox(sc, hit.id) : hit.kind === "zone" ? zoneBox(sc, hit.id) : boxOf(sc, hit.id);
+    return box ? { box, kind: hit.kind } : null;
   }, []);
 
   /** Whether a press at a scene point belongs to the canvas (a node, container or zone header). */
@@ -264,7 +269,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const boxFor = useCallback((s: Sel): Box | null => {
     const sc = sceneRef.current;
     if (!sc) return null;
-    return s.kind === "zone" ? zoneBox(sc, s.id) : s.kind === "container" ? containerBox(sc, s.id) : boxOf(sc, s.id);
+    return s.kind === "edge" ? null : s.kind === "zone" ? zoneBox(sc, s.id) : s.kind === "container" ? containerBox(sc, s.id) : boxOf(sc, s.id);
   }, []);
 
   /** A press at a scene point. Shift toggles the element in the selection; otherwise the element is selected (a
@@ -272,6 +277,19 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const begin = useCallback(
     (x: number, y: number, shift = false): boolean => {
       pointer.current = { x, y };
+      // an end handle of the lone selected edge: dragging it onto another node reconnects that end
+      const cur0 = selectedRef.current;
+      const sc0 = sceneRef.current;
+      if (!shift && sc0 && cur0.length === 1 && cur0[0].kind === "edge") {
+        const e = sceneEdges(sc0).find((o) => o.id === cur0[0].id);
+        const end = e ? endHandleAt(e, x, y, 10 / scaleRef.current) : null;
+        if (e && end) {
+          const fixed = end === "from" ? e.path[e.path.length - 1] : e.path[0];
+          recRef.current = { id: e.id, end, x0: fixed[0], y0: fixed[1] };
+          setReconnecting({ ...recRef.current, x1: x, y1: y, target: null });
+          return true;
+        }
+      }
       const t = targetAt(x, y);
       if (!t) {
         if (!shift) pick([]);
@@ -286,10 +304,10 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       }
       const sel = has(cur) ? cur : [me];
       pick(sel);
-      if (t.kind === "container") return false; // a container is placed by its own keys: select only
+      if (t.kind === "container" || t.kind === "edge") return false; // placed by their own keys or ends: select only
       const items: Item[] = sel.flatMap((s) => {
         const b = boxFor(s);
-        return b && s.kind !== "container" ? [{ box: b, kind: s.kind as "node" | "zone" }] : [];
+        return b && s.kind !== "container" && s.kind !== "edge" ? [{ box: b, kind: s.kind as "node" | "zone" }] : [];
       });
       const shapes = [...new Set(items.flatMap((i) => (i.kind === "zone" ? zoneMoveShapes(sceneRef.current!, i.box.id) : [i.box.id])))];
       dragItems.current = items;
@@ -309,8 +327,10 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
   const abortTool = useCallback(() => {
     drawRef.current = null;
     connRef.current = null;
+    recRef.current = null;
     setDrawing(null);
     setConnecting(null);
+    setReconnecting(null);
   }, []);
 
   /** Pick the tool the pointer works as. A drawing or edge in progress is dropped. */
@@ -318,10 +338,17 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     (t: ToolId) => {
       if (!active) return;
       abortTool();
+      const sel = selectedRef.current;
+      armRef.current = t === "connect" ? connectSource(sel) : null; // C with a node selected connects from it
       setToolState(t);
     },
     [active, abortTool],
   );
+
+  /** "Add connection" on a selected node: the Connect tool, started from that node. */
+  const addConnection = useCallback(() => {
+    if (active && connectSource(selectedRef.current)) setTool("connect");
+  }, [active, setTool]);
 
   /** A press with Box, Text, Zone or Connect at a scene point. Returns whether the press started something (so the
    * caller captures the pointer): a rectangle for the placing tools, an edge from the node pressed for Connect. */
@@ -337,7 +364,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         return true;
       }
       if (t === "connect") {
-        const from = hitTest(sc, x, y);
+        const from = armRef.current ?? hitTest(sc, x, y);
         const fb = from ? boxOf(sc, from) : null;
         if (!from || !fb) return false;
         const [cx, cy] = [fb.x + fb.w / 2, fb.y + fb.h / 2];
@@ -357,6 +384,13 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       if (dw) {
         drawRef.current = { ...dw, x1: x, y1: y };
         setDrawing({ tool: dw.tool, x0: dw.x0, y0: dw.y0, x1: x, y1: y });
+        return;
+      }
+      const rc = recRef.current;
+      if (rc) {
+        const sc = sceneRef.current;
+        const over = sc ? hitTest(sc, x, y) : null;
+        setReconnecting({ ...rc, x1: x, y1: y, target: sc && over ? boxOf(sc, over) : null });
         return;
       }
       const cn = connRef.current;
@@ -393,6 +427,13 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     const dw = drawRef.current;
     const cn = connRef.current;
     const sc = sceneRef.current;
+    const rc = recRef.current;
+    if (rc) {
+      abortTool();
+      const ops = sc ? reconnectOps(sc, rc.id, rc.end, pointer.current.x, pointer.current.y) : null;
+      if (ops) void commit(ops); // a release elsewhere cancels
+      return;
+    }
     if (dw || cn) {
       abortTool();
       if (!sc) return;
@@ -406,6 +447,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
       } else if (cn) {
         const ops = connectOps(sc, cn.from, pointer.current.x, pointer.current.y);
         if (!ops) return; // nothing added: the tool stays for another try
+        armRef.current = null;
         setToolState(toolAfterUse(t, keep));
         void commit(ops);
       }
@@ -533,10 +575,10 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
 
   const remove = useCallback(() => {
     if (!active) return;
-    const ids = selectedRef.current.filter((s) => s.kind !== "container").map((s) => s.id);
-    if (!ids.length) return;
+    const ops = deleteSelectionOps(selectedRef.current);
+    if (!ops.length) return;
     pick([]);
-    void commit(ids.flatMap(deleteOps));
+    void commit(ops);
   }, [active, commit, pick]);
 
   /** Group the selected nodes as a row or column (GRP-01). */
@@ -596,7 +638,16 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
         const src = (await api.source(diagramKey)).files[0];
         const map = JSON.parse(await client.current!.call({ t: "srcmap", yaml: src.text })) as SrcMap;
         const r = yamlRange(src.text, map, t.box.id);
-        const text = (r && entryField(src.text.slice(r.from, r.to), t.kind === "zone" ? "label" : "title")) ?? "";
+        const entry = r ? src.text.slice(r.from, r.to) : "";
+        if (t.kind === "edge") {
+          // the label is edited where it is drawn, or at the middle of the path for an edge without one
+          const e = sceneRef.current ? edgeById(sceneRef.current, t.box.id) : null;
+          const mid = e ? e.path[Math.floor(e.path.length / 2)] : [t.box.x, t.box.y];
+          const box: Box = e?.label ? { ...e.label, id: t.box.id } : { id: t.box.id, x: mid[0] - 80, y: mid[1] - 16, w: 160, h: 32 };
+          setEditing({ id: t.box.id, kind: "edge", box, text: edgeLabelOf(entry) });
+          return;
+        }
+        const text = (r && entryField(entry, t.kind === "zone" ? "label" : "title")) ?? "";
         setEditing({ id: t.box.id, kind: t.kind, box: t.box, text });
       } catch (e) {
         setNotice(e instanceof Error ? e.message : String(e));
@@ -609,7 +660,7 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     (text: string) => {
       const e = editing;
       setEditing(null);
-      if (e && text !== e.text) void commit(renameOps(e.id, text));
+      if (e && text !== e.text) void commit(e.kind === "edge" ? relabelOps(e.id, text) : renameOps(e.id, text));
     },
     [editing, commit],
   );
@@ -689,6 +740,14 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     dropBox = target ? zoneBox(scene, target) : null;
   }
 
+  // the selected edges as the canvas shows them: highlighted, with a handle at each end
+  const selectedEdges: EdgeOverlay[] = [];
+  if (active && scene) {
+    for (const e of sceneEdges(scene)) {
+      if (selected.some((s) => s.kind === "edge" && s.id === e.id)) selectedEdges.push({ id: e.id, path: e.path, from: e.path[0], to: e.path[e.path.length - 1] });
+    }
+  }
+
   const cursor: Cursor = cursorFor({ dragging: drag !== null && drag.moved, overDropTarget: dropBox !== null, overElement: hovering });
 
   const last = selected[selected.length - 1];
@@ -707,7 +766,10 @@ export function useCanvas({ diagramKey, layout, enabled, rev, tick, reload }: Op
     band,
     dropBox,
     editing,
-    dragging: drag !== null || band !== null || drawing !== null || connecting !== null,
+    dragging: drag !== null || band !== null || drawing !== null || connecting !== null || reconnecting !== null,
+    selectedEdges,
+    reconnecting,
+    addConnection,
     tool,
     drawing,
     connecting,

@@ -34,3 +34,26 @@ export function entryField(entry: string, key: string): string | null {
   }
   return v.startsWith("'") ? v.slice(1, -1).replace(/''/g, "'") : v;
 }
+
+/** The label of an edge from the text of its YAML entry: a mapping's `label`, or the text after the colon of a string
+ * edge (`"a -> b: label"`, as the loader's `parse_edge` reads it). Empty when it has none. */
+export function edgeLabelOf(entry: string): string {
+  const t = entry.trim();
+  if (t.startsWith("{") || /(^|\n)\s*(- )?(from|to):/.test(t)) return entryField(t, "label") ?? "";
+  let text = t;
+  if (t.startsWith('"')) {
+    try {
+      text = JSON.parse(t) as string;
+    } catch {
+      text = t.slice(1, -1);
+    }
+  } else if (t.startsWith("'")) text = t.slice(1, -1).replace(/''/g, "'");
+  const op = /<->|->|<-|--/.exec(text);
+  if (!op) return "";
+  let rest = text.slice(op.index + op[0].length).trimStart();
+  const from = rest.startsWith("zone:") ? 5 : 0;
+  const colon = rest.indexOf(":", from);
+  if (colon < 0) return "";
+  rest = rest.slice(colon + 1).trim();
+  return rest;
+}

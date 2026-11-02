@@ -3,7 +3,7 @@
 // (interaction.ts) are built from these, and icons.tsx maps every id here to an icon.
 import type { Op } from "./ops";
 import { NODE_H, NODE_W, ZONE_H, ZONE_W, centred, newId, takenIds, zoneAtPoint } from "./palette";
-import { boxOf, hitTest, snap, type Box, type SceneJson } from "./scene";
+import { boxOf, hitTest, snap, type Box, type SceneJson, type Sel } from "./scene";
 
 /** A tool is a mode of the pointer. */
 export const TOOLS = [
@@ -117,3 +117,7 @@ export function dockLayout(dock: "left" | "bottom"): { orientation: "vertical" |
         selectionBar: "bottom-28",
       };
 }
+
+/** The node the Connect tool starts from when it is picked with a selection (the "Add connection" quick action, or
+ * C): the lone selected node; none otherwise, and the drag then starts at the node pressed. */
+export const connectSource = (sel: Sel[]): string | null => (sel.length === 1 && sel[0].kind === "node" ? sel[0].id : null);

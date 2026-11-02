@@ -1266,12 +1266,14 @@ Document them in `src/spinagram/edit.py` and `rust/README.md`.
 
 **Done when**:
 
-- [ ] bun tests: edge hit-test (on the line, near a corner, a tie with a node goes to the node, far away gives none); the ops for delete, label edit and reconnect from a handle drop; a release on empty space adds nothing
-- [ ] Web gate passes
+- [x] bun tests: edge hit-test (on the line, near a corner, a tie with a node goes to the node, far away gives none); the ops for delete, label edit and reconnect from a handle drop; a release on empty space adds nothing
+- [x] Web gate passes
 
 **Tests**: unit
 **Gate**: web
 **Commit**: `feat(web): select, relabel, reconnect and delete edges on the canvas`
+
+**Notes**: Edges are the connectors `e<i>` of the scene (the keys `srcmap` and the ops use); `scene.ts` gained `sceneEdges`, `edgePath` (a curve is sampled), `hitEdge` (nearest within `tol`, a label pill counts as the line), `edgeBox`, `endHandleAt` and `pickAt`, the one place that orders what a press grabs: node, then edge, then row or column, then zone header (a node wins a tie because an edge ends on its node's boundary). `useCanvas` takes the view's `scale` (an edge is grabbed within 6 screen px, an end handle within 10), `Kind` has `"edge"`, and a selected edge draws a highlight and two end handles (`selectedEdges`); dragging a handle shows a dashed line with the node under it highlighted, a release on another node sends `reconnect`, a release on empty space, a zone, the edge's own node or its other end (a self-loop, like Connect) sends nothing. Double-click edits the label where it is drawn (at the middle of the path when the edge has none), read from the YAML entry by `edgeLabelOf` (a string edge's text after its colon, or a mapping's `label`) and written with `set_props`; blank removes the label. Delete uses `deleteSelectionOps`: edges first and last to first (an edge is addressed by its place in `edges`, so removing one shifts the rest), then nodes and zones. Shift+click toggles edges in the selection through the existing path. "Add connection": `canvas.addConnection()` (T41's quick action) and the `C` tool both start Connect from the lone selected node (`connectSource`; a press anywhere then releases on the target). Two rows were added to the `?` sheet. Tests: `edges.test.ts` +18 (hit-test on the line, near a corner, the label, a curve, far, non-edge connectors; node wins a tie and edge before zone; box; delete ops and their order; relabel; reconnect from a handle drop and the four no-op releases; handle radius; connect source; edge label parsing). Seven mutants (tolerance, node-first order, label hit, handle side, delete order, self-loop check, blank label, `zone:` parsing) checked in a scratch worktree (removed afterwards): the label-hit one survived and the test was strengthened (a point inside the pill but 8 px off the line) and killed. Browser check (port 8799, scratch showcase copy): clicking the `forward` edge selected it with highlight and handles; double-click, type "pass", Enter: `- {from: alb, to: api, label: forward, route: ortho}` -> `label: pass`; dragging its target handle onto Billing worker: `to: api` -> `to: worker`; Delete removed the entry, nothing else changed. Gate: bun test 203 pass (was 185), typecheck and build ok (bundle not committed here, T42).
 
 ---
 

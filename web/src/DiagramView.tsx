@@ -110,7 +110,7 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
     };
   }, [canvasOn, rev]);
   const reloadDiagram = useCallback(() => setTick((t) => t + 1), []);
-  const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, tick, reload: reloadDiagram });
+  const canvas = useCanvas({ diagramKey, layout, enabled: canvasOn, rev, scale: view.scale, tick, reload: reloadDiagram });
 
   const toggleInspect = useCallback(() => {
     setInspect((on) => {
@@ -444,6 +444,31 @@ export default function DiagramView({ diagramKey, diagram, file, themeError, lay
                   <circle cx={canvas.connecting.x1} cy={canvas.connecting.y1} r={5} fill={canvas.connecting.target ? "#10b981" : "#2563eb"} />
                 </svg>
               </>
+            )}
+            {(canvas.selectedEdges.length > 0 || canvas.reconnecting) && (
+              <svg className="pointer-events-none absolute top-0 left-0 overflow-visible" width={size?.w} height={size?.h} aria-hidden>
+                {canvas.selectedEdges.map((e) => (
+                  <g key={e.id} data-testid="edge-selection">
+                    <polyline points={e.path.map((p) => p.join(",")).join(" ")} fill="none" stroke="#2563eb" strokeOpacity={0.35} strokeWidth={8 / view.scale} strokeLinejoin="round" strokeLinecap="round" />
+                    {canvas.selectedEdges.length === 1 &&
+                      [e.from, e.to].map((p, i) => (
+                        <circle key={i} cx={p[0]} cy={p[1]} r={6 / view.scale} fill="#fff" stroke="#2563eb" strokeWidth={2 / view.scale} />
+                      ))}
+                  </g>
+                ))}
+                {canvas.reconnecting && (
+                  <>
+                    <line x1={canvas.reconnecting.x0} y1={canvas.reconnecting.y0} x2={canvas.reconnecting.x1} y2={canvas.reconnecting.y1} stroke={canvas.reconnecting.target ? "#10b981" : "#2563eb"} strokeWidth={3} strokeDasharray="8 6" strokeLinecap="round" />
+                    <circle cx={canvas.reconnecting.x1} cy={canvas.reconnecting.y1} r={5} fill={canvas.reconnecting.target ? "#10b981" : "#2563eb"} />
+                  </>
+                )}
+              </svg>
+            )}
+            {canvas.reconnecting?.target && (
+              <div
+                className="pointer-events-none absolute rounded-sm border-2 border-emerald-500 bg-emerald-500/10"
+                style={{ left: canvas.reconnecting.target.x, top: canvas.reconnecting.target.y, width: canvas.reconnecting.target.w, height: canvas.reconnecting.target.h }}
+              />
             )}
             {canvas.dropBox && (
               <div

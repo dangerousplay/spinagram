@@ -44,6 +44,8 @@ export const KEYMAP: Binding[] = [
   { action: "pointer", keys: "Space+drag", label: "Pan while Space is held, in any tool" },
   { action: "pointer", keys: "Click or drag (Box, Text, Zone)", label: "Place the default size centred on the point, or draw the rectangle" },
   { action: "pointer", keys: "Dock button (toolbar)", label: "Move the toolbar between the left edge and the bottom; it is remembered" },
+  { action: "pointer", keys: "Click an edge", label: "Select the edge (Shift adds more); Delete removes it, double-click edits its label" },
+  { action: "pointer", keys: "Drag an end handle of a selected edge", label: "Reconnect that end to another node; a release elsewhere cancels" },
   { action: "pointer", keys: "Drag from node to node (Connect)", label: "Add an edge; nothing on empty canvas, the same node or a zone" },
   { action: "pointer", keys: "Shift while placing", label: "Keep the tool (it returns to Select otherwise)" },
   { action: "pointer", keys: "Double-click", label: "Rename a node or zone" },
@@ -152,7 +154,7 @@ export const pressNudge = (b: Burst, dx: number, dy: number): Burst => ({ dx: b.
 /** The items a nudge moves: selected nodes and zones (containers are placed by their own keys). */
 export function nudgeItems(scene: SceneJson, sel: Sel[]): Item[] {
   return sel.flatMap((s): Item[] => {
-    if (s.kind === "container") return [];
+    if (s.kind === "container" || s.kind === "edge") return [];
     const box = s.kind === "zone" ? zoneBox(scene, s.id) : boxOf(scene, s.id);
     return box ? [{ box, kind: s.kind }] : [];
   });
